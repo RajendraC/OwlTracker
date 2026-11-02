@@ -1,0 +1,43 @@
+APP NAME (11/30)
+Owl Tracker
+
+SHORT DESCRIPTION (73/80)
+Tracks spending from your bank and UPI SMS. Budgets, alerts. No internet.
+
+FULL DESCRIPTION (2244/4000)
+Owl Tracker reads the bank, card and UPI SMS alerts already on your phone and turns them into a clear monthly spending dashboard with budgets. Reading these SMS is the app's core feature, and everything happens on your phone: Owl Tracker has no internet permission.
+
+HOW IT WORKS
+• Allow SMS access once. Owl Tracker finds debit and credit alerts from banks, cards, wallets and UPI apps.
+• Choose what to import: pick the banks and cards, how far back to go (3, 6 or 12 months), money in or out, and words to skip.
+• Review the list and untick anything that isn't a real expense, then import.
+• New alerts are picked up automatically when you open the app and every few hours.
+
+SEE WHERE YOUR MONEY GOES
+• Monthly dashboard with spending by category and your most recent transactions.
+• Merchant icons for apps you use, such as Swiggy, Zomato or Uber, when they are installed on your phone.
+• Activity search by merchant, category or note.
+• Insights comparing your last six months.
+
+BUDGETS THAT WARN YOU EARLY
+• Set a monthly budget, overall and per category.
+• A pace marker shows whether you are spending faster than the month allows.
+• Clear over-budget alerts with the amount over and where it went.
+• Start your budget month on your salary day if you like.
+
+YOUR CATEGORIES, YOUR RULES
+• 18 ready-made categories; add, rename, recolour or archive your own.
+• Fix a category once and Owl Tracker can remember it for that merchant.
+• Add cash expenses yourself.
+
+PRIVATE BY DESIGN
+• No internet permission: your messages and spending never leave your phone.
+• OTPs, promotions and messages from people are skipped and never stored.
+• Data is kept in an encrypted database (AES-256) whose key is protected by Android Keystore.
+• Optional fingerprint or screen-lock app lock, and screenshot blocking.
+• No account, no ads, no analytics.
+• Delete single transactions, delete by bank or by age, or reset everything at any time.
+
+Prefer not to share SMS? Use manual mode and add expenses yourself, or tap "Explore with sample data" to try the app with example messages.
+
+Owl Tracker supports SMS formats from major Indian banks, cards and UPI apps. If your bank's messages are missed, the app shows what it skipped so you can report the format.
