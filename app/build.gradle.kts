@@ -11,12 +11,13 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        // Change this before the first Play Store upload: it can never change afterwards.
-        applicationId = "com.spendlens.app"
+        // The app's permanent identity on Google Play. It can never change after the first upload.
+        applicationId = "com.owl.tracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.1"
+        // The release workflow sets these; every Play upload needs a higher versionCode than the last.
+        versionCode = System.getenv("SPENDLENS_VERSION_CODE")?.toIntOrNull() ?: 3
+        versionName = System.getenv("SPENDLENS_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

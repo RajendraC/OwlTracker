@@ -101,6 +101,8 @@ data class ImportUi(
     val running: Boolean = false,
     val progress: Float = 0f,
     val result: ImportEngine.Result? = null,
+    /** Importing the built-in sample messages instead of the inbox. */
+    val sample: Boolean = false,
 )
 
 data class DeleteUi(
@@ -278,7 +280,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setAppLock(on: Boolean) = viewModelScope.launch {
         repo.updateSettings { it.copy(appLock = on) }
-        say(if (on) "App lock on. SpendLens locks a minute after you leave it." else "App lock off")
+        say(if (on) "App lock on. Owl Tracker locks a minute after you leave it." else "App lock off")
     }
 
     fun setScreenPrivacy(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(screenPrivacy = on) } }
@@ -322,12 +324,15 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun startImport(mode: ImportMode) {
+    /** "Explore with sample data": the normal import flow, fed with built-in example messages. */
+    fun startSampleImport() = startImport(ImportMode.ONBOARDING, sample = true)
+
+    fun startImport(mode: ImportMode, sample: Boolean = false) {
         val current = settings.value?.filters ?: ImportFilters()
-        importUi.value = ImportUi(mode = mode, scanning = true, draft = current)
+        importUi.value = ImportUi(mode = mode, scanning = true, draft = current, sample = sample)
         go(Screen.IMPORT_FILTERS)
         viewModelScope.launch {
-            val scan = runCatching { engine.scan() }.getOrElse { ImportEngine.Scan(emptyList(), emptyList(), emptyList()) }
+            val scan = runCatching { engine.scan(sample = sample) }.getOrElse { ImportEngine.Scan(emptyList(), emptyList(), emptyList()) }
             importUi.update { ui ->
                 // Unrecognised senders start switched off, but when they are all the inbox has, a
                 // first-time import would select nothing. Switch them on; they are flagged Unsure.
@@ -376,7 +381,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val items = skipped()
         val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
         return buildString {
-            append("SpendLens skipped ${items.size} messages\n")
+            append("Owl Tracker skipped ${items.size} messages\n")
             items.groupBy { it.reason }.toSortedMap(compareBy<com.spendlens.core.RejectReason> { SKIP_ORDER.indexOf(it) }).forEach { (reason, list) ->
                 append("\n== ${skipLabel(reason)} (${list.size})\n")
                 if (reason == com.spendlens.core.RejectReason.PERSONAL_SENDER) return@forEach
@@ -426,7 +431,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         _screen.value = Screen.IMPORTING
         viewModelScope.launch {
             val result = runCatching {
-                engine.commit(chosen, ui.draft, all.size - chosen.size, replaceRange = ui.mode == ImportMode.SETTINGS) { p ->
+                engine.commit(chosen, ui.draft, all.size - chosen.size, replaceRange = ui.mode == ImportMode.SETTINGS, sample = ui.sample) { p ->
                     importUi.update { it.copy(progress = p) }
                 }
             }.getOrElse {
@@ -582,7 +587,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         locked.value = false
         history.clear()
         _screen.value = Screen.WELCOME
-        say("SpendLens was reset. Everything it stored on this phone is gone.")
+        say("Owl Tracker was reset. Everything it stored on this phone is gone.")
     }
 
     // ---------------- helpers ----------------

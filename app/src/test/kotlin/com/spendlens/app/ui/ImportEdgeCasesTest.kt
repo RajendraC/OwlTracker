@@ -14,7 +14,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /*
- * First imports from inboxes unlike the sample one: only senders SpendLens doesn't know yet, and no
+ * First imports from inboxes unlike the sample one: only senders Owl Tracker doesn't know yet, and no
  * transactions at all. Neither may leave "Choose what to import" as a dead end.
  */
 
@@ -78,6 +78,25 @@ class NoTransactionsTest : FirstImportTest(
             activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
             tapTag("continue_manual")
             waitForTag("budget_input")
+        }
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@Config(application = TestApp::class, sdk = [36], qualifiers = "w393dp-h852dp-xxhdpi")
+class SampleDataTest : FirstImportTest(emptyList()) {
+    @Test
+    fun exploreWithSampleDataWorksWithAnEmptyInbox() {
+        with(compose) {
+            tapTag("get_started")
+            tapTag("try_sample")
+            waitForText("13 transactions from 5 of 5 senders")
+            tapTag("import_all")
+            tapTag("import_continue")
+            typeInto("budget_input", "10000")
+            tapTag("save_budget")
+            waitForTag("sample_banner")
+            waitForText("over your monthly budget")
         }
     }
 }

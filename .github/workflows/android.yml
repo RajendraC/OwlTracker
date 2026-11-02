@@ -59,6 +59,18 @@ jobs:
         shell: bash
         run: bash ci/check-16k.sh 2>&1 | tee logs/align.log
 
+      - name: Check a signed release bundle builds (throwaway key, never uploaded)
+        shell: bash
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/throwaway.jks" -storepass throwaway -keypass throwaway \
+            -alias upload -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=CI Throwaway Upload Key" 2>&1 | tail -1
+          SPENDLENS_KEYSTORE="$RUNNER_TEMP/throwaway.jks" SPENDLENS_KEYSTORE_PASSWORD=throwaway \
+          SPENDLENS_KEY_ALIAS=upload SPENDLENS_KEY_PASSWORD=throwaway \
+          SPENDLENS_VERSION_CODE=101 SPENDLENS_VERSION_NAME=1.0.0-ci \
+            ./gradlew :app:bundleRelease --stacktrace 2>&1 | tee logs/bundle.log
+          bash ci/describe-bundle.sh app/build/outputs/bundle/release/app-release.aab 1.0.0-ci 101 | tee logs/bundle-describe.log
+          rm -f "$RUNNER_TEMP/throwaway.jks" app/build/outputs/bundle/release/app-release.aab
+
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:

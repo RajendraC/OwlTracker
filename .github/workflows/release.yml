@@ -1,0 +1,91 @@
+name: Release bundle for Google Play
+
+# Run by hand: Actions -> "Release bundle for Google Play" -> Run workflow.
+# Builds the signed .aab that Google Play needs, using the upload key stored in repository secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Version name users will see, e.g. 1.0.0"
+        required: true
+        default: "1.0.0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  bundle:
+    name: Signed release bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Check the four signing secrets are set
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          missing=""
+          for v in UPLOAD_KEYSTORE_BASE64 UPLOAD_KEYSTORE_PASSWORD UPLOAD_KEY_ALIAS UPLOAD_KEY_PASSWORD; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing. Add them under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          echo "All four signing secrets are present."
+
+      - name: Restore the upload key
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          printf '%s' "$UPLOAD_KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > "$RUNNER_TEMP/upload.jks"
+          [ -s "$RUNNER_TEMP/upload.jks" ] || { echo "::error::UPLOAD_KEYSTORE_BASE64 did not decode to a file"; exit 1; }
+          echo "SPENDLENS_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+
+      - name: Build the signed app bundle
+        env:
+          SPENDLENS_KEYSTORE: ${{ runner.temp }}/upload.jks
+          SPENDLENS_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          SPENDLENS_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          SPENDLENS_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+          SPENDLENS_VERSION_NAME: ${{ inputs.version_name }}
+        run: ./gradlew :app:bundleRelease --stacktrace
+
+      - name: Check the bundle and describe it
+        shell: bash
+        run: bash ci/describe-bundle.sh app/build/outputs/bundle/release/app-release.aab "${{ inputs.version_name }}" "$SPENDLENS_VERSION_CODE" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Name the file for upload
+        shell: bash
+        run: |
+          mkdir -p out
+          cp app/build/outputs/bundle/release/app-release.aab "out/owl-tracker-${{ inputs.version_name }}-${SPENDLENS_VERSION_CODE}.aab"
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: owl-tracker-aab-${{ inputs.version_name }}
+          path: out/*.aab
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Remove the upload key from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"

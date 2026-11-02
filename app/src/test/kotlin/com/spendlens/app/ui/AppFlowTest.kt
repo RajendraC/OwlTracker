@@ -71,13 +71,13 @@ class AppFlowTest {
             // Reset erases everything and returns to the welcome screen
             tapTag("tab_more")
             tapText("Settings")
-            tapText("Reset SpendLens")
+            tapText("Reset Owl Tracker")
             if (Build.VERSION.SDK_INT >= 30) {
                 // Robolectric's phone has a fingerprint set up: Reset must ask for it first.
                 waitForText("Confirm it's you")
                 tapText("Cancel")
                 phoneHasNoScreenLock()
-                tapText("Reset SpendLens")
+                tapText("Reset Owl Tracker")
             }
             waitForText("Erase everything")
             tapTag("confirm_reset")

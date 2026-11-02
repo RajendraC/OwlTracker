@@ -459,7 +459,7 @@ private fun DeleteSheet(vm: AppViewModel) {
 // ---------------- skipped messages ----------------
 
 /**
- * Why messages were left out, so a bank format SpendLens doesn't know yet can be spotted and shared.
+ * Why messages were left out, so a bank format Owl Tracker doesn't know yet can be spotted and shared.
  * Nothing here is stored: the list lives in memory for this import only.
  */
 @Composable
@@ -472,13 +472,13 @@ private fun SkippedSheet(vm: AppViewModel) {
 
     SheetTitle("Skipped messages", "${items.size} messages in this period weren't read as transactions. None of them is stored.")
     InfoNote(
-        "If a real payment is listed here, tap Copy and send it to whoever maintains SpendLens. " +
+        "If a real payment is listed here, tap Copy and send it to whoever maintains Owl Tracker. " +
             "Account, card, phone and reference numbers are hidden in the copy.",
     )
     Button(
         onClick = {
             context.getSystemService(ClipboardManager::class.java)
-                ?.setPrimaryClip(ClipData.newPlainText("SpendLens skipped messages", vm.skippedReport()))
+                ?.setPrimaryClip(ClipData.newPlainText("Owl Tracker skipped messages", vm.skippedReport()))
             vm.messages.tryEmit(UiMessage("Copied, with account and card numbers hidden"))
         },
         modifier = Modifier.fillMaxWidth().height(48.dp).testTag("copy_skipped"),

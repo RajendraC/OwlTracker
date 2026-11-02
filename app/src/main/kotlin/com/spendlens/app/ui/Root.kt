@@ -71,7 +71,7 @@ fun SpendLensRoot(vm: AppViewModel, platform: Platform) {
 
     if (locked) {
         LockScreen(onUnlock = {
-            platform.authenticate("Unlock SpendLens", "Use your fingerprint, face or screen lock", onSuccess = { vm.unlocked() }, onFail = { })
+            platform.authenticate("Unlock Owl Tracker", "Use your fingerprint, face or screen lock", onSuccess = { vm.unlocked() }, onFail = { })
         }, canUseDeviceLock = platform.canUseDeviceLock(), onFallbackUnlock = { vm.unlocked() })
         return
     }
@@ -137,7 +137,7 @@ fun SpendLensRoot(vm: AppViewModel, platform: Platform) {
                 title = { Text("Delete $n ${if (n == 1) "transaction" else "transactions"}?") },
                 text = {
                     Text(
-                        "$what, with their saved SMS copies, will be erased from SpendLens. This can't be undone.\n\n" +
+                        "$what, with their saved SMS copies, will be erased from Owl Tracker. This can't be undone.\n\n" +
                             "Stays: manual entries, categories, rules and budgets. Your SMS inbox isn't touched."
                     )
                 },
@@ -154,17 +154,17 @@ fun SpendLensRoot(vm: AppViewModel, platform: Platform) {
             AlertDialog(
                 onDismissRequest = { vm.dismissConfirm() },
                 icon = { Icon(Ic.reset, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                title = { Text("Reset SpendLens?") },
+                title = { Text("Reset Owl Tracker?") },
                 text = {
                     Text(
                         "This erases every transaction, saved SMS copy, category, rule, budget and setting, and destroys the encryption key. " +
-                            "It can't be undone.\n\nYour SMS inbox isn't touched. You can set SpendLens up again straight away."
+                            "It can't be undone.\n\nYour SMS inbox isn't touched. You can set Owl Tracker up again straight away."
                     )
                 },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (secure) platform.authenticate("Confirm reset", "Confirm it's you to erase SpendLens", onSuccess = { vm.performReset() }, onFail = { })
+                            if (secure) platform.authenticate("Confirm reset", "Confirm it's you to erase Owl Tracker", onSuccess = { vm.performReset() }, onFail = { })
                             else vm.performReset()
                         },
                         modifier = Modifier.testTag("confirm_reset"),

@@ -54,7 +54,7 @@ class AppFlowDeviceTest {
             tapTag("tab_more")
             tapText("Settings")
             waitForText("Encryption key", timeoutMs = 20_000)
-            tapText("Reset SpendLens")
+            tapText("Reset Owl Tracker")
             tapTag("confirm_reset")
             waitForTag("get_started", timeoutMs = 20_000)
         }

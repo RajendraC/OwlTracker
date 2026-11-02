@@ -13,6 +13,7 @@ import com.spendlens.core.MerchantRegistry
 import com.spendlens.core.ParseResult
 import com.spendlens.core.ParsedTransaction
 import com.spendlens.core.RejectReason
+import com.spendlens.core.SampleSms
 import com.spendlens.core.SmsParser
 import com.spendlens.core.TxKind
 import java.time.Clock
@@ -58,9 +59,18 @@ class ImportEngine(
         val skipped: List<Skipped> = emptyList(),  // newest first
     )
 
-    suspend fun scan(months: Int = MAX_MONTHS): Scan {
+    /**
+     * Reads the inbox, or with [sample] the 21 built-in example messages instead (for trying the app,
+     * store screenshots and Play review). Sample messages get negative ids so they can never collide
+     * with a real message's id.
+     */
+    suspend fun scan(months: Int = MAX_MONTHS, sample: Boolean = false): Scan {
         val since = LocalDate.now(clock).minusMonths(months.toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
-        val messages = sms.read(since)
+        val messages = if (sample) {
+            SampleSms.messages(clock.millis()).map { it.copy(id = -it.id) }.filter { it.timestamp >= since }
+        } else {
+            sms.read(since)
+        }
         val candidates = ArrayList<Candidate>()
         val skipped = ArrayList<Skipped>()
         for (m in messages) {
@@ -140,6 +150,7 @@ class ImportEngine(
         filters: ImportFilters,
         leftOut: Int,
         replaceRange: Boolean,
+        sample: Boolean = false,
         onProgress: (Float) -> Unit = {},
     ): Result {
         val from = rangeStart(filters)
@@ -167,12 +178,17 @@ class ImportEngine(
 
         val latest = chosen.maxOfOrNull { it.tx.timestamp } ?: 0L
         repo.updateSettings { s ->
-            s.copy(
-                filters = filters,
-                smsEnabled = true,
-                lastSyncAt = clock.millis(),
-                lastSmsTimestamp = maxOf(s.lastSmsTimestamp, latest, clock.millis() - 60_000),
-            )
+            if (sample) {
+                // Sample data never turns on inbox sync.
+                s.copy(filters = filters, smsEnabled = false, sampleData = true)
+            } else {
+                s.copy(
+                    filters = filters,
+                    smsEnabled = true,
+                    lastSyncAt = clock.millis(),
+                    lastSmsTimestamp = maxOf(s.lastSmsTimestamp, latest, clock.millis() - 60_000),
+                )
+            }
         }
         return Result(
             saved = saved,

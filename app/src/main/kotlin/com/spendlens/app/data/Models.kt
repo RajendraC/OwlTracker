@@ -85,6 +85,8 @@ data class AppSettings(
     val screenPrivacy: Boolean = true,
     val lastSyncAt: Long = 0,
     val lastSmsTimestamp: Long = 0,
+    /** True after "Explore with sample data": the transactions are built-in examples, not the user's. */
+    val sampleData: Boolean = false,
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -95,6 +97,7 @@ data class AppSettings(
         "screen_privacy" to screenPrivacy.toString(),
         "last_sync_at" to lastSyncAt.toString(),
         "last_sms_ts" to lastSmsTimestamp.toString(),
+        "sample_data" to sampleData.toString(),
     )
 
     companion object {
@@ -107,6 +110,7 @@ data class AppSettings(
             screenPrivacy = m["screen_privacy"]?.toBoolean() ?: true,
             lastSyncAt = m["last_sync_at"]?.toLongOrNull() ?: 0,
             lastSmsTimestamp = m["last_sms_ts"]?.toLongOrNull() ?: 0,
+            sampleData = m["sample_data"]?.toBoolean() ?: false,
         )
 
         fun filtersToJson(f: ImportFilters): String = JSONObject()

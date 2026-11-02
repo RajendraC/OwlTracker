@@ -85,6 +85,13 @@ fun ImportFiltersScreen(vm: AppViewModel) {
             onBack = { vm.back() },
         )
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (ui.sample) item {
+                InfoNote(
+                    "Sample data: 21 built-in example bank and UPI messages. Your SMS inbox isn't read. " +
+                        "Reset the app later to start with your own messages.",
+                    icon = Ic.info,
+                )
+            }
             item { SectionLabel("How far back") }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {

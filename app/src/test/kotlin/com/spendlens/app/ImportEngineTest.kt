@@ -182,6 +182,22 @@ class ImportEngineTest {
     }
 
     @Test
+    fun sampleDataNeverReadsTheInboxOrTurnsOnSync() = runBlocking {
+        val c = testContainer(context, inbox = mutableListOf())
+        val e = c.importEngine
+        val scan = e.scan(sample = true)
+        assertEquals(13, scan.candidates.size)
+        assertTrue(scan.candidates.all { it.smsId < 0 })
+        c.repo.updateSettings { it.copy(onboarded = true) }
+        e.commit(e.selectable(scan, ImportFilters()), ImportFilters(), 0, replaceRange = false, sample = true)
+        val s = c.repo.settings()
+        assertTrue(s.sampleData)
+        assertFalse(s.smsEnabled)
+        assertEquals(13, month(c).size)
+        assertEquals(0, e.syncNew())
+    }
+
+    @Test
     fun eraseEverythingStartsFresh() = runBlocking {
         val c = testContainer(context)
         val e = c.importEngine

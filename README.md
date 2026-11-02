@@ -1,6 +1,6 @@
-# SpendLens
+# Owl Tracker
 
-An Android expense manager that reads bank, card and UPI SMS on your phone and turns them into a monthly dashboard with budgets. No internet permission: nothing ever leaves the phone.
+Owl Tracker (package `com.owl.tracker`, developed under the working name SpendLens) is an Android expense manager that reads bank, card and UPI SMS on your phone and turns them into a monthly dashboard with budgets. No internet permission: nothing ever leaves the phone.
 
 ## What's in the box
 
@@ -13,6 +13,14 @@ An Android expense manager that reads bank, card and UPI SMS on your phone and t
 | Categories | 18 defaults; add, rename, recolour, change icon, archive. "Always use" rules learn from your corrections. |
 | Delete and reset | Delete one transaction (with undo, and it never comes back), by age, by bank or card, all SMS imports, or reset everything. |
 | Security | SQLCipher AES-256 database; key wrapped by Android Keystore (StrongBox when available); optional biometric app lock; screenshot blocking; no backups; no INTERNET. |
+
+## Releasing to Google Play
+
+1. Create an upload key on your PC and add four repository secrets: `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`, `UPLOAD_KEY_ALIAS`, `UPLOAD_KEY_PASSWORD`.
+2. Actions → **Release bundle for Google Play** → Run workflow, with the version name (e.g. `1.0.0`). The version code is set automatically (100 + run number), so every release is higher than the last.
+3. Download the `owl-tracker-aab-<version>` artifact and upload the `.aab` in Play Console. The run summary shows the upload key's SHA-256 fingerprint to compare with Play Console.
+
+The privacy policy is published from `docs/` with GitHub Pages: https://rajendrac.github.io/SpendLens/privacy.html. Choosing **Explore with sample data** on the SMS screen imports 21 built-in example messages. Use it for store screenshots and Play review.
 
 ## Project layout
 

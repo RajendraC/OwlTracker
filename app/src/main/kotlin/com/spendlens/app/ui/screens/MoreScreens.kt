@@ -60,7 +60,7 @@ fun MoreScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         ScreenHeader("More")
         InfoNote(
-            "SpendLens has no internet permission, so your messages and spending never leave this phone.",
+            "Owl Tracker has no internet permission, so your messages and spending never leave this phone.",
             icon = Ic.noNet, container = MaterialTheme.colorScheme.primaryContainer, content = MaterialTheme.colorScheme.onPrimaryContainer,
         )
         Panel(padding = 8.dp) {
@@ -70,7 +70,12 @@ fun MoreScreen(vm: AppViewModel) {
             Divider()
             NavRow(Ic.sliders, "Settings", "App lock, SMS import, delete or reset") { vm.go(Screen.SETTINGS) }
         }
-        Text("SpendLens 0.1.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val version = androidx.compose.runtime.remember {
+            @Suppress("DEPRECATION")
+            runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
+        }
+        Text("Owl Tracker $version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
     }
 }
 
@@ -88,7 +93,7 @@ fun CategoriesScreen(vm: AppViewModel) {
         }
         item {
             Text(
-                "Tap a category to rename it or change its icon and colour. When you recategorize a transaction, SpendLens can remember it as a rule" +
+                "Tap a category to rename it or change its icon and colour. When you recategorize a transaction, Owl Tracker can remember it as a rule" +
                     if (rules > 0) " (you have $rules)." else ".",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp),
             )
@@ -141,7 +146,7 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
                 else vm.setAppLock(false)
             }, Ic.lock)
             Divider()
-            SwitchRow("Screen privacy", "Blocks screenshots and hides SpendLens in Recents", settings.screenPrivacy, { vm.setScreenPrivacy(it) }, Ic.eye)
+            SwitchRow("Screen privacy", "Blocks screenshots and hides Owl Tracker in Recents", settings.screenPrivacy, { vm.setScreenPrivacy(it) }, Ic.eye)
             if (settings.appLock) {
                 Divider()
                 NavRow(Ic.finger, "Lock now") { vm.lockNow() }
@@ -185,12 +190,12 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             Divider()
             NavRow(Ic.trash, "Delete transactions", "By age, by bank or card, or everything from SMS", iconTint = sc.overFg, iconBg = sc.overBg) { vm.openDelete() }
             Divider()
-            NavRow(Ic.reset, "Reset SpendLens", "Erase everything on this phone and start again", iconTint = sc.overFg, iconBg = sc.overBg, titleColor = sc.overFg) { vm.requestReset() }
+            NavRow(Ic.reset, "Reset Owl Tracker", "Erase everything on this phone and start again", iconTint = sc.overFg, iconBg = sc.overBg, titleColor = sc.overFg) { vm.requestReset() }
         }
 
         SectionLabel("About")
         Panel(padding = 12.dp) {
-            NavRow(Ic.doc, "Privacy policy", "What SpendLens reads, keeps and never does") { vm.go(Screen.PRIVACY) }
+            NavRow(Ic.doc, "Privacy policy", "What Owl Tracker reads, keeps and never does") { vm.go(Screen.PRIVACY) }
             Divider()
             val context = androidx.compose.ui.platform.LocalContext.current
             val version = androidx.compose.runtime.remember {
@@ -280,16 +285,19 @@ fun InsightsScreen(vm: AppViewModel) {
     }
 }
 
+const val PRIVACY_URL = "https://rajendrac.github.io/SpendLens/privacy.html"
+
 @Composable
 fun PrivacyScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ScreenHeader("Privacy policy", onBack = { vm.back() })
-        PrivacyPara("What SpendLens reads", "With your permission, SpendLens reads SMS messages in your inbox to find bank, card, wallet and UPI transactions. It reads each message's sender, text and time. It does not read contacts, call logs, photos, location or any other data.")
+        PrivacyPara("What Owl Tracker reads", "With your permission, Owl Tracker reads SMS messages in your inbox to find bank, card, wallet and UPI transactions. It reads each message's sender, text and time. It does not read contacts, call logs, photos, location or any other data.")
         PrivacyPara("What it ignores", "Messages from people (phone-number senders), OTPs and verification codes, promotional messages, reminders and failed payments are skipped in memory and never stored.")
         PrivacyPara("What it keeps", "The transactions you choose to import, with a copy of each original message so you can check it. They are stored in a database encrypted with AES-256. Its key is protected by Android Keystore and never leaves the phone.")
-        PrivacyPara("What it shares", "Nothing. SpendLens has no internet permission, no analytics, no ads and no crash-reporting service. Your data is excluded from Android cloud backup and device-to-device transfer.")
+        PrivacyPara("What it shares", "Nothing. Owl Tracker has no internet permission, no analytics, no ads and no crash-reporting service. Your data is excluded from Android cloud backup and device-to-device transfer.")
         PrivacyPara("Your choices", "You choose which senders and transactions to import, and can change that any time. You can delete single transactions, delete by age or by bank, or reset the app, which erases everything and destroys the encryption key. You can also remove SMS access in Android settings; the app keeps working with manual entries.")
-        PrivacyPara("Contact", "[Your support email address goes here before publishing.]")
+        PrivacyPara("Sample data", "If you choose Explore with sample data, Owl Tracker imports 21 built-in example messages instead of reading your inbox. Reset removes them.")
+        PrivacyPara("Contact", "Questions or requests: rajendra.chandrasekhar@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 2 November 2026.")
     }
 }
 

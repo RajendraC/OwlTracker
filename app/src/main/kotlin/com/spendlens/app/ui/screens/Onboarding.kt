@@ -63,7 +63,7 @@ fun WelcomeScreen(vm: AppViewModel) {
         }
         Text("Your spending, sorted from your bank SMS", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
         Text(
-            "SpendLens turns bank, card and UPI alerts into a monthly dashboard, without sending anything anywhere.",
+            "Owl Tracker turns bank, card and UPI alerts into a monthly dashboard, without sending anything anywhere.",
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Promise(Ic.message, "Reads only bank, card and UPI SMS", "OTPs and personal messages are ignored")
@@ -104,7 +104,7 @@ fun DisclosureScreen(vm: AppViewModel, platform: Platform) {
         IconTile(Ic.message, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, 56.dp)
         Text("Read your bank SMS to track spending?", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Text(
-            "SpendLens reads messages from banks, cards and UPI apps to find your transactions. " +
+            "Owl Tracker reads messages from banks, cards and UPI apps to find your transactions. " +
                 "Everything is processed on this phone and never leaves it. The app has no internet access.",
             style = MaterialTheme.typography.bodyLarge,
         )
@@ -136,6 +136,9 @@ fun DisclosureScreen(vm: AppViewModel, platform: Platform) {
         TextButton(onClick = { vm.chooseManualMode() }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("not_now")) {
             Text("Not now, add expenses manually")
         }
+        TextButton(onClick = { vm.startSampleImport() }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("try_sample")) {
+            Text("Explore with sample data first")
+        }
     }
 }
 
@@ -158,7 +161,7 @@ fun BudgetSetupScreen(vm: AppViewModel) {
     ) {
         Text("Set a monthly budget", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Text(
-            "SpendLens warns you early when you're spending faster than your budget allows. Change it any time.",
+            "Owl Tracker warns you early when you're spending faster than your budget allows. Change it any time.",
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Panel {
@@ -204,7 +207,7 @@ fun LockScreen(onUnlock: () -> Unit, canUseDeviceLock: Boolean, onFallbackUnlock
             Icon(Ic.logo, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(38.dp))
         }
         Gap(16.dp)
-        Text("SpendLens is locked", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onPrimary)
+        Text("Owl Tracker is locked", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onPrimary)
         Text("Use your fingerprint, face or screen lock to open", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f))
         Gap(32.dp)
         Button(onClick = { if (canUseDeviceLock) onUnlock() else onFallbackUnlock() }, modifier = Modifier.testTag("unlock")) {
@@ -220,9 +223,9 @@ fun DbErrorScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Your data can't be unlocked", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "The key that protects SpendLens's encrypted data isn't available on this phone any more. " +
+            "The key that protects Owl Tracker's encrypted data isn't available on this phone any more. " +
                 "This can happen after restoring the phone or clearing its secure storage. Your SMS inbox is untouched, " +
-                "so you can reset SpendLens and import again.",
+                "so you can reset Owl Tracker and import again.",
             style = MaterialTheme.typography.bodyLarge,
         )
         Button(onClick = { vm.performReset() }) { Text("Reset and start again") }

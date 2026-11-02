@@ -102,7 +102,19 @@ fun HomeScreen(vm: AppViewModel) {
             }
         }
 
-        if (settings?.smsEnabled == false) item {
+        if (settings?.sampleData == true) item {
+            Panel(modifier = Modifier.testTag("sample_banner")) {
+                Text("You're looking at sample data", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "These transactions are built-in examples. Reset Owl Tracker to start with your own SMS.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Gap(10.dp)
+                OutlinedButton(onClick = { vm.requestReset() }, modifier = Modifier.fillMaxWidth()) { Text("Reset and use my SMS") }
+            }
+        }
+
+        if (settings?.smsEnabled == false && settings?.sampleData != true) item {
             Panel {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     IconTile(Ic.message, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
