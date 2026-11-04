@@ -56,7 +56,7 @@ for path in sys.argv[1:]:
                 continue
             text = (f.get("message") or "") + "\n" + (f.text or "")
             lines = [l for l in text.splitlines() if l.strip()]
-            keep = [l for l in lines if not l.strip().startswith("at ") or "spendlens" in l][:25]
+            keep = [l for l in lines if not l.strip().startswith("at ") or "com.owl.tracker" in l][:25]
             print(f"--- {case.get('classname')}.{case.get('name')}")
             print("\n".join(keep))
 print(f"\n{shown} failed test case(s)")
@@ -91,10 +91,12 @@ done
 
 # Trim to the check-run size limit and publish
 python3 - "$out" <<'PY'
-import sys
+import os, sys
 p = sys.argv[1]
 s = open(p, encoding="utf-8", errors="replace").read()
-s = s.replace("/home/runner/work/SpendLens/SpendLens/", "")
+ws = os.environ.get("GITHUB_WORKSPACE", "")
+if ws:
+    s = s.replace(ws.rstrip("/") + "/", "")
 if len(s) > 60000:
     s = s[:60000] + "\n... (cut)\n```\n"
 open(p, "w", encoding="utf-8").write(s)

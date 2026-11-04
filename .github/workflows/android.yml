@@ -64,9 +64,9 @@ jobs:
         run: |
           keytool -genkeypair -keystore "$RUNNER_TEMP/throwaway.jks" -storepass throwaway -keypass throwaway \
             -alias upload -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=CI Throwaway Upload Key" 2>&1 | tail -1
-          SPENDLENS_KEYSTORE="$RUNNER_TEMP/throwaway.jks" SPENDLENS_KEYSTORE_PASSWORD=throwaway \
-          SPENDLENS_KEY_ALIAS=upload SPENDLENS_KEY_PASSWORD=throwaway \
-          SPENDLENS_VERSION_CODE=101 SPENDLENS_VERSION_NAME=1.0.0-ci \
+          OWL_TRACKER_KEYSTORE="$RUNNER_TEMP/throwaway.jks" OWL_TRACKER_KEYSTORE_PASSWORD=throwaway \
+          OWL_TRACKER_KEY_ALIAS=upload OWL_TRACKER_KEY_PASSWORD=throwaway \
+          OWL_TRACKER_VERSION_CODE=101 OWL_TRACKER_VERSION_NAME=1.0.0-ci \
             ./gradlew :app:bundleRelease --stacktrace 2>&1 | tee logs/bundle.log
           bash ci/describe-bundle.sh app/build/outputs/bundle/release/app-release.aab 1.0.0-ci 101 | tee logs/bundle-describe.log
           rm -f "$RUNNER_TEMP/throwaway.jks" app/build/outputs/bundle/release/app-release.aab
@@ -74,7 +74,7 @@ jobs:
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: spendlens-apks
+          name: owl-tracker-apks
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/release/app-release.apk

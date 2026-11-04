@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.spendlens.app"
+    namespace = "com.owl.tracker"
     compileSdk = 36
 
     defaultConfig {
@@ -16,8 +16,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // The release workflow sets these; every Play upload needs a higher versionCode than the last.
-        versionCode = System.getenv("SPENDLENS_VERSION_CODE")?.toIntOrNull() ?: 3
-        versionName = System.getenv("SPENDLENS_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.2.0"
+        versionCode = System.getenv("OWL_TRACKER_VERSION_CODE")?.toIntOrNull() ?: 3
+        versionName = System.getenv("OWL_TRACKER_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -32,12 +32,12 @@ android {
         }
         // Release signing comes from environment variables so no release key ever lives in the repository.
         create("release") {
-            val storePath = System.getenv("SPENDLENS_KEYSTORE")
+            val storePath = System.getenv("OWL_TRACKER_KEYSTORE")
             if (storePath != null) {
                 storeFile = file(storePath)
-                storePassword = System.getenv("SPENDLENS_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("SPENDLENS_KEY_ALIAS")
-                keyPassword = System.getenv("SPENDLENS_KEY_PASSWORD")
+                storePassword = System.getenv("OWL_TRACKER_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("OWL_TRACKER_KEY_ALIAS")
+                keyPassword = System.getenv("OWL_TRACKER_KEY_PASSWORD")
             }
         }
     }
@@ -49,7 +49,7 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // For local testing only, a release build without a configured key is signed with the debug key.
             // Never upload a debug-signed build to Google Play.
-            signingConfig = if (System.getenv("SPENDLENS_KEYSTORE") != null) {
+            signingConfig = if (System.getenv("OWL_TRACKER_KEYSTORE") != null) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")

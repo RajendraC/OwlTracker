@@ -9,9 +9,11 @@ CERT=$(keytool -printcert -jarfile "$AAB" 2>/dev/null || true)
 OWNER=$(printf '%s\n' "$CERT" | awk -F': ' '/^Owner:/{print $2; exit}')
 SHA256=$(printf '%s\n' "$CERT" | awk '/SHA256:/{print $2; exit}')
 [ -n "$SHA256" ] || { echo "::error::The bundle is not signed"; exit 1; }
-case "$OWNER" in
-  *"Android Debug"*|*"SpendLens Debug"*) echo "::error::The bundle is signed with a debug key, not the upload key"; exit 1 ;;
-esac
+# Refuse a bundle signed with the project's committed debug key or any standard Android debug key.
+DEBUG_SHA256=$(keytool -list -v -keystore app/debug.keystore -storepass android -alias androiddebugkey 2>/dev/null | awk '/SHA256:/{print $2; exit}')
+if [ -n "$DEBUG_SHA256" ] && [ "$SHA256" = "$DEBUG_SHA256" ] || [[ "$OWNER" == *"Android Debug"* ]]; then
+  echo "::error::The bundle is signed with a debug key, not the upload key"; exit 1
+fi
 SIZE=$(du -h "$AAB" | cut -f1)
 cat <<MD
 ### Release bundle ready

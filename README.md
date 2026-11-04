@@ -1,6 +1,6 @@
 # Owl Tracker
 
-Owl Tracker (package `com.owl.tracker`, developed under the working name SpendLens) is an Android expense manager that reads bank, card and UPI SMS on your phone and turns them into a monthly dashboard with budgets. No internet permission: nothing ever leaves the phone.
+Owl Tracker (package `com.owl.tracker`) is an Android expense manager that reads bank, card and UPI SMS on your phone and turns them into a monthly dashboard with budgets. No internet permission: nothing ever leaves the phone.
 
 ## What's in the box
 
@@ -20,7 +20,7 @@ Owl Tracker (package `com.owl.tracker`, developed under the working name SpendLe
 2. Actions → **Release bundle for Google Play** → Run workflow, with the version name (e.g. `1.0.0`). The version code is set automatically (100 + run number), so every release is higher than the last.
 3. Download the `owl-tracker-aab-<version>` artifact and upload the `.aab` in Play Console. The run summary shows the upload key's SHA-256 fingerprint to compare with Play Console.
 
-The privacy policy is published from `docs/` with GitHub Pages: https://rajendrac.github.io/SpendLens/privacy.html. Choosing **Explore with sample data** on the SMS screen imports 21 built-in example messages. Use it for store screenshots and Play review.
+The privacy policy is published from `docs/` with GitHub Pages: https://rajendrac.github.io/OwlTracker/privacy.html. Choosing **Explore with sample data** on the SMS screen imports 21 built-in example messages. Use it for store screenshots and Play review.
 
 ## Project layout
 
@@ -48,7 +48,7 @@ Every push to `main` runs `.github/workflows/android.yml` on GitHub Actions:
 | Build | Parser and budget tests; debug and release APKs; Robolectric journeys on Android 8, 9, 11, 13, 14, 15 and 16 plus small phone, large phone, tablet, foldable, dark mode and 1.5× font; lint; no INTERNET permission; 16 KB page-size alignment |
 | Emulators | Pixel 2 (Android 8), Pixel 3a (10), Pixel 5 (12), Pixel 6 (13, 15, 16), Pixel C tablet (14): encrypted database, Keystore key, real SMS inbox, full app journey and reset |
 
-The APKs are attached to each run as the `spendlens-apks` artifact. Android 17 emulator images don't boot reliably on GitHub's standard runners, so Android 17 is tested on a real phone.
+The APKs are attached to each run as the `owl-tracker-apks` artifact. Android 17 emulator images don't boot reliably on GitHub's standard runners, so Android 17 is tested on a real phone.
 
 Installing on your phone: see the step-by-step guide shared with this project.
 
@@ -60,5 +60,5 @@ AGP 8.13.2 · Gradle 8.14.3 · Kotlin 2.2.20 · Compose BOM 2025.12.00 (Material
 
 1. Change `applicationId` in `app/build.gradle.kts` (it can never change after the first upload).
 2. Put a real contact email in the in-app privacy policy (`PrivacyScreen`) and publish the same text at a public URL.
-3. Create an upload key and set `SPENDLENS_KEYSTORE`, `SPENDLENS_KEYSTORE_PASSWORD`, `SPENDLENS_KEY_ALIAS`, `SPENDLENS_KEY_PASSWORD`, then `./gradlew :app:bundleRelease`.
+3. Create an upload key and set `OWL_TRACKER_KEYSTORE`, `OWL_TRACKER_KEYSTORE_PASSWORD`, `OWL_TRACKER_KEY_ALIAS`, `OWL_TRACKER_KEY_PASSWORD`, then `./gradlew :app:bundleRelease`.
 4. Fill in the SMS Permissions Declaration (SMS-based money management) in Play Console.

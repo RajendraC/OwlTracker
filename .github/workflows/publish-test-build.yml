@@ -2,7 +2,7 @@ name: Publish test build
 
 # After "Build and test" passes on main (all unit, Robolectric and emulator tests), publish its
 # debug APK as the GitHub release "test-build", so there is one permanent download link:
-# https://github.com/RajendraC/SpendLens/releases/download/test-build/owl-tracker-debug.apk
+# https://github.com/RajendraC/OwlTracker/releases/download/test-build/owl-tracker-debug.apk
 on:
   workflow_run:
     workflows: ["Build and test"]
@@ -45,7 +45,7 @@ jobs:
       - name: Download its APK
         shell: bash
         run: |
-          gh run download "$RUN_ID" -n spendlens-apks -D apks || { echo "::error::Could not download spendlens-apks from run $RUN_ID"; exit 1; }
+          gh run download "$RUN_ID" -n owl-tracker-apks -D apks || { echo "::error::Could not download owl-tracker-apks from run $RUN_ID"; exit 1; }
           APK=$(find apks -name app-debug.apk -print -quit)
           [ -n "$APK" ] || { echo "::error::No app-debug.apk in the artifact: $(find apks -type f | tr '\n' ' ')"; exit 1; }
           AAPT2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"

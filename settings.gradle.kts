@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SpendLens"
+rootProject.name = "OwlTracker"
 include(":app", ":core")

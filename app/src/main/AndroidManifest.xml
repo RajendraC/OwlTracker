@@ -56,7 +56,7 @@
     </queries>
 
     <application
-        android:name=".SpendLensApp"
+        android:name=".OwlTrackerApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -65,7 +65,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SpendLens"
+        android:theme="@style/Theme.OwlTracker"
         tools:targetApi="36">
 
         <activity

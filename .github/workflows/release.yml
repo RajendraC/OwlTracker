@@ -57,26 +57,26 @@ jobs:
         run: |
           printf '%s' "$UPLOAD_KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > "$RUNNER_TEMP/upload.jks"
           [ -s "$RUNNER_TEMP/upload.jks" ] || { echo "::error::UPLOAD_KEYSTORE_BASE64 did not decode to a file"; exit 1; }
-          echo "SPENDLENS_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          echo "OWL_TRACKER_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
 
       - name: Build the signed app bundle
         env:
-          SPENDLENS_KEYSTORE: ${{ runner.temp }}/upload.jks
-          SPENDLENS_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
-          SPENDLENS_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
-          SPENDLENS_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
-          SPENDLENS_VERSION_NAME: ${{ inputs.version_name }}
+          OWL_TRACKER_KEYSTORE: ${{ runner.temp }}/upload.jks
+          OWL_TRACKER_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          OWL_TRACKER_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          OWL_TRACKER_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+          OWL_TRACKER_VERSION_NAME: ${{ inputs.version_name }}
         run: ./gradlew :app:bundleRelease --stacktrace
 
       - name: Check the bundle and describe it
         shell: bash
-        run: bash ci/describe-bundle.sh app/build/outputs/bundle/release/app-release.aab "${{ inputs.version_name }}" "$SPENDLENS_VERSION_CODE" | tee -a "$GITHUB_STEP_SUMMARY"
+        run: bash ci/describe-bundle.sh app/build/outputs/bundle/release/app-release.aab "${{ inputs.version_name }}" "$OWL_TRACKER_VERSION_CODE" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Name the file for upload
         shell: bash
         run: |
           mkdir -p out
-          cp app/build/outputs/bundle/release/app-release.aab "out/owl-tracker-${{ inputs.version_name }}-${SPENDLENS_VERSION_CODE}.aab"
+          cp app/build/outputs/bundle/release/app-release.aab "out/owl-tracker-${{ inputs.version_name }}-${OWL_TRACKER_VERSION_CODE}.aab"
 
       - name: Upload the bundle
         uses: actions/upload-artifact@v4
