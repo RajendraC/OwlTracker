@@ -27,5 +27,5 @@ cat <<MD
 | Signed by | $OWNER |
 | Upload key SHA-256 | \`$SHA256\` |
 
-Check the SHA-256 above matches the fingerprint of your upload key (step 3 of the guide).
+Check the SHA-256 above matches the SHA256 fingerprint you noted when you created the upload key (step A4 of the Google Play guide).
 MD
