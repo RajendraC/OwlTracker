@@ -45,17 +45,20 @@ jobs:
       - name: Download its APK
         shell: bash
         run: |
-          gh run download "$RUN_ID" -n spendlens-apks -D apks
+          gh run download "$RUN_ID" -n spendlens-apks -D apks || { echo "::error::Could not download spendlens-apks from run $RUN_ID"; exit 1; }
+          APK=$(find apks -name app-debug.apk -print -quit)
+          [ -n "$APK" ] || { echo "::error::No app-debug.apk in the artifact: $(find apks -type f | tr '\n' ' ')"; exit 1; }
           AAPT2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
-          BADGE=$("$AAPT2" dump badging apks/app-debug.apk | head -1)
+          BADGE=$("$AAPT2" dump badging "$APK") || { echo "::error::aapt2 could not read $APK"; exit 1; }
+          BADGE=${BADGE%%$'\n'*}
           echo "$BADGE"
           PKG=$(sed -n "s/.*package: name='\([^']*\)'.*/\1/p" <<<"$BADGE")
           VER=$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" <<<"$BADGE")
-          [ "$PKG" = "com.owl.tracker" ] || { echo "::error::Unexpected package $PKG"; exit 1; }
-          mkdir out
-          cp apks/app-debug.apk out/owl-tracker-debug.apk
-          cp apks/app-debug.apk "out/owl-tracker-$VER-debug.apk"
-          sha256sum out/*.apk | tee out/SHA256SUMS.txt
+          [ "$PKG" = "com.owl.tracker" ] || { echo "::error::Unexpected package '$PKG'"; exit 1; }
+          mkdir -p out
+          cp "$APK" out/owl-tracker-debug.apk
+          cp "$APK" "out/owl-tracker-$VER-debug.apk"
+          (cd out && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
           echo "VER=$VER" >> "$GITHUB_ENV"
 
       - name: Replace the test-build release
