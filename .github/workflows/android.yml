@@ -59,15 +59,35 @@ jobs:
         shell: bash
         run: bash ci/check-16k.sh 2>&1 | tee logs/align.log
 
-      - name: Check a signed release bundle builds (throwaway key, never uploaded)
+      - name: Make a throwaway upload key (never uploaded)
         shell: bash
         run: |
           keytool -genkeypair -keystore "$RUNNER_TEMP/throwaway.jks" -storepass throwaway -keypass throwaway \
             -alias upload -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=CI Throwaway Upload Key" 2>&1 | tail -1
-          OWL_TRACKER_KEYSTORE="$RUNNER_TEMP/throwaway.jks" OWL_TRACKER_KEYSTORE_PASSWORD=throwaway \
-          OWL_TRACKER_KEY_ALIAS=upload OWL_TRACKER_KEY_PASSWORD=throwaway \
-          OWL_TRACKER_VERSION_CODE=101 OWL_TRACKER_VERSION_NAME=1.0.0-ci \
-            ./gradlew :app:bundleRelease --stacktrace 2>&1 | tee logs/bundle.log
+
+      # Same check as the release workflow, fed the mistakes it has to cope with: an alias that
+      # isn't the key's name and ends in a line break, and a key password that doesn't match.
+      - name: Check the key the way the release workflow does (misnamed on purpose)
+        shell: bash
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/throwaway.jks
+          UPLOAD_KEYSTORE_PASSWORD: throwaway
+          UPLOAD_KEY_ALIAS: "owl-upload\n"
+          UPLOAD_KEY_PASSWORD: wrong-on-purpose
+          UPLOAD_KEY_SELF_TEST: "1"
+        run: |
+          java ci/CheckUploadKey.java 2>&1 | tee logs/upload-key.log
+          grep -q "named 'upload'" logs/upload-key.log || { echo "::error::The key check didn't fall back to the only key in the file"; exit 1; }
+
+      - name: Check a signed release bundle builds with it
+        shell: bash
+        env:
+          OWL_TRACKER_KEYSTORE: ${{ runner.temp }}/throwaway.jks
+          OWL_TRACKER_VERSION_CODE: "101"
+          OWL_TRACKER_VERSION_NAME: 1.0.0-ci
+        run: |
+          [ "$OWL_TRACKER_KEY_ALIAS" = "upload" ] || { echo "::error::The key check didn't pass the alias to this step"; exit 1; }
+          ./gradlew :app:bundleRelease --stacktrace 2>&1 | tee logs/bundle.log
           bash ci/describe-bundle.sh app/build/outputs/bundle/release/app-release.aab 1.0.0-ci 101 | tee logs/bundle-describe.log
           rm -f "$RUNNER_TEMP/throwaway.jks" app/build/outputs/bundle/release/app-release.aab
 

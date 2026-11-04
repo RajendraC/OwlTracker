@@ -20,6 +20,8 @@ Owl Tracker (package `com.owl.tracker`) is an Android expense manager that reads
 2. Actions → **Release bundle for Google Play** → Run workflow, with the version name (e.g. `1.0.0`). The version code is set automatically (100 + run number), so every release is higher than the last.
 3. Download the `owl-tracker-aab-<version>` artifact and upload the `.aab` in Play Console. The run summary shows the upload key's SHA-256 fingerprint to compare with Play Console.
 
+Before building, `ci/CheckUploadKey.java` opens the key file and checks the alias and passwords. It ignores stray spaces, line breaks or quotes in the secrets and uses the file's only key if `UPLOAD_KEY_ALIAS` doesn't match its name; each of these shows as a warning on the run. Any other problem stops the run with a message naming the secret to fix.
+
 The privacy policy is published from `docs/` with GitHub Pages: https://rajendrac.github.io/OwlTracker/privacy.html. Choosing **Explore with sample data** on the SMS screen imports 21 built-in example messages. Use it for store screenshots and Play review.
 
 ## Project layout

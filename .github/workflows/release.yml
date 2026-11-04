@@ -59,12 +59,22 @@ jobs:
           [ -s "$RUNNER_TEMP/upload.jks" ] || { echo "::error::UPLOAD_KEYSTORE_BASE64 did not decode to a file"; exit 1; }
           echo "OWL_TRACKER_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
 
+      # Opens the key file and finds and unlocks the key before Gradle runs. Stray spaces, line breaks
+      # or quotes in the secrets are ignored; a key with a different name (e.g. Android Studio's
+      # "key0") is used if it's the only one, with a warning. Anything else stops here with a
+      # message naming the secret to fix. The working values go to the build step via GITHUB_ENV.
+      - name: Check the upload key
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/upload.jks
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        shell: bash
+        run: java ci/CheckUploadKey.java
+
       - name: Build the signed app bundle
         env:
           OWL_TRACKER_KEYSTORE: ${{ runner.temp }}/upload.jks
-          OWL_TRACKER_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
-          OWL_TRACKER_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
-          OWL_TRACKER_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           OWL_TRACKER_VERSION_NAME: ${{ inputs.version_name }}
         run: ./gradlew :app:bundleRelease --stacktrace
 
