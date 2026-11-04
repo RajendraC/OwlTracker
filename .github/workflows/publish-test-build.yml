@@ -1,0 +1,76 @@
+name: Publish test build
+
+# After "Build and test" passes on main (all unit, Robolectric and emulator tests), publish its
+# debug APK as the GitHub release "test-build", so there is one permanent download link:
+# https://github.com/RajendraC/SpendLens/releases/download/test-build/owl-tracker-debug.apk
+on:
+  workflow_run:
+    workflows: ["Build and test"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-test-build
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish the tested APK
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Find the tested run
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            RUN_ID="${{ github.event.workflow_run.id }}"
+            SHA="${{ github.event.workflow_run.head_sha }}"
+          else
+            read -r RUN_ID SHA < <(gh run list --workflow "Build and test" --branch main --status success --limit 1 --json databaseId,headSha --jq '.[0] | "\(.databaseId) \(.headSha)"')
+          fi
+          [ -n "$RUN_ID" ] || { echo "::error::No successful Build and test run on main"; exit 1; }
+          echo "RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
+          echo "Publishing the APK from run $RUN_ID (commit ${SHA:0:7})"
+
+      - name: Download its APK
+        shell: bash
+        run: |
+          gh run download "$RUN_ID" -n spendlens-apks -D apks
+          AAPT2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
+          BADGE=$("$AAPT2" dump badging apks/app-debug.apk | head -1)
+          echo "$BADGE"
+          PKG=$(sed -n "s/.*package: name='\([^']*\)'.*/\1/p" <<<"$BADGE")
+          VER=$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" <<<"$BADGE")
+          [ "$PKG" = "com.owl.tracker" ] || { echo "::error::Unexpected package $PKG"; exit 1; }
+          mkdir out
+          cp apks/app-debug.apk out/owl-tracker-debug.apk
+          cp apks/app-debug.apk "out/owl-tracker-$VER-debug.apk"
+          sha256sum out/*.apk | tee out/SHA256SUMS.txt
+          echo "VER=$VER" >> "$GITHUB_ENV"
+
+      - name: Replace the test-build release
+        shell: bash
+        run: |
+          gh release delete test-build --cleanup-tag --yes 2>/dev/null || true
+          cat > notes.md <<NOTES
+          Latest build of **Owl Tracker $VER** that passed every test: parser and budget logic, app journeys on Android 8 to 16 and six screen sizes, lint, and the emulators (Android 8, 10, 12, 13, 14 tablet, 15, 16).
+
+          Built from commit ${SHA:0:7} by run [$RUN_ID](https://github.com/$GH_REPO/actions/runs/$RUN_ID).
+
+          **Install with ADB** (see the install guide): \`adb install -r owl-tracker-debug.apk\`
+
+          This is a test build signed with the project's debug key. It installs over earlier test builds and keeps your data, but not over a copy installed from Google Play.
+          NOTES
+          gh release create test-build out/owl-tracker-debug.apk "out/owl-tracker-$VER-debug.apk" out/SHA256SUMS.txt \
+            --target "$SHA" --prerelease --title "Owl Tracker $VER test build" --notes-file notes.md
+          echo "Download: https://github.com/$GH_REPO/releases/download/test-build/owl-tracker-debug.apk" | tee -a "$GITHUB_STEP_SUMMARY"
