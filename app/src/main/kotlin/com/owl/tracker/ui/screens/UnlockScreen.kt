@@ -101,6 +101,12 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
                     icon = Ic.info, container = sc.warnBg, content = sc.warnFg,
                 )
             }
+            if (store.status == StoreState.Status.CONNECTING && store.message == null) {
+                Text(
+                    "Connecting to Google Play\u2026", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("unlock_connecting"),
+                )
+            }
             store.message?.let { msg ->
                 Column(Modifier.testTag("unlock_message")) { InfoNote(msg, icon = Ic.alert, container = sc.overBg, content = sc.overFg) }
             }

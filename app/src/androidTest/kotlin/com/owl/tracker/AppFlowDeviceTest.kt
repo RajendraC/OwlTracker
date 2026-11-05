@@ -10,6 +10,7 @@ import com.owl.tracker.ui.typeInto
 import com.owl.tracker.ui.waitForTag
 import com.owl.tracker.ui.waitForText
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertNotNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.ExternalResource
@@ -77,7 +78,13 @@ class AppFlowDeviceTest {
             tapTag("tab_more")
             tapText("Unlock Owl Tracker")
             waitForTag("unlock_trial", timeoutMs = 20_000)
-            waitForTag("unlock_message", timeoutMs = 30_000)
+
+            // Google Play must answer, or time out, with something to tell the person
+            val store = ApplicationProvider.getApplicationContext<OwlTrackerApp>().container.licence.store
+            val end = System.currentTimeMillis() + 30_000
+            while (store.state.value.message == null && System.currentTimeMillis() < end) Thread.sleep(250)
+            assertNotNull("No message from Google Play; its state is ${store.state.value}", store.state.value.message)
+            waitForTag("unlock_message", timeoutMs = 10_000)
             waitForTag("unlock_buy")
         }
     }

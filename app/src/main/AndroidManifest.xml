@@ -14,6 +14,8 @@
 
     <!-- Apps whose icons we show next to their transactions (Swiggy, Uber, ...). Kept in step with MerchantRegistry. -->
     <queries>
+        <!-- Google Play Store: checked before opening a payment, so a phone without it gets a clear message. -->
+        <package android:name="com.android.vending" />
         <package android:name="in.swiggy.android" />
         <package android:name="com.application.zomato" />
         <package android:name="com.grofers.customerapp" />

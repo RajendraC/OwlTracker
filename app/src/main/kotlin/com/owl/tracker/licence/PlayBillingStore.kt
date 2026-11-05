@@ -2,6 +2,9 @@ package com.owl.tracker.licence
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
@@ -29,13 +32,16 @@ import kotlinx.coroutines.flow.update
  */
 class PlayBillingStore(context: Context, private val licenceKey: String) : UnlockStore, PurchasesUpdatedListener {
 
+    private val appContext = context.applicationContext
+    private val main = Handler(Looper.getMainLooper())
+
     private val _state = MutableStateFlow(StoreState())
     override val state: StateFlow<StoreState> = _state.asStateFlow()
 
     @Volatile private var product: ProductDetails? = null
     @Volatile private var connecting = false
 
-    private val client: BillingClient = BillingClient.newBuilder(context.applicationContext)
+    private val client: BillingClient = BillingClient.newBuilder(appContext)
         .setListener(this)
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
         .enableAutoServiceReconnection()
@@ -48,11 +54,25 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
             return
         }
         if (connecting) return
+        if (!playStoreInstalled()) {
+            _state.update { it.copy(status = Status.UNAVAILABLE, busy = false, message = NO_PLAY_STORE) }
+            return
+        }
         connecting = true
+        _state.update { it.copy(status = Status.CONNECTING, message = null) }
+        // If Google Play never answers (a disabled or broken Play Store), say so instead of waiting forever.
+        main.removeCallbacksAndMessages(null)
+        main.postDelayed({
+            if (connecting || _state.value.status == Status.CONNECTING) {
+                connecting = false
+                _state.update { it.copy(status = Status.UNAVAILABLE, busy = false, message = NOT_RESPONDING) }
+            }
+        }, CONNECT_TIMEOUT_MS)
         try {
             client.startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(result: BillingResult) {
                     connecting = false
+                    main.removeCallbacksAndMessages(null)
                     if (result.responseCode == BillingResponseCode.OK) {
                         _state.update { it.copy(status = Status.READY, message = null) }
                         loadProduct()
@@ -69,8 +89,17 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
             })
         } catch (e: Exception) {
             connecting = false
-            _state.update { it.copy(status = Status.UNAVAILABLE, message = "Google Play isn't available on this phone.") }
+            main.removeCallbacksAndMessages(null)
+            _state.update { it.copy(status = Status.UNAVAILABLE, message = NO_PLAY_STORE) }
         }
+    }
+
+    private fun playStoreInstalled(): Boolean = try {
+        @Suppress("DEPRECATION")
+        appContext.packageManager.getPackageInfo(PLAY_STORE, 0)
+        true
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
     }
 
     private fun loadProduct() {
@@ -92,6 +121,8 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
             } else if (result.responseCode == BillingResponseCode.OK) {
                 // Play answered but has no such product: it isn't set up (or active) in Play Console yet.
                 _state.update { it.copy(message = "The unlock isn't on sale in Google Play yet. Please try again later.") }
+            } else {
+                _state.update { it.copy(message = errorText(result)) }
             }
         }
     }
@@ -100,6 +131,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
         val params = QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()
         client.queryPurchasesAsync(params) { result, purchases ->
             if (result.responseCode == BillingResponseCode.OK) apply(purchases, definitive = true)
+            else _state.update { it.copy(busy = false) }
         }
     }
 
@@ -164,6 +196,13 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
     private fun acknowledge(purchase: Purchase) {
         val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken).build()
         client.acknowledgePurchase(params) { /* retried on the next refresh if it didn't go through */ }
+    }
+
+    private companion object {
+        const val PLAY_STORE = "com.android.vending"
+        const val CONNECT_TIMEOUT_MS = 15_000L
+        const val NO_PLAY_STORE = "Google Play isn't available on this phone, so it can't take the payment here."
+        const val NOT_RESPONDING = "Google Play isn't responding. Check the Play Store app is installed, signed in and up to date, then try again."
     }
 
     private fun priceOf(details: ProductDetails): String? =
