@@ -138,7 +138,8 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
     override fun buy(activity: Activity) {
         val details = product
         if (!client.isReady || details == null) {
-            _state.update { it.copy(message = "Google Play is still loading the price. Try again in a moment.") }
+            // Keep a real problem (e.g. "not on sale yet") rather than hiding it behind "loading".
+            _state.update { it.copy(message = it.message ?: "Google Play is still loading the price. Try again in a moment.") }
             refresh()
             return
         }
@@ -187,7 +188,8 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
                 busy = false,
                 message = when {
                     mine.isNotEmpty() && genuine.isEmpty() -> "Google Play reported a purchase that Owl Tracker couldn't verify. Please contact support."
-                    else -> null
+                    bought.isNotEmpty() || pending -> null
+                    else -> it.message // e.g. "not on sale yet" from the product lookup, which may answer first
                 },
             )
         }
