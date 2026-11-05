@@ -34,6 +34,9 @@ jobs:
         with:
           # Open-source cache on GitHub (as in v4), not Gradle's proprietary "enhanced" service
           cache-provider: basic
+          # Every workflow shares one cache entry, keyed on the build files. Only "Build and test"
+          # saves it (it downloads everything); this workflow just restores it.
+          cache-read-only: true
 
       - name: Check the four signing secrets are set
         env:
