@@ -57,8 +57,22 @@ import java.util.Locale
 @Composable
 fun MoreScreen(vm: AppViewModel) {
     val cats by vm.categories.collectAsStateWithLifecycle()
+    val access by vm.access.collectAsStateWithLifecycle()
+    val store by vm.store.collectAsStateWithLifecycle()
+    val price = store.price ?: com.owl.tracker.licence.UnlockStore.FALLBACK_PRICE
+    val sc = LocalStatusColors.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         ScreenHeader("More")
+        Panel(padding = 8.dp, modifier = Modifier.testTag("more_unlock")) {
+            when (val a = access) {
+                is com.owl.tracker.licence.Access.Trial ->
+                    NavRow(Ic.unlock, "Unlock Owl Tracker", "Free trial: ${daysText(a.daysLeft)} left · then $price once") { vm.openUnlock() }
+                com.owl.tracker.licence.Access.TrialEnded ->
+                    NavRow(Ic.lock, "Unlock Owl Tracker", "Trial ended · read-only until you unlock", iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
+                com.owl.tracker.licence.Access.Unlocked ->
+                    NavRow(Ic.check, "Owl Tracker is unlocked", "Thank you for buying it", iconTint = sc.okFg, iconBg = sc.okBg) { vm.openUnlock() }
+            }
+        }
         InfoNote(
             "Owl Tracker has no internet permission, so your messages and spending never leave this phone.",
             icon = Ic.noNet, container = MaterialTheme.colorScheme.primaryContainer, content = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -204,6 +218,14 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             }
             NavRow(Ic.info, "Version", version, trailing = {}) { }
         }
+
+        if (vm.canSimulateTrialEnd) {
+            val ended by vm.debugTrialEnded.collectAsStateWithLifecycle()
+            SectionLabel("Testing (debug builds only)")
+            Panel(padding = 12.dp) {
+                SwitchRow("End the free trial now", "See read-only mode and the unlock screen without waiting 7 days. Not in the Google Play version.", ended, { vm.setDebugTrialEnded(it) }, Ic.calendar)
+            }
+        }
     }
 }
 
@@ -296,8 +318,9 @@ fun PrivacyScreen(vm: AppViewModel) {
         PrivacyPara("What it keeps", "The transactions you choose to import, with a copy of each original message so you can check it. They are stored in a database encrypted with AES-256. Its key is protected by Android Keystore and never leaves the phone.")
         PrivacyPara("What it shares", "Nothing. Owl Tracker has no internet permission, no analytics, no ads and no crash-reporting service. Your data is excluded from Android cloud backup and device-to-device transfer.")
         PrivacyPara("Your choices", "You choose which senders and transactions to import, and can change that any time. You can delete single transactions, delete by age or by bank, or reset the app, which erases everything and destroys the encryption key. You can also remove SMS access in Android settings; the app keeps working with manual entries.")
+        PrivacyPara("Payments", "Owl Tracker is free for 7 days, then a one-time unlock bought through Google Play. Google Play takes the payment under its own terms and privacy policy. Owl Tracker never sees your card, UPI or bank details: the Play Store app on your phone only tells it whether the unlock has been bought. The trial is counted on your phone. Nothing about the purchase is sent anywhere by Owl Tracker.")
         PrivacyPara("Sample data", "If you choose Explore with sample data, Owl Tracker imports 21 built-in example messages instead of reading your inbox. Reset removes them.")
-        PrivacyPara("Contact", "Questions or requests: rajendra.chandrasekhar@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 2 November 2026.")
+        PrivacyPara("Contact", "Questions or requests: rajendra.chandrasekhar@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 5 November 2026.")
     }
 }
 

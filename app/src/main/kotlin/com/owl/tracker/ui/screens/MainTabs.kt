@@ -44,6 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.owl.tracker.data.Category
 import com.owl.tracker.data.Schema
 import com.owl.tracker.data.Txn
+import com.owl.tracker.licence.Access
+import com.owl.tracker.licence.UnlockStore
 import com.owl.tracker.ui.ActivityFilter
 import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.Screen
@@ -74,12 +76,51 @@ import java.util.Locale
 
 // ======================= HOME =======================
 
+/** A quiet reminder while the free trial runs. */
+@Composable
+private fun TrialBanner(daysLeft: Int, price: String, onUnlock: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primaryContainer)
+            .padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp).testTag("trial_banner"),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Ic.calendar, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Free trial: ${daysText(daysLeft)} left", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("Then a one-time $price unlock", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
+        TextButton(onClick = onUnlock) { Text("Unlock") }
+    }
+}
+
+/** After the trial: read-only until the unlock is bought. */
+@Composable
+private fun TrialEndedBanner(price: String, onUnlock: () -> Unit) {
+    val sc = LocalStatusColors.current
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(sc.warnBg).padding(16.dp).testTag("trial_ended_banner")) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(Ic.lock, contentDescription = null, tint = sc.warnFg, modifier = Modifier.size(22.dp))
+            Column {
+                Text("Your free trial has ended", style = MaterialTheme.typography.titleMedium, color = sc.warnFg)
+                Text(
+                    "You can still see everything here. Unlock to import new SMS, add expenses and change budgets.",
+                    style = MaterialTheme.typography.bodySmall, color = sc.warnFg,
+                )
+            }
+        }
+        Gap(10.dp)
+        Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth().testTag("trial_ended_unlock")) { Text("Unlock for $price") }
+    }
+}
+
 @Composable
 fun HomeScreen(vm: AppViewModel) {
     val d by vm.dashboard.collectAsStateWithLifecycle()
     val cats by vm.categories.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val canForward by vm.canGoForward.collectAsStateWithLifecycle()
+    val access by vm.access.collectAsStateWithLifecycle()
+    val store by vm.store.collectAsStateWithLifecycle()
     val dash = d ?: return
     val catMap = cats.associateBy { it.id }
     val sc = LocalStatusColors.current
@@ -100,6 +141,12 @@ fun HomeScreen(vm: AppViewModel) {
                 }
                 IconButton(onClick = { vm.go(Screen.INSIGHTS) }) { Icon(Ic.chart, contentDescription = "Insights") }
             }
+        }
+
+        when (val a = access) {
+            is Access.Trial -> item { TrialBanner(a.daysLeft, store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } }
+            Access.TrialEnded -> item { TrialEndedBanner(store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } }
+            Access.Unlocked -> Unit
         }
 
         if (settings?.sampleData == true) item {

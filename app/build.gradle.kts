@@ -16,8 +16,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // The release workflow sets these; every Play upload needs a higher versionCode than the last.
-        versionCode = System.getenv("OWL_TRACKER_VERSION_CODE")?.toIntOrNull() ?: 3
-        versionName = System.getenv("OWL_TRACKER_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.2.0"
+        versionCode = System.getenv("OWL_TRACKER_VERSION_CODE")?.toIntOrNull() ?: 4
+        versionName = System.getenv("OWL_TRACKER_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -116,6 +116,10 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
+
+    // The ₹50 unlock. Talks only to the Play Store app on the phone; its INTERNET permission is
+    // stripped in AndroidManifest.xml, and CI fails if it ever comes back.
+    implementation(libs.google.play.billing)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

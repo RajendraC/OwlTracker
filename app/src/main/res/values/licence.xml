@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Google Play's licence key for Owl Tracker: Play Console → Owl Tracker → Monetize with Play →
+        Monetization setup → Licensing → "Base64-encoded RSA public key". It's public, not a secret.
+        Paste it between the tags as one line. While it's empty, purchases are trusted as Google Play
+        reports them; once it's set, each purchase's signature is checked against it.
+    -->
+    <string name="play_licence_key" translatable="false"></string>
+</resources>

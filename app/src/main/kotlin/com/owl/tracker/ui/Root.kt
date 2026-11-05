@@ -45,6 +45,7 @@ import com.owl.tracker.ui.screens.MoreScreen
 import com.owl.tracker.ui.screens.PrivacyScreen
 import com.owl.tracker.ui.screens.SettingsScreen
 import com.owl.tracker.ui.screens.SheetHost
+import com.owl.tracker.ui.screens.UnlockScreen
 import com.owl.tracker.ui.screens.WelcomeScreen
 import com.owl.tracker.ui.theme.Ic
 
@@ -116,6 +117,7 @@ fun OwlTrackerRoot(vm: AppViewModel, platform: Platform) {
                 Screen.INSIGHTS -> InsightsScreen(vm)
                 Screen.PRIVACY -> PrivacyScreen(vm)
                 Screen.DB_ERROR -> DbErrorScreen(vm)
+                Screen.UNLOCK -> UnlockScreen(vm, platform)
             }
         }
         SheetHost(vm)

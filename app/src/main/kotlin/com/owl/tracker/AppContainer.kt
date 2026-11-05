@@ -7,10 +7,18 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.owl.tracker.data.Db
 import com.owl.tracker.data.Repository
+import com.owl.tracker.licence.Licence
+import com.owl.tracker.licence.NoStore
+import com.owl.tracker.licence.PlayBillingStore
+import com.owl.tracker.licence.TrialClock
+import com.owl.tracker.licence.UnlockStore
 import com.owl.tracker.security.KeyManager
 import com.owl.tracker.sms.AndroidSmsSource
 import com.owl.tracker.sms.ImportEngine
 import com.owl.tracker.sms.SmsSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
@@ -23,11 +31,27 @@ class AppContainer(
     val sms: SmsSource,
     val clock: Clock,
     val keyManager: KeyManager?,
+    unlockStore: UnlockStore = NoStore(),
+    installedAt: () -> Long = { TrialClock.installTime(context) },
 ) {
     val db = Db(context, dbFactory, dbName)
     val repo = Repository(db, clock)
     val importEngine = ImportEngine(sms, repo, clock)
     val appIcons = AppIcons(context)
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    // Kept apart from the encrypted database on purpose: "Reset Owl Tracker" erases the database
+    // but must not restart the free trial or forget a purchase.
+    private val licencePrefs = context.getSharedPreferences(TrialClock.PREFS, Context.MODE_PRIVATE)
+
+    /** The 7-day trial and the ₹50 unlock. */
+    val licence = Licence(
+        store = unlockStore,
+        trial = TrialClock(licencePrefs, clock, installedAt, TrialClock.isDebuggable(context)),
+        prefs = licencePrefs,
+        scope = scope,
+    )
 
     /**
      * Erases everything: the Keystore key that protected the database, then the database file.
@@ -59,6 +83,8 @@ class AppContainer(
                 sms = AndroidSmsSource(app),
                 clock = Clock.systemDefaultZone(),
                 keyManager = keys,
+                unlockStore = runCatching { PlayBillingStore(app, app.getString(R.string.play_licence_key)) as UnlockStore }
+                    .getOrElse { NoStore() },
             )
         }
     }

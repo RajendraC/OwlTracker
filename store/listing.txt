@@ -4,7 +4,7 @@ Owl Tracker
 SHORT DESCRIPTION (73/80)
 Tracks spending from your bank and UPI SMS. Budgets, alerts. No internet.
 
-FULL DESCRIPTION (2244/4000)
+FULL DESCRIPTION (2529/4000)
 Owl Tracker reads the bank, card and UPI SMS alerts already on your phone and turns them into a clear monthly spending dashboard with budgets. Reading these SMS is the app's core feature, and everything happens on your phone: Owl Tracker has no internet permission.
 
 HOW IT WORKS
@@ -37,6 +37,10 @@ PRIVATE BY DESIGN
 • Optional fingerprint or screen-lock app lock, and screenshot blocking.
 • No account, no ads, no analytics.
 • Delete single transactions, delete by bank or by age, or reset everything at any time.
+
+FREE FOR 7 DAYS, THEN ₹50 ONCE
+• Try everything free for 7 days. Then unlock Owl Tracker with a one-time payment of ₹50 through Google Play: no subscription, no ads.
+• If you don't unlock, nothing is lost: everything you've imported stays visible, and new imports pause until you do.
 
 Prefer not to share SMS? Use manual mode and add expenses yourself, or tap "Explore with sample data" to try the app with example messages.
 

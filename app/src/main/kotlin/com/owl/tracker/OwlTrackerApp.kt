@@ -28,6 +28,8 @@ open class OwlTrackerApp : Application() {
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val app = applicationContext as? OwlTrackerApp ?: return Result.success()
+        // After the free trial, nothing new is imported until the unlock is bought (read-only mode).
+        if (!app.container.licence.current().canEdit) return Result.success()
         return try {
             app.container.importEngine.syncNew()
             Result.success()

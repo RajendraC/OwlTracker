@@ -59,4 +59,26 @@ class AppFlowDeviceTest {
             waitForTag("get_started", timeoutMs = 20_000)
         }
     }
+
+    /**
+     * A fresh install is in its 7-day trial. The emulator images have no Play Store, so the real
+     * Google Play Billing code reports Play as unavailable: the unlock screen must explain that
+     * instead of hanging or crashing.
+     */
+    @Test
+    fun freeTrialAndUnlockScreenWithoutGooglePlay() {
+        with(compose) {
+            tapTag("get_started")
+            tapTag("not_now")
+            tapTag("save_budget")
+            waitForTag("trial_banner", timeoutMs = 20_000)
+            waitForText("Free trial: 7 days left", timeoutMs = 20_000)
+
+            tapTag("tab_more")
+            tapText("Unlock Owl Tracker")
+            waitForTag("unlock_trial", timeoutMs = 20_000)
+            waitForTag("unlock_message", timeoutMs = 30_000)
+            waitForTag("unlock_buy")
+        }
+    }
 }

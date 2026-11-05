@@ -92,6 +92,10 @@ class MainActivity : FragmentActivity() {
         override fun openAppSettings() {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         }
+
+        override fun buyUnlock() {
+            (application as OwlTrackerApp).container.licence.buy(this@MainActivity)
+        }
     }
 }
 
@@ -100,4 +104,7 @@ interface Platform {
     fun canUseDeviceLock(): Boolean
     fun authenticate(title: String, subtitle: String, onSuccess: () -> Unit, onFail: (String) -> Unit)
     fun openAppSettings()
+
+    /** Opens Google Play's payment sheet for the one-time unlock. */
+    fun buyUnlock()
 }

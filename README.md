@@ -12,7 +12,16 @@ Owl Tracker (package `com.owl.tracker`) is an Android expense manager that reads
 | Budgets | Overall and per-category monthly budgets, pace marker, budget month that can start on your salary day. |
 | Categories | 18 defaults; add, rename, recolour, change icon, archive. "Always use" rules learn from your corrections. |
 | Delete and reset | Delete one transaction (with undo, and it never comes back), by age, by bank or card, all SMS imports, or reset everything. |
+| Free trial and unlock | 7 days free from install, then a one-time ₹50 unlock through Google Play Billing (product `owl_tracker_unlock`). After the trial, the app is read-only until unlocked: everything stays visible and deletable, but SMS imports, new expenses and budget or category changes pause. Pending UPI payments unlock when Google Play confirms them. |
 | Security | SQLCipher AES-256 database; key wrapped by Android Keystore (StrongBox when available); optional biometric app lock; screenshot blocking; no backups; no INTERNET. |
+
+## Free trial and the ₹50 unlock
+
+- The trial starts at Android's install time (`licence/Licence.kt`), so clearing storage or resetting the app doesn't restart it; uninstalling and reinstalling does, since there is no server to remember it. Putting the phone's clock back doesn't add days.
+- Payment goes through Google Play Billing 9 (`licence/PlayBillingStore.kt`), which talks only to the Play Store app on the phone. The billing library's INTERNET permission is removed in the manifest, and CI fails if it comes back.
+- Once Google Play confirms the purchase it is remembered on the phone, so the app stays unlocked offline. Purchases are acknowledged (Google refunds unacknowledged ones after 3 days) and restored on a new phone with **Restore purchase**.
+- Optional: paste the app's licence key from Play Console (Monetize with Play → Monetization setup → Licensing) into `app/src/main/res/values/licence.xml` to check each purchase's signature.
+- Debug builds have **Settings → End the free trial now** to see read-only mode without waiting 7 days.
 
 ## Releasing to Google Play
 

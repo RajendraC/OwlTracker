@@ -40,6 +40,23 @@ class ManifestSecurityTest {
         assertEquals(emptySet<String>(), perms intersect forbidden)
     }
 
+    /** The ₹50 unlock talks to the Play Store app only; the billing library's INTERNET permission stays stripped. */
+    @Test
+    fun playBillingWithoutNetworkAccess() {
+        val perms = info.requestedPermissions.orEmpty().toList()
+        assertTrue("Play Billing permission missing: $perms", "com.android.vending.BILLING" in perms)
+        assertFalse("android.permission.INTERNET" in perms)
+    }
+
+    /** Play Console reads the billing library version from this entry; if manifest merging drops it, Play flags the app. */
+    @Test
+    fun billingLibraryVersionIsDeclaredForPlay() {
+        @Suppress("DEPRECATION")
+        val meta = context.packageManager.getApplicationInfo(context.packageName, PackageManager.GET_META_DATA).metaData
+        val version = meta?.get("com.google.android.play.billingclient.version")?.toString()
+        assertTrue("Billing library version not in the merged manifest: $version", version != null && version.startsWith("9."))
+    }
+
     @Test
     fun backupIsOff() {
         assertEquals(0, context.applicationInfo.flags and ApplicationInfo.FLAG_ALLOW_BACKUP)

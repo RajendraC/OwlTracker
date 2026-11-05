@@ -8,6 +8,8 @@ import com.owl.tracker.data.Category
 import com.owl.tracker.data.Repository
 import com.owl.tracker.data.Schema
 import com.owl.tracker.data.Txn
+import com.owl.tracker.licence.Access
+import com.owl.tracker.licence.StoreState
 import com.owl.tracker.sms.ImportEngine
 import com.owl.tracker.core.BudgetMath
 import com.owl.tracker.core.BudgetPeriod
@@ -44,7 +46,7 @@ enum class Tab { HOME, ACTIVITY, BUDGETS, MORE }
 enum class Screen(val tab: Tab? = null) {
     WELCOME, DISCLOSURE, IMPORT_FILTERS, IMPORT_REVIEW, IMPORTING, BUDGET_SETUP,
     HOME(Tab.HOME), ACTIVITY(Tab.ACTIVITY), BUDGETS(Tab.BUDGETS), MORE(Tab.MORE),
-    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR,
+    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK,
 }
 
 sealed interface Sheet {
@@ -161,7 +163,11 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         return false
     }
 
-    fun openSheet(s: Sheet) { _sheet.value = s }
+    fun openSheet(s: Sheet) {
+        val edits = s is Sheet.AddExpense || s is Sheet.BudgetEdit || s is Sheet.CategoryEdit || s is Sheet.CategoryPick
+        if (edits && !editable()) return
+        _sheet.value = s
+    }
     fun closeSheet() { _sheet.value = null }
     fun dismissConfirm() { _confirm.value = null }
 
@@ -244,6 +250,43 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
+    // ---------------- free trial & unlock ----------------
+
+    /** Trial (days left), unlocked, or trial ended (read-only). */
+    val access: StateFlow<Access> = c.licence.access
+
+    /** Google Play's side: price, pending payment, problems. */
+    val store: StateFlow<StoreState> = c.licence.store.state
+
+    fun openUnlock() = go(Screen.UNLOCK)
+
+    /** "Restore purchase": asks Google Play again which purchases this account has. */
+    fun restorePurchase() {
+        c.licence.refresh()
+        say("Checking Google Play for your purchase\u2026")
+    }
+
+    /** Debug builds only: end the trial now to see read-only mode and the unlock screen. */
+    val canSimulateTrialEnd: Boolean get() = c.licence.trial.isDebuggable
+    val debugTrialEnded = MutableStateFlow(c.licence.trial.debugEnded)
+
+    fun setDebugTrialEnded(ended: Boolean) {
+        c.licence.setDebugTrialEnded(ended)
+        debugTrialEnded.value = ended
+    }
+
+    /**
+     * The read-only gate. After the trial, until the unlock is bought, anything that adds or changes
+     * data sends the person to the unlock screen instead. Viewing, deleting and resetting always work.
+     */
+    private fun editable(): Boolean {
+        if (c.licence.current().canEdit) return true
+        _sheet.value = null
+        go(Screen.UNLOCK)
+        say("Unlock Owl Tracker to add or change anything")
+        return false
+    }
+
     // ---------------- startup, lock, sync ----------------
 
     /** Where the database key lives, worked out once off the main thread (Keystore calls are slow). */
@@ -258,6 +301,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
                 return@launch
             }
             launch(Dispatchers.IO) { keyProtection.value = runCatching { c.keyProtection() }.getOrDefault("Android Keystore") }
+            c.licence.refresh()
             val s = repo.settings()
             if (s.appLock) locked.value = true
             _screen.value = if (s.onboarded) Screen.HOME else Screen.WELCOME
@@ -272,6 +316,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val at = backgroundAt
         if (s.appLock && at != null && now() - at > LOCK_AFTER_MS) locked.value = true
         backgroundAt = null
+        c.licence.refresh()
         if (s.onboarded && !locked.value) syncQuietly()
     }
 
@@ -290,9 +335,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         monthOffset.value = 0
     }
 
-    private fun syncQuietly() = viewModelScope.launch { runCatching { engine.syncNew() } }
+    private fun syncQuietly() = viewModelScope.launch {
+        if (c.licence.current().canEdit) runCatching { engine.syncNew() }
+    }
 
     fun rescan() = viewModelScope.launch {
+        if (!editable()) return@launch
         val s = settings.value
         if (s == null || !s.smsEnabled || !c.sms.hasPermission()) { say("Turn on SMS access first"); return@launch }
         val n = runCatching { engine.syncNew() }.getOrDefault(0)
@@ -328,6 +376,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun startSampleImport() = startImport(ImportMode.ONBOARDING, sample = true)
 
     fun startImport(mode: ImportMode, sample: Boolean = false) {
+        if (!editable()) return
         val current = settings.value?.filters ?: ImportFilters()
         importUi.value = ImportUi(mode = mode, scanning = true, draft = current, sample = sample)
         go(Screen.IMPORT_FILTERS)
@@ -423,6 +472,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun runImport(withReview: Boolean) {
+        if (!editable()) return
         val ui = importUi.value
         val all = selectable()
         val chosen = chosenForImport(withReview)
@@ -472,6 +522,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     // ---------------- transactions ----------------
 
     fun setCategory(txId: Long, categoryId: String, remember: Boolean) = viewModelScope.launch {
+        if (!editable()) return@launch
         val t = repo.transaction(txId) ?: return@launch
         val n = repo.setCategory(txId, categoryId, remember)
         val name = categories.value.firstOrNull { it.id == categoryId }?.name ?: "category"
@@ -479,10 +530,11 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         say(if (remember) "Rule saved: ${t.merchantName} → $name" + (if (n > 1) " ($n updated)" else "") else "Moved to $name")
     }
 
-    fun setNote(txId: Long, note: String) = viewModelScope.launch { repo.setNote(txId, note) }
-    fun setExcluded(txId: Long, excluded: Boolean) = viewModelScope.launch { repo.setExcluded(txId, excluded) }
+    fun setNote(txId: Long, note: String) = viewModelScope.launch { if (editable()) repo.setNote(txId, note) }
+    fun setExcluded(txId: Long, excluded: Boolean) = viewModelScope.launch { if (editable()) repo.setExcluded(txId, excluded) }
 
     fun confirmReview(txId: Long) = viewModelScope.launch {
+        if (!editable()) return@launch
         repo.confirmReview(txId)
         say("Confirmed")
     }
@@ -494,6 +546,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun addManual(amountPaise: Long, merchant: String, categoryId: String, daysAgo: Int) = viewModelScope.launch {
+        if (!editable()) return@launch
         val day = today().minusDays(daysAgo.toLong())
         val at = if (daysAgo == 0) now() else day.atTime(12, 0).atZone(zone).toInstant().toEpochMilli()
         repo.addManual(ImportEngine.manual(amountPaise, merchant, categoryId, at))
@@ -505,12 +558,14 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     // ---------------- budgets & categories ----------------
 
     fun saveBudget(key: String, paise: Long?) = viewModelScope.launch {
+        if (!editable()) return@launch
         repo.setBudget(key, paise)
         closeSheet()
         say(if (paise == null || paise <= 0) "Budget removed" else "Budget set to ${Money.formatInr(paise)}")
     }
 
     fun saveCategory(id: String?, name: String, icon: String, color: Long, countsAsSpend: Boolean) = viewModelScope.launch {
+        if (!editable()) return@launch
         if (name.isBlank()) { say("Give the category a name"); return@launch }
         repo.saveCategory(id, name.trim(), icon, color, countsAsSpend)
         closeSheet()
@@ -518,6 +573,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun archiveCategory(id: String) = viewModelScope.launch {
+        if (!editable()) return@launch
         if (id == com.owl.tracker.core.Cat.OTHERS || id == com.owl.tracker.core.Cat.INCOME) { say("This category can't be archived"); return@launch }
         val name = categories.value.firstOrNull { it.id == id }?.name ?: "Category"
         val moved = repo.archiveCategory(id)
