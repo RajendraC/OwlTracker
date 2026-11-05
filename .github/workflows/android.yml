@@ -20,14 +20,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          # Open-source cache on GitHub (as in v4), not Gradle's proprietary "enhanced" service
+          cache-provider: basic
 
       - name: Parser and budget logic tests
         shell: bash
@@ -92,7 +95,7 @@ jobs:
           rm -f "$RUNNER_TEMP/throwaway.jks" app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload APKs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: owl-tracker-apks
           path: |
@@ -107,7 +110,7 @@ jobs:
 
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-build
           path: |
@@ -135,15 +138,17 @@ jobs:
           # Android 17 isn't in the matrix: its emulator images (android-37.x, 16 KB pages only) didn't
           # boot stably on GitHub's standard 4-core runners in October 2026. Test on an Android 17 phone.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
         with:
+          # Open-source cache on GitHub (as in v4), not Gradle's proprietary "enhanced" service
+          cache-provider: basic
           cache-read-only: true
 
       - name: Enable KVM
@@ -185,7 +190,7 @@ jobs:
 
       - name: Upload device test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-device-api${{ matrix.api }}
           path: |
