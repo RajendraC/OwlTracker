@@ -79,6 +79,7 @@ object Ic {
         "transfer" to icon("M4 8h14l-3-3M20 16H6l3 3"),
         "others" to icon("M6 12h.01M12 12h.01M18 12h.01", 2.6f),
         "income" to icon("M12 4v11M7 10l5 5 5-5M5 20h14"),
+        "sports" to icon("M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 4v16M4 12h16M7 6.3c2.2 3.2 2.2 8.2 0 11.4M17 6.3c-2.2 3.2-2.2 8.2 0 11.4"),
         "gift" to icon("M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-1.5-3-5-3-5-1s3 1 5 1zM12 7c1.5-3 5-3 5-1s-3 1-5 1z"),
         "pet" to icon("M12 13c-3 0-5 2.5-5 4.5S9 20 12 20s5-.5 5-2.5S15 13 12 13zM6 9.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM18 9.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM14.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"),
         "tag" to tag,
@@ -89,7 +90,7 @@ object Ic {
 
     val categoryChoices = listOf(
         "tag", "food", "coffee", "groceries", "shopping", "transport", "fuel", "bills", "recharge", "entertainment",
-        "health", "travel", "education", "rent", "emi", "investments", "cash", "gift", "pet", "others",
+        "health", "sports", "travel", "education", "rent", "emi", "investments", "cash", "gift", "pet", "others",
     )
 
     val colorChoices = listOf(

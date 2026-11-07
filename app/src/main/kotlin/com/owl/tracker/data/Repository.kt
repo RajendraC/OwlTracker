@@ -7,6 +7,7 @@ import com.owl.tracker.backup.BackupContent
 import com.owl.tracker.core.Cat
 import com.owl.tracker.core.CategoryRule
 import com.owl.tracker.core.Direction
+import com.owl.tracker.core.MerchantRegistry
 import com.owl.tracker.core.RuleMatch
 import com.owl.tracker.core.TxKind
 import android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE
@@ -216,6 +217,62 @@ class Repository(private val db: Db, private val clock: Clock) {
         }
     }
 
+    // ---------------- merchant names and icons ----------------
+
+    /** Names and icons the user chose, by merchant key. */
+    suspend fun merchantOverrides(): Map<String, MerchantOverride> = read { d -> readMerchants(d).associateBy { it.key } }
+
+    /** How many payments share this payment's merchant (itself included). */
+    fun observeSameMerchantCount(txId: Long): Flow<Int> = observe { d ->
+        d.query(
+            "SELECT COUNT(*) FROM transactions WHERE merchant_key = (SELECT merchant_key FROM transactions WHERE id = ?)",
+            arrayOf<Any?>(txId),
+        ).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+    }
+
+    /**
+     * Renames one payment, or ([all]) every payment from the same merchant, and remembers the name so new
+     * imports from that merchant use it too. Returns how many payments changed.
+     */
+    suspend fun renameMerchant(txId: Long, name: String, all: Boolean): Int = write { d ->
+        val clean = name.filter { !it.isISOControl() }.trim().take(MAX_NAME)
+        if (clean.isEmpty()) return@write 0
+        if (!all) return@write d.update("transactions", CONFLICT_REPLACE, contentValuesOf("merchant_name" to clean), "id = ?", arrayOf<Any?>(txId))
+        val key = merchantKeyOf(d, txId) ?: return@write 0
+        upsertMerchant(d, key, "name" to clean)
+        d.update("transactions", CONFLICT_REPLACE, contentValuesOf("merchant_name" to clean), "merchant_key = ?", arrayOf<Any?>(key))
+    }
+
+    /**
+     * Sets the icon for every payment from this payment's merchant, now and in future imports.
+     * [logo]: null = automatic (the recognised app, if any), "" = no app icon, else a recognised app's package.
+     */
+    suspend fun setMerchantLogo(txId: Long, logo: String?): Int = write { d ->
+        val key = merchantKeyOf(d, txId) ?: return@write 0
+        val pkg = when (logo) {
+            null -> MerchantRegistry.all.firstOrNull { it.key == key }?.packageName
+            "" -> null
+            else -> logo.takeIf { it in MerchantRegistry.packageNames } ?: return@write 0
+        }
+        upsertMerchant(d, key, "logo" to logo)
+        d.update("transactions", CONFLICT_REPLACE, contentValuesOf("merchant_package" to pkg), "merchant_key = ?", arrayOf<Any?>(key))
+    }
+
+    private fun merchantKeyOf(d: SupportSQLiteDatabase, txId: Long): String? =
+        d.query("SELECT merchant_key FROM transactions WHERE id = ?", arrayOf<Any?>(txId)).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+
+    /** Sets one column of a merchant's row, creating the row if needed; a row left with nothing in it is removed. */
+    private fun upsertMerchant(d: SupportSQLiteDatabase, key: String, column: Pair<String, String?>) {
+        d.insert("merchants", CONFLICT_IGNORE, contentValuesOf("merchant_key" to key, "updated_at" to clock.millis()))
+        d.update("merchants", CONFLICT_REPLACE, contentValuesOf(column, "updated_at" to clock.millis()), "merchant_key = ?", arrayOf<Any?>(key))
+        d.delete("merchants", "merchant_key = ? AND name IS NULL AND logo IS NULL", arrayOf<Any?>(key))
+    }
+
+    private fun readMerchants(d: SupportSQLiteDatabase): List<MerchantOverride> =
+        d.query("SELECT merchant_key, name, logo FROM merchants ORDER BY merchant_key").use { c ->
+            buildList { while (c.moveToNext()) add(MerchantOverride(c.getString(0), c.str(1), c.str(2))) }
+        }
+
     suspend fun setNote(txId: Long, note: String) = write { d ->
         d.update("transactions", CONFLICT_REPLACE, contentValuesOf("note" to note.ifBlank { null }), "id = ?", arrayOf<Any?>(txId))
     }
@@ -296,6 +353,7 @@ class Repository(private val db: Db, private val clock: Clock) {
         val budgets: Map<String, Long>,
         val rules: List<RuleRow>,
         val transactions: List<Txn>,
+        val merchants: List<MerchantOverride> = emptyList(),
     )
 
     suspend fun snapshot(): Snapshot = read { d ->
@@ -306,7 +364,7 @@ class Repository(private val db: Db, private val clock: Clock) {
             buildList { while (c.moveToNext()) add(RuleRow(c.getString(0), c.getString(1), c.getString(2))) }
         }
         val txns = d.query("SELECT $TX_COLS FROM transactions ORDER BY occurred_at, id").use { c -> c.toTxns() }
-        Snapshot(readSettings(d), readCategories(d), budgets, rules, txns)
+        Snapshot(readSettings(d), readCategories(d), budgets, rules, txns, readMerchants(d))
     }
 
     data class RestoreCounts(val added: Int, val skipped: Int, val categoriesAdded: Int, val budgetsSet: Int, val rulesAdded: Int)
@@ -325,6 +383,7 @@ class Repository(private val db: Db, private val clock: Clock) {
             d.delete("rules", null, null)
             d.delete("budgets", null, null)
             d.delete("categories", null, null)
+            d.delete("merchants", null, null)
         }
 
         fun categoryIds(): Set<String> = d.query("SELECT id FROM categories").use { c -> buildSet { while (c.moveToNext()) add(c.getString(0)) } }
@@ -359,6 +418,11 @@ class Repository(private val db: Db, private val clock: Clock) {
             if (r.categoryKey !in ids) return@forEach
             val row = contentValuesOf("match_type" to r.match.name, "pattern" to r.pattern, "category_id" to r.categoryKey, "created_at" to clock.millis())
             if (d.insert("rules", CONFLICT_IGNORE, row) != -1L) rulesAdded++
+        }
+
+        // Names and icons chosen on the other phone; when adding, this phone's own choices win.
+        b.merchants.forEach { m ->
+            d.insert("merchants", CONFLICT_IGNORE, contentValuesOf("merchant_key" to m.key, "name" to m.name, "logo" to m.logo, "updated_at" to clock.millis()))
         }
 
         // Payments already on this phone, by amount and direction. Each can absorb one copy from the backup.
@@ -396,6 +460,9 @@ class Repository(private val db: Db, private val clock: Clock) {
     companion object {
         /** A restored payment within this time of one already here, same amount and direction, is the same payment. */
         const val RESTORE_DUPLICATE_MS = 2 * 60_000L
+
+        /** Longest merchant name the user can type. */
+        const val MAX_NAME = 60
 
         private const val TX_COLS = "id, amount_paise, direction, occurred_at, merchant_name, merchant_key, merchant_package, vpa, category_id, " +
             "account_label, sender_group, sender, ref_no, source, sms_id, needs_review, excluded, note, kind, sms_body"

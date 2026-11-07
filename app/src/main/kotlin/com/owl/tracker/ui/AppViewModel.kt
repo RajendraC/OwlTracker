@@ -59,6 +59,8 @@ enum class Screen(val tab: Tab? = null) {
 sealed interface Sheet {
     data class TxnDetail(val id: Long) : Sheet
     data class CategoryPick(val txId: Long) : Sheet
+    data class Rename(val txId: Long) : Sheet
+    data class MerchantIcon(val txId: Long) : Sheet
     data class BudgetEdit(val key: String) : Sheet
     data class CategoryEdit(val id: String?) : Sheet
     data object AddExpense : Sheet
@@ -194,7 +196,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun openSheet(s: Sheet) {
-        val edits = s is Sheet.AddExpense || s is Sheet.BudgetEdit || s is Sheet.CategoryEdit || s is Sheet.CategoryPick
+        val edits = s is Sheet.AddExpense || s is Sheet.BudgetEdit || s is Sheet.CategoryEdit || s is Sheet.CategoryPick ||
+            s is Sheet.Rename || s is Sheet.MerchantIcon
         if (edits && !editable()) return
         _sheet.value = s
     }
@@ -730,6 +733,36 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val name = categories.value.firstOrNull { it.id == categoryId }?.name ?: "category"
         _sheet.value = Sheet.TxnDetail(txId)
         say(if (remember) "Rule saved: ${t.merchantName} → $name" + (if (n > 1) " ($n updated)" else "") else "Moved to $name")
+    }
+
+    fun sameMerchantCount(txId: Long): Flow<Int> = repo.observeSameMerchantCount(txId)
+
+    /** Renames a payment, or every payment from its merchant (and new ones from it) when [all]. */
+    fun renameTxn(txId: Long, name: String, all: Boolean) = viewModelScope.launch {
+        if (!editable()) return@launch
+        val clean = name.trim()
+        if (clean.isEmpty()) { say("Give it a name"); return@launch }
+        val n = repo.renameMerchant(txId, clean, all)
+        _sheet.value = Sheet.TxnDetail(txId)
+        say(if (all && n > 1) "Renamed $n payments to $clean" else "Renamed to $clean")
+    }
+
+    /** Recognised apps installed on this phone, for choosing a merchant's icon. */
+    suspend fun installedKnownApps(): List<com.owl.tracker.KnownApp> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { c.appIcons.installedKnownApps() }
+
+    /** [logo]: null = automatic, "" = no app icon, else a recognised app's package. */
+    fun setMerchantIcon(txId: Long, logo: String?) = viewModelScope.launch {
+        if (!editable()) return@launch
+        repo.setMerchantLogo(txId, logo)
+        _sheet.value = Sheet.TxnDetail(txId)
+        say(
+            when (logo) {
+                null -> "Icon set to automatic"
+                "" -> "App icon removed"
+                else -> "Icon updated"
+            }
+        )
     }
 
     fun setNote(txId: Long, note: String) = viewModelScope.launch { if (editable()) repo.setNote(txId, note) }

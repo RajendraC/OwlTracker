@@ -94,6 +94,8 @@ fun SheetHost(vm: AppViewModel) {
             when (current) {
                 is Sheet.TxnDetail -> TxnDetailSheet(vm, current.id)
                 is Sheet.CategoryPick -> CategoryPickSheet(vm, current.txId)
+                is Sheet.Rename -> RenameSheet(vm, current.txId)
+                is Sheet.MerchantIcon -> MerchantIconSheet(vm, current.txId)
                 is Sheet.BudgetEdit -> BudgetEditSheet(vm, current.key)
                 is Sheet.CategoryEdit -> CategoryEditSheet(vm, current.id)
                 Sheet.AddExpense -> AddExpenseSheet(vm)
@@ -132,6 +134,10 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             Text(tx.merchantName, style = MaterialTheme.typography.titleLarge)
             Text(cat?.name ?: "Others", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        androidx.compose.material3.IconButton(
+            onClick = { vm.openSheet(Sheet.Rename(tx.id)) },
+            modifier = Modifier.testTag("rename_txn"),
+        ) { Icon(Ic.edit, contentDescription = "Rename ${tx.merchantName}") }
     }
     Column {
         Text(
@@ -173,14 +179,22 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
         }
         Divider()
-        DetailRow(
-            "Merchant icon",
-            when {
-                tx.merchantPackage != null && vm.appIcons.get(tx.merchantPackage) != null -> "App icon (installed)"
-                tx.merchantPackage != null -> "Category icon (app not installed)"
-                else -> "Category icon"
-            },
-        )
+        Row(
+            Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.MerchantIcon(tx.id)) }.padding(vertical = 10.dp).testTag("change_icon"),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("Icon", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cat, 28.dp)
+            Text(
+                when {
+                    tx.merchantPackage != null && vm.appIcons.get(tx.merchantPackage) != null -> "App icon"
+                    tx.merchantPackage != null -> "App not installed"
+                    else -> "Category icon"
+                },
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+        }
         tx.refNo?.let { Divider(); DetailRow("Reference", it) }
         tx.sender?.let { Divider(); DetailRow("From", it) }
         Divider()
@@ -264,6 +278,87 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
             }
         }
     }
+}
+
+@Composable
+private fun RenameSheet(vm: AppViewModel, txId: Long) {
+    val txFlow = remember(txId) { vm.txnFlow(txId) }
+    val t by txFlow.collectAsStateWithLifecycle(initialValue = null)
+    val countFlow = remember(txId) { vm.sameMerchantCount(txId) }
+    val count by countFlow.collectAsStateWithLifecycle(initialValue = 1)
+    val tx = t ?: return
+    var name by rememberSaveable(txId) { mutableStateOf(tx.merchantName) }
+    var all by rememberSaveable(txId) { mutableStateOf(true) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
+        SheetTitle("Rename", "Banks often send a company's legal name. Use one you'll recognise.")
+    }
+    OutlinedTextField(
+        value = name, onValueChange = { name = it.take(com.owl.tracker.data.Repository.MAX_NAME) },
+        label = { Text("Name") }, singleLine = true,
+        modifier = Modifier.fillMaxWidth().testTag("rename_field"),
+    )
+    Box(Modifier.testTag("rename_all")) {
+        SwitchRow(
+            if (count > 1) "Rename all $count payments" else "Use for this merchant",
+            "New payments from ${tx.merchantName} will get this name too",
+            all, { all = it },
+        )
+    }
+    Button(
+        onClick = { vm.renameTxn(txId, name, all) },
+        enabled = name.isNotBlank() && name.trim() != tx.merchantName,
+        modifier = Modifier.fillMaxWidth().height(52.dp).testTag("rename_save"),
+    ) { Text("Save name") }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
+    val txFlow = remember(txId) { vm.txnFlow(txId) }
+    val t by txFlow.collectAsStateWithLifecycle(initialValue = null)
+    val cats by vm.categories.collectAsStateWithLifecycle()
+    val apps by androidx.compose.runtime.produceState<List<com.owl.tracker.KnownApp>?>(null) { value = vm.installedKnownApps() }
+    val tx = t ?: return
+    val cat = cats.firstOrNull { it.id == tx.categoryId }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
+        SheetTitle("Icon for ${tx.merchantName}", "Used for all its payments, now and later")
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = { vm.setMerchantIcon(txId, null) }, modifier = Modifier.weight(1f).testTag("icon_auto")) { Text("Automatic") }
+        OutlinedButton(onClick = { vm.setMerchantIcon(txId, "") }, modifier = Modifier.weight(1f).testTag("icon_none")) {
+            CategoryTile(cat, 20.dp)
+            Text("  Category icon")
+        }
+    }
+    Text("Apps on this phone", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val list = apps
+    when {
+        list == null -> Text("Looking…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        list.isEmpty() -> Text(
+            "None of the apps Owl Tracker recognises are installed.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        else -> FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            list.forEach { app ->
+                val on = app.packageName == tx.merchantPackage
+                Column(
+                    Modifier.width(76.dp).clip(RoundedCornerShape(14.dp))
+                        .border(if (on) 2.dp else 1.dp, if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+                        .selectable(selected = on, role = Role.RadioButton) { vm.setMerchantIcon(txId, app.packageName) }
+                        .padding(vertical = 8.dp, horizontal = 4.dp)
+                        .testTag("icon_${app.packageName}"),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    MerchantAvatar(vm.appIcons, app.packageName, app.label, null, 36.dp)
+                    Text(app.label, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+            }
+        }
+    }
+    InfoNote("Only apps Owl Tracker recognises are shown. It never reads the full list of apps on your phone.")
 }
 
 // ---------------- budgets & categories ----------------

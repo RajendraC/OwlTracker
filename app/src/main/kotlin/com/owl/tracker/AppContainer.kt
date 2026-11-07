@@ -2,6 +2,7 @@ package com.owl.tracker
 
 import android.content.Context
 import android.graphics.Bitmap
+import com.owl.tracker.core.MerchantRegistry
 import android.content.pm.PackageManager
 import androidx.core.graphics.drawable.toBitmap
 import androidx.sqlite.db.SupportSQLiteOpenHelper
@@ -113,4 +114,23 @@ class AppIcons(private val context: Context) {
         }
         return v as? Bitmap
     }
+
+    /**
+     * The recognised apps (MerchantRegistry) that are installed, with their names, for picking a merchant's
+     * icon by hand. Only these few dozen packages are ever looked up; the phone's full app list is never read.
+     * Call off the main thread.
+     */
+    fun installedKnownApps(): List<KnownApp> =
+        MerchantRegistry.packageNames.mapNotNull { pkg ->
+            if (get(pkg) == null) return@mapNotNull null
+            val label = runCatching {
+                val pm = context.packageManager
+                @Suppress("DEPRECATION")
+                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+            }.getOrNull()?.takeIf { it.isNotBlank() }
+                ?: MerchantRegistry.all.first { it.packageName == pkg }.displayName
+            KnownApp(pkg, label)
+        }.sortedBy { it.label.lowercase() }
 }
+
+data class KnownApp(val packageName: String, val label: String)

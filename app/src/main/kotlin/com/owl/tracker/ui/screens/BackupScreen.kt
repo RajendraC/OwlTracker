@@ -47,7 +47,7 @@ import com.owl.tracker.ui.theme.LocalStatusColors
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val INCLUDED = listOf("Amounts and dates", "Merchant names and categories", "Your notes", "Budgets and category rules")
+private val INCLUDED = listOf("Amounts and dates", "Merchant names, icons and categories", "Your notes", "Budgets and category rules")
 private val NEVER = listOf("SMS text and sender IDs", "Account and card numbers", "UPI IDs and bank references", "SMS import settings")
 
 @Composable

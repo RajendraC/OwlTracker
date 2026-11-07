@@ -94,6 +94,20 @@ class CategorizerTest {
         assertEquals(Cat.INCOME, c.categorize(tx("", "R Kumar", Direction.CREDIT), "r_kumar", null))
         assertEquals(Cat.CASH, c.categorize(tx("", null, kind = TxKind.CASH_WITHDRAWAL), "atm", null))
     }
+
+    @Test fun sportsAndFitness() {
+        val c = Categorizer()
+        fun cat(name: String) = c.categorize(tx("", name), MerchantRegistry.keyFor(null, name, null), MerchantRegistry.match(name, null))
+        assertEquals(Cat.SPORTS, cat("PLAYO"))
+        assertEquals(Cat.SPORTS, cat("Green Turf Arena"))
+        assertEquals(Cat.SPORTS, cat("Smash Badminton Academy")) // not Education
+        assertEquals(Cat.SPORTS, cat("Gold's Gym"))
+        assertEquals(Cat.SPORTS, cat("Anytime Fitness"))
+        assertEquals(Cat.SPORTS, cat("Decathlon Sports India")) // not Shopping
+        assertEquals(Cat.SPORTS, cat("CUREFIT HEALTHCARE")) // cult.fit
+        assertEquals(Cat.FOOD, cat("Gymkhana Club Canteen")) // "gym" only as a word
+        assertEquals(Cat.SHOPPING, cat("Lifestyle Stores"))
+    }
 }
 
 class DeduperTest {

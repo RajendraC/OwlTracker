@@ -256,6 +256,26 @@ class BackupTest {
     }
 
     @Test
+    fun chosenNamesAndIconsTravelWithoutUpiIds() = runBlocking {
+        val c = phoneWithData()
+        val txns = c.repo.transactions(0, now + 1)
+        c.repo.renameMerchant(txns.first { it.merchantKey == "9876543210@ybl" }.id, "Milkman Ravi", all = true)
+        c.repo.setMerchantLogo(txns.first { it.merchantKey == "swiggy" }.id, "")
+        val json = String(BackupCodec.encode(backupOf(c), null, zone), Charsets.UTF_8)
+        listOf("9876543210", "@ybl").forEach { assertFalse("Backup must not contain \"$it\"", json.contains(it)) }
+        assertTrue(json.contains("Milkman Ravi"))
+
+        val b = BackupCodec.decode(json.toByteArray(), null, now)
+        val fresh = testContainer(context)
+        fresh.repo.open()
+        fresh.repo.restore(b, replace = true, finishOnboarding = true)
+        val mine = fresh.repo.merchantOverrides()
+        assertEquals("Milkman Ravi", mine.getValue("xxxxx").name)
+        assertEquals("", mine.getValue("swiggy").logo)
+        assertTrue(fresh.repo.transactions(0, now + 1).any { it.merchantName == "Milkman Ravi" && it.merchantKey == "xxxxx" })
+    }
+
+    @Test
     fun addingTheSameBackupTwiceAddsNothingTheSecondTime() = runBlocking {
         val b = backupOf(phoneWithData())
         val other = testContainer(context)

@@ -57,6 +57,7 @@ class Categorizer(private val userRules: List<CategoryRule> = emptyList()) {
             k("""pharma|medical|hospital|clinic|medplus|diagnostic|\blabs?\b|dental|chemist""", Cat.HEALTH),
             k("""restaurant|\bcafe\b|coffee|bakery|bhavan|biryani|pizza|burger|dhaba|sweets|kitchen|\bfoods?\b|canteen|chai|tea stall|hotel""", Cat.FOOD),
             k("""\bmart\b|grocery|groceries|supermarket|kirana|\bfresh\b|dmart|more retail|spencer|provision""", Cat.GROCERIES),
+            k("""\bsports?\b|\bturf\b|playo|hudle|badminton|cricket|football|futsal|tennis|pickleball|swimming|stadium|\bgym\b|gymnasium|fitness|\byoga\b|marathon|skating|bowling|\bgolf\b""", Cat.SPORTS),
             k("""metro|railway|\bbus\b|\bcab\b|taxi|\bauto\b|fastag|parking|\btoll\b""", Cat.TRANSPORT),
             k("""airline|indigo|air india|vistara|akasa|spicejet|\boyo\b|resort|travels""", Cat.TRAVEL),
             k("""school|college|university|tuition|academy|course|udemy|coursera""", Cat.EDUCATION),

@@ -74,6 +74,12 @@ data class NewTxn(
     val excluded: Boolean = false,
 )
 
+/**
+ * A merchant the user renamed or chose an icon for, by merchant key. [name] null keeps the name from the
+ * SMS. [logo]: null = automatic (the recognised app's icon, if any), "" = no app icon, else an app package.
+ */
+data class MerchantOverride(val key: String, val name: String?, val logo: String?)
+
 data class StoredRule(val id: Long, val matchType: String, val pattern: String, val categoryId: String)
 
 /** Everything that is not a transaction. Lives inside the encrypted database, not in plain preferences. */

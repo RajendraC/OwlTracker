@@ -8,6 +8,7 @@ import com.owl.tracker.core.RuleMatch
 import com.owl.tracker.core.TxKind
 import com.owl.tracker.data.Category
 import com.owl.tracker.data.CategoryKind
+import com.owl.tracker.data.MerchantOverride
 import com.owl.tracker.data.NewTxn
 import com.owl.tracker.data.Repository
 import com.owl.tracker.data.Schema
@@ -36,6 +37,8 @@ data class BackupContent(
     val budgets: Map<String, Long>,
     val rules: List<CategoryRule>,
     val transactions: List<NewTxn>,
+    /** Names and icons the user chose for merchants. Absent in backups from before version 0.5. */
+    val merchants: List<MerchantOverride> = emptyList(),
 ) {
     val firstAt: Long? get() = transactions.minOfOrNull { it.occurredAt }
     val lastAt: Long? get() = transactions.maxOfOrNull { it.occurredAt }
@@ -96,7 +99,16 @@ object BackupCodec {
                 RuleMatch.VPA, null -> null // a UPI ID: never exported
             }
         }.distinctBy { it.match to it.pattern }
-        return BackupContent(now, appVersion, s.settings.budgetStartDay, s.categories, s.budgets, rules, txns)
+        val merchants = s.merchants.mapNotNull { m -> scrubMerchant(m.key, m.name, m.logo, known) }.distinctBy { it.key }
+        return BackupContent(now, appVersion, s.settings.budgetStartDay, s.categories, s.budgets, rules, txns, merchants)
+    }
+
+    /** A merchant's chosen name and icon, scrubbed like the transactions' merchant names and keys. */
+    private fun scrubMerchant(key: String, name: String?, logo: String?, known: Set<String>): MerchantOverride? {
+        val k = Privacy.merchantKey(clean(key, 120)).ifEmpty { return null }
+        val n = name?.let { Privacy.merchant(clean(it, 60)) }?.takeIf { it.isNotEmpty() && it != "UPI payment" }
+        val l = logo?.takeIf { it.isEmpty() || it in known }
+        return if (n == null && l == null) null else MerchantOverride(k, n, l)
     }
 
     /** The file's bytes. With a [password] the contents are encrypted; without, they are readable JSON. */
@@ -110,7 +122,7 @@ object BackupCodec {
             .put("app", c.appVersion)
             .put(
                 "contains",
-                "Amounts, dates, merchant names, categories, notes, budgets and category rules. " +
+                "Amounts, dates, merchant names and icons, categories, notes, budgets and category rules. " +
                     "Never SMS text, senders, account or card numbers, UPI IDs or bank references.",
             )
         if (password == null) {
@@ -161,6 +173,14 @@ object BackupCodec {
                         .put("origin", if (t.source == Source.MANUAL) "manual" else "sms")
                     t.merchantPackage?.let { o.put("app", it) }
                     t.note?.let { o.put("note", it) }
+                    put(o)
+                }
+            })
+            .put("merchants", JSONArray().apply {
+                c.merchants.forEach { m ->
+                    val o = JSONObject().put("merchantKey", m.key)
+                    m.name?.let { o.put("name", it) }
+                    m.logo?.let { o.put("app", it) } // "" means: no app icon
                     put(o)
                 }
             })
@@ -302,6 +322,18 @@ object BackupCodec {
             )
         }
 
+        val merchantsJson = p.optJSONArray("merchants") ?: JSONArray()
+        if (merchantsJson.length() > MAX_RULES) throw BackupException(BackupException.Problem.TOO_LARGE)
+        val merchants = (0 until merchantsJson.length()).mapNotNull { i ->
+            val o = merchantsJson.optJSONObject(i) ?: return@mapNotNull null
+            scrubMerchant(
+                o.optString("merchantKey"),
+                if (o.has("name")) o.optString("name") else null,
+                if (o.has("app")) o.optString("app") else null,
+                known,
+            )
+        }.distinctBy { it.key }
+
         return BackupContent(
             createdAt = createdAt,
             appVersion = app?.take(20).orEmpty(),
@@ -310,6 +342,7 @@ object BackupCodec {
             budgets = budgets,
             rules = rules,
             transactions = txns,
+            merchants = merchants,
         )
     }
 

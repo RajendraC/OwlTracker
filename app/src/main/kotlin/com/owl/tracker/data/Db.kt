@@ -73,13 +73,14 @@ class Db(
         }
 
         override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            // Version 1 is the first release; future migrations go here.
+            if (oldVersion < 2) Schema.upgradeTo2(db)
         }
     }
 }
 
 object Schema {
-    const val VERSION = 1
+    /** 1: first release. 2: Sports & Fitness category, and the merchants table (names and icons the user chose). */
+    const val VERSION = 2
     const val OVERALL = "__overall__"
 
     val CREATE = listOf(
@@ -127,7 +128,16 @@ object Schema {
         // Remembers single transactions the user deleted, so no later scan or re-import brings them back.
         "CREATE TABLE deleted_sms(sms_id INTEGER PRIMARY KEY NOT NULL, deleted_at INTEGER NOT NULL)",
         "CREATE TABLE settings(key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)",
+        MERCHANTS_TABLE,
     )
+
+    /**
+     * What the user chose for a merchant (by merchant key): a name, and which icon to show.
+     * logo: NULL = automatic, '' = no app icon (category icon), otherwise an app package.
+     * Applied to new imports, so they match what the user renamed or re-iconed.
+     */
+    private const val MERCHANTS_TABLE =
+        "CREATE TABLE IF NOT EXISTS merchants(merchant_key TEXT PRIMARY KEY NOT NULL, name TEXT, logo TEXT, updated_at INTEGER NOT NULL)"
 
     data class SeedCategory(val id: String, val name: String, val icon: String, val color: Long, val kind: CategoryKind)
 
@@ -140,6 +150,7 @@ object Schema {
         SeedCategory(Cat.BILLS, "Bills & Utilities", "bills", 0xFF9E740C, CategoryKind.EXPENSE),
         SeedCategory(Cat.RECHARGE, "Recharge & Subscriptions", "recharge", 0xFFC23F73, CategoryKind.EXPENSE),
         SeedCategory(Cat.ENTERTAINMENT, "Entertainment", "entertainment", 0xFFB04FA5, CategoryKind.EXPENSE),
+        SeedCategory(Cat.SPORTS, "Sports & Fitness", "sports", 0xFFC8423B, CategoryKind.EXPENSE),
         SeedCategory(Cat.HEALTH, "Health", "health", 0xFF1F8F86, CategoryKind.EXPENSE),
         SeedCategory(Cat.TRAVEL, "Travel", "travel", 0xFF3A86C9, CategoryKind.EXPENSE),
         SeedCategory(Cat.EDUCATION, "Education", "education", 0xFF5866B8, CategoryKind.EXPENSE),
@@ -151,6 +162,28 @@ object Schema {
         SeedCategory(Cat.OTHERS, "Others", "others", 0xFF7F8682, CategoryKind.EXPENSE),
         SeedCategory(Cat.INCOME, "Income", "income", 0xFF0F6B4F, CategoryKind.INCOME),
     )
+
+    /**
+     * Version 1 to 2, on phones that already have data. Adds the merchants table and the Sports & Fitness
+     * category, placed right after Entertainment; every other category keeps its order.
+     */
+    fun upgradeTo2(db: SupportSQLiteDatabase) {
+        db.execSQL(MERCHANTS_TABLE)
+        val exists = db.query("SELECT COUNT(*) FROM categories WHERE id = ?", arrayOf<Any?>(Cat.SPORTS)).use { c -> c.moveToFirst() && c.getInt(0) > 0 }
+        if (exists) return
+        val after = db.query("SELECT sort_order FROM categories WHERE id = ?", arrayOf<Any?>(Cat.ENTERTAINMENT)).use { c -> if (c.moveToFirst()) c.getInt(0) else null }
+        val order = if (after != null) {
+            db.execSQL("UPDATE categories SET sort_order = sort_order + 1 WHERE sort_order > ?", arrayOf<Any?>(after))
+            after + 1
+        } else {
+            db.query("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM categories").use { c -> c.moveToFirst(); c.getInt(0) }
+        }
+        val s = DEFAULT_CATEGORIES.first { it.id == Cat.SPORTS }
+        db.execSQL(
+            "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived) VALUES(?,?,?,?,?,?,1,0)",
+            arrayOf<Any?>(s.id, s.name, s.icon, s.color, s.kind.name, order)
+        )
+    }
 
     fun seed(db: SupportSQLiteDatabase) {
         DEFAULT_CATEGORIES.forEachIndexed { i, c ->

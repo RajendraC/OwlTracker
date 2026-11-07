@@ -139,6 +139,52 @@ class ImportEngineTest {
     }
 
     @Test
+    fun chosenNamesAndIconsApplyToPastAndNewPayments() = runBlocking {
+        val inbox = sampleInbox()
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        c.repo.updateSettings { it.copy(onboarded = true) }
+        val swiggy = month(c).first { it.merchantKey == "swiggy" }
+        val count = month(c).count { it.merchantKey == "swiggy" }
+
+        // Just this one payment: no remembered name.
+        assertEquals(1, c.repo.renameMerchant(swiggy.id, "Friday dinner", all = false))
+        assertEquals("Friday dinner", c.repo.transaction(swiggy.id)!!.merchantName)
+        assertTrue(c.repo.merchantOverrides().isEmpty())
+
+        // Every payment from the merchant, and remembered for new ones.
+        assertEquals(count, c.repo.renameMerchant(swiggy.id, "  Food delivery  ", all = true))
+        assertTrue(month(c).filter { it.merchantKey == "swiggy" }.all { it.merchantName == "Food delivery" })
+        assertEquals(count, c.repo.setMerchantLogo(swiggy.id, "com.application.zomato"))
+        assertEquals(0, c.repo.setMerchantLogo(swiggy.id, "com.example.not.recognised"))
+
+        inbox += SmsMessage(5100, "VM-HDFCBK-S", "Sent Rs.410.00 From HDFC Bank A/C *4821 To SWIGGY On 18/10/26 Ref 629999990001", TEST_CLOCK.millis() - 60_000)
+        assertEquals(1, e.syncNew())
+        val fresh = month(c).first { it.smsId == 5100L }
+        assertEquals("Food delivery", fresh.merchantName)
+        assertEquals("com.application.zomato", fresh.merchantPackage)
+        assertEquals(Cat.FOOD, fresh.categoryId) // renaming never changes how it's categorised
+
+        // No app icon, then back to automatic (Swiggy's own app).
+        c.repo.setMerchantLogo(swiggy.id, "")
+        assertTrue(month(c).filter { it.merchantKey == "swiggy" }.all { it.merchantPackage == null })
+        c.repo.setMerchantLogo(swiggy.id, null)
+        assertTrue(month(c).filter { it.merchantKey == "swiggy" }.all { it.merchantPackage == "in.swiggy.android" })
+        assertEquals(null, c.repo.merchantOverrides()["swiggy"]?.logo)
+        assertEquals("Food delivery", c.repo.merchantOverrides()["swiggy"]?.name)
+    }
+
+    @Test
+    fun sportsAndFitnessIsBuiltIn() = runBlocking {
+        val c = testContainer(context)
+        val ids = c.repo.categories().map { it.id }
+        assertEquals(ids.indexOf(Cat.ENTERTAINMENT) + 1, ids.indexOf(Cat.SPORTS))
+        assertEquals("Sports & Fitness", c.repo.categories().first { it.id == Cat.SPORTS }.name)
+        assertTrue(c.repo.categories().first { it.id == Cat.SPORTS }.countsAsSpend)
+    }
+
+    @Test
     fun noSyncWithoutPermissionOrInManualMode() = runBlocking {
         val c = testContainer(context, granted = false)
         c.repo.updateSettings { it.copy(onboarded = true, smsEnabled = true) }
@@ -208,6 +254,6 @@ class ImportEngineTest {
         assertEquals(0, month(c).size)
         assertFalse(c.repo.settings().onboarded)
         assertTrue(c.repo.observeBudgets().first().isEmpty())
-        assertEquals(18, c.repo.categories().size)
+        assertEquals(Schema.DEFAULT_CATEGORIES.size, c.repo.categories().size)
     }
 }

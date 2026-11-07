@@ -10,6 +10,7 @@ object Cat {
     const val BILLS = "bills"
     const val RECHARGE = "recharge"
     const val ENTERTAINMENT = "entertainment"
+    const val SPORTS = "sports"
     const val HEALTH = "health"
     const val TRAVEL = "travel"
     const val EDUCATION = "education"
@@ -115,7 +116,7 @@ object MerchantRegistry {
         m("apollo", "Apollo 24|7", "com.apollo.patientapp", Cat.HEALTH, "apollo"),
         m("netmeds", "Netmeds", "com.NetmedsMarketplace.Netmeds", Cat.HEALTH, "netmeds"),
         m("practo", "Practo", "com.practo.fabric", Cat.HEALTH, "practo"),
-        m("cultfit", "cult.fit", "fit.cure.android", Cat.HEALTH, "cult.fit", "cultfit", "curefit"),
+        m("cultfit", "cult.fit", "fit.cure.android", Cat.SPORTS, "cult.fit", "cultfit", "curefit"),
         m("healthifyme", "HealthifyMe", "com.healthifyme.basic", Cat.HEALTH, "healthifyme", "healthify"),
         m("byjus", "BYJU'S", "com.byjus.thelearningapp", Cat.EDUCATION, "byju", "think and learn"),
         m("unacademy", "Unacademy", "com.unacademyapp", Cat.EDUCATION, "unacademy", "sorting hat"),

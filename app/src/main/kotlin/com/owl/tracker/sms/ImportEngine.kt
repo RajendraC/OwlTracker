@@ -1,5 +1,6 @@
 package com.owl.tracker.sms
 
+import com.owl.tracker.data.MerchantOverride
 import com.owl.tracker.data.NewTxn
 import com.owl.tracker.data.Repository
 import com.owl.tracker.data.Source
@@ -159,6 +160,7 @@ class ImportEngine(
         val existing = repo.smsTransactionsSince(from - Deduper.WINDOW_MS)
         val deduper = Deduper(existing.map { Deduper.DedupeEntry(it.amountPaise, it.direction, it.occurredAt, it.accountLabel?.filter { ch -> ch.isDigit() }?.takeLast(4), it.refNo) })
         val categorizer = Categorizer(repo.rules())
+        val chosenNames = repo.merchantOverrides()
 
         var duplicates = 0
         val rows = ArrayList<NewTxn>()
@@ -166,7 +168,7 @@ class ImportEngine(
         for (c in chosen.sortedBy { it.tx.timestamp }) {
             if (c.smsId in known) continue
             if (!deduper.offer(Deduper.entryOf(c.tx))) { duplicates++; continue }
-            rows += c.toNewTxn(categorizer)
+            rows += c.toNewTxn(categorizer, chosenNames)
         }
         var saved = 0
         val chunks = rows.chunked(100)
@@ -220,7 +222,8 @@ class ImportEngine(
             val existing = repo.smsTransactionsSince(since - Deduper.WINDOW_MS)
             val deduper = Deduper(existing.map { Deduper.DedupeEntry(it.amountPaise, it.direction, it.occurredAt, it.accountLabel?.filter { ch -> ch.isDigit() }?.takeLast(4), it.refNo) })
             val categorizer = Categorizer(repo.rules())
-            val rows = fresh.sortedBy { it.tx.timestamp }.filter { deduper.offer(Deduper.entryOf(it.tx)) }.map { it.toNewTxn(categorizer) }
+            val chosenNames = repo.merchantOverrides()
+            val rows = fresh.sortedBy { it.tx.timestamp }.filter { deduper.offer(Deduper.entryOf(it.tx)) }.map { it.toNewTxn(categorizer, chosenNames) }
             added = repo.insertAll(rows)
         }
         val latest = messages.maxOfOrNull { it.timestamp } ?: s.lastSmsTimestamp
@@ -228,8 +231,10 @@ class ImportEngine(
         return added
     }
 
-    private fun Candidate.toNewTxn(categorizer: Categorizer): NewTxn {
+    /** [chosen]: names and icons the user picked for merchants; they win over what the SMS says. */
+    private fun Candidate.toNewTxn(categorizer: Categorizer, chosen: Map<String, MerchantOverride>): NewTxn {
         val t = tx
+        val mine = chosen[merchantKey]
         val account = t.accountLast4?.let { last4 ->
             val prefix = t.institutionName ?: "Account"
             if (t.isCard) "$prefix card ••$last4" else "$prefix ••$last4"
@@ -238,9 +243,13 @@ class ImportEngine(
             amountPaise = t.amountPaise,
             direction = t.direction,
             occurredAt = t.timestamp,
-            merchantName = merchantName,
+            merchantName = mine?.name ?: merchantName,
             merchantKey = merchantKey,
-            merchantPackage = known?.packageName,
+            merchantPackage = when (val logo = mine?.logo) {
+                null -> known?.packageName
+                "" -> null
+                else -> logo
+            },
             vpa = t.vpa,
             categoryId = categorizer.categorize(t, merchantKey, known),
             accountLabel = account,
