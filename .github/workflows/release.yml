@@ -1,7 +1,9 @@
 name: Release bundle for Google Play
 
 # Run by hand: Actions -> "Release bundle for Google Play" -> Run workflow.
-# Builds the signed .aab that Google Play needs, using the upload key stored in repository secrets.
+# Builds the signed .aab that Google Play needs, using the upload key stored in repository secrets,
+# and (once tools/setup-play-publishing.sh has been run) sends it to a Google Play testing track.
+# Production is never automatic: promote a tested release in Play Console.
 on:
   workflow_dispatch:
     inputs:
@@ -9,9 +11,15 @@ on:
         description: "Version name users will see, e.g. 1.0.0"
         required: true
         default: "1.0.0"
+      play_track:
+        description: "Send to Google Play: internal = Internal testing, alpha = Closed testing, none = just build"
+        type: choice
+        options: [internal, alpha, none]
+        default: internal
 
 permissions:
   contents: read
+  id-token: write # lets GitHub prove to Google which repository is asking; no Google key is stored
 
 concurrency:
   group: release
@@ -101,6 +109,44 @@ jobs:
           path: out/*.aab
           retention-days: 30
           if-no-files-found: error
+
+      - name: Check Google Play publishing is set up
+        id: play
+        if: inputs.play_track != 'none'
+        env:
+          PROVIDER: ${{ vars.PLAY_WIF_PROVIDER }}
+          ACCOUNT: ${{ vars.PLAY_SERVICE_ACCOUNT }}
+        shell: bash
+        run: |
+          if [ -n "$PROVIDER" ] && [ -n "$ACCOUNT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Not sent to Google Play: the repository variables PLAY_WIF_PROVIDER and PLAY_SERVICE_ACCOUNT aren't set (see tools/setup-play-publishing.sh). Download the bundle above and upload it in Play Console."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Workload Identity Federation: Google trusts GitHub's short-lived token for this repository's
+      # main branch only, and hands back a 15-minute token for the Play publishing account.
+      - name: Sign in to Google Play
+        id: google
+        if: steps.play.outputs.ready == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.PLAY_WIF_PROVIDER }}
+          service_account: ${{ vars.PLAY_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+          access_token_lifetime: 900s
+          create_credentials_file: false
+
+      - name: Send to Google Play (${{ inputs.play_track }})
+        if: steps.play.outputs.ready == 'true'
+        env:
+          PLAY_TOKEN: ${{ steps.google.outputs.access_token }}
+          VERSION_NAME: ${{ inputs.version_name }}
+          TRACK: ${{ inputs.play_track }}
+        shell: bash
+        run: bash ci/play-upload.sh com.owl.tracker "out/owl-tracker-${VERSION_NAME}-${OWL_TRACKER_VERSION_CODE}.aab" "$TRACK" "$VERSION_NAME" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Remove the upload key from the runner
         if: always()
