@@ -51,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.ImportMode
 import com.owl.tracker.ui.ReviewChip
+import com.owl.tracker.ui.components.BankIcon
 import com.owl.tracker.ui.components.Checkmark
 import com.owl.tracker.ui.components.Divider
 import com.owl.tracker.ui.components.Gap
@@ -134,7 +135,7 @@ fun ImportFiltersScreen(vm: AppViewModel) {
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                IconTile(if (g.id == Institutions.UNRECOGNISED) Ic.info else Ic.bank, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
+                                BankIcon(vm.appIcons, g.id)
                                 Column(Modifier.weight(1f)) {
                                     Text(g.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(g.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)

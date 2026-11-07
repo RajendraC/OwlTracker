@@ -4,7 +4,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.owl.tracker.core.MerchantRegistry
+import com.owl.tracker.core.KnownApps
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -83,7 +83,10 @@ class ManifestSecurityTest {
     @Test
     fun everyMerchantAppIsDeclaredForIconLookup() {
         val manifest = java.io.File("src/main/AndroidManifest.xml").readText()
-        val missing = MerchantRegistry.packageNames.filter { "<package android:name=\"$it\" />" !in manifest }
+        val missing = KnownApps.packageNames.filter { "<package android:name=\"$it\" />" !in manifest }
         assertEquals("Add these to <queries> in AndroidManifest.xml", emptyList<String>(), missing)
+        // and nothing else: the app may see only the apps it shows icons for
+        val declared = Regex("""<package android:name="([^"]+)" />""").findAll(manifest).map { it.groupValues[1] }.toList()
+        assertEquals("Only recognised apps may be queried", emptyList<String>(), declared - KnownApps.packageNames.toSet())
     }
 }

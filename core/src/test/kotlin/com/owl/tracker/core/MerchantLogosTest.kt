@@ -40,10 +40,82 @@ class MerchantLogosTest {
         assertNull(key("YATRI NIWAS"))
     }
 
+    @Test fun recognisesPopularIndianApps() {
+        // Streaming
+        assertEquals("hotstar", key("JIOCINEMA"))
+        assertEquals("hotstar", key("JIOSTAR INDIA PVT LTD"))
+        assertEquals("sunnxt", key("SUN NXT"))
+        assertEquals("altt", key("ALTT"))
+        assertEquals("hoichoi", key("HOICHOI TECHNOLOGIES"))
+        assertEquals("aha", key("ARHA MEDIA AND BROADCASTING"))
+        assertEquals("tataplay", key("TATA SKY LTD"))
+        assertEquals("airtelxstream", key("AIRTEL XSTREAM"))
+        assertEquals("amazonmusic", key("AMAZON MUSIC"))
+        assertEquals("applemusic", key("APPLE MUSIC"))
+        assertEquals("pocketfm", key("POCKET FM"))
+        assertEquals("kukufm", key("KUKU FM"))
+        // Subscriptions
+        assertEquals("claude", key("ANTHROPIC"))
+        assertEquals("canva", key("CANVA"))
+        assertEquals("notion", key("NOTION LABS INC"))
+        assertEquals("zoom", key("ZOOM.US"))
+        assertEquals("truecaller", key("TRUECALLER"))
+        assertEquals("bumble", key("BUMBLE"))
+        assertEquals("strava", key("STRAVA"))
+        // UPI apps
+        assertEquals("bhim", key("BHIM UPI"))
+        assertEquals("navi", key("NAVI FINSERV LTD"))
+        assertEquals("freecharge", key("FREECHARGE"))
+        assertEquals("payzapp", key("PAYZAPP"))
+        // 10-minute delivery
+        assertEquals("bigbasket", key("BB NOW"))
+        assertEquals("zepto", key("KIRANAKART TECHNOLOGIES"))
+        assertEquals("blinkit", key("BLINKIT"))
+        assertEquals("swiggy_instamart", key("SWIGGY INSTAMART"))
+        // Broader names still win when nothing more specific is there
+        assertEquals("amazon", key("AMAZON"))
+        assertEquals("airtel", key("AIRTEL PREPAID"))
+        assertEquals("jio", key("RELIANCE JIO"))
+    }
+
+    @Test fun wholeWordNamesNeedTheWholeWord() {
+        assertNull(key("CANVAS PRINTS"))
+        assertNull(key("ZOOMCAR INDIA"))
+        assertNull(key("BUMBLEBEE CAFE"))
+        assertNull(key("NOTIONAL CHARGES"))
+        assertNull(key("AHAAR RESTAURANT"))
+        assertNull(key("JEAN CLAUDE BAKERY"))
+    }
+
+    @Test fun theUpiHandleIsNotTheMerchant() {
+        // @freecharge, @paytm and @upi name the app the person uses, not who was paid
+        assertNull(MerchantRegistry.match("RAMESH KUMAR", "ramesh@freecharge"))
+        assertNull(MerchantRegistry.match(null, "9876543210@paytm"))
+        assertNull(MerchantRegistry.match(null, "ramesh.k@upi"))
+        assertEquals("rapido", MerchantRegistry.match(null, "rapido@ybl")?.key)
+        assertEquals("swiggy", MerchantRegistry.match("SWIGGY", "swiggy@icici")?.key)
+    }
+
+    @Test fun banksShowTheirOwnApps() {
+        assertEquals("com.hdfcbank.android.now", Institutions.appsFor("hdfc").first())
+        assertEquals("com.sbi.lotusintouch", Institutions.forEntity("SBIUPI")?.apps?.first())
+        assertEquals(listOf("com.csam.icici.bank.imobile"), Institutions.appsFor(Institutions.forEntity("ICICIT")?.id))
+        assertTrue(Institutions.appsFor(Institutions.UNRECOGNISED).isEmpty())
+        assertTrue(Institutions.appsFor(null).isEmpty())
+        assertEquals("ICICI Bank", KnownApps.nameFor("com.csam.icici.bank.imobile"))
+        assertEquals("Canva", KnownApps.nameFor("com.canva.editor"))
+        listOf("sbi", "hdfc", "icici", "axis", "kotak", "pnb", "bob", "canara", "union", "idfc", "yes", "indusind").forEach {
+            assertTrue("$it has an app", Institutions.appsFor(it).isNotEmpty())
+        }
+    }
+
     @Test fun everyKnownMerchantHasAValidPackageName() {
         val pkg = Regex("[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]+)+")
         MerchantRegistry.all.forEach { m -> m.packageName?.let { assertTrue("${m.key}: $it", pkg.matches(it)) } }
-        assertTrue("about 80 apps", MerchantRegistry.packageNames.size >= 75)
+        Institutions.packageNames.forEach { assertTrue(it, pkg.matches(it)) }
+        assertTrue("well over 100 apps", KnownApps.packageNames.size >= 120)
+        assertEquals(KnownApps.packageNames.size, KnownApps.packageNames.toSet().size)
+        assertTrue(KnownApps.packageNames.containsAll(MerchantRegistry.packageNames + Institutions.packageNames))
         assertEquals("keys are unique", MerchantRegistry.all.size, MerchantRegistry.all.map { it.key }.toSet().size)
     }
 }

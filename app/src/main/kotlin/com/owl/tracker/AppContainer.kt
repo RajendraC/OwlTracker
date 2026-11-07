@@ -2,11 +2,12 @@ package com.owl.tracker
 
 import android.content.Context
 import android.graphics.Bitmap
-import com.owl.tracker.core.MerchantRegistry
 import android.content.pm.PackageManager
 import androidx.core.graphics.drawable.toBitmap
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.owl.tracker.backup.BackupManager
+import com.owl.tracker.core.Institutions
+import com.owl.tracker.core.KnownApps
 import com.owl.tracker.data.Db
 import com.owl.tracker.data.Repository
 import com.owl.tracker.licence.Licence
@@ -37,9 +38,9 @@ class AppContainer(
     installedAt: () -> Long = { TrialClock.installTime(context) },
 ) {
     val db = Db(context, dbFactory, dbName)
-    val repo = Repository(db, clock)
-    val importEngine = ImportEngine(sms, repo, clock)
     val appIcons = AppIcons(context)
+    val repo = Repository(db, clock, appIcons::bankApp)
+    val importEngine = ImportEngine(sms, repo, clock, bankApp = appIcons::bankApp)
     val backups = BackupManager(context, repo, clock)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -115,20 +116,23 @@ class AppIcons(private val context: Context) {
         return v as? Bitmap
     }
 
+    /** The first installed app of a bank, card or wallet (by its sender id), for showing its icon. */
+    fun bankApp(institutionId: String?): String? = Institutions.appsFor(institutionId).firstOrNull { get(it) != null }
+
     /**
-     * The recognised apps (MerchantRegistry) that are installed, with their names, for picking a merchant's
-     * icon by hand. Only these few dozen packages are ever looked up; the phone's full app list is never read.
+     * The recognised apps (merchants, banks, UPI apps) that are installed, with their names, for picking a
+     * merchant's icon by hand. Only these packages are ever looked up; the phone's full app list is never read.
      * Call off the main thread.
      */
     fun installedKnownApps(): List<KnownApp> =
-        MerchantRegistry.packageNames.mapNotNull { pkg ->
+        KnownApps.packageNames.mapNotNull { pkg ->
             if (get(pkg) == null) return@mapNotNull null
             val label = runCatching {
                 val pm = context.packageManager
                 @Suppress("DEPRECATION")
                 pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
             }.getOrNull()?.takeIf { it.isNotBlank() }
-                ?: MerchantRegistry.all.first { it.packageName == pkg }.displayName
+                ?: KnownApps.nameFor(pkg)
             KnownApp(pkg, label)
         }.sortedBy { it.label.lowercase() }
 }

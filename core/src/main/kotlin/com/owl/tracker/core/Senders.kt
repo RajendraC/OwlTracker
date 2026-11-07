@@ -43,7 +43,11 @@ object SenderParser {
 
 enum class InstitutionKind { BANK, CARD, WALLET }
 
-data class Institution(val id: String, val name: String, val kind: InstitutionKind)
+/**
+ * [apps]: the institution's own Android apps, most used first. The first one installed on the phone gives
+ * the bank's icon. Like merchant apps, each must be listed in the app manifest's <queries> block.
+ */
+data class Institution(val id: String, val name: String, val kind: InstitutionKind, val apps: List<String> = emptyList())
 
 /**
  * Known sender entities. Matching is by prefix or contains on the 6-character DLT entity,
@@ -54,31 +58,33 @@ object Institutions {
 
     private data class Entry(val pattern: Regex, val institution: Institution)
 
-    private fun e(pattern: String, id: String, name: String, kind: InstitutionKind = InstitutionKind.BANK) =
-        Entry(Regex(pattern), Institution(id, name, kind))
+    private fun e(pattern: String, id: String, name: String, kind: InstitutionKind = InstitutionKind.BANK, vararg apps: String) =
+        Entry(Regex(pattern), Institution(id, name, kind, apps.toList()))
+
+    private val BANK = InstitutionKind.BANK
 
     private val entries = listOf(
-        e("^SBICRD|^SBICARD|^SBMCRD", "sbicard", "SBI Card", InstitutionKind.CARD),
-        e("^HDFC", "hdfc", "HDFC Bank"),
-        e("^ICICI", "icici", "ICICI Bank"),
-        e("SBI", "sbi", "SBI"),
-        e("^AXIS", "axis", "Axis Bank"),
-        e("^KOTAK|^KOTAKB", "kotak", "Kotak Mahindra Bank"),
-        e("^PAYTM", "paytm", "Paytm Payments Bank", InstitutionKind.WALLET),
-        e("^PHONPE|^PHONEPE", "phonepe", "PhonePe", InstitutionKind.WALLET),
-        e("^AMZPAY|^AMAZONP", "amazonpay", "Amazon Pay", InstitutionKind.WALLET),
-        e("^MOBIKW", "mobikwik", "MobiKwik", InstitutionKind.WALLET),
-        e("^AIRBNK|^AIRTLB", "airtelbank", "Airtel Payments Bank"),
-        e("^IDFC", "idfc", "IDFC FIRST Bank"),
-        e("^YESB", "yes", "Yes Bank"),
-        e("^INDUS", "indusind", "IndusInd Bank"),
-        e("^PNB", "pnb", "Punjab National Bank"),
-        e("^BOIIND|^BOISMS|^BOI", "boi", "Bank of India"),
-        e("^BOB|^BARODA", "bob", "Bank of Baroda"),
-        e("^CANB", "canara", "Canara Bank"),
-        e("^UNION|^UBIN", "union", "Union Bank of India"),
-        e("^AUBANK|^AUSFB", "au", "AU Small Finance Bank"),
-        e("^FEDB|^FEDBNK", "federal", "Federal Bank"),
+        e("^SBICRD|^SBICARD|^SBMCRD", "sbicard", "SBI Card", InstitutionKind.CARD, "com.ge.capital.konysbiapp"),
+        e("^HDFC", "hdfc", "HDFC Bank", BANK, "com.hdfcbank.android.now", "com.snapwork.hdfc", "com.enstage.wibmo.hdfc"),
+        e("^ICICI", "icici", "ICICI Bank", BANK, "com.csam.icici.bank.imobile"),
+        e("SBI", "sbi", "SBI", BANK, "com.sbi.lotusintouch", "com.sbi.SBIFreedomPlus"),
+        e("^AXIS", "axis", "Axis Bank", BANK, "com.axis.mobile"),
+        e("^KOTAK|^KOTAKB", "kotak", "Kotak Mahindra Bank", BANK, "com.msf.kbank.mobile"),
+        e("^PAYTM", "paytm", "Paytm Payments Bank", InstitutionKind.WALLET, "net.one97.paytm"),
+        e("^PHONPE|^PHONEPE", "phonepe", "PhonePe", InstitutionKind.WALLET, "com.phonepe.app"),
+        e("^AMZPAY|^AMAZONP", "amazonpay", "Amazon Pay", InstitutionKind.WALLET, "in.amazon.mShop.android.shopping"),
+        e("^MOBIKW", "mobikwik", "MobiKwik", InstitutionKind.WALLET, "com.mobikwik_new"),
+        e("^AIRBNK|^AIRTLB", "airtelbank", "Airtel Payments Bank", BANK, "com.myairtelapp"),
+        e("^IDFC", "idfc", "IDFC FIRST Bank", BANK, "com.idfcfirstbank.optimus"),
+        e("^YESB", "yes", "Yes Bank", BANK, "in.irisbyyes.app", "com.atomyes"),
+        e("^INDUS", "indusind", "IndusInd Bank", BANK, "com.indusind.indie", "com.fss.indus"),
+        e("^PNB", "pnb", "Punjab National Bank", BANK, "com.Version1"),
+        e("^BOIIND|^BOISMS|^BOI", "boi", "Bank of India", BANK, "com.boi.ua.android", "com.boi.mpay"),
+        e("^BOB|^BARODA", "bob", "Bank of Baroda", BANK, "com.bankofbaroda.mconnect"),
+        e("^CANB", "canara", "Canara Bank", BANK, "com.canarabank.mobility"),
+        e("^UNION|^UBIN", "union", "Union Bank of India", BANK, "com.infrasoft.uboi"),
+        e("^AUBANK|^AUSFB", "au", "AU Small Finance Bank", BANK, "com.ausmallfinancebank.amb"),
+        e("^FEDB|^FEDBNK", "federal", "Federal Bank", BANK, "com.fedmobile"),
         e("^IDBI", "idbi", "IDBI Bank"),
         e("^IOB", "iob", "Indian Overseas Bank"),
         e("^UCO", "uco", "UCO Bank"),
@@ -90,10 +96,19 @@ object Institutions {
         e("^CITI", "citi", "Citibank"),
         e("^AMEX", "amex", "American Express", InstitutionKind.CARD),
         e("^ONECRD|^ONECARD", "onecard", "OneCard", InstitutionKind.CARD),
-        e("^SLICE", "slice", "slice", InstitutionKind.CARD),
+        e("^SLICE", "slice", "slice", InstitutionKind.CARD, "indwin.c3.shareapp"),
     )
 
     fun forEntity(entity: String): Institution? = entries.firstOrNull { it.pattern.containsMatchIn(entity) }?.institution
+
+    /** The institution's apps, most used first; empty when unknown. */
+    fun appsFor(id: String?): List<String> = entries.firstOrNull { it.institution.id == id }?.institution?.apps.orEmpty()
+
+    /** Every bank, card and wallet app we may show the icon of. */
+    val packageNames: List<String> = entries.flatMap { it.institution.apps }.distinct()
+
+    /** The institution an app belongs to, for naming it when its label can't be read. */
+    fun nameForApp(pkg: String): String? = entries.firstOrNull { pkg in it.institution.apps }?.institution?.name
 
     fun nameFor(id: String?): String = when (id) {
         null, UNRECOGNISED -> "Unrecognised senders"

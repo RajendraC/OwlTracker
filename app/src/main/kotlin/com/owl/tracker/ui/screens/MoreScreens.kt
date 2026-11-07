@@ -37,6 +37,7 @@ import com.owl.tracker.ui.ImportMode
 import com.owl.tracker.ui.Platform
 import com.owl.tracker.ui.Screen
 import com.owl.tracker.ui.Sheet
+import com.owl.tracker.ui.components.BankIcon
 import com.owl.tracker.ui.components.CategoryTile
 import com.owl.tracker.ui.components.Divider
 import com.owl.tracker.ui.components.Gap
@@ -191,7 +192,7 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             NavRow(Ic.refresh, "Rescan inbox", "Also runs when you open the app and every 6 hours", trailing = {}) { vm.rescan() }
             storage.bySenderGroup.entries.sortedByDescending { it.value }.forEach { (g, n) ->
                 Divider()
-                NavRow(Ic.bank, Institutions.nameFor(g), (if (g in f.disabledSenders) "Paused" else "Importing") + " · $n stored", trailing = {}) { }
+                NavRow(Ic.bank, Institutions.nameFor(g), (if (g in f.disabledSenders) "Paused" else "Importing") + " · $n stored", leading = { BankIcon(vm.appIcons, g, 36.dp) }, trailing = {}) { }
             }
         }
 
@@ -238,7 +239,7 @@ fun PrivacyScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ScreenHeader("Privacy policy", onBack = { vm.back() })
         PrivacyPara("What Owl Tracker reads", "With your permission, Owl Tracker reads SMS messages in your inbox to find bank, card, wallet and UPI transactions. It reads each message's sender, text and time. It does not read contacts, call logs, photos, location or any other data.")
-        PrivacyPara("Merchant logos", "To show a merchant's logo, Owl Tracker checks whether one of about 80 well-known apps (such as Swiggy, Uber or Airtel) is installed, and if so shows that app's own icon. It can only see those listed apps, never the full list of apps on your phone, and nothing about them leaves your phone. When you choose an icon for a merchant yourself, the choice is limited to those same apps.")
+        PrivacyPara("Merchant logos", "To show a merchant's or bank's logo, Owl Tracker checks whether one of about 140 well-known apps (shopping, delivery, streaming, UPI and banking apps such as Swiggy, Netflix or YONO SBI) is installed, and if so shows that app's own icon. It can only see those listed apps, never the full list of apps on your phone, and nothing about them leaves your phone. When you choose an icon for a merchant yourself, the choice is limited to those same apps.")
         PrivacyPara("What it ignores", "Messages from people (phone-number senders), OTPs and verification codes, promotional messages, reminders and failed payments are skipped in memory and never stored.")
         PrivacyPara("What it keeps", "The transactions you choose to import, with a copy of each original message so you can check it. They are stored in a database encrypted with AES-256. Its key is protected by Android Keystore and never leaves the phone.")
         PrivacyPara("What it shares", "Nothing. Owl Tracker has no internet permission, no analytics, no ads and no crash-reporting service. Your data is excluded from Android cloud backup and device-to-device transfer.")

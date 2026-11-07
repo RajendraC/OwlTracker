@@ -5,12 +5,17 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.owl.tracker.data.Schema
 import com.owl.tracker.data.Source
 import com.owl.tracker.core.Cat
+import com.owl.tracker.core.TxKind
+import com.owl.tracker.data.Repository
+import com.owl.tracker.sms.FakeSmsSource
+import com.owl.tracker.sms.ImportEngine
 import com.owl.tracker.core.ImportFilters
 import com.owl.tracker.core.SmsMessage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -173,6 +178,48 @@ class ImportEngineTest {
         assertTrue(month(c).filter { it.merchantKey == "swiggy" }.all { it.merchantPackage == "in.swiggy.android" })
         assertEquals(null, c.repo.merchantOverrides()["swiggy"]?.logo)
         assertEquals("Food delivery", c.repo.merchantOverrides()["swiggy"]?.name)
+    }
+
+    @Test
+    fun cardBillsShowTheBanksAppAndOlderPaymentsGetNewIcons() = runBlocking {
+        val inbox = sampleInbox()
+        val c = testContainer(context, inbox)
+        var hdfcApp: String? = null
+        val bankApp: (String?) -> String? = { if (it == "hdfc") hdfcApp else null }
+        val repo = Repository(c.db, TEST_CLOCK, bankApp)
+        val e = ImportEngine(FakeSmsSource({ inbox.toList() }, true), repo, TEST_CLOCK, bankApp)
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        repo.updateSettings { it.copy(onboarded = true) }
+        fun all() = runBlocking { repo.transactions(TEST_CLOCK.millis() - 40L * DAY_MS, TEST_CLOCK.millis() + 1) }
+
+        // No HDFC app on the phone yet: the card bill has no icon
+        val bill = all().first { it.kind == TxKind.CARD_BILL_PAYMENT }
+        assertEquals("hdfc", bill.senderGroup)
+        assertNull(bill.merchantPackage)
+
+        // Payments saved by an older version, before it knew these apps
+        c.db.get().execSQL("UPDATE transactions SET merchant_package = NULL WHERE merchant_key IN ('swiggy', 'zomato')")
+        val zomato = all().first { it.merchantKey == "zomato" }
+        repo.setMerchantLogo(zomato.id, "") // the user chose no icon for Zomato
+
+        // The HDFC app is installed; the next sync fills in what's missing and nothing else
+        hdfcApp = "com.hdfcbank.android.now"
+        e.syncNew()
+        assertEquals("com.hdfcbank.android.now", repo.transaction(bill.id)!!.merchantPackage)
+        assertTrue(all().filter { it.merchantKey == "swiggy" }.all { it.merchantPackage == "in.swiggy.android" })
+        assertTrue(all().filter { it.merchantKey == "zomato" }.all { it.merchantPackage == null })
+        assertEquals(0, repo.fillMissingIcons())
+
+        // No icon, then automatic again: a card bill goes back to its bank's app
+        repo.setMerchantLogo(bill.id, "")
+        assertNull(repo.transaction(bill.id)!!.merchantPackage)
+        repo.setMerchantLogo(bill.id, null)
+        assertEquals("com.hdfcbank.android.now", repo.transaction(bill.id)!!.merchantPackage)
+
+        // New card bills get the icon as they arrive
+        inbox += SmsMessage(6000, "VM-HDFCBK-T", "Payment of Rs.2,100.00 received towards your HDFC Bank Credit Card ending 9012 on 18-10-26. Thank you.", TEST_CLOCK.millis() - 60_000)
+        assertEquals(1, e.syncNew())
+        assertEquals("com.hdfcbank.android.now", all().first { it.smsId == 6000L }.merchantPackage)
     }
 
     @Test

@@ -57,6 +57,7 @@ import com.owl.tracker.ui.theme.Ic
 import com.owl.tracker.ui.theme.LocalStatusColors
 import com.owl.tracker.core.BudgetState
 import com.owl.tracker.core.Cat
+import com.owl.tracker.core.Institutions
 
 @Composable
 fun Panel(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
@@ -134,6 +135,20 @@ fun MerchantAvatar(appIcons: AppIcons, packageName: String?, merchantName: Strin
     }
 }
 
+/** A bank, card or wallet: its own app icon when one of its apps is installed, otherwise a plain bank tile. */
+@Composable
+fun BankIcon(appIcons: AppIcons, institutionId: String?, size: Dp = 40.dp) {
+    val bitmap = remember(institutionId) { appIcons.get(appIcons.bankApp(institutionId))?.asImageBitmap() }
+    if (bitmap != null) {
+        Image(bitmap, contentDescription = null, modifier = Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)))
+    } else {
+        IconTile(
+            if (institutionId == Institutions.UNRECOGNISED) Ic.info else Ic.bank,
+            MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surfaceVariant, size,
+        )
+    }
+}
+
 private val MONOGRAM_COLORS = listOf(
     Color(0xFF2A6FB5), Color(0xFF7552C4), Color(0xFFC23F73), Color(0xFF1F8F86),
     Color(0xFFD9622B), Color(0xFF3F8A3A), Color(0xFF9E740C), Color(0xFF5866B8),
@@ -150,13 +165,13 @@ fun initials(name: String): String {
 }
 
 @Composable
-fun NavRow(icon: ImageVector, title: String, subtitle: String? = null, iconTint: Color? = null, iconBg: Color? = null, titleColor: Color = Color.Unspecified, trailing: @Composable (() -> Unit)? = null, onClick: () -> Unit) {
+fun NavRow(icon: ImageVector, title: String, subtitle: String? = null, iconTint: Color? = null, iconBg: Color? = null, titleColor: Color = Color.Unspecified, leading: @Composable (() -> Unit)? = null, trailing: @Composable (() -> Unit)? = null, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        IconTile(icon, iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant, iconBg ?: MaterialTheme.colorScheme.surfaceVariant, 36.dp)
+        if (leading != null) leading() else IconTile(icon, iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant, iconBg ?: MaterialTheme.colorScheme.surfaceVariant, 36.dp)
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = titleColor)
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

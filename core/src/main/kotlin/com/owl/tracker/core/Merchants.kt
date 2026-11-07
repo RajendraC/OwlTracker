@@ -41,20 +41,25 @@ object MerchantRegistry {
     private fun m(key: String, name: String, pkg: String?, cat: String, vararg patterns: String) =
         KnownMerchant(key, name, pkg, cat, patterns.toList())
 
-    /** Order matters: more specific names (Instamart, Prime Video) come before broader ones (Swiggy, Amazon). */
+    /**
+     * Order matters: more specific names (Instamart, Prime Video) come before broader ones (Swiggy, Amazon).
+     * A pattern matches from the start of a word; one ending in $ must also end where a word ends, so
+     * "canva$" finds CANVA but not CANVAS PRINTS.
+     */
     val all: List<KnownMerchant> = listOf(
         m("swiggy_instamart", "Swiggy Instamart", "in.swiggy.android", Cat.GROCERIES, "swiggyinstamart", "instamart"),
         m("swiggy", "Swiggy", "in.swiggy.android", Cat.FOOD, "swiggy", "bundl"),
         m("zomato", "Zomato", "com.application.zomato", Cat.FOOD, "zomato"),
         m("blinkit", "Blinkit", "com.grofers.customerapp", Cat.GROCERIES, "blinkit", "grofers"),
         m("zepto", "Zepto", "com.zeptoconsumerapp", Cat.GROCERIES, "zepto", "kiranakart"),
-        m("bigbasket", "BigBasket", "com.bigbasket.mobileapp", Cat.GROCERIES, "bigbasket", "supermarket grocery supplies"),
+        m("bigbasket", "BigBasket", "com.bigbasket.mobileapp", Cat.GROCERIES, "bigbasket", "bb now", "bbnow", "supermarket grocery supplies"),
         m("jiomart", "JioMart", "com.jpl.jiomart", Cat.GROCERIES, "jiomart"),
         m("dmart", "DMart Ready", "in.dmart", Cat.GROCERIES, "dmart", "avenue supermarts", "avenue e-commerce"),
         m("licious", "Licious", "com.licious", Cat.GROCERIES, "licious", "delightful gourmet"),
         m("primevideo", "Prime Video", "com.amazon.avod.thirdpartyclient", Cat.ENTERTAINMENT, "primevideo", "prime video"),
         m("kindle", "Kindle", "com.amazon.kindle", Cat.EDUCATION, "kindle"),
         m("audible", "Audible", "com.audible.application", Cat.RECHARGE, "audible"),
+        m("amazonmusic", "Amazon Music", "com.amazon.mp3", Cat.RECHARGE, "amazon music", "amazonmusic"),
         m("amazon", "Amazon", "in.amazon.mShop.android.shopping", Cat.SHOPPING, "amazon", "amzn"),
         m("shopsy", "Shopsy", "com.flipkart.shopsy", Cat.SHOPPING, "shopsy"),
         m("flipkart", "Flipkart", "com.flipkart.android", Cat.SHOPPING, "flipkart", "fkrt"),
@@ -87,7 +92,17 @@ object MerchantRegistry {
         m("oyo", "OYO", "com.oyo.consumer", Cat.TRAVEL, "oyo", "oravel"),
         m("netflix", "Netflix", "com.netflix.mediaclient", Cat.RECHARGE, "netflix"),
         m("spotify", "Spotify", "com.spotify.music", Cat.RECHARGE, "spotify"),
-        m("hotstar", "JioHotstar", "in.startv.hotstar", Cat.RECHARGE, "hotstar", "jiohotstar", "novi digital"),
+        m("hotstar", "JioHotstar", "in.startv.hotstar", Cat.RECHARGE, "hotstar", "jiohotstar", "jiocinema", "jio cinema", "jiostar", "novi digital"),
+        m("sunnxt", "Sun NXT", "com.suntv.sunnxt", Cat.RECHARGE, "sunnxt", "sun nxt"),
+        m("altt", "ALTT", "com.balaji.alt", Cat.RECHARGE, "altt$", "altbalaji", "alt balaji"),
+        m("hoichoi", "hoichoi", "com.viewlift.hoichoi", Cat.RECHARGE, "hoichoi"),
+        m("aha", "aha", "ahaflix.tv", Cat.RECHARGE, "ahaflix", "aha video", "arha media"),
+        m("mxplayer", "MX Player", "com.mxtech.videoplayer.ad", Cat.RECHARGE, "mx player", "mxplayer"),
+        m("tataplay", "Tata Play", "com.ryzmedia.tatasky", Cat.RECHARGE, "tata play", "tataplay", "tata sky", "tatasky"),
+        m("airtelxstream", "Airtel Xstream", "tv.accedo.airtel.wynk", Cat.RECHARGE, "xstream"),
+        m("applemusic", "Apple Music", "com.apple.android.music", Cat.RECHARGE, "apple music", "applemusic"),
+        m("pocketfm", "Pocket FM", "com.radio.pocketfm", Cat.RECHARGE, "pocket fm", "pocketfm"),
+        m("kukufm", "Kuku FM", "com.vlv.aravali", Cat.RECHARGE, "kuku fm", "kukufm", "kuku tv", "mebigo"),
         m("sonyliv", "SonyLIV", "com.sonyliv", Cat.RECHARGE, "sonyliv", "sony liv", "culver max"),
         m("zee5", "ZEE5", "com.graymatrix.did", Cat.RECHARGE, "zee5", "zee entertainment"),
         m("jiosaavn", "JioSaavn", "com.jio.media.jiobeats", Cat.RECHARGE, "jiosaavn", "saavn"),
@@ -99,6 +114,20 @@ object MerchantRegistry {
         m("linkedin", "LinkedIn", "com.linkedin.android", Cat.RECHARGE, "linkedin"),
         m("microsoft", "Microsoft", "com.microsoft.office.officehubrow", Cat.RECHARGE, "microsoft"),
         m("chatgpt", "ChatGPT", "com.openai.chatgpt", Cat.RECHARGE, "openai", "chatgpt"),
+        m("claude", "Claude", "com.anthropic.claude", Cat.RECHARGE, "anthropic", "claude.ai"),
+        m("perplexity", "Perplexity", "ai.perplexity.app.android", Cat.RECHARGE, "perplexity"),
+        m("canva", "Canva", "com.canva.editor", Cat.RECHARGE, "canva$"),
+        m("adobe", "Adobe", "com.adobe.reader", Cat.RECHARGE, "adobe"),
+        m("notion", "Notion", "notion.id", Cat.RECHARGE, "notion.so", "notion labs", "notion$"),
+        m("dropbox", "Dropbox", "com.dropbox.android", Cat.RECHARGE, "dropbox"),
+        m("zoom", "Zoom", "us.zoom.videomeetings", Cat.RECHARGE, "zoom.us", "zoom video", "zoom communications"),
+        m("grammarly", "Grammarly", "com.grammarly.android", Cat.RECHARGE, "grammarly"),
+        m("truecaller", "Truecaller", "com.truecaller", Cat.RECHARGE, "truecaller"),
+        m("tinder", "Tinder", "com.tinder", Cat.RECHARGE, "tinder"),
+        m("bumble", "Bumble", "com.bumble.app", Cat.RECHARGE, "bumble$"),
+        m("telegram", "Telegram", "org.telegram.messenger", Cat.RECHARGE, "telegram"),
+        m("discord", "Discord", "com.discord", Cat.RECHARGE, "discord"),
+        m("snapchat", "Snapchat", "com.snapchat.android", Cat.RECHARGE, "snapchat"),
         m("bookmyshow", "BookMyShow", "com.bt.bms", Cat.ENTERTAINMENT, "bookmyshow", "bigtree"),
         m("airtel", "Airtel", "com.myairtelapp", Cat.RECHARGE, "airtel"),
         m("vi", "Vi", "com.mventus.selfcare.activity", Cat.RECHARGE, "vodafone idea", "vodafone", "myvi"),
@@ -108,6 +137,12 @@ object MerchantRegistry {
         m("phonepe", "PhonePe", "com.phonepe.app", Cat.OTHERS, "phonepe"),
         m("gpay", "Google Pay", "com.google.android.apps.nbu.paisa.user", Cat.OTHERS, "google pay", "gpay"),
         m("mobikwik", "MobiKwik", "com.mobikwik_new", Cat.OTHERS, "mobikwik"),
+        m("bhim", "BHIM", "in.org.npci.upiapp", Cat.OTHERS, "bhim upi", "bhimupi"),
+        m("whatsapp", "WhatsApp", "com.whatsapp", Cat.OTHERS, "whatsapp"),
+        m("supermoney", "super.money", "money.super.payments", Cat.OTHERS, "super.money", "supermoney"),
+        m("navi", "Navi", "com.naviapp", Cat.EMI, "navi finserv", "navi technologies", "naviapp"),
+        m("freecharge", "Freecharge", "com.freecharge.android", Cat.OTHERS, "freecharge"),
+        m("payzapp", "PayZapp", "com.enstage.wibmo.hdfc", Cat.OTHERS, "payzapp"),
         m("groww", "Groww", "com.nextbillion.groww", Cat.INVESTMENTS, "groww", "nextbillion"),
         m("zerodha", "Zerodha", "com.zerodha.kite3", Cat.INVESTMENTS, "zerodha"),
         m("indmoney", "INDmoney", "in.indwealth", Cat.INVESTMENTS, "indmoney", "indwealth"),
@@ -118,6 +153,9 @@ object MerchantRegistry {
         m("practo", "Practo", "com.practo.fabric", Cat.HEALTH, "practo"),
         m("cultfit", "cult.fit", "fit.cure.android", Cat.SPORTS, "cult.fit", "cultfit", "curefit"),
         m("healthifyme", "HealthifyMe", "com.healthifyme.basic", Cat.HEALTH, "healthifyme", "healthify"),
+        m("headspace", "Headspace", "com.getsomeheadspace.android", Cat.HEALTH, "headspace"),
+        m("calm", "Calm", "com.calm.android", Cat.HEALTH, "calm.com"),
+        m("strava", "Strava", "com.strava", Cat.SPORTS, "strava"),
         m("byjus", "BYJU'S", "com.byjus.thelearningapp", Cat.EDUCATION, "byju", "think and learn"),
         m("unacademy", "Unacademy", "com.unacademyapp", Cat.EDUCATION, "unacademy", "sorting hat"),
         m("coursera", "Coursera", "org.coursera.android", Cat.EDUCATION, "coursera"),
@@ -131,10 +169,19 @@ object MerchantRegistry {
     val packageNames: List<String> = all.mapNotNull { it.packageName }.distinct()
 
     private val compiled: List<Pair<KnownMerchant, List<Regex>>> =
-        all.map { km -> km to km.patterns.map { Regex("""(?i)(?:^|[^a-z0-9])""" + Regex.escape(it)) } }
+        all.map { km -> km to km.patterns.map(::compile) }
+
+    private fun compile(pattern: String): Regex {
+        val whole = pattern.endsWith("$")
+        val text = Regex.escape(pattern.removeSuffix("$"))
+        return Regex("""(?i)(?:^|[^a-z0-9])""" + text + if (whole) """(?![a-z0-9])""" else "")
+    }
+
+    // The @handle of a UPI ID names the payer's app, not the payee: ramesh@freecharge is a person.
+    private val UPI_HANDLE = Regex("""@[a-z0-9.\-]+""")
 
     fun match(merchantRaw: String?, vpa: String?): KnownMerchant? {
-        val hay = listOfNotNull(merchantRaw, vpa).joinToString(" ").lowercase()
+        val hay = listOfNotNull(merchantRaw, vpa).joinToString(" ").lowercase().replace(UPI_HANDLE, " ")
         if (hay.isBlank()) return null
         return compiled.firstOrNull { (_, regs) -> regs.any { it.containsMatchIn(hay) } }?.first
     }
@@ -145,4 +192,13 @@ object MerchantRegistry {
             ?: displayName?.lowercase()?.replace(Regex("[^a-z0-9]+"), "_")?.trim('_')?.takeIf { it.isNotEmpty() }
             ?: vpa?.lowercase()
             ?: "unknown"
+}
+
+/** Every Android app whose icon Owl Tracker may show: recognised merchants, banks, cards and wallets. */
+object KnownApps {
+    val packageNames: List<String> = (MerchantRegistry.packageNames + Institutions.packageNames).distinct()
+
+    /** A name for the app when Android can't give its label. */
+    fun nameFor(pkg: String): String =
+        MerchantRegistry.all.firstOrNull { it.packageName == pkg }?.displayName ?: Institutions.nameForApp(pkg) ?: pkg
 }

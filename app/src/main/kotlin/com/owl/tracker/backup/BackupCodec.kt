@@ -2,7 +2,7 @@ package com.owl.tracker.backup
 
 import com.owl.tracker.core.CategoryRule
 import com.owl.tracker.core.Direction
-import com.owl.tracker.core.MerchantRegistry
+import com.owl.tracker.core.KnownApps
 import com.owl.tracker.core.Privacy
 import com.owl.tracker.core.RuleMatch
 import com.owl.tracker.core.TxKind
@@ -81,7 +81,7 @@ object BackupCodec {
 
     /** Turns what's stored into a backup, leaving out everything SMS-specific. */
     fun fromSnapshot(s: Repository.Snapshot, now: Long, appVersion: String): BackupContent {
-        val known = MerchantRegistry.packageNames.toSet()
+        val known = KnownApps.packageNames.toSet()
         val txns = s.transactions.map { t ->
             NewTxn(
                 amountPaise = t.amountPaise, direction = t.direction, occurredAt = t.occurredAt,
@@ -293,7 +293,7 @@ object BackupCodec {
             CategoryRule(match, pattern, cat)
         }.distinctBy { it.match to it.pattern }
 
-        val known = MerchantRegistry.packageNames.toSet()
+        val known = KnownApps.packageNames.toSet()
         val txJson = p.optJSONArray("transactions") ?: JSONArray()
         if (txJson.length() > MAX_TRANSACTIONS) throw BackupException(BackupException.Problem.TOO_LARGE)
         val latest = now + 2 * 24 * 60 * 60 * 1000L

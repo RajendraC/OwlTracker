@@ -7,6 +7,7 @@ import com.owl.tracker.backup.BackupContent
 import com.owl.tracker.core.Cat
 import com.owl.tracker.core.CategoryRule
 import com.owl.tracker.core.Direction
+import com.owl.tracker.core.KnownApps
 import com.owl.tracker.core.MerchantRegistry
 import com.owl.tracker.core.RuleMatch
 import com.owl.tracker.core.TxKind
@@ -23,9 +24,10 @@ import java.time.Clock
 
 /**
  * All reads and writes go through here, on one background thread. Reads are exposed as Flows that
- * re-run whenever any write happens.
+ * re-run whenever any write happens. [bankApp] gives the installed app of a bank by its sender id,
+ * the automatic icon of a card bill payment.
  */
-class Repository(private val db: Db, private val clock: Clock) {
+class Repository(private val db: Db, private val clock: Clock, private val bankApp: (String?) -> String? = { null }) {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val io = Dispatchers.IO.limitedParallelism(1)
@@ -252,10 +254,52 @@ class Repository(private val db: Db, private val clock: Clock) {
         val pkg = when (logo) {
             null -> MerchantRegistry.all.firstOrNull { it.key == key }?.packageName
             "" -> null
-            else -> logo.takeIf { it in MerchantRegistry.packageNames } ?: return@write 0
+            else -> logo.takeIf { it in KnownApps.packageNames } ?: return@write 0
         }
         upsertMerchant(d, key, "logo" to logo)
-        d.update("transactions", CONFLICT_REPLACE, contentValuesOf("merchant_package" to pkg), "merchant_key = ?", arrayOf<Any?>(key))
+        val n = d.update("transactions", CONFLICT_REPLACE, contentValuesOf("merchant_package" to pkg), "merchant_key = ?", arrayOf<Any?>(key))
+        if (logo == null && pkg == null) {
+            // A card bill payment has no merchant app: automatic means the app of the bank that sent the SMS.
+            val bill = TxKind.CARD_BILL_PAYMENT.name
+            val groups = d.query("SELECT DISTINCT sender_group FROM transactions WHERE merchant_key = ? AND kind = ?", arrayOf<Any?>(key, bill))
+                .use { c -> buildList { while (c.moveToNext()) add(c.str(0)) } }
+            groups.forEach { g ->
+                val app = bankApp(g) ?: return@forEach
+                d.update("transactions", CONFLICT_REPLACE, contentValuesOf("merchant_package" to app), "merchant_key = ? AND kind = ? AND sender_group IS ?", arrayOf<Any?>(key, bill, g))
+            }
+        }
+        n
+    }
+
+    /**
+     * Gives an icon to payments that have none yet: merchants whose apps a newer version recognises, and
+     * card bill payments whose bank's app has since been installed. Only the icon changes, and merchants
+     * whose icon the user chose are left alone. Writes (and refreshes screens) only when something changes.
+     */
+    suspend fun fillMissingIcons(): Int {
+        val bill = TxKind.CARD_BILL_PAYMENT.name
+        val open = "merchant_package IS NULL AND merchant_key NOT IN (SELECT merchant_key FROM merchants WHERE logo IS NOT NULL)"
+        val (byMerchant, byBank) = read { d ->
+            val merchants = d.query("SELECT merchant_key, MAX(merchant_name), MAX(vpa) FROM transactions WHERE $open GROUP BY merchant_key")
+                .use { c -> buildList { while (c.moveToNext()) add(Triple(c.getString(0), c.str(1), c.str(2))) } }
+                .mapNotNull { (key, name, vpa) -> MerchantRegistry.match(name, vpa)?.packageName?.let { key to it } }
+            val bills = d.query("SELECT DISTINCT merchant_key, sender_group FROM transactions WHERE kind = ? AND $open", arrayOf<Any?>(bill))
+                .use { c -> buildList { while (c.moveToNext()) add(c.getString(0) to c.str(1)) } }
+                .filter { (key, _) -> merchants.none { it.first == key } }
+                .mapNotNull { (key, group) -> bankApp(group)?.let { Triple(key, group, it) } }
+            merchants to bills
+        }
+        if (byMerchant.isEmpty() && byBank.isEmpty()) return 0
+        return write { d ->
+            byMerchant.sumOf { (key, pkg) ->
+                d.update("transactions", CONFLICT_REPLACE, contentValuesOf("merchant_package" to pkg), "merchant_key = ? AND merchant_package IS NULL", arrayOf<Any?>(key))
+            } + byBank.sumOf { (key, group, pkg) ->
+                d.update(
+                    "transactions", CONFLICT_REPLACE, contentValuesOf("merchant_package" to pkg),
+                    "merchant_key = ? AND kind = ? AND sender_group IS ? AND merchant_package IS NULL", arrayOf<Any?>(key, bill, group),
+                )
+            }
+        }
     }
 
     private fun merchantKeyOf(d: SupportSQLiteDatabase, txId: Long): String? =

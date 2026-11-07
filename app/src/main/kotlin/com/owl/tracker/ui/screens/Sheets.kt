@@ -146,14 +146,22 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             color = if (credit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.testTag("detail_amount"),
         )
-        Text(
-            when {
-                tx.source == com.owl.tracker.data.Source.BACKUP -> "Restored from a backup"
-                tx.source == com.owl.tracker.data.Source.MANUAL && tx.accountLabel == null -> "Added by you"
-                else -> (if (credit) "Credited to " else "Paid from ") + (tx.accountLabel ?: "an account")
-            },
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // The bank's own app icon beside "Paid from", when that app is on the phone
+            val bank = remember(tx.senderGroup) { vm.appIcons.bankApp(tx.senderGroup) }
+            if (tx.source == com.owl.tracker.data.Source.SMS && bank != null) {
+                MerchantAvatar(vm.appIcons, bank, tx.accountLabel ?: "", null, 20.dp)
+            }
+            Text(
+                when {
+                    tx.source == com.owl.tracker.data.Source.BACKUP -> "Restored from a backup"
+                    tx.source == com.owl.tracker.data.Source.MANUAL && tx.accountLabel == null -> "Added by you"
+                    else -> (if (credit) "Credited to " else "Paid from ") + (tx.accountLabel ?: "an account")
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("paid_from"),
+            )
+        }
     }
 
     if (tx.needsReview) {

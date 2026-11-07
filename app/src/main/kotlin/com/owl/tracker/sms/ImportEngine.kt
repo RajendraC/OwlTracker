@@ -32,6 +32,8 @@ class ImportEngine(
     private val sms: SmsSource,
     private val repo: Repository,
     private val clock: Clock,
+    /** The installed app of a bank (by sender id), if any: a card bill payment shows that bank's icon. */
+    private val bankApp: (String?) -> String? = { null },
 ) {
     private val zone: ZoneId get() = clock.zone
 
@@ -226,6 +228,8 @@ class ImportEngine(
             val rows = fresh.sortedBy { it.tx.timestamp }.filter { deduper.offer(Deduper.entryOf(it.tx)) }.map { it.toNewTxn(categorizer, chosenNames) }
             added = repo.insertAll(rows)
         }
+        // Payments imported before this version learned their app (or before a bank app was installed)
+        repo.fillMissingIcons()
         val latest = messages.maxOfOrNull { it.timestamp } ?: s.lastSmsTimestamp
         repo.updateSettings { it.copy(lastSyncAt = clock.millis(), lastSmsTimestamp = maxOf(it.lastSmsTimestamp, latest)) }
         return added
@@ -246,7 +250,7 @@ class ImportEngine(
             merchantName = mine?.name ?: merchantName,
             merchantKey = merchantKey,
             merchantPackage = when (val logo = mine?.logo) {
-                null -> known?.packageName
+                null -> known?.packageName ?: if (t.kind == TxKind.CARD_BILL_PAYMENT) bankApp(t.senderGroup) else null
                 "" -> null
                 else -> logo
             },
