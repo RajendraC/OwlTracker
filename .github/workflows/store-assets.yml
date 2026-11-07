@@ -1,0 +1,90 @@
+name: Store screenshots
+
+# Run by hand (Actions → Store screenshots → Run workflow). Builds the debug app, fills an emulator's
+# SMS inbox with made-up bank messages (DemoInbox), goes through Owl Tracker like a new user and saves
+# a PNG of each screen, then records a short tour for the promo video. The raw captures are uploaded
+# as the "store-screens" artifact and as the "store-screens" pre-release; tools/make_store_assets.py
+# turns them into the Play listing images.
+on:
+  workflow_dispatch:
+    inputs:
+      api:
+        description: Android API level (30 shows the app's own green colours; 31+ follows the wallpaper)
+        default: "30"
+      profile:
+        description: Emulator profile
+        default: pixel_6
+      date:
+        description: Emulator date as MMDDhhmmYYYY (leave empty for today)
+        default: "112210302026"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: store-screens
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture on API ${{ inputs.api }} · ${{ inputs.profile }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+          cache-read-only: true
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build app and test APKs
+        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+
+      - name: Capture on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ inputs.api }}
+          target: google_apis
+          arch: x86_64
+          profile: ${{ inputs.profile }}
+          ram-size: 3072M
+          disk-size: 4096M
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -timezone Asia/Kolkata
+          disable-animations: true
+          script: bash ci/store-screens.sh "${{ inputs.date }}"
+
+      - name: Upload captures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: store-screens
+          path: |
+            store-screens
+            logs
+
+      - name: Publish captures as the store-screens pre-release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          shopt -s nullglob
+          files=(store-screens/* logs/*)
+          [ ${#files[@]} -gt 0 ] || { echo "Nothing to publish"; exit 0; }
+          gh release delete store-screens -y --cleanup-tag 2>/dev/null || true
+          gh release create store-screens --prerelease --target "$GITHUB_SHA" \
+            --title "Store screenshots (raw captures)" \
+            --notes "Raw emulator captures from run $GITHUB_RUN_ID. Made-up demo data. Not an app release." \
+            "${files[@]}"
