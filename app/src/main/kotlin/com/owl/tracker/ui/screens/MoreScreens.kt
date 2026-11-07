@@ -80,7 +80,9 @@ fun MoreScreen(vm: AppViewModel) {
         Panel(padding = 8.dp) {
             NavRow(Ic.tag, "Categories", "${cats.count { !it.archived }} categories · add, edit, archive") { vm.go(Screen.CATEGORIES) }
             Divider()
-            NavRow(Ic.chart, "Insights", "Trends and top merchants") { vm.go(Screen.INSIGHTS) }
+            NavRow(Ic.chart, "Reports", "Trends, categories, merchants and more") { vm.go(Screen.INSIGHTS) }
+            Divider()
+            NavRow(Ic.share, "Backup & restore", "Save to a file or move to another phone") { vm.openBackup() }
             Divider()
             NavRow(Ic.sliders, "Settings", "App lock, SMS import, delete or reset") { vm.go(Screen.SETTINGS) }
         }
@@ -229,84 +231,6 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
     }
 }
 
-@Composable
-fun InsightsScreen(vm: AppViewModel) {
-    val ins by vm.insights.collectAsStateWithLifecycle()
-    val cats by vm.categories.collectAsStateWithLifecycle()
-    val catMap = cats.associateBy { it.id }
-    val sc = LocalStatusColors.current
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { ScreenHeader("Insights", onBack = { vm.back() }) }
-        val data = ins
-        if (data == null) {
-            item { Text("Loading…", modifier = Modifier.padding(16.dp)) }
-            return@LazyColumn
-        }
-        item {
-            Panel {
-                Text("Monthly spend", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    data.average?.let { "Average ${Money.formatInr(it)} over earlier months" } ?: "Earlier months show here once they're imported",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Gap(12.dp)
-                val maxV = (data.bars.filter { it.hasData }.maxOfOrNull { it.spent } ?: 0L).coerceAtLeast((data.budget * 11) / 10).coerceAtLeast(1L)
-                val barColor = MaterialTheme.colorScheme.primary
-                val pastColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                val lineColor = MaterialTheme.colorScheme.onSurface
-                val overColor = sc.overRing
-                val desc = data.bars.joinToString { "${it.label}: " + if (it.hasData) Money.formatInr(it.spent) else "no data" }
-                Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = "Monthly spend. $desc" }) {
-                    val n = data.bars.size
-                    val gap = 10.dp.toPx()
-                    val w = (size.width - gap * (n - 1)) / n
-                    data.bars.forEachIndexed { i, b ->
-                        if (!b.hasData) return@forEachIndexed
-                        val h = (b.spent.toFloat() / maxV) * size.height
-                        val color = if (data.budget > 0 && b.spent > data.budget) overColor else if (b.isCurrent) barColor else pastColor
-                        drawRoundRect(color, topLeft = Offset(i * (w + gap), size.height - h), size = Size(w, h), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx(), 8.dp.toPx()))
-                    }
-                    if (data.budget > 0) {
-                        val y = size.height - (data.budget.toFloat() / maxV) * size.height
-                        drawLine(lineColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
-                    }
-                }
-                Gap(6.dp)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    data.bars.forEach { b ->
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(b.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(if (b.hasData) Money.formatShort(b.spent) else "–", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-                Gap(6.dp)
-                Text(
-                    (if (data.budget > 0) "Dashed line: your ${Money.formatInr(data.budget)} budget. Red bars went over. " else "") + "* is this month so far.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        item {
-            Panel(padding = 12.dp) {
-                Text("Top merchants this month", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(4.dp))
-                if (data.top.isEmpty()) Text("Nothing yet.", modifier = Modifier.padding(4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                data.top.forEachIndexed { i, t ->
-                    if (i > 0) Divider()
-                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        MerchantAvatar(vm.appIcons, t.pkg, t.name, catMap[t.categoryId], 40.dp)
-                        Column(Modifier.weight(1f)) {
-                            Text(t.name, style = MaterialTheme.typography.titleSmall)
-                            Text("${t.count} ${if (t.count == 1) "payment" else "payments"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Text(Money.formatInr(t.paise), style = MaterialTheme.typography.titleSmall)
-                    }
-                }
-            }
-        }
-    }
-}
-
 const val PRIVACY_URL = "https://rajendrac.github.io/OwlTracker/privacy.html"
 
 @Composable
@@ -318,9 +242,10 @@ fun PrivacyScreen(vm: AppViewModel) {
         PrivacyPara("What it keeps", "The transactions you choose to import, with a copy of each original message so you can check it. They are stored in a database encrypted with AES-256. Its key is protected by Android Keystore and never leaves the phone.")
         PrivacyPara("What it shares", "Nothing. Owl Tracker has no internet permission, no analytics, no ads and no crash-reporting service. Your data is excluded from Android cloud backup and device-to-device transfer.")
         PrivacyPara("Your choices", "You choose which senders and transactions to import, and can change that any time. You can delete single transactions, delete by age or by bank, or reset the app, which erases everything and destroys the encryption key. You can also remove SMS access in Android settings; the app keeps working with manual entries.")
+        PrivacyPara("Backups", "A backup file is made only when you ask for one (More \u2192 Backup & restore), and goes only where you send it: Owl Tracker never sends it anywhere itself. It holds amounts, dates, merchant names, categories, notes, budgets and category rules. It never holds SMS text, sender IDs, account or card numbers, UPI IDs or bank references, and long numbers inside merchant names are masked. With a password, the file is encrypted (AES-256-GCM) and can't be read without it.")
         PrivacyPara("Payments", "Owl Tracker is free for 7 days, then a one-time unlock bought through Google Play. Google Play takes the payment under its own terms and privacy policy. Owl Tracker never sees your card, UPI or bank details: the Play Store app on your phone only tells it whether the unlock has been bought. The trial is counted on your phone. Nothing about the purchase is sent anywhere by Owl Tracker.")
         PrivacyPara("Sample data", "If you choose Explore with sample data, Owl Tracker imports 21 built-in example messages instead of reading your inbox. Reset removes them.")
-        PrivacyPara("Contact", "Questions or requests: rajendra.chandrasekhar@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 5 November 2026.")
+        PrivacyPara("Contact", "Questions or requests: rajendra.chandrasekhar@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 7 November 2026.")
     }
 }
 

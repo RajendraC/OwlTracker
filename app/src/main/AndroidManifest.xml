@@ -17,6 +17,48 @@
         <!-- Google Play Store: checked before opening a payment, so a phone without it gets a clear message. -->
         <package android:name="com.android.vending" />
         <package android:name="in.swiggy.android" />
+        <package android:name="in.dmart" />
+        <package android:name="com.licious" />
+        <package android:name="com.amazon.kindle" />
+        <package android:name="com.audible.application" />
+        <package android:name="com.flipkart.shopsy" />
+        <package android:name="com.snapdeal.main" />
+        <package android:name="fc.admin.fcexpressadmin" />
+        <package android:name="com.ingka.ikea.app" />
+        <package android:name="com.tatadigital.tcp" />
+        <package android:name="in.juspay.nammayatri" />
+        <package android:name="in.goindigo.android" />
+        <package android:name="com.ixigo" />
+        <package android:name="com.easemytrip.android" />
+        <package android:name="com.yatra.base" />
+        <package android:name="com.agoda.mobile.consumer" />
+        <package android:name="com.booking" />
+        <package android:name="com.airbnb.android" />
+        <package android:name="com.oyo.consumer" />
+        <package android:name="com.sonyliv" />
+        <package android:name="com.graymatrix.did" />
+        <package android:name="com.jio.media.jiobeats" />
+        <package android:name="com.gaana" />
+        <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="com.google.android.apps.subscriptions.red" />
+        <package android:name="com.linkedin.android" />
+        <package android:name="com.microsoft.office.officehubrow" />
+        <package android:name="com.openai.chatgpt" />
+        <package android:name="com.mventus.selfcare.activity" />
+        <package android:name="com.mobikwik_new" />
+        <package android:name="com.nextbillion.groww" />
+        <package android:name="com.zerodha.kite3" />
+        <package android:name="in.indwealth" />
+        <package android:name="com.NetmedsMarketplace.Netmeds" />
+        <package android:name="com.practo.fabric" />
+        <package android:name="fit.cure.android" />
+        <package android:name="com.healthifyme.basic" />
+        <package android:name="com.byjus.thelearningapp" />
+        <package android:name="com.unacademyapp" />
+        <package android:name="org.coursera.android" />
+        <package android:name="com.udemy.android" />
+        <package android:name="com.duolingo" />
+        <package android:name="com.done.faasos" />
         <package android:name="com.application.zomato" />
         <package android:name="com.grofers.customerapp" />
         <package android:name="com.zeptoconsumerapp" />
@@ -79,5 +121,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            Hands a backup file to the app the person picks in the share sheet. Not exported: another
+            app can only read a file Owl Tracker has just granted it, and only from cache/backups/.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.backups"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/backup_paths" />
+        </provider>
     </application>
 </manifest>

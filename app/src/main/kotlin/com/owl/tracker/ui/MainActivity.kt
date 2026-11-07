@@ -96,6 +96,17 @@ class MainActivity : FragmentActivity() {
         override fun buyUnlock() {
             (application as OwlTrackerApp).container.licence.buy(this@MainActivity)
         }
+
+        override fun shareBackup(file: java.io.File) {
+            val uri = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.backups", file)
+            val send = Intent(Intent.ACTION_SEND)
+                .setType("application/json")
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .putExtra(Intent.EXTRA_SUBJECT, "Owl Tracker backup")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            send.clipData = android.content.ClipData.newRawUri(file.name, uri)
+            startActivity(Intent.createChooser(send, "Share your backup"))
+        }
     }
 }
 
@@ -107,4 +118,7 @@ interface Platform {
 
     /** Opens Google Play's payment sheet for the one-time unlock. */
     fun buyUnlock()
+
+    /** Opens the share sheet for a backup file (WhatsApp, Drive, Quick Share...). */
+    fun shareBackup(file: java.io.File)
 }

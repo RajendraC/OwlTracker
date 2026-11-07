@@ -140,7 +140,14 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             color = if (credit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.testTag("detail_amount"),
         )
-        Text((if (credit) "Credited to " else "Paid from ") + (tx.accountLabel ?: "an account"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            when {
+                tx.source == com.owl.tracker.data.Source.BACKUP -> "Restored from a backup"
+                tx.source == com.owl.tracker.data.Source.MANUAL && tx.accountLabel == null -> "Added by you"
+                else -> (if (credit) "Credited to " else "Paid from ") + (tx.accountLabel ?: "an account")
+            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 
     if (tx.needsReview) {

@@ -57,6 +57,17 @@ class ManifestSecurityTest {
         assertTrue("Billing library version not in the merged manifest: $version", version != null && version.startsWith("9."))
     }
 
+    /** The backup share link: no other app can open it unless Owl Tracker grants one file for one share. */
+    @Test
+    fun noContentProviderIsExported() {
+        @Suppress("DEPRECATION")
+        val providers = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PROVIDERS).providers.orEmpty()
+        assertTrue("No providers found", providers.isNotEmpty())
+        assertEquals(emptyList<String>(), providers.filter { it.exported }.map { it.name })
+        val backups = providers.single { it.authority == "${context.packageName}.backups" }
+        assertTrue(backups.grantUriPermissions)
+    }
+
     @Test
     fun backupIsOff() {
         assertEquals(0, context.applicationInfo.flags and ApplicationInfo.FLAG_ALLOW_BACKUP)

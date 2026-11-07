@@ -3,6 +3,7 @@ package com.owl.tracker.data
 import android.database.Cursor
 import androidx.core.content.contentValuesOf
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.owl.tracker.backup.BackupContent
 import com.owl.tracker.core.Cat
 import com.owl.tracker.core.CategoryRule
 import com.owl.tracker.core.Direction
@@ -166,8 +167,12 @@ class Repository(private val db: Db, private val clock: Clock) {
         d.query("SELECT $TX_COLS FROM transactions WHERE id = ?", arrayOf<Any?>(id)).use { c -> c.toTxns().firstOrNull() }
     }
 
+    /**
+     * Transactions an SMS import must not duplicate: earlier SMS imports, and payments restored from a
+     * backup (which have no SMS details, so they match on amount, direction and time).
+     */
     suspend fun smsTransactionsSince(fromMs: Long): List<Txn> = read { d ->
-        d.query("SELECT $TX_COLS FROM transactions WHERE source = 'SMS' AND occurred_at >= ?", arrayOf<Any?>(fromMs)).use { c -> c.toTxns() }
+        d.query("SELECT $TX_COLS FROM transactions WHERE source IN ('SMS', 'BACKUP') AND occurred_at >= ?", arrayOf<Any?>(fromMs)).use { c -> c.toTxns() }
     }
 
     suspend fun existingSmsIds(): Set<Long> = read { d ->
@@ -280,7 +285,118 @@ class Repository(private val db: Db, private val clock: Clock) {
 
     fun observeRuleCount(): Flow<Int> = observe { d -> d.query("SELECT COUNT(*) FROM rules").use { c -> c.moveToFirst(); c.getInt(0) } }
 
+    // ---------------- backup and restore ----------------
+
+    data class RuleRow(val match: String, val pattern: String, val categoryId: String)
+
+    /** Everything a backup is built from, read in one go. */
+    data class Snapshot(
+        val settings: AppSettings,
+        val categories: List<Category>,
+        val budgets: Map<String, Long>,
+        val rules: List<RuleRow>,
+        val transactions: List<Txn>,
+    )
+
+    suspend fun snapshot(): Snapshot = read { d ->
+        val budgets = d.query("SELECT category_key, limit_paise FROM budgets").use { c ->
+            buildMap { while (c.moveToNext()) put(c.getString(0), c.getLong(1)) }
+        }
+        val rules = d.query("SELECT match_type, pattern, category_id FROM rules ORDER BY created_at").use { c ->
+            buildList { while (c.moveToNext()) add(RuleRow(c.getString(0), c.getString(1), c.getString(2))) }
+        }
+        val txns = d.query("SELECT $TX_COLS FROM transactions ORDER BY occurred_at, id").use { c -> c.toTxns() }
+        Snapshot(readSettings(d), readCategories(d), budgets, rules, txns)
+    }
+
+    data class RestoreCounts(val added: Int, val skipped: Int, val categoriesAdded: Int, val budgetsSet: Int, val rulesAdded: Int)
+
+    /**
+     * Writes a checked backup in one database transaction, so it is all or nothing.
+     *
+     * [replace]: this phone's transactions, categories, budgets and rules are replaced by the backup's.
+     * Otherwise the backup is added: a payment already here (same amount and direction within two
+     * minutes) is skipped, and this phone's own categories, budgets and rules are kept.
+     * [finishOnboarding]: a new phone restoring from its welcome screen, which then counts as set up.
+     */
+    suspend fun restore(b: BackupContent, replace: Boolean, finishOnboarding: Boolean): RestoreCounts = write { d ->
+        if (replace) {
+            d.delete("transactions", null, null)
+            d.delete("rules", null, null)
+            d.delete("budgets", null, null)
+            d.delete("categories", null, null)
+        }
+
+        fun categoryIds(): Set<String> = d.query("SELECT id FROM categories").use { c -> buildSet { while (c.moveToNext()) add(c.getString(0)) } }
+
+        val before = categoryIds()
+        var categoriesAdded = 0
+        b.categories.forEach { cat ->
+            if (cat.id in before) return@forEach
+            val row = contentValuesOf(
+                "id" to cat.id, "name" to cat.name, "icon" to cat.icon, "color" to cat.color, "kind" to cat.kind.name,
+                "sort_order" to cat.sortOrder, "is_system" to if (cat.isSystem) 1 else 0, "archived" to if (cat.archived) 1 else 0,
+            )
+            if (d.insert("categories", CONFLICT_IGNORE, row) != -1L) categoriesAdded++
+        }
+        // The built-in categories must always exist, even if a backup file left some out.
+        Schema.DEFAULT_CATEGORIES.forEachIndexed { i, s ->
+            d.insert(
+                "categories", CONFLICT_IGNORE,
+                contentValuesOf("id" to s.id, "name" to s.name, "icon" to s.icon, "color" to s.color, "kind" to s.kind.name, "sort_order" to i, "is_system" to 1, "archived" to 0),
+            )
+        }
+        val ids = categoryIds()
+
+        var budgetsSet = 0
+        b.budgets.forEach { (key, limit) ->
+            if (key != Schema.OVERALL && key !in ids) return@forEach
+            if (d.insert("budgets", CONFLICT_IGNORE, contentValuesOf("category_key" to key, "limit_paise" to limit)) != -1L) budgetsSet++
+        }
+
+        var rulesAdded = 0
+        b.rules.forEach { r ->
+            if (r.categoryKey !in ids) return@forEach
+            val row = contentValuesOf("match_type" to r.match.name, "pattern" to r.pattern, "category_id" to r.categoryKey, "created_at" to clock.millis())
+            if (d.insert("rules", CONFLICT_IGNORE, row) != -1L) rulesAdded++
+        }
+
+        // Payments already on this phone, by amount and direction. Each can absorb one copy from the backup.
+        val here = HashMap<Pair<Long, String>, MutableList<Long>>()
+        if (!replace) {
+            d.query("SELECT amount_paise, direction, occurred_at FROM transactions").use { c ->
+                while (c.moveToNext()) here.getOrPut(c.getLong(0) to c.getString(1)) { mutableListOf() }.add(c.getLong(2))
+            }
+        }
+        var added = 0
+        var skipped = 0
+        b.transactions.forEach { t ->
+            val times = here[t.amountPaise to t.direction.name]
+            val i = times?.indexOfFirst { kotlin.math.abs(it - t.occurredAt) <= RESTORE_DUPLICATE_MS } ?: -1
+            if (i >= 0) {
+                times!!.removeAt(i)
+                skipped++
+                return@forEach
+            }
+            val row = if (t.categoryId in ids) t else t.copy(categoryId = Cat.OTHERS)
+            if (d.insert("transactions", CONFLICT_IGNORE, row.toValues()) != -1L) added++
+        }
+
+        val s = readSettings(d)
+        val next = s.copy(
+            budgetStartDay = if (replace || finishOnboarding) b.budgetStartDay else s.budgetStartDay,
+            onboarded = s.onboarded || finishOnboarding,
+            sampleData = if (replace) false else s.sampleData,
+        )
+        next.toMap().forEach { (k, v) -> d.insert("settings", CONFLICT_REPLACE, contentValuesOf("key" to k, "value" to v)) }
+
+        RestoreCounts(added, skipped, categoriesAdded, budgetsSet, rulesAdded)
+    }
+
     companion object {
+        /** A restored payment within this time of one already here, same amount and direction, is the same payment. */
+        const val RESTORE_DUPLICATE_MS = 2 * 60_000L
+
         private const val TX_COLS = "id, amount_paise, direction, occurred_at, merchant_name, merchant_key, merchant_package, vpa, category_id, " +
             "account_label, sender_group, sender, ref_no, source, sms_id, needs_review, excluded, note, kind, sms_body"
 
@@ -294,7 +410,7 @@ class Repository(private val db: Db, private val clock: Clock) {
                     occurredAt = getLong(3), merchantName = getString(4), merchantKey = getString(5),
                     merchantPackage = str(6), vpa = str(7), categoryId = getString(8), accountLabel = str(9),
                     senderGroup = str(10), sender = str(11), refNo = str(12),
-                    source = if (getString(13) == Source.MANUAL.name) Source.MANUAL else Source.SMS,
+                    source = runCatching { Source.valueOf(getString(13)) }.getOrDefault(Source.SMS),
                     smsId = if (isNull(14)) null else getLong(14), needsReview = getInt(15) == 1, excluded = getInt(16) == 1,
                     note = str(17), kind = runCatching { TxKind.valueOf(getString(18)) }.getOrDefault(TxKind.NORMAL), smsBody = str(19),
                 )

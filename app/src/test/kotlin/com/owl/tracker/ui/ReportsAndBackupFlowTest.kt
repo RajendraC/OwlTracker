@@ -1,0 +1,129 @@
+package com.owl.tracker.ui
+
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
+import com.owl.tracker.TestApp
+import com.owl.tracker.backup.BackupCodec
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import java.io.File
+
+/** Reports you can tap through, and backups, through the real UI. */
+@RunWith(RobolectricTestRunner::class)
+@Config(application = TestApp::class, sdk = [26, 36], qualifiers = "w393dp-h852dp-xxhdpi")
+class ReportsAndBackupFlowTest {
+
+    @get:Rule
+    val compose = createAndroidComposeRule<MainActivity>()
+
+    private fun setUpWithSms() = with(compose) {
+        tapTag("get_started")
+        tapTag("allow_sms")
+        waitForTag("import_all")
+        tapTag("import_all")
+        tapTag("import_continue")
+        typeInto("budget_input", "20000")
+        tapTag("save_budget")
+        waitForTag("budget_hero")
+    }
+
+    @Test
+    fun reportsNarrowToWhateverIsTapped() {
+        setUpWithSms()
+        with(compose) {
+            tapTag("tab_more")
+            tapText("Reports")
+            waitForTag("report_summary")
+            tapTag("range_3")
+            waitForText("Month by month")
+            waitForText("Biggest payments")
+
+            // A category: a chip appears and the payments list narrows to it
+            tapTag("cat_food")
+            waitForTag("filter_category")
+            waitForText("matching payment")
+            // Tapping the chip lets go again
+            tapTag("filter_category")
+            waitForText("Biggest payments")
+            onAllNodesWithTag("filter_category").assertCountEquals(0)
+
+            // A merchant, a month and a weekday can be combined
+            tapTag("merchant_swiggy")
+            waitForTag("filter_merchant")
+            tapTag("bar_2")
+            waitForTag("filter_bucket")
+            waitForText("Clear all")
+            tapText("Clear all")
+            waitForText("Biggest payments")
+
+            tapTag("weekday_saturday")
+            waitForTag("filter_weekday")
+        }
+    }
+
+    @Test
+    fun aNewPhoneCanRestoreFromTheWelcomeScreen() {
+        with(compose) {
+            tapTag("welcome_restore")
+            waitForTag("backup_screen")
+            waitForText("Restore from a backup")
+            waitForTag("restore_pick")
+            onAllNodesWithTag("backup_save").assertCountEquals(0)
+        }
+    }
+
+    @Test
+    fun backupNeedsMatchingPasswords_thenOpensTheShareSheetWithAnEncryptedFile() {
+        setUpWithSms()
+        with(compose) {
+            tapTag("tab_more")
+            tapText("Backup & restore")
+            waitForTag("backup_never")
+            onNodeWithTag("backup_save").assertIsNotEnabled()
+
+            typeInto("backup_password", "secret-one")
+            typeInto("backup_confirm", "secret-two")
+            waitForText("The two passwords don't match")
+            onNodeWithTag("backup_share").assertIsNotEnabled()
+
+            typeInto("backup_confirm", "secret-one")
+            onNodeWithTag("backup_save").assertIsEnabled()
+            tapTag("backup_share")
+            waitForTag("backup_done", timeoutMs = 30_000)
+
+            // The share sheet was asked to send a content:// link to the backup, readable once
+            val shadow = shadowOf(activity)
+            waitUntil(10_000) { shadow.peekNextStartedActivity() != null }
+            val chooser = shadow.nextStartedActivity
+            assertEquals(Intent.ACTION_CHOOSER, chooser.action)
+            @Suppress("DEPRECATION")
+            val send = chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+            assertNotNull(send)
+            assertEquals("application/json", send!!.type)
+            @Suppress("DEPRECATION")
+            val uri = send.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            assertEquals("content", uri!!.scheme)
+            assertEquals("${activity.packageName}.backups", uri.authority)
+            assertTrue(send.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+
+            // ...and the file behind it is encrypted
+            val file = File(activity.cacheDir, "backups").listFiles()!!.single()
+            assertTrue(file.name.startsWith("owl-tracker-backup-"))
+            assertTrue(BackupCodec.peek(file.readBytes()).encrypted)
+            assertTrue(!file.readText().contains("Swiggy"))
+        }
+    }
+}

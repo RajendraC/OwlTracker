@@ -117,16 +117,35 @@ fun MerchantAvatar(appIcons: AppIcons, packageName: String?, merchantName: Strin
     when {
         bitmap != null -> Image(bitmap, contentDescription = null, modifier = Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)))
         category != null && category.id != Cat.OTHERS && category.id != Cat.INCOME -> CategoryTile(category, size)
-        else -> Box(
-            Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                merchantName.trim().firstOrNull()?.uppercase() ?: "?",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        else -> {
+            // A badge of the merchant's initials, in a colour that's always the same for that name.
+            val tint = MONOGRAM_COLORS[(merchantName.lowercase().hashCode() and 0x7fffffff) % MONOGRAM_COLORS.size]
+            Box(
+                Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(tint.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    initials(merchantName),
+                    style = if (size >= 40.dp) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelLarge,
+                    color = tint,
+                )
+            }
         }
+    }
+}
+
+private val MONOGRAM_COLORS = listOf(
+    Color(0xFF2A6FB5), Color(0xFF7552C4), Color(0xFFC23F73), Color(0xFF1F8F86),
+    Color(0xFFD9622B), Color(0xFF3F8A3A), Color(0xFF9E740C), Color(0xFF5866B8),
+)
+
+/** "Ramesh Kumar" → RK, "zomato" → Z, "7-Eleven" → 7E. */
+fun initials(name: String): String {
+    val words = name.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+    return when {
+        words.isEmpty() -> "?"
+        words.size == 1 -> words[0].take(1).uppercase()
+        else -> (words[0].take(1) + words[1].take(1)).uppercase()
     }
 }
 

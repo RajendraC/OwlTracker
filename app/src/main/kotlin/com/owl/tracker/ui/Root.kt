@@ -39,13 +39,14 @@ import com.owl.tracker.ui.screens.HomeScreen
 import com.owl.tracker.ui.screens.ImportFiltersScreen
 import com.owl.tracker.ui.screens.ImportReviewScreen
 import com.owl.tracker.ui.screens.ImportingScreen
-import com.owl.tracker.ui.screens.InsightsScreen
+import com.owl.tracker.ui.screens.ReportsScreen
 import com.owl.tracker.ui.screens.LockScreen
 import com.owl.tracker.ui.screens.MoreScreen
 import com.owl.tracker.ui.screens.PrivacyScreen
 import com.owl.tracker.ui.screens.SettingsScreen
 import com.owl.tracker.ui.screens.SheetHost
 import com.owl.tracker.ui.screens.UnlockScreen
+import com.owl.tracker.ui.screens.BackupScreen
 import com.owl.tracker.ui.screens.WelcomeScreen
 import com.owl.tracker.ui.theme.Ic
 
@@ -114,10 +115,11 @@ fun OwlTrackerRoot(vm: AppViewModel, platform: Platform) {
                 Screen.MORE -> MoreScreen(vm)
                 Screen.CATEGORIES -> CategoriesScreen(vm)
                 Screen.SETTINGS -> SettingsScreen(vm, platform)
-                Screen.INSIGHTS -> InsightsScreen(vm)
+                Screen.INSIGHTS -> ReportsScreen(vm)
                 Screen.PRIVACY -> PrivacyScreen(vm)
                 Screen.DB_ERROR -> DbErrorScreen(vm)
                 Screen.UNLOCK -> UnlockScreen(vm, platform)
+                Screen.BACKUP -> BackupScreen(vm, platform)
             }
         }
         SheetHost(vm)

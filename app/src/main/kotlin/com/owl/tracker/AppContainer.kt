@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.content.pm.PackageManager
 import androidx.core.graphics.drawable.toBitmap
 import androidx.sqlite.db.SupportSQLiteOpenHelper
+import com.owl.tracker.backup.BackupManager
 import com.owl.tracker.data.Db
 import com.owl.tracker.data.Repository
 import com.owl.tracker.licence.Licence
@@ -38,6 +39,7 @@ class AppContainer(
     val repo = Repository(db, clock)
     val importEngine = ImportEngine(sms, repo, clock)
     val appIcons = AppIcons(context)
+    val backups = BackupManager(context, repo, clock)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 

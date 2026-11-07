@@ -73,6 +73,9 @@ fun WelcomeScreen(vm: AppViewModel) {
         Button(onClick = { vm.go(com.owl.tracker.ui.Screen.DISCLOSURE) }, modifier = Modifier.fillMaxWidth().height(56.dp).testTag("get_started")) {
             Text("Get started")
         }
+        androidx.compose.material3.TextButton(onClick = { vm.openBackup() }, modifier = Modifier.fillMaxWidth().testTag("welcome_restore")) {
+            Text("Moving from another phone? Restore from a backup")
+        }
     }
 }
 

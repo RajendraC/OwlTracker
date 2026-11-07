@@ -139,7 +139,7 @@ fun HomeScreen(vm: AppViewModel) {
                         IconButton(onClick = { vm.nextMonth() }, enabled = canForward) { Icon(Ic.chevR, contentDescription = "Next month") }
                     }
                 }
-                IconButton(onClick = { vm.go(Screen.INSIGHTS) }) { Icon(Ic.chart, contentDescription = "Insights") }
+                IconButton(onClick = { vm.go(Screen.INSIGHTS) }) { Icon(Ic.chart, contentDescription = "Reports") }
             }
         }
 
@@ -257,7 +257,7 @@ fun HomeScreen(vm: AppViewModel) {
 
         item {
             Panel(padding = 4.dp) {
-                NavRow(Ic.chart, "Insights", "6-month trend and top merchants", iconTint = MaterialTheme.colorScheme.primary, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
+                NavRow(Ic.chart, "Reports", "Trends, categories and top merchants", iconTint = MaterialTheme.colorScheme.primary, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
             }
         }
     }

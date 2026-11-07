@@ -8,6 +8,10 @@ import com.owl.tracker.data.Category
 import com.owl.tracker.data.Repository
 import com.owl.tracker.data.Schema
 import com.owl.tracker.data.Txn
+import com.owl.tracker.backup.BackupCodec
+import com.owl.tracker.backup.BackupContent
+import com.owl.tracker.backup.BackupException
+import com.owl.tracker.backup.BackupHeader
 import com.owl.tracker.licence.Access
 import com.owl.tracker.licence.StoreState
 import com.owl.tracker.sms.ImportEngine
@@ -30,10 +34,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -46,7 +53,7 @@ enum class Tab { HOME, ACTIVITY, BUDGETS, MORE }
 enum class Screen(val tab: Tab? = null) {
     WELCOME, DISCLOSURE, IMPORT_FILTERS, IMPORT_REVIEW, IMPORTING, BUDGET_SETUP,
     HOME(Tab.HOME), ACTIVITY(Tab.ACTIVITY), BUDGETS(Tab.BUDGETS), MORE(Tab.MORE),
-    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK,
+    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP,
 }
 
 sealed interface Sheet {
@@ -87,9 +94,6 @@ data class Dashboard(
     val unbudgeted: List<CategorySpend>,
 )
 
-data class MonthBar(val label: String, val spent: Long, val hasData: Boolean, val isCurrent: Boolean)
-data class TopMerchant(val name: String, val pkg: String?, val categoryId: String, val paise: Long, val count: Int)
-data class Insights(val bars: List<MonthBar>, val budget: Long, val average: Long?, val top: List<TopMerchant>)
 
 data class ImportUi(
     val mode: ImportMode = ImportMode.ONBOARDING,
@@ -106,6 +110,32 @@ data class ImportUi(
     /** Importing the built-in sample messages instead of the inbox. */
     val sample: Boolean = false,
 )
+
+/** The Backup & restore screen. Passwords live only here, in memory, while the screen is open. */
+data class BackupUi(
+    val protect: Boolean = true,
+    val password: String = "",
+    val confirm: String = "",
+    /** What's running right now ("Encrypting your backup…"); null when idle. */
+    val working: String? = null,
+    val exported: String? = null,
+    val fileName: String? = null,
+    val header: BackupHeader? = null,
+    val restorePassword: String = "",
+    /** The unlocked, checked backup, ready to restore. */
+    val content: BackupContent? = null,
+    val replace: Boolean = false,
+    val error: String? = null,
+    val restored: Repository.RestoreCounts? = null,
+) {
+    val passwordProblem: String?
+        get() = when {
+            !protect -> null
+            password.length < BackupCodec.MIN_PASSWORD -> "Use at least ${BackupCodec.MIN_PASSWORD} characters"
+            confirm != password -> "The two passwords don't match"
+            else -> null
+        }
+}
 
 data class DeleteUi(
     val option: DeleteOption = DeleteOption.OLDER_3,
@@ -240,15 +270,186 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         go(Screen.ACTIVITY)
     }
 
-    val insights: StateFlow<Insights?> = combine(settings, budgets) { s, b -> (s?.budgetStartDay ?: 1) to (b[Schema.OVERALL] ?: 0L) }
-        .flatMapLatest { (startDay, budget) ->
-            val periods = (0 downTo -5).map { periodAt(startDay, it) }.reversed()
-            repo.observeTransactions(startMs(periods.first().start), startMs(periods.last().endExclusive)).map<List<Txn>, Insights?> { txns ->
-                buildInsights(txns, categories.value, periods, budget)
-            }
+    // Reports
+    val reportRange = MutableStateFlow(ReportRange.ONE)
+    val reportFilter = MutableStateFlow(ReportFilter())
+
+    val report: StateFlow<Report?> = combine(settings, budgets, reportRange) { s, b, r -> Triple(s?.budgetStartDay ?: 1, b[Schema.OVERALL] ?: 0L, r) }
+        .distinctUntilChanged()
+        .flatMapLatest { (startDay, budget, range) ->
+            val periods = (range.months - 1 downTo 0).map { periodAt(startDay, -it) }
+            val previous = (2 * range.months - 1 downTo range.months).map { periodAt(startDay, -it) }
+            combine(
+                repo.observeTransactions(startMs(previous.first().start), startMs(periods.last().endExclusive)),
+                reportFilter,
+                categories,
+            ) { txns, filter, cats ->
+                ReportBuilder.build(txns, cats, periods, previous, budget, range, filter, today(), zone) as Report?
+            }.flowOn(Dispatchers.Default)
         }
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    fun setReportRange(r: ReportRange) {
+        reportRange.value = r
+        reportFilter.update { it.copy(bucket = null) }
+    }
+
+    /** Tapping a bar, slice, merchant or weekday picks it; tapping it again lets go. */
+    fun tapReportBucket(i: Int) = reportFilter.update { it.copy(bucket = if (it.bucket == i) null else i) }
+    fun tapReportCategory(id: String) = reportFilter.update { it.copy(categoryId = if (it.categoryId == id) null else id) }
+    fun tapReportMerchant(key: String) = reportFilter.update { it.copy(merchantKey = if (it.merchantKey == key) null else key) }
+    fun tapReportWeekday(d: java.time.DayOfWeek) = reportFilter.update { it.copy(weekday = if (it.weekday == d) null else d) }
+
+    fun clearReportFilter(kind: FilterKind? = null) = reportFilter.update {
+        when (kind) {
+            null -> ReportFilter()
+            FilterKind.BUCKET -> it.copy(bucket = null)
+            FilterKind.CATEGORY -> it.copy(categoryId = null)
+            FilterKind.MERCHANT -> it.copy(merchantKey = null)
+            FilterKind.WEEKDAY -> it.copy(weekday = null)
+        }
+    }
+
+    // ---------------- backup & restore ----------------
+
+    val backupUi = MutableStateFlow(BackupUi())
+
+    /** Backup files to hand to the share sheet; the screen passes them to the platform. */
+    val shareRequests = MutableSharedFlow<java.io.File>(extraBufferCapacity = 1)
+
+    private var pickedBytes: ByteArray? = null
+
+    fun backupFileName(): String = c.backups.fileName()
+
+    fun openBackup() {
+        backupUi.value = BackupUi()
+        pickedBytes = null
+        go(Screen.BACKUP)
+    }
+
+    fun setBackupProtect(on: Boolean) = backupUi.update { it.copy(protect = on, error = null) }
+    fun setBackupPassword(s: String) = backupUi.update { it.copy(password = s, error = null) }
+    fun setBackupConfirm(s: String) = backupUi.update { it.copy(confirm = s, error = null) }
+    fun setRestorePassword(s: String) = backupUi.update { it.copy(restorePassword = s, error = null) }
+    fun setRestoreReplace(on: Boolean) = backupUi.update { it.copy(replace = on) }
+
+    private suspend fun buildBackup(): ByteArray? {
+        val ui = backupUi.value
+        if (ui.passwordProblem != null) return null
+        val pw = if (ui.protect) ui.password.toCharArray() else null
+        backupUi.update { it.copy(working = if (pw != null) "Encrypting your backup\u2026" else "Preparing your backup\u2026", error = null, exported = null) }
+        return try {
+            c.backups.build(pw)
+        } catch (e: Exception) {
+            backupUi.update { it.copy(working = null, error = "Couldn't make the backup. Please try again.") }
+            null
+        } finally {
+            pw?.fill(' ')
+        }
+    }
+
+    /** "Save to a file": [uri] is the file the person just created in Android's picker. */
+    fun exportTo(uri: android.net.Uri) = viewModelScope.launch {
+        val bytes = buildBackup() ?: return@launch
+        runCatching { c.backups.write(uri, bytes) }
+            .onSuccess {
+                backupUi.update { it.copy(working = null, exported = "Backup saved. Keep it somewhere safe, or send it to your other phone.") }
+                say("Backup saved")
+            }
+            .onFailure { backupUi.update { it.copy(working = null, error = "Couldn't save there. Try another folder.") } }
+    }
+
+    /** "Share": makes a copy and opens the share sheet. */
+    fun shareBackup() = viewModelScope.launch {
+        val bytes = buildBackup() ?: return@launch
+        runCatching { c.backups.writeForSharing(bytes) }
+            .onSuccess { file ->
+                backupUi.update { it.copy(working = null, exported = "Choose where to send your backup.") }
+                shareRequests.tryEmit(file)
+            }
+            .onFailure { backupUi.update { it.copy(working = null, error = "Couldn't prepare the backup for sharing.") } }
+    }
+
+    /** A file picked to restore from. A readable backup is checked straight away; an encrypted one waits for its password. */
+    fun pickBackup(uri: android.net.Uri) = viewModelScope.launch {
+        pickedBytes = null
+        backupUi.update { BackupUi(protect = it.protect, password = it.password, confirm = it.confirm, working = "Reading the file\u2026") }
+        val name = c.backups.displayName(uri)
+        val bytes = try {
+            c.backups.read(uri)
+        } catch (e: BackupException) {
+            backupUi.update { it.copy(working = null, fileName = name, error = backupProblemText(e.problem)) }
+            return@launch
+        } catch (e: Exception) {
+            backupUi.update { it.copy(working = null, fileName = name, error = "Couldn't open that file.") }
+            return@launch
+        }
+        val header = try {
+            BackupCodec.peek(bytes)
+        } catch (e: BackupException) {
+            backupUi.update { it.copy(working = null, fileName = name, error = backupProblemText(e.problem)) }
+            return@launch
+        }
+        pickedBytes = bytes
+        backupUi.update { it.copy(working = null, fileName = name, header = header) }
+        if (!header.encrypted) unlockBackup()
+    }
+
+    /** Opens the picked file with the typed password (if any) and checks every entry. */
+    fun unlockBackup() = viewModelScope.launch {
+        val bytes = pickedBytes ?: return@launch
+        val encrypted = backupUi.value.header?.encrypted == true
+        val pw = backupUi.value.restorePassword.toCharArray().takeIf { encrypted && it.isNotEmpty() }
+        if (encrypted && pw == null) {
+            backupUi.update { it.copy(error = backupProblemText(BackupException.Problem.NEEDS_PASSWORD)) }
+            return@launch
+        }
+        backupUi.update { it.copy(working = if (encrypted) "Unlocking\u2026" else "Checking the backup\u2026", error = null) }
+        try {
+            val content = withContext(Dispatchers.Default) { BackupCodec.decode(bytes, pw, now()) }
+            backupUi.update { it.copy(working = null, content = content, restorePassword = "") }
+        } catch (e: BackupException) {
+            backupUi.update { it.copy(working = null, error = backupProblemText(e.problem)) }
+        } finally {
+            pw?.fill(' ')
+        }
+    }
+
+    fun restoreBackup() = viewModelScope.launch {
+        val content = backupUi.value.content ?: return@launch
+        if (!editable()) return@launch
+        val s = settings.value
+        val newPhone = s?.onboarded != true
+        // A phone that's new, or only showing the built-in examples, gets the backup instead.
+        val replace = backupUi.value.replace || newPhone || s?.sampleData == true
+        backupUi.update { it.copy(working = "Restoring\u2026", error = null) }
+        val result = try {
+            repo.restore(content, replace = replace, finishOnboarding = newPhone)
+        } catch (e: Exception) {
+            backupUi.update { it.copy(working = null, error = "Couldn't restore. Nothing was changed.") }
+            return@launch
+        }
+        pickedBytes = null
+        backupUi.update { it.copy(working = null, content = null, header = null, fileName = null, restored = result) }
+        say(
+            "Restored ${result.added} ${if (result.added == 1) "payment" else "payments"}" +
+                if (result.skipped > 0) " (${result.skipped} already here)" else "",
+        )
+        if (newPhone) {
+            history.clear()
+            _screen.value = Screen.HOME
+        }
+    }
+
+    private fun backupProblemText(p: BackupException.Problem): String = when (p) {
+        BackupException.Problem.NOT_A_BACKUP -> "That file isn't an Owl Tracker backup."
+        BackupException.Problem.NEWER_VERSION -> "This backup was made by a newer Owl Tracker. Update the app, then try again."
+        BackupException.Problem.NEEDS_PASSWORD -> "This backup is password protected. Enter its password."
+        BackupException.Problem.WRONG_PASSWORD -> "That password doesn't open this backup."
+        BackupException.Problem.DAMAGED -> "This backup is damaged or was changed, so it can't be restored."
+        BackupException.Problem.TOO_LARGE -> "That file is too large to be an Owl Tracker backup."
+    }
 
     // ---------------- free trial & unlock ----------------
 
@@ -302,6 +503,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             }
             launch(Dispatchers.IO) { keyProtection.value = runCatching { c.keyProtection() }.getOrDefault("Android Keystore") }
             c.licence.refresh()
+            launch { runCatching { c.backups.cleanUpShared() } }
             val s = repo.settings()
             if (s.appLock) locked.value = true
             _screen.value = if (s.onboarded) Screen.HOME else Screen.WELCOME
@@ -693,28 +895,6 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             byCategory = byCategory, recent = txns.take(5), reviewCount = txns.count { it.needsReview }, over = over,
             categoryRows = rows, unbudgeted = unbudgeted,
         )
-    }
-
-    private fun buildInsights(txns: List<Txn>, cats: List<Category>, periods: List<BudgetPeriod>, budget: Long): Insights {
-        val catMap = cats.associateBy { it.id }
-        val today = today()
-        val bars = periods.map { p ->
-            val inP = txns.filter { p.contains(dateOf(it.occurredAt)) }
-            val spent = inP.filter { counts(it, catMap) }.sumOf { it.signedPaise }
-            MonthBar(
-                label = p.start.format(DateTimeFormatter.ofPattern("MMM", Locale.ENGLISH)) + if (p.contains(today)) "*" else "",
-                spent = spent.coerceAtLeast(0),
-                hasData = inP.isNotEmpty() || p.contains(today),
-                isCurrent = p.contains(today),
-            )
-        }
-        val past = bars.filter { !it.isCurrent && it.hasData }
-        val current = periods.last()
-        val top = txns.filter { current.contains(dateOf(it.occurredAt)) && it.direction == Direction.DEBIT && counts(it, catMap) }
-            .groupBy { it.merchantKey }
-            .map { (_, list) -> TopMerchant(list.first().merchantName, list.first().merchantPackage, list.first().categoryId, list.sumOf { it.amountPaise }, list.size) }
-            .sortedByDescending { it.paise }.take(5)
-        return Insights(bars, budget, if (past.isEmpty()) null else past.sumOf { it.spent } / past.size, top)
     }
 
     fun senderName(group: String?): String = Institutions.nameFor(group)

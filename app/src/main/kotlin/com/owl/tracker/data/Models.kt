@@ -6,7 +6,8 @@ import com.owl.tracker.core.TxKind
 import org.json.JSONArray
 import org.json.JSONObject
 
-enum class Source { SMS, MANUAL }
+/** Where a transaction came from. BACKUP: restored from a backup file (originally an SMS, with the SMS details left out). */
+enum class Source { SMS, MANUAL, BACKUP }
 
 /** EXPENSE counts toward budgets. SAVING, TRANSFER and INCOME never do. */
 enum class CategoryKind { EXPENSE, SAVING, TRANSFER, INCOME }
