@@ -71,6 +71,6 @@ class SchemaMigrationTest {
         assertEquals(1, repo.renameMerchant(tx.id, "Kamal Stores (milk)", all = true))
         assertEquals("Kamal Stores (milk)", repo.merchantOverrides().getValue("kamal_stores").name)
         assertTrue(repo.categories().first { it.id == Cat.SPORTS }.isSystem)
-        context.deleteDatabase(name)
+        assertTrue(context.deleteDatabase(name))
     }
 }
