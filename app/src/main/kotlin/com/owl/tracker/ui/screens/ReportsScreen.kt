@@ -631,13 +631,17 @@ private fun CategoryCard(r: Report, catMap: Map<String, Category>, vm: AppViewMo
     val pickColor = pick?.let { Color(it.category.color) } ?: MaterialTheme.colorScheme.primary
 
     // Level 0: categories. Level 1 and 2: the opened category's merchants (2 has one of them picked).
-    val slices: List<RingSlice> = remember(pick, r.categories, r.merchants) {
+    val slices: List<RingSlice> = remember(pick, r.categories, r.merchants, merchantKey) {
         if (pick == null) {
             r.categories.map { RingSlice(it.category.id, it.category.name, it.paise, it.share, Color(it.category.color)) }
         } else {
-            val total = pick.paise.coerceAtLeast(1)
-            val top = r.merchants.filter { it.categoryId == pick.category.id }.sortedByDescending { it.paise }.take(6)
-            val rest = (pick.paise - top.sumOf { it.paise }).coerceAtLeast(0)
+            // With a merchant picked, the category's own total is narrowed to that merchant, so the whole is
+            // rebuilt from its merchants (listed without the merchant filter): the ring stays the whole category
+            val ofCategory = r.merchants.filter { it.categoryId == pick.category.id }.sortedByDescending { it.paise }
+            val whole = if (merchantKey == null) pick.paise else ofCategory.sumOf { it.paise }
+            val total = whole.coerceAtLeast(1)
+            val top = ofCategory.take(6)
+            val rest = (whole - top.sumOf { it.paise }).coerceAtLeast(0)
             val list = top.map { it.key to (it.name to it.paise) } + if (rest > 0) listOf("" to ("Others" to rest)) else emptyList()
             list.mapIndexed { i, (k, v) ->
                 RingSlice(k, v.first, v.second, v.second.toFloat() / total, lerp(pickColor, Color.White, 0.55f * i / list.size.coerceAtLeast(1)))
