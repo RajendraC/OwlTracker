@@ -254,7 +254,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
     suspend fun setMerchantLogo(txId: Long, logo: String?): Int = write { d ->
         val key = merchantKeyOf(d, txId) ?: return@write 0
         val pkg = when (logo) {
-            null -> MerchantRegistry.all.firstOrNull { it.key == key }?.packageName
+            null -> automaticIcon(d, key)
             "" -> null
             else -> logo.takeIf { KnownApps.isPackageName(it) || (MerchantPicture.isPicture(it) && hasPicture(d, it)) } ?: return@write 0
         }
@@ -327,6 +327,15 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         if (!MerchantPicture.isPicture(id)) return null
         return db.get().query("SELECT png FROM pictures WHERE id = ?", arrayOf<Any?>(id)).use { c -> if (c.moveToFirst()) c.getBlob(0) else null }
     }
+
+    /**
+     * The icon a merchant gets on its own: its recognised app, found by key, or for outlets that keep their own
+     * name (a petrol pump, a toll plaza) by matching that name again.
+     */
+    private fun automaticIcon(d: SupportSQLiteDatabase, key: String): String? =
+        MerchantRegistry.all.firstOrNull { it.key == key }?.packageName
+            ?: d.query("SELECT MAX(merchant_name), MAX(vpa) FROM transactions WHERE merchant_key = ?", arrayOf<Any?>(key))
+                .use { c -> if (c.moveToFirst()) MerchantRegistry.match(c.str(0), c.str(1))?.packageName else null }
 
     private fun hasPicture(d: SupportSQLiteDatabase, id: String): Boolean =
         d.query("SELECT 1 FROM pictures WHERE id = ?", arrayOf<Any?>(id)).use { it.moveToFirst() }

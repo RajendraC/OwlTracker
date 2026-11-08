@@ -103,7 +103,7 @@ class ImportEngine(
 
     fun toCandidate(t: ParsedTransaction): Candidate {
         val known = MerchantRegistry.match(t.merchantRaw, t.vpa)
-        val name = known?.displayName
+        val name = known?.takeUnless { it.keepName && t.merchantRaw != null }?.displayName
             ?: t.merchantRaw
             ?: when (t.kind) {
                 TxKind.CASH_WITHDRAWAL -> "ATM withdrawal"

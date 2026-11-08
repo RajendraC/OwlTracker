@@ -133,6 +133,40 @@ class MerchantLogosTest {
         assertNull(key("MAHINDRA FINANCE"))
     }
 
+    @Test fun petrolPumpsAndTollsKeepTheirOwnNameWithTheBrandsIcon() {
+        val pump = MerchantRegistry.match("SHREE GANESH HPCL FILLING STN", null)!!
+        assertEquals("com.drivetrackplusrefuel", pump.packageName)
+        assertEquals(Cat.FUEL, pump.category)
+        assertTrue(pump.keepName)
+        // Each pump stays its own merchant
+        assertEquals("shree_ganesh_hpcl_filling_stn", MerchantRegistry.keyFor(pump, "SHREE GANESH HPCL FILLING STN", null))
+        assertEquals("hpcl", MerchantRegistry.keyFor(pump, null, null))
+        assertEquals("hpcl", key("HP PETROL PUMP ANNA NAGAR"))
+        assertEquals("bpcl", key("BHARAT PETROLEUM CORP LTD"))
+        assertEquals("indianoil", key("INDIAN OIL CORPORATION"))
+        assertEquals("indianoil", key("IOCL COCO OUTLET"))
+        assertEquals("shell", key("SHELL INDIA MARKETS PVT LTD"))
+        assertEquals("jiobp", key("JIO-BP MOBILITY STATION"))
+        assertNull(MerchantRegistry.match("JIO-BP MOBILITY STATION", null)!!.packageName)
+        assertEquals(Cat.FUEL, MerchantRegistry.match("JIO BP", null)!!.category)
+        assertEquals("jio", key("RELIANCE JIO INFOCOMM"))
+        assertEquals("nayara", key("NAYARA ENERGY LTD"))
+        // Cooking gas is a bill, with the same company's app
+        assertEquals("indane", key("INDANE GAS AGENCY"))
+        assertEquals(Cat.BILLS, MerchantRegistry.match("HP GAS", null)!!.category)
+        assertEquals("bharatgas", key("BHARATGAS"))
+        assertEquals("com.cgt.bharatgas", MerchantRegistry.match("BHARAT GAS", null)!!.packageName)
+        // Tolls
+        assertEquals("fastag", key("ATTIBELE TOLL PLAZA"))
+        assertEquals("fastag", key("NETC FASTAG RECHARGE"))
+        assertEquals("rajmargyatra", key("RAJMARGYATRA ANNUAL PASS"))
+        assertEquals(Cat.TRANSPORT, MerchantRegistry.match("FASTAG", null)!!.category)
+        // Look-alikes
+        assertNull(key("SEA SHELL CAFE"))
+        assertNull(key("NETCORE SOLUTIONS"))
+        assertNull(key("HP WORLD LAPTOPS"))
+    }
+
     @Test fun wholeWordNamesNeedTheWholeWord() {
         assertNull(key("CANVAS PRINTS"))
         assertNull(key("ZOOMCAR INDIA"))

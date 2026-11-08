@@ -183,6 +183,13 @@
         <package android:name="com.mmtv.manoramamax.android" />
         <package android:name="com.lionsgateplay.videoapp" />
         <package android:name="com.ht.ottplay" />
+        <!-- Fuel, cooking gas and FASTag (0.7.1) -->
+        <package android:name="cx.indianoil.in" />
+        <package android:name="com.drivetrackplusrefuel" />
+        <package android:name="com.cgt.bharatgas" />
+        <package android:name="com.shell.sitibv.shellgoplusindia" />
+        <package android:name="com.nhai.rajmargyatra" />
+        <package android:name="com.fastaguser" />
         <!-- Every UPI payment app (all bank and wallet apps that pay by UPI), so any of them can be a
              merchant's icon. A narrow intent query: Owl Tracker never sees the full list of apps. -->
         <intent>

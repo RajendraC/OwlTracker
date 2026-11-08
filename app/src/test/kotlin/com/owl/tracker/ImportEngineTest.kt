@@ -213,6 +213,28 @@ class ImportEngineTest {
     }
 
     @Test
+    fun petrolPumpsKeepTheirNameAndGetTheBrandsIcon() = runBlocking {
+        val inbox = sampleInbox()
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        c.repo.updateSettings { it.copy(onboarded = true) }
+        inbox += SmsMessage(5300, "VM-HDFCBK-S", "Sent Rs.1500.00 From HDFC Bank A/C *4821 To SHREE GANESH HPCL On 18/10/26 Ref 629999990003", TEST_CLOCK.millis() - 60_000)
+        assertEquals(1, e.syncNew())
+        val pump = month(c).first { it.smsId == 5300L }
+        assertEquals("SHREE GANESH HPCL", pump.merchantName) // which pump, not just "HPCL"
+        assertEquals("shree_ganesh_hpcl", pump.merchantKey)
+        assertEquals("com.drivetrackplusrefuel", pump.merchantPackage)
+        assertEquals(Cat.FUEL, pump.categoryId)
+
+        // No icon, then automatic again: the brand's icon comes back
+        c.repo.setMerchantLogo(pump.id, "")
+        assertNull(c.repo.transaction(pump.id)!!.merchantPackage)
+        c.repo.setMerchantLogo(pump.id, null)
+        assertEquals("com.drivetrackplusrefuel", c.repo.transaction(pump.id)!!.merchantPackage)
+    }
+
+    @Test
     fun cardBillsShowTheBanksAppAndOlderPaymentsGetNewIcons() = runBlocking {
         val inbox = sampleInbox()
         val c = testContainer(context, inbox)

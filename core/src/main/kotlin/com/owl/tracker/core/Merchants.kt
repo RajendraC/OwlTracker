@@ -28,18 +28,27 @@ object Cat {
  * installed on the phone; every package listed here must also be listed in the app manifest's
  * <queries> block, or Android 11+ hides it from us.
  */
+/**
+ * [keepName]: for networks of outlets (petrol pumps, toll plazas) the SMS's own name says which one, so it is
+ * kept, each outlet stays its own merchant, and only the brand's icon and category are added.
+ */
 data class KnownMerchant(
     val key: String,
     val displayName: String,
     val packageName: String?,
     val category: String,
     val patterns: List<String>,
+    val keepName: Boolean = false,
 )
 
 object MerchantRegistry {
 
     private fun m(key: String, name: String, pkg: String?, cat: String, vararg patterns: String) =
         KnownMerchant(key, name, pkg, cat, patterns.toList())
+
+    /** An outlet of a network (a petrol pump, a toll plaza): keeps the SMS's name, adds the brand's icon. */
+    private fun outlet(key: String, name: String, pkg: String?, cat: String, vararg patterns: String) =
+        KnownMerchant(key, name, pkg, cat, patterns.toList(), keepName = true)
 
     /**
      * Order matters: more specific names (Instamart, Prime Video) come before broader ones (Swiggy, Amazon).
@@ -85,6 +94,21 @@ object MerchantRegistry {
         m("indigo", "IndiGo", "in.goindigo.android", Cat.TRAVEL, "goindigo", "interglobe", "indigo air"),
         m("ixigo", "ixigo", "com.ixigo", Cat.TRAVEL, "ixigo", "le travenues"),
         m("clubmahindra", "Club Mahindra", "co.clubmahindra.mahindraholidays", Cat.TRAVEL, "club mahindra", "clubmahindra", "mahindra holidays"),
+        // Cooking gas before the fuel brands: same companies and apps, but a bill, not fuel
+        m("indane", "Indane Gas", "cx.indianoil.in", Cat.BILLS, "indane"),
+        m("hpgas", "HP Gas", "com.drivetrackplusrefuel", Cat.BILLS, "hp gas", "hpgas"),
+        m("bharatgas", "Bharatgas", "com.cgt.bharatgas", Cat.BILLS, "bharatgas", "bharat gas"),
+        // Petrol pumps keep their own name (which pump) and get the brand's icon
+        outlet("hpcl", "HPCL", "com.drivetrackplusrefuel", Cat.FUEL, "hpcl", "hindustan petroleum", "hp petrol", "hp pay", "hppay", "hp fuel"),
+        outlet("bpcl", "Bharat Petroleum", "com.cgt.bharatgas", Cat.FUEL, "bpcl", "bharat petroleum", "bharatpetroleum", "hellobpcl", "ufill"),
+        outlet("indianoil", "IndianOil", "cx.indianoil.in", Cat.FUEL, "indianoil", "indian oil", "iocl"),
+        outlet("shell", "Shell", "com.shell.sitibv.shellgoplusindia", Cat.FUEL, "shell india", "shell markets", "shell petrol", "shell fuel", "shell station", "shell select", "shell energy"),
+        // No app to show, but these are fuel (and Jio-bp must not be taken for Jio the phone company)
+        outlet("jiobp", "Jio-bp", null, Cat.FUEL, "jio-bp", "jio bp", "jiobp", "reliance bp"),
+        outlet("nayara", "Nayara", null, Cat.FUEL, "nayara", "essar petrol", "essar oil"),
+        // Tolls: the NHAI annual pass, then any FASTag payment or toll plaza (which plaza is kept)
+        m("rajmargyatra", "Rajmargyatra", "com.nhai.rajmargyatra", Cat.TRANSPORT, "rajmargyatra"),
+        outlet("fastag", "FASTag", "com.fastaguser", Cat.TRANSPORT, "fastag", "toll plaza", "ihmcl", "netc$"),
         m("easemytrip", "EaseMyTrip", "com.easemytrip.android", Cat.TRAVEL, "easemytrip", "easy trip planners"),
         m("yatra", "Yatra", "com.yatra.base", Cat.TRAVEL, "yatra.com", "yatra online"),
         m("agoda", "Agoda", "com.agoda.mobile.consumer", Cat.TRAVEL, "agoda"),
@@ -217,7 +241,7 @@ object MerchantRegistry {
 
     /** Stable key used to group a merchant and to attach rules: known key, else a slug of the cleaned name. */
     fun keyFor(known: KnownMerchant?, displayName: String?, vpa: String?): String =
-        known?.key
+        known?.takeUnless { it.keepName && !displayName.isNullOrBlank() }?.key
             ?: displayName?.lowercase()?.replace(Regex("[^a-z0-9]+"), "_")?.trim('_')?.takeIf { it.isNotEmpty() }
             ?: vpa?.lowercase()
             ?: "unknown"
