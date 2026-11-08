@@ -172,6 +172,17 @@
         <package android:name="com.star.customer_app" />
         <package android:name="com.maxbupa.healthapp" />
         <package android:name="com.religare.healthinsurance" />
+        <!-- Live sport and regional streaming, Club Mahindra (0.7.1) -->
+        <package android:name="co.clubmahindra.mahindraholidays" />
+        <package android:name="com.dream11sportsguru" />
+        <package android:name="com.cricbuzz.android" />
+        <package android:name="com.prasarbharati.android" />
+        <package android:name="com.saranyu.shemarooworld" />
+        <package android:name="in.stage" />
+        <package android:name="tv.chaupal.android" />
+        <package android:name="com.mmtv.manoramamax.android" />
+        <package android:name="com.lionsgateplay.videoapp" />
+        <package android:name="com.ht.ottplay" />
         <!-- Every UPI payment app (all bank and wallet apps that pay by UPI), so any of them can be a
              merchant's icon. A narrow intent query: Owl Tracker never sees the full list of apps. -->
         <intent>

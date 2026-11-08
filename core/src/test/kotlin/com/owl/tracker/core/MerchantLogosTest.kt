@@ -108,6 +108,31 @@ class MerchantLogosTest {
         assertNull(key("CARE HEALTH PHARMACY"))
     }
 
+    @Test fun recognisesLiveStreamingAndClubMahindra() {
+        assertEquals("clubmahindra", key("CLUB MAHINDRA HOLIDAYS"))
+        assertEquals("clubmahindra", key("MAHINDRA HOLIDAYS AND RESORTS"))
+        assertEquals(Cat.TRAVEL, MerchantRegistry.match("CLUB MAHINDRA", null)?.category)
+        assertEquals("fancode", key("FANCODE"))
+        assertEquals("fancode", key("SPORTA TECHNOLOGIES PVT LTD"))
+        assertEquals("cricbuzz", key("CRICBUZZ PLUS"))
+        assertEquals("waves", key("PRASAR BHARATI WAVES"))
+        assertEquals("shemaroome", key("SHEMAROO ENTERTAINMENT"))
+        assertEquals("stage", key("STAGE TECHNOLOGIES PRIVATE LIMITED"))
+        assertEquals("chaupal", key("CHAUPAL OTT"))
+        assertEquals("manoramamax", key("MANORAMAMAX"))
+        assertEquals("lionsgate", key("LIONSGATE PLAY"))
+        assertEquals("ottplay", key("OTTPLAY PREMIUM"))
+        // Already there: SonyLIV, ZEE5, JioHotstar
+        assertEquals("sonyliv", key("SONYLIV"))
+        assertEquals("zee5", key("ZEE5"))
+        assertEquals("hotstar", key("JIOHOTSTAR"))
+        // Everyday words stay apart
+        assertNull(key("NEW WAVES SALON"))
+        assertNull(key("GAON KI CHAUPAL DHABA"))
+        assertNull(key("STAGE 3 CAFE"))
+        assertNull(key("MAHINDRA FINANCE"))
+    }
+
     @Test fun wholeWordNamesNeedTheWholeWord() {
         assertNull(key("CANVAS PRINTS"))
         assertNull(key("ZOOMCAR INDIA"))
