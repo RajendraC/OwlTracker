@@ -21,12 +21,17 @@ POOL="github"
 PROVIDER="owltracker"
 SA_NAME="play-publisher"
 
-# Google takes a few seconds to make new projects, APIs and accounts usable; retry until it has.
+# Google takes up to a minute to give the new project's owner its permissions and to switch on APIs.
+# Until then commands fail with PERMISSION_DENIED; retry quietly and show an error only if the last try
+# fails too.
 retry() {
-  local i
-  for i in 1 2 3 4 5 6; do
-    "$@" && return 0
-    echo "  (not ready yet, trying again in 10 s)"
+  local i out
+  for i in 1 2 3 4 5 6 7 8; do
+    if out=$("$@" 2>&1); then
+      if [ -n "$out" ]; then echo "$out"; fi
+      return 0
+    fi
+    echo "  (Google is still setting up the new project; trying again in 10 s)"
     sleep 10
   done
   "$@"
@@ -53,7 +58,7 @@ retry gcloud iam workload-identity-pools providers create-oidc "$PROVIDER" \
   --attribute-condition="assertion.repository == '$REPO' && assertion.ref == 'refs/heads/main'" --quiet
 retry gcloud iam service-accounts add-iam-policy-binding "$SA" --role="roles/iam.workloadIdentityUser" \
   --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL/attribute.repository/$REPO" \
-  --quiet > /dev/null
+  --format=none --quiet
 
 cat <<DONE
 
