@@ -3,6 +3,9 @@ name: Update Google Play store listing
 # Run by hand (Actions → "Update Google Play store listing" → Run workflow) after changing anything in
 # store/: the app name and descriptions in store/listing.txt, the icon, feature graphic or phone
 # screenshots. Needs the Play publishing account to have "Manage store presence" for Owl Tracker.
+# It REPLACES the icon, feature graphic, phone screenshots and contact email in Google Play with the
+# ones from store/ and below (a promo video added in Play Console stays). If the listing was made in
+# Play Console, run "Check what Google Play holds" first and only run this to switch to store/.
 on:
   workflow_dispatch:
 
