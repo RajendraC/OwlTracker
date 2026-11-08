@@ -33,9 +33,9 @@ fun GlassBackdrop(modifier: Modifier = Modifier) {
     // Saturated enough to show through the cards, soft enough to keep text easy to read. In the dark
     // theme the pools glow: the theme's light accent colours over the near-black background.
     val pools = if (dark) listOf(
-        Triple(Offset(0.0f, 0.06f), 0.85f, c.primary.copy(alpha = 0.30f)),
-        Triple(Offset(1.0f, 0.42f), 0.75f, c.tertiary.copy(alpha = 0.26f)),
-        Triple(Offset(0.12f, 0.95f), 0.85f, lerp(c.primary, Color(0xFFFF9F6B), 0.75f).copy(alpha = 0.22f)),
+        Triple(Offset(0.0f, 0.06f), 0.85f, c.primary.copy(alpha = 0.24f)),
+        Triple(Offset(1.0f, 0.42f), 0.75f, c.tertiary.copy(alpha = 0.20f)),
+        Triple(Offset(0.12f, 0.95f), 0.85f, lerp(c.primary, Color(0xFFFF9F6B), 0.75f).copy(alpha = 0.18f)),
     ) else listOf(
         Triple(Offset(0.0f, 0.06f), 0.80f, lerp(c.primary, c.primaryContainer, 0.35f).copy(alpha = 0.34f)),
         Triple(Offset(1.0f, 0.40f), 0.72f, lerp(c.tertiary, c.tertiaryContainer, 0.35f).copy(alpha = 0.29f)),
@@ -51,13 +51,25 @@ fun GlassBackdrop(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Secondary text on glass: a step closer to the main text colour than usual, because a see-through
+ * card has less contrast behind it than a solid one.
+ */
+@Composable
+@ReadOnlyComposable
+fun glassColors(): androidx.compose.material3.ColorScheme {
+    val c = MaterialTheme.colorScheme
+    return c.copy(onSurfaceVariant = lerp(c.onSurfaceVariant, c.onSurface, 0.45f))
+}
+
 /** A card's see-through fill. */
 @Composable
 @ReadOnlyComposable
 fun glassFill(): Color {
     val dark = isSystemInDarkTheme()
-    // Dark glass is lighter than what's behind it, like frosted glass catching light
-    return if (dark) MaterialTheme.colorScheme.surfaceBright.copy(alpha = 0.40f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.52f)
+    // Solid enough that text stays easy to read whatever colour shows through (with wallpaper colours,
+    // the wash can be close to the text's own colour); the colour still glows through and round the edges
+    return if (dark) MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.74f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.68f)
 }
 
 /** A thicker fill for things that float over content, like the tab bar (there's no blur behind them). */

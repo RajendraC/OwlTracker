@@ -72,7 +72,14 @@ fun OwlTrackerRoot(vm: AppViewModel, platform: Platform) {
     ) {
         Box(Modifier.fillMaxSize()) {
             if (glass) com.owl.tracker.ui.theme.GlassBackdrop()
-            RootContent(vm, platform, glass)
+            if (glass) {
+                // Stronger secondary text everywhere while cards are see-through
+                MaterialTheme(colorScheme = com.owl.tracker.ui.theme.glassColors(), typography = MaterialTheme.typography, shapes = MaterialTheme.shapes) {
+                    RootContent(vm, platform, glass)
+                }
+            } else {
+                RootContent(vm, platform, glass)
+            }
         }
     }
 }
