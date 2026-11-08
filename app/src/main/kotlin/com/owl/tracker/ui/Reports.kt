@@ -32,11 +32,16 @@ data class ReportFilter(
     val categoryId: String? = null,
     val merchantKey: String? = null,
     val weekday: DayOfWeek? = null,
+    /** A day inside the month picked with [bucket], when the range is longer than a month (drilling down). */
+    val day: Int? = null,
 ) {
-    val isEmpty: Boolean get() = bucket == null && categoryId == null && merchantKey == null && weekday == null
+    val isEmpty: Boolean get() = bucket == null && categoryId == null && merchantKey == null && weekday == null && day == null
 }
 
-enum class FilterKind { BUCKET, CATEGORY, MERCHANT, WEEKDAY }
+enum class FilterKind { BUCKET, CATEGORY, MERCHANT, WEEKDAY, DAY }
+
+/** A month of a longer range, drilled into: one bar per day, with every filter but the day applied. */
+data class Drill(val title: String, val bars: List<TrendBar>, val budgetLine: Long)
 
 data class TrendBar(
     val label: String,
@@ -113,6 +118,8 @@ data class Report(
     val matchCount: Int,
     /** Null while a category, merchant or weekday is picked: Income & expenses is about everything. */
     val incomeExpenses: IncomeExpenses?,
+    /** The month picked on a longer range's trend, day by day; null otherwise. */
+    val drill: Drill? = null,
 )
 
 /** Builds the Reports screen from the transactions of the range and the period before it. Pure, so it's tested on the JVM. */
@@ -161,14 +168,24 @@ object ReportBuilder {
             periods.map { p -> Bucket(p.start, p.endExclusive, p.start.format(DateTimeFormatter.ofPattern("MMM", Locale.ENGLISH)), periodTitle(p)) }
         }
         val bucket = filter.bucket?.takeIf { it in buckets.indices }
-        val f = filter.copy(bucket = bucket)
+        // Drilling down: a month of a longer range splits into its days, and one day can be picked
+        val drillDays: List<Bucket> = if (daily || bucket == null) emptyList() else {
+            val m = buckets[bucket]
+            generateSequence(m.start) { it.plusDays(1) }.takeWhile { it.isBefore(m.end) }
+                .map { d -> Bucket(d, d.plusDays(1), d.dayOfMonth.toString(), d.format(dayTitle)) }.toList()
+        }
+        val day = filter.day?.takeIf { it in drillDays.indices }
+        val f = filter.copy(bucket = bucket, day = day)
 
         fun inBucket(t: Txn, b: Int?) = b == null || dateOf(t).let { d -> !d.isBefore(buckets[b].start) && d.isBefore(buckets[b].end) }
+        fun inDay(t: Txn, i: Int) = dateOf(t).let { d -> !d.isBefore(drillDays[i].start) && d.isBefore(drillDays[i].end) }
+        /** The picked month (or day, or nothing): what every section but the trend is about. */
+        fun inScope(t: Txn) = if (day != null) inDay(t, day) else inBucket(t, bucket)
         fun byCategory(t: Txn) = f.categoryId == null || t.categoryId == f.categoryId
         fun byMerchant(t: Txn) = f.merchantKey == null || t.merchantKey == f.merchantKey
         fun byWeekday(t: Txn) = f.weekday == null || dateOf(t).dayOfWeek == f.weekday
 
-        val matching = inRange.filter { inBucket(it, bucket) && byCategory(it) && byMerchant(it) && byWeekday(it) }
+        val matching = inRange.filter { inScope(it) && byCategory(it) && byMerchant(it) && byWeekday(it) }
         val spent = spendOf(matching)
         val received = receivedOf(matching)
 
@@ -178,7 +195,7 @@ object ReportBuilder {
             (((spent - previousSpent) * 100.0) / previousSpent).let { kotlin.math.round(it).toInt() }
         } else null
 
-        val days = if (bucket != null) {
+        val days = if (day != null) 1 else if (bucket != null) {
             java.time.temporal.ChronoUnit.DAYS.between(buckets[bucket].start, buckets[bucket].end).toInt()
         } else {
             val end = if (today.isBefore(to)) today.plusDays(1) else to
@@ -199,6 +216,14 @@ object ReportBuilder {
                 isNow = isNow,
             )
         }
+        val drill = if (drillDays.isEmpty()) null else Drill(
+            title = buckets[bucket!!].title,
+            bars = drillDays.mapIndexed { i, d ->
+                val inD = forTrend.filter { inDay(it, i) }
+                TrendBar(d.label, d.title, spendOf(inD), receivedOf(inD), hasData = !d.start.isAfter(today), isNow = d.start == today)
+            },
+            budgetLine = if (monthlyBudget <= 0 || f.categoryId != null || f.merchantKey != null || f.weekday != null) 0L else monthlyBudget / drillDays.size,
+        )
         val budgetLine = when {
             monthlyBudget <= 0 || f.categoryId != null || f.merchantKey != null || f.weekday != null -> 0L
             daily -> monthlyBudget / periods.first().days.coerceAtLeast(1)
@@ -206,7 +231,7 @@ object ReportBuilder {
         }
 
         // Categories: all filters except the category.
-        val forCats = inRange.filter { inBucket(it, bucket) && byMerchant(it) && byWeekday(it) && counts(it) }
+        val forCats = inRange.filter { inScope(it) && byMerchant(it) && byWeekday(it) && counts(it) }
         val prevForCats = inPrevious.filter { byMerchant(it) && byWeekday(it) && counts(it) }
         val prevByCat = prevForCats.groupBy { it.categoryId }.mapValues { (_, l) -> l.sumOf { it.amountPaise } }
         val catTotals = forCats.groupBy { it.categoryId }.mapNotNull { (id, list) ->
@@ -220,7 +245,7 @@ object ReportBuilder {
         }
 
         // Merchants: all filters except the merchant; spending only.
-        val forMerchants = inRange.filter { inBucket(it, bucket) && byCategory(it) && byWeekday(it) && counts(it) && it.direction == Direction.DEBIT }
+        val forMerchants = inRange.filter { inScope(it) && byCategory(it) && byWeekday(it) && counts(it) && it.direction == Direction.DEBIT }
         val merchants = forMerchants.groupBy { it.merchantKey }.map { (key, list) ->
             val latest = list.maxBy { it.occurredAt }
             MerchantRow(key, latest.merchantName, list.firstNotNullOfOrNull { it.merchantPackage }, latest.categoryId, list.sumOf { it.amountPaise }, list.size)
@@ -232,7 +257,7 @@ object ReportBuilder {
         }
 
         // Weekdays: all filters except the weekday; spending only.
-        val forWeek = inRange.filter { inBucket(it, bucket) && byCategory(it) && byMerchant(it) && counts(it) && it.direction == Direction.DEBIT }
+        val forWeek = inRange.filter { inScope(it) && byCategory(it) && byMerchant(it) && counts(it) && it.direction == Direction.DEBIT }
         val byDay = forWeek.groupBy { dateOf(it).dayOfWeek }
         val weekdays = DayOfWeek.values().map { d -> WeekdayBar(d, byDay[d].orEmpty().sumOf { it.amountPaise }, byDay[d].orEmpty().size) }
 
@@ -244,6 +269,7 @@ object ReportBuilder {
 
         val chips = buildList {
             bucket?.let { add(FilterKind.BUCKET to buckets[it].title) }
+            day?.let { add(FilterKind.DAY to drillDays[it].title) }
             f.categoryId?.let { add(FilterKind.CATEGORY to (catMap[it]?.name ?: "Category")) }
             f.merchantKey?.let { k -> add(FilterKind.MERCHANT to (merchants.firstOrNull { it.key == k }?.name ?: inRange.firstOrNull { it.merchantKey == k }?.merchantName ?: "Merchant")) }
             f.weekday?.let { add(FilterKind.WEEKDAY to plural(it)) }
@@ -271,10 +297,11 @@ object ReportBuilder {
             highlights = highlights,
             matches = matches,
             matchCount = if (f.isEmpty) matches.size else matching.size,
+            drill = drill,
             incomeExpenses = if (f.categoryId != null || f.merchantKey != null || f.weekday != null) null else incomeExpenses(
-                title = bucket?.let { buckets[it].title } ?: if (daily) periodTitle(periods.first()) else
+                title = day?.let { drillDays[it].title } ?: bucket?.let { buckets[it].title } ?: if (daily) periodTitle(periods.first()) else
                     "${periods.first().start.format(MONTH_YEAR)} – ${periods.last().start.format(MONTH_YEAR)}",
-                txns = inRange.filter { inBucket(it, bucket) },
+                txns = inRange.filter { inScope(it) },
                 catMap = catMap,
                 months = if (daily || bucket != null) emptyList() else buckets.map { b ->
                     val inB = inRange.filter { val d = dateOf(it); !d.isBefore(b.start) && d.isBefore(b.end) }

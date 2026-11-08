@@ -317,11 +317,13 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setReportRange(r: ReportRange) {
         reportRange.value = r
-        reportFilter.update { it.copy(bucket = null) }
+        reportFilter.update { it.copy(bucket = null, day = null) }
     }
 
     /** Tapping a bar, slice, merchant or weekday picks it; tapping it again lets go. */
-    fun tapReportBucket(i: Int) = reportFilter.update { it.copy(bucket = if (it.bucket == i) null else i) }
+    fun tapReportBucket(i: Int) = reportFilter.update { it.copy(bucket = if (it.bucket == i) null else i, day = null) }
+    /** Inside a drilled-into month: picks one of its days, or lets go. */
+    fun tapReportDay(i: Int) = reportFilter.update { it.copy(day = if (it.day == i) null else i) }
     fun tapReportCategory(id: String) = reportFilter.update { it.copy(categoryId = if (it.categoryId == id) null else id) }
     fun tapReportMerchant(key: String) = reportFilter.update { it.copy(merchantKey = if (it.merchantKey == key) null else key) }
     fun tapReportWeekday(d: java.time.DayOfWeek) = reportFilter.update { it.copy(weekday = if (it.weekday == d) null else d) }
@@ -329,7 +331,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun clearReportFilter(kind: FilterKind? = null) = reportFilter.update {
         when (kind) {
             null -> ReportFilter()
-            FilterKind.BUCKET -> it.copy(bucket = null)
+            FilterKind.BUCKET -> it.copy(bucket = null, day = null)
+            FilterKind.DAY -> it.copy(day = null)
             FilterKind.CATEGORY -> it.copy(categoryId = null)
             FilterKind.MERCHANT -> it.copy(merchantKey = null)
             FilterKind.WEEKDAY -> it.copy(weekday = null)
@@ -556,6 +559,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun setScreenPrivacy(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(screenPrivacy = on) } }
+
+    fun setGlass(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(glass = on) } }
 
     fun setStartDay(day: Int) = viewModelScope.launch {
         repo.updateSettings { it.copy(budgetStartDay = day.coerceIn(1, 28)) }

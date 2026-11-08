@@ -197,6 +197,29 @@ class ReportBuilderTest {
         assertEquals(2, r.incomeExpenses!!.leftOut)
     }
 
+    @Test fun aMonthOfALongerRangeDrillsDownToItsDays() {
+        val month = build(ReportRange.THREE, ReportFilter(bucket = 2))  // October, opened
+        val d = month.drill!!
+        assertEquals("October 2026", d.title)
+        assertEquals(31, d.bars.size)
+        assertEquals(200_000L, d.bars[9].spent)          // 10 Oct: Amazon
+        assertTrue(d.bars[17].isNow)
+        assertFalse(d.bars[20].hasData)
+        assertEquals(280_000L, month.spent)
+        assertEquals(3, month.trend.size)                // the months stay, for going back up
+
+        val day = build(ReportRange.THREE, ReportFilter(bucket = 2, day = 9))
+        assertEquals(200_000L, day.spent)
+        assertEquals(200_000L, day.perDay)
+        assertEquals(listOf(FilterKind.BUCKET to "October 2026", FilterKind.DAY to "Sat 10 Oct"), day.chips)
+        assertEquals("Sat 10 Oct", day.incomeExpenses!!.title)
+        assertEquals(listOf(Cat.SHOPPING), day.categories.map { it.category.id })
+        assertEquals(31, day.drill!!.bars.size)          // the month's days stay, with the day picked
+
+        assertNull("This month is already day by day", build(filter = ReportFilter(bucket = 3)).drill)
+        assertNull("A day without its month is ignored", build(ReportRange.THREE, ReportFilter(day = 9)).filter.day)
+    }
+
     @Test fun withNothingPickedTheBiggestPaymentsAreListed() {
         val r = build()
         assertEquals(listOf(200_000L, 50_000L, 30_000L), r.matches.map { it.amountPaise })

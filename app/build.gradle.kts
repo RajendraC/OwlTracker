@@ -16,8 +16,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // The release workflow sets these; every Play upload needs a higher versionCode than the last.
-        versionCode = System.getenv("OWL_TRACKER_VERSION_CODE")?.toIntOrNull() ?: 11
-        versionName = System.getenv("OWL_TRACKER_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.9.0"
+        versionCode = System.getenv("OWL_TRACKER_VERSION_CODE")?.toIntOrNull() ?: 12
+        versionName = System.getenv("OWL_TRACKER_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.10.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

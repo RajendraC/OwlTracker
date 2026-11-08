@@ -29,6 +29,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -404,80 +422,187 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
     val sc = LocalStatusColors.current
     val primary = MaterialTheme.colorScheme.primary
     val line = MaterialTheme.colorScheme.onSurface
-    val selected = r.filter.bucket
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val drill = r.drill
+    // The chart shows the range's bars, or the days of the month drilled into
+    val bars = drill?.bars ?: r.trend
+    val days = drill != null || r.daily
+    val selected = if (drill != null) r.filter.day else r.filter.bucket
+    val budget = drill?.budgetLine ?: r.budgetLine
+    val haptics = LocalHapticFeedback.current
+    val view = drill?.title ?: r.range.name
+    // A finger sliding along the bars: shows each one's amount without changing the report
+    var scrub by remember(view) { mutableStateOf<Int?>(null) }
+    val focus = scrub ?: selected?.takeIf { bars.getOrNull(it)?.hasData == true }
+    fun tap(i: Int) = if (drill != null) vm.tapReportDay(i) else vm.tapReportBucket(i)
+
     Panel(modifier = Modifier.testTag("report_trend")) {
-        Text(if (r.daily) "Day by day" else "Month by month", style = MaterialTheme.typography.titleMedium)
-        val sel = selected?.let { r.trend.getOrNull(it) }
-        Text(
-            if (sel != null) "${sel.title}: ${Money.formatInr(sel.spent)} spent" + (if (sel.received > 0) " · ${Money.formatInr(sel.received)} received" else "")
-            else "Tap a bar to see that ${if (r.daily) "day" else "month"}",
-            style = MaterialTheme.typography.bodySmall, color = if (sel != null) primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.testTag("trend_caption"),
-        )
-        Gap(12.dp)
-        val maxTarget = (r.trend.maxOfOrNull { it.spent } ?: 0L).coerceAtLeast((r.budgetLine * 11) / 10).coerceAtLeast(1L)
-        val desc = r.trend.filter { it.hasData }.joinToString { "${it.title}: ${Money.formatInr(it.spent)}" }
-        // Bars rise one after another when the range changes, and glide to new heights when something is tapped
-        val grow = growIn(r.range)
-        val maxV by animateFloatAsState(maxTarget.toFloat(), tween(500, easing = SettleEasing), label = "max")
-        val heights = key(r.range, r.trend.size) { r.trend.map { b -> animateFloatAsState(b.spent.toFloat(), tween(500, easing = SettleEasing), label = "bar").value } }
-        Canvas(
-            Modifier.fillMaxWidth().height(150.dp)
-                .pointerInput(r.trend.size) {
-                    detectTapGestures { pos ->
-                        val n = r.trend.size
-                        if (n > 0) vm.tapReportBucket((pos.x / (size.width.toFloat() / n)).toInt().coerceIn(0, n - 1))
+        AnimatedContent(
+            targetState = drill?.title,
+            transitionSpec = {
+                val down = targetState != null
+                (fadeIn(tween(300)) + slideInHorizontally(tween(380, easing = SettleEasing)) { if (down) it / 3 else -it / 3 }) togetherWith fadeOut(tween(160))
+            },
+            label = "trend_title",
+        ) { title ->
+            if (title == null) {
+                Text(if (r.daily) "Day by day" else "Month by month", style = MaterialTheme.typography.titleMedium)
+            } else {
+                Row(
+                    Modifier.clip(RoundedCornerShape(12.dp)).clickable { vm.clearReportFilter(FilterKind.BUCKET) }.padding(end = 8.dp).testTag("drill_up"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Ic.back, contentDescription = "Back to ${r.range.label.lowercase()}", tint = primary, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Column {
+                        Text(title, style = MaterialTheme.typography.titleMedium)
+                        Text("Day by day · back to ${r.range.label.lowercase()}", style = MaterialTheme.typography.labelSmall, color = primary)
                     }
                 }
-                .semantics { contentDescription = "Spending chart. $desc" }
-                .testTag("trend_chart"),
-        ) {
-            val n = r.trend.size.coerceAtLeast(1)
-            val slot = size.width / n
-            val w = slot * if (r.daily) 0.62f else 0.7f
-            r.trend.forEachIndexed { i, b ->
-                if (!b.hasData) return@forEachIndexed
-                val g = stagger(grow, i, n)
-                if (g <= 0f) return@forEachIndexed
-                val v = heights.getOrElse(i) { b.spent.toFloat() }
-                val h = (v / maxV * size.height * g).coerceAtLeast(if (b.spent > 0) 2.dp.toPx() * g else 0f)
-                val over = r.budgetLine > 0 && b.spent > r.budgetLine
-                val base = if (over) sc.overRing else primary
-                val color = when {
-                    selected == null -> if (b.isNow) base else base.copy(alpha = 0.6f)
-                    selected == i -> base
-                    else -> base.copy(alpha = 0.22f)
-                }
-                drawRoundRect(color, Offset(i * slot + (slot - w) / 2, size.height - h), Size(w, h), CornerRadius(w / 4, w / 4))
             }
-            if (r.budgetLine > 0) {
-                val y = size.height - r.budgetLine.toFloat() / maxV * size.height
-                drawLine(line.copy(alpha = grow), Offset(0f, y), Offset(size.width * grow, y), strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
+        }
+        val f = focus?.let { bars.getOrNull(it) }
+        Text(
+            when {
+                f != null -> "${f.title}: ${Money.formatInr(f.spent)} spent" + (if (f.received > 0) " · ${Money.formatInr(f.received)} income" else "")
+                !days -> "Tap a month to see its days · slide along the bars"
+                else -> "Tap a day to see its payments · slide along the bars"
+            },
+            style = MaterialTheme.typography.bodySmall, color = if (f != null) primary else muted,
+            modifier = Modifier.testTag("trend_caption"),
+        )
+        Gap(10.dp)
+
+        val withData = bars.filter { it.hasData }
+        val average = if (withData.isEmpty()) 0L else withData.sumOf { it.spent } / withData.size
+        val maxTarget = (bars.maxOfOrNull { it.spent } ?: 0L).coerceAtLeast((budget * 11) / 10).coerceAtLeast(1L)
+        val desc = withData.joinToString { "${it.title}: ${Money.formatInr(it.spent)}" }
+        // Bars rise one after another when the range changes or a month opens, and spring to new heights when something is tapped
+        val grow = growIn(view)
+        val zoom = growIn(drill?.title, 650)
+        val maxV by animateFloatAsState(maxTarget.toFloat(), spring(dampingRatio = 0.8f, stiffness = 220f), label = "max")
+        val heights = key(view, bars.size) {
+            bars.map { b -> animateFloatAsState(b.spent.toFloat(), spring(dampingRatio = 0.62f, stiffness = 260f), label = "bar").value }
+        }
+        val avgY by animateFloatAsState(average.toFloat(), spring(dampingRatio = 0.8f, stiffness = 200f), label = "avg")
+        val measurer = rememberTextMeasurer()
+        val avgStyle = MaterialTheme.typography.labelSmall.copy(color = muted)
+        val zoomFrom = if (drill != null) r.filter.bucket ?: 0 else 0
+        val zoomSlots = r.trend.size.coerceAtLeast(1)
+
+        BoxWithConstraints(Modifier.fillMaxWidth().height(180.dp)) {
+            val widthPx = constraints.maxWidth.toFloat()
+            fun indexAt(x: Float) = (x / (widthPx / bars.size.coerceAtLeast(1))).toInt().coerceIn(0, (bars.size - 1).coerceAtLeast(0))
+            Canvas(
+                Modifier.fillMaxSize().padding(top = 34.dp)
+                    .pointerInput(view) { detectTapGestures { pos -> if (bars.isNotEmpty()) tap(indexAt(pos.x)) } }
+                    .pointerInput(view) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { pos -> scrub = indexAt(pos.x) },
+                            onHorizontalDrag = { change, _ ->
+                                val i = indexAt(change.position.x)
+                                if (i != scrub) { scrub = i; haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+                            },
+                            onDragEnd = { scrub = null },
+                            onDragCancel = { scrub = null },
+                        )
+                    }
+                    .semantics { contentDescription = "Spending chart. $desc" }
+                    .testTag("trend_chart"),
+            ) {
+                val n = bars.size.coerceAtLeast(1)
+                val slot = size.width / n
+                val w = slot * if (days) 0.62f else 0.7f
+                // Opening a month: its bar widens into the whole chart like a lens, then fades as the days rise
+                if (drill != null && zoom < 1f) {
+                    val fromSlot = size.width / zoomSlots
+                    val left = zoomFrom * fromSlot * (1f - zoom)
+                    val right = left + fromSlot + (size.width - fromSlot) * zoom
+                    drawRoundRect(primary.copy(alpha = 0.22f * (1f - zoom)), Offset(left, 0f), Size(right - left, size.height), CornerRadius(18f, 18f))
+                }
+                bars.forEachIndexed { i, b ->
+                    if (!b.hasData) return@forEachIndexed
+                    val g = stagger(grow, i, n)
+                    if (g <= 0f) return@forEachIndexed
+                    val v = heights.getOrElse(i) { b.spent.toFloat() }.coerceAtLeast(0f)
+                    val lifted = if (focus == i) 1.04f else 1f
+                    val h = (v / maxV * size.height * g * lifted).coerceIn(if (b.spent > 0) 2.dp.toPx() * g else 0f, size.height)
+                    val over = budget > 0 && b.spent > budget
+                    val base = if (over) sc.overRing else primary
+                    val color = when {
+                        focus == null -> if (b.isNow) base else base.copy(alpha = 0.6f)
+                        focus == i -> base
+                        else -> base.copy(alpha = 0.22f)
+                    }
+                    val bw = if (focus == i) w * 1.08f else w
+                    drawRoundRect(color, Offset(i * slot + (slot - bw) / 2, size.height - h), Size(bw, h), CornerRadius(bw / 4, bw / 4))
+                }
+                if (budget > 0) {
+                    val y = size.height - budget.toFloat() / maxV * size.height
+                    drawLine(line.copy(alpha = 0.7f * grow), Offset(0f, y), Offset(size.width * grow, y), strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
+                }
+                // The average draws itself across, left to right
+                if (average > 0 && withData.size > 1) {
+                    val y = size.height - avgY / maxV * size.height
+                    val reach = size.width * grow
+                    drawLine(muted.copy(alpha = 0.8f), Offset(0f, y), Offset(reach, y), strokeWidth = 1.2.dp.toPx())
+                    if (grow > 0.95f) {
+                        val label = measurer.measure("avg ${Money.formatShort(average)}", avgStyle)
+                        drawText(label, topLeft = Offset(size.width - label.size.width, (y - label.size.height - 2.dp.toPx()).coerceAtLeast(0f)))
+                    }
+                }
+            }
+            // The value bubble: pops up over the bar under the finger (or the one picked) and glides between bars
+            val shown = focus != null && f != null
+            val pop by animateFloatAsState(if (shown) 1f else 0f, spring(dampingRatio = 0.55f, stiffness = 420f), label = "pop")
+            val centre by animateFloatAsState(
+                ((focus ?: 0) + 0.5f) * (widthPx / bars.size.coerceAtLeast(1)), spring(dampingRatio = 0.78f, stiffness = 500f), label = "bubble_x",
+            )
+            // Keeps the last amount while the bubble shrinks away
+            val last = remember { arrayOf("") }
+            if (f != null) last[0] = Money.formatInr(f.spent)
+            if (pop > 0.01f) {
+                Box(
+                    Modifier.fillMaxWidth().height(30.dp)
+                        .layout { measurable, constraints ->
+                            val p = measurable.measure(constraints.copy(minWidth = 0))
+                            layout(constraints.maxWidth, p.height) {
+                                p.place((centre - p.width / 2f).toInt().coerceIn(0, (constraints.maxWidth - p.width).coerceAtLeast(0)), 0)
+                            }
+                        }
+                        .graphicsLayer { scaleX = pop; scaleY = pop; alpha = pop.coerceIn(0f, 1f); transformOrigin = TransformOrigin(0.5f, 1f) }
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(primary)
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                        .testTag("trend_bubble"),
+                ) {
+                    Text(last[0], style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1)
+                }
             }
         }
         Gap(4.dp)
         // Labels double as large, accessible tap targets for each bar.
         Row(Modifier.fillMaxWidth()) {
-            r.trend.forEachIndexed { i, b ->
-                val show = !r.daily || i == 0 || (i + 1) % 7 == 0 || i == r.trend.lastIndex
+            bars.forEachIndexed { i, b ->
+                val show = !days || i == 0 || (i + 1) % 7 == 0 || i == bars.lastIndex
                 Box(
                     Modifier.weight(1f).heightIn(min = 28.dp)
-                        .clickable { vm.tapReportBucket(i) }
+                        .clickable { tap(i) }
                         .semantics { contentDescription = "${b.title}: ${Money.formatInr(b.spent)}" }
-                        .testTag("bar_$i"),
+                        .testTag(if (drill != null) "day_$i" else "bar_$i"),
                     contentAlignment = Alignment.TopCenter,
                 ) {
                     if (show) Text(
                         b.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false,
-                        color = if (selected == i) primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (selected == i) primary else muted,
                     )
                 }
             }
         }
-        if (r.budgetLine > 0) {
+        if (budget > 0) {
             Text(
-                "Dashed line: your budget for ${if (r.daily) "a day (${Money.formatInr(r.budgetLine)})" else "a month (${Money.formatInr(r.budgetLine)})"}. Red bars went over.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                "Dashed line: your budget for ${if (days) "a day (${Money.formatInr(budget)})" else "a month (${Money.formatInr(budget)})"}. Red bars went over.",
+                style = MaterialTheme.typography.bodySmall, color = muted,
             )
         }
     }
@@ -488,83 +613,175 @@ private fun CategoryCard(r: Report, vm: AppViewModel) {
     val sc = LocalStatusColors.current
     val selected = r.filter.categoryId
     val track = MaterialTheme.colorScheme.surfaceVariant
-    val ring = growIn(r.range, 1000)
+    val pick = selected?.let { id -> r.categories.firstOrNull { it.category.id == id } }
+    // The whole ring sweeps in when the range changes or you come back up from a category
+    val ring = growIn(r.range to (pick == null), 1000)
+    // Drilling into a category: its slice opens out into the whole ring, which then splits into its merchants
+    val open = growIn(pick?.category?.id, 1000)
+    val pickColor = pick?.let { Color(it.category.color) } ?: MaterialTheme.colorScheme.primary
+    val parts = remember(pick, r.merchants) {
+        if (pick == null) emptyList() else {
+            val total = pick.paise.coerceAtLeast(1)
+            val top = r.merchants.filter { it.categoryId == pick.category.id }.take(6)
+            val rest = (pick.paise - top.sumOf { it.paise }).coerceAtLeast(0)
+            top.map { Triple(it.key, it.name, it.paise) }.let { if (rest > 0) it + Triple("", "Others", rest) else it }
+                .map { (k, name, p) -> Triple(k, name, p) to p.toFloat() / total }
+        }
+    }
+    fun shade(i: Int, n: Int) = lerp(pickColor, Color.White, 0.55f * i / n.coerceAtLeast(1))
+    val pickStart = remember(pick, r.categories) {
+        var acc = 0f
+        for (s in r.categories) { if (s.category.id == pick?.category?.id) break; acc += s.share * 360f }
+        -90f + acc
+    }
+
     Panel(modifier = Modifier.testTag("report_categories")) {
-        Text("Where it went", style = MaterialTheme.typography.titleMedium)
-        Text("Tap a slice or a row to focus on that category", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        AnimatedContent(targetState = pick?.category?.name, transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(150)) }, label = "cat_title") { name ->
+            if (name == null) {
+                Column {
+                    Text("Where it went", style = MaterialTheme.typography.titleMedium)
+                    Text("Tap a slice or a row to open that category", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                Row(
+                    Modifier.clip(RoundedCornerShape(12.dp)).clickable { vm.tapReportCategory(selected!!) }.padding(end = 8.dp).testTag("ring_up"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Ic.back, contentDescription = "Back to all categories", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Column {
+                        Text(name, style = MaterialTheme.typography.titleMedium)
+                        Text("By merchant · back to all categories", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
         Gap(12.dp)
-        val pick = selected?.let { id -> r.categories.firstOrNull { it.category.id == id } }
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Canvas(
-                Modifier.size(190.dp)
-                    .pointerInput(r.categories) {
+                Modifier.size(200.dp)
+                    .pointerInput(r.categories, pick) {
                         detectTapGestures { pos ->
                             val cx = size.width / 2f
                             val cy = size.height / 2f
                             if (hypot(pos.x - cx, pos.y - cy) > size.width / 2f) return@detectTapGestures
                             val angle = ((Math.toDegrees(atan2((pos.y - cy).toDouble(), (pos.x - cx).toDouble())) + 90 + 360) % 360).toFloat()
                             var acc = 0f
-                            for (s in r.categories) {
-                                acc += s.share * 360f
-                                if (angle <= acc) { vm.tapReportCategory(s.category.id); break }
+                            if (pick == null) {
+                                for (s in r.categories) {
+                                    acc += s.share * 360f
+                                    if (angle <= acc) { vm.tapReportCategory(s.category.id); break }
+                                }
+                            } else {
+                                for ((part, share) in parts) {
+                                    acc += share * 360f
+                                    if (angle <= acc) { if (part.first.isNotEmpty()) vm.tapReportMerchant(part.first); break }
+                                }
                             }
                         }
                     }
-                    .semantics { contentDescription = "Spending by category: " + r.categories.joinToString { "${it.category.name} ${(it.share * 100).toInt()}%" } }
+                    .semantics {
+                        contentDescription = if (pick == null) "Spending by category: " + r.categories.joinToString { "${it.category.name} ${(it.share * 100).toInt()}%" }
+                        else "${pick.category.name} by merchant: " + parts.joinToString { "${it.first.second} ${(it.second * 100).toInt()}%" }
+                    }
                     .testTag("category_donut"),
             ) {
                 val stroke = 26.dp.toPx()
-                val inset = stroke / 2 + 4.dp.toPx()
+                val inset = stroke / 2 + 6.dp.toPx()
                 val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
-                drawArc(track, 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(stroke))
-                // The ring sweeps round clockwise, slice after slice, like a fitness ring closing
-                val shown = 360f * ring
-                var start = -90f
-                r.categories.forEach { s ->
-                    val sweep = s.share * 360f
-                    val visible = (shown - (start + 90f)).coerceIn(0f, sweep)
-                    val gap = if (r.categories.size > 1) 1.2f else 0f
-                    val dim = selected != null && selected != s.category.id
-                    val width = if (selected == s.category.id) stroke * 1.25f else stroke
-                    if (visible > gap) drawArc(
-                        Color(s.category.color).copy(alpha = if (dim) 0.25f else 1f), start + gap / 2, (visible - gap).coerceAtLeast(0.5f), false,
-                        Offset(inset, inset), arcSize, style = Stroke(width),
-                    )
-                    start += sweep
+                val tl = Offset(inset, inset)
+                drawArc(track, 0f, 360f, false, tl, arcSize, style = Stroke(stroke))
+                if (pick == null) {
+                    // The ring sweeps round clockwise, slice after slice, like a fitness ring closing
+                    val shown = 360f * ring
+                    var start = -90f
+                    r.categories.forEach { s ->
+                        val sweep = s.share * 360f
+                        val visible = (shown - (start + 90f)).coerceIn(0f, sweep)
+                        val gap = if (r.categories.size > 1) 1.2f else 0f
+                        if (visible > gap) drawArc(Color(s.category.color), start + gap / 2, (visible - gap).coerceAtLeast(0.5f), false, tl, arcSize, style = Stroke(stroke))
+                        start += sweep
+                    }
+                } else {
+                    // 1: the picked slice swings round and opens out into the whole ring while the rest fade
+                    val e = SettleEasing.transform((open / 0.45f).coerceIn(0f, 1f))
+                    var start = -90f
+                    r.categories.forEach { s ->
+                        val sweep = s.share * 360f
+                        if (s.category.id != pick.category.id && e < 1f) {
+                            drawArc(Color(s.category.color).copy(alpha = 0.9f * (1f - e)), start + 0.6f, (sweep - 1.2f).coerceAtLeast(0.5f), false, tl, arcSize, style = Stroke(stroke))
+                        }
+                        start += sweep
+                    }
+                    val from = pickStart
+                    val pickSweep = pick.share * 360f
+                    drawArc(pickColor.copy(alpha = if (open < 0.45f) 1f else 0.35f), from + (-90f - from) * e, pickSweep + (360f - pickSweep) * e, false, tl, arcSize, style = Stroke(stroke * (1f + 0.25f * e)))
+                    // 2: then its merchants sweep in, each a lighter shade of the category's colour
+                    if (open > 0.45f) {
+                        val shown = 360f * SettleEasing.transform(((open - 0.45f) / 0.55f).coerceIn(0f, 1f))
+                        var at = -90f
+                        parts.forEachIndexed { i, (_, share) ->
+                            val sweep = share * 360f
+                            val visible = (shown - (at + 90f)).coerceIn(0f, sweep)
+                            if (visible > 1.2f) drawArc(shade(i, parts.size), at + 0.6f, visible - 1.2f, false, tl, arcSize, style = Stroke(stroke * 1.25f))
+                            at += sweep
+                        }
+                    }
                 }
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(110.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(112.dp)) {
                 Text(pick?.category?.name ?: "Total", style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(Money.formatInr(animatedPaise(pick?.paise ?: r.categories.sumOf { it.paise })), style = MaterialTheme.typography.titleMedium)
-                pick?.let { Text("${(it.share * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                pick?.let { Text("${(it.share * 100).toInt()}% of spending", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
         Gap(8.dp)
-        r.categories.forEachIndexed { i, s ->
-            if (i > 0) Divider()
-            val isPicked = s.category.id == selected
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                    .background(if (isPicked) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                    .clickable { vm.tapReportCategory(s.category.id) }
-                    .padding(vertical = 10.dp, horizontal = 6.dp)
-                    .testTag("cat_${s.category.id}"),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Box(Modifier.size(12.dp).clip(CircleShape).background(Color(s.category.color)))
-                Column(Modifier.weight(1f)) {
-                    Text(s.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    val change = changeText(s.paise, s.previous)
-                    Text(
-                        "${(s.share * 100).toInt()}%" + (change?.let { " · $it" } ?: ""),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = when {
-                            s.previous > 0 && s.paise > s.previous * 11 / 10 -> sc.overFg
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
+        if (pick == null) {
+            r.categories.forEachIndexed { i, s ->
+                if (i > 0) Divider()
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                        .clickable { vm.tapReportCategory(s.category.id) }
+                        .padding(vertical = 10.dp, horizontal = 6.dp)
+                        .testTag("cat_${s.category.id}"),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(Modifier.size(12.dp).clip(CircleShape).background(Color(s.category.color)))
+                    Column(Modifier.weight(1f)) {
+                        Text(s.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val change = changeText(s.paise, s.previous)
+                        Text(
+                            "${(s.share * 100).toInt()}%" + (change?.let { " · $it" } ?: ""),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = when {
+                                s.previous > 0 && s.paise > s.previous * 11 / 10 -> sc.overFg
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                    Text(Money.formatInr(s.paise), style = MaterialTheme.typography.titleSmall)
+                    Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
-                Text(Money.formatInr(s.paise), style = MaterialTheme.typography.titleSmall)
+            }
+        } else {
+            // The category's merchants, matching the ring's shades; tap one to narrow to it
+            parts.forEachIndexed { i, (part, share) ->
+                if (i > 0) Divider()
+                val (key, name, paise) = part
+                val picked = key.isNotEmpty() && key == r.filter.merchantKey
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                        .background(if (picked) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                        .then(if (key.isNotEmpty()) Modifier.clickable { vm.tapReportMerchant(key) } else Modifier)
+                        .padding(vertical = 10.dp, horizontal = 6.dp)
+                        .testTag("ring_merchant_${key.ifEmpty { "others" }}"),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(Modifier.size(12.dp).clip(CircleShape).background(shade(i, parts.size)))
+                    Text(name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text("${(share * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(Money.formatInr(paise), style = MaterialTheme.typography.titleSmall)
+                }
             }
         }
     }

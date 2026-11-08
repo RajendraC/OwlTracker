@@ -105,6 +105,8 @@ data class AppSettings(
     val sampleData: Boolean = false,
     /** Saving tips are hidden from Home until this time (the end of the budget month they were hidden in). */
     val tipsHiddenUntil: Long = 0,
+    /** The see-through "glass" look (on by default); off is the plain solid look. */
+    val glass: Boolean = true,
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -117,6 +119,7 @@ data class AppSettings(
         "last_sms_ts" to lastSmsTimestamp.toString(),
         "sample_data" to sampleData.toString(),
         "tips_hidden_until" to tipsHiddenUntil.toString(),
+        "glass" to glass.toString(),
     )
 
     companion object {
@@ -131,6 +134,7 @@ data class AppSettings(
             lastSmsTimestamp = m["last_sms_ts"]?.toLongOrNull() ?: 0,
             sampleData = m["sample_data"]?.toBoolean() ?: false,
             tipsHiddenUntil = m["tips_hidden_until"]?.toLongOrNull() ?: 0,
+            glass = m["glass"]?.toBoolean() ?: true,
         )
 
         fun filtersToJson(f: ImportFilters): String = JSONObject()

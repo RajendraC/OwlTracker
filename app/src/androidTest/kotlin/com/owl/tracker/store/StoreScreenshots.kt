@@ -164,6 +164,12 @@ class StoreScreenshots {
                 shot("50c_income_expenses_months")
                 runCatching { scrollTo(hasTestTag("ways_to_save")) }
                 shot("50d_ways_to_save")
+                runCatching { scrollTo(hasTestTag("report_trend")) }
+                runCatching { tapTag("bar_4") }   // open October, day by day
+                Thread.sleep(1500)
+                shot("50e_trend_drill")
+                runCatching { tapTag("drill_up") }
+                Thread.sleep(800)
                 scrollTo(hasTestTag("report_categories"))
                 shot("51_reports_categories")
                 runCatching { tapTag("cat_${Cat.SHOPPING}") }

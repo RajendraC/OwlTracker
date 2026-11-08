@@ -59,6 +59,9 @@ class ReportsAndBackupFlowTest {
             // A category: a chip appears and the payments list narrows to it; Income & expenses is about everything, so it goes
             tapTag("cat_food")
             waitForTag("filter_category")
+            // The ring opens into Food's merchants, with a way back up
+            waitForTag("ring_up")
+            waitForTag("ring_merchant_swiggy")
             onAllNodesWithTag("income_expenses").assertCountEquals(0)
             waitForText("matching payment")
             // Tapping the chip lets go again
@@ -71,6 +74,10 @@ class ReportsAndBackupFlowTest {
             waitForTag("filter_merchant")
             tapTag("bar_2")
             waitForTag("filter_bucket")
+            // The month opens day by day; a day can be picked, and the arrow goes back up
+            waitForTag("drill_up")
+            tapTag("day_2")
+            waitForTag("filter_day")
             waitForText("Clear all")
             tapText("Clear all")
             waitForText("Biggest payments")

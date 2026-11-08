@@ -61,11 +61,12 @@ import com.owl.tracker.core.Institutions
 
 @Composable
 fun Panel(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
+    val glass = com.owl.tracker.ui.theme.LocalGlass.current
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(if (glass) 26.dp else 22.dp),
+        color = if (glass) com.owl.tracker.ui.theme.glassFill() else MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = if (glass) com.owl.tracker.ui.theme.glassEdge() else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(padding), content = content)
     }

@@ -156,6 +156,14 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ScreenHeader("Settings", onBack = { vm.back() })
 
+        SectionLabel("Appearance")
+        Panel(padding = 12.dp) {
+            SwitchRow(
+                "Glass look", "See-through cards over a soft wash of colour. Off: plain solid cards.", settings.glass, { vm.setGlass(it) }, Ic.sparkle,
+                modifier = Modifier.testTag("glass_switch"),
+            )
+        }
+
         SectionLabel("Security")
         Panel(padding = 12.dp) {
             SwitchRow("App lock", "Fingerprint, face or screen lock · locks a minute after you leave", settings.appLock, { on ->
