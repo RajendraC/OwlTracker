@@ -210,6 +210,7 @@ class ImportEngine(
      */
     suspend fun syncNew(): Int {
         val s = repo.settings()
+        if (s.onboarded) fixMoneyIn()
         if (!s.onboarded || !s.smsEnabled || !sms.hasPermission()) return 0
         val rangeFrom = rangeStart(s.filters)
         val since = maxOf(rangeFrom, s.lastSmsTimestamp - OVERLAP_MS)
@@ -233,6 +234,29 @@ class ImportEngine(
         val latest = messages.maxOfOrNull { it.timestamp } ?: s.lastSmsTimestamp
         repo.updateSettings { it.copy(lastSyncAt = clock.millis(), lastSmsTimestamp = maxOf(it.lastSmsTimestamp, latest)) }
         return added
+    }
+
+    /**
+     * Payments imported before 0.8.0 whose message says the money came to you ("sent to your A/c",
+     * "paid to you by") but were stored as spending. Reads only the stored text of those payments.
+     * Their category moves to what money in gets, unless the user had picked one. Returns how many changed.
+     */
+    suspend fun fixMoneyIn(): Int {
+        val rows = repo.smsMoneyOutMentioningYou()
+        if (rows.isEmpty()) return 0
+        val categorizer = Categorizer(repo.rules())
+        var fixed = 0
+        for (t in rows) {
+            val parsed = (SmsParser.parse(com.owl.tracker.core.SmsMessage(t.smsId ?: 0L, t.sender ?: continue, t.smsBody ?: continue, t.occurredAt)) as? ParseResult.Accepted)?.tx
+                ?: continue
+            if (parsed.direction != Direction.CREDIT) continue
+            val c = toCandidate(parsed)
+            val asSpending = categorizer.categorize(c.merchantKey, parsed.merchantRaw, parsed.vpa, Direction.DEBIT, parsed.kind, c.known, parsed.body)
+            val userPicked = t.categoryId != asSpending
+            repo.setMoneyIn(t.id, if (userPicked) null else categorizer.categorize(parsed, c.merchantKey, c.known))
+            fixed++
+        }
+        return fixed
     }
 
     /** [chosen]: names and icons the user picked for merchants; they win over what the SMS says. */

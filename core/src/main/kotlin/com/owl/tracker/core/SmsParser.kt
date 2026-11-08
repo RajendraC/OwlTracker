@@ -46,10 +46,10 @@ sealed class ParseResult {
 object SmsParser {
 
     private const val NUM = """([0-9][0-9,]*(?:\.[0-9]{1,2})?)"""
-    private val CURRENCY_AMOUNT = Regex("""(?i)(?:rs\.?|inr|₹)\s*$NUM""")
+    private val CURRENCY_AMOUNT = Regex("""(?i)(?:rs[.:]?|inr:?|₹)\s*$NUM""")
     private val BARE_AMOUNT = Regex("""(?i)\b(?:debited|credited|deducted)\s+(?:by|for|with)?\s*(?:rs\.?|inr|₹)?\s*$NUM""")
     private val BALANCE_LEAD = Regex("""(?i)(?:avl\.?\s*bal(?:ance)?|available\s+bal(?:ance)?|bal(?:ance)?\s*[:\-]|avl\.?\s*l(?:i)?m(?:i)?t|available\s+limit|avbl\s*bal)\W{0,6}$""")
-    private val BALANCE = Regex("""(?i)(?:avl\.?\s*bal(?:ance)?|available\s+bal(?:ance)?|avl\.?\s*l(?:i)?m(?:i)?t|available\s+limit|avbl\s*bal|\bbal)\W{0,6}(?:is\s+)?(?:rs\.?|inr|₹)?\s*$NUM""")
+    private val BALANCE = Regex("""(?i)(?:avl\.?\s*bal(?:ance)?|available\s+bal(?:ance)?|avl\.?\s*l(?:i)?m(?:i)?t|available\s+limit|avbl\s*bal|\bbal)\W{0,6}(?:is\s+)?(?:rs[.:]?|inr:?|₹)?\s*$NUM""")
 
     private val OTP = Regex("""(?i)\b(otp|one[\s-]time\s+password|verification\s+code|security\s+code)\b""")
     private val FUTURE = Regex("""(?i)\bwill\s+be\s+(debited|deducted|charged|credited|auto[\s-]?debited|reversed|refunded)\b|\bscheduled\s+(?:to\s+be\s+)?debit""")
@@ -59,8 +59,13 @@ object SmsParser {
     private val PROMO = Regex("""(?i)\b(pre[\s-]?approved|apply\s+now|offer|eligible\s+for|get\s+up\s*to|limited\s+period|click\s+here\s+to\s+avail)\b""")
 
     // Past-tense verbs only: a message has to describe money that already moved.
-    private val DEBIT_VERB = Regex("""(?i)\b(debited|spent|paid|sent|withdrawn|deducted|purchase\s+of|transferred\s+to|trf\s+to|charged)\b""")
-    private val CREDIT_VERB = Regex("""(?i)\b(credited|received|deposited|refund(?:ed)?|reversed|cashback\s+of)\b""")
+    // "sent to your A/c", "transferred to your account", "paid to you": money that came in, not money out.
+    // Up to three words may name the bank ("your Kotak Bank a/c"), but "your friend Ramesh from A/c" is money out.
+    // Cards and wallets are left out: "paid to your credit card" is a card bill, money you moved yourself.
+    private const val YOU = """(?:you\s+(?:by|from)\b|(?:your|ur)\s+(?:(?!from\b|by\b|to\b|via\b|using\b)[a-z]+\s+){0,3}?(?:a/c|acct|account|ac\b))"""
+    private const val TO_YOU = """\s+(?:to|into|in)\s+$YOU"""
+    private val DEBIT_VERB = Regex("""(?i)\b(debited|spent|(?:paid|sent|transferred\s+to|trf\s+to)(?!$TO_YOU|\s+$YOU)|withdrawn|deducted|purchase\s+of|charged)\b""")
+    private val CREDIT_VERB = Regex("""(?i)\b(?:(credited|received|deposited|refund(?:ed)?|reversed|cashback\s+of)\b|(?:paid|sent|transferred|trf)$TO_YOU)""")
 
     private val ACCOUNT = Regex("""(?i)\b(?:a/c|acct|account|ac)\b\.?\s*(?:no\.?|number)?\s*[:\-]?\s*(?:ending\s+(?:with\s+|in\s+)?)?[x*#]*\s*([0-9]{3,6})""")
     private val ACCOUNT_TIGHT = Regex("""(?i)\b(?:a/c|acct|account|ac)([x*]+[0-9]{3,6})""")
@@ -190,11 +195,14 @@ object SmsParser {
         for (p in patterns) {
             val m = p.find(body) ?: continue
             val candidate = m.groupValues[1].trim()
-            if (looksLikeAccount(candidate)) continue
+            if (looksLikeAccount(candidate) || AMOUNTISH.containsMatchIn(candidate)) continue
             return candidate
         }
         return null
     }
+
+    /** "by Rs500 on…", "by Rs.75,000.00": an amount, not who paid. */
+    private val AMOUNTISH = Regex("""(?i)^(?:rs[.:]?|inr:?|₹)\s*[0-9]""")
 
     private val ACCOUNTISH = Regex("""(?i)^(?:your\s+)?(?:hdfc|icici|sbi|axis|kotak)?\s*(?:bank\s+)?(?:a/c|acct|account|ac|card|credit\s+card|debit\s+card)\b""")
     private fun looksLikeAccount(s: String): Boolean =

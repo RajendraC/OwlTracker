@@ -52,6 +52,9 @@ import com.owl.tracker.core.Money
 import com.owl.tracker.data.Category
 import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.FilterKind
+import com.owl.tracker.ui.PlLine
+import com.owl.tracker.ui.ProfitLoss
+import com.owl.tracker.ui.components.CategoryTile
 import com.owl.tracker.ui.Report
 import com.owl.tracker.ui.ReportBuilder
 import com.owl.tracker.ui.ReportRange
@@ -92,6 +95,7 @@ fun ReportsScreen(vm: AppViewModel) {
         }
         if (r.chips.isNotEmpty()) item { ActiveFilters(r, vm) }
         item { SummaryCard(r) }
+        r.profitLoss?.let { pl -> item { ProfitLossCard(pl) } }
         item { TrendCard(r, vm) }
         if (r.categories.isNotEmpty()) item { CategoryCard(r, vm) }
         if (r.merchants.isNotEmpty()) item { MerchantCard(r, catMap, vm) }
@@ -152,7 +156,7 @@ private fun SummaryCard(r: Report) {
         }
         Gap(12.dp)
         Row(Modifier.fillMaxWidth()) {
-            Stat("Received", Money.formatInr(r.received), Modifier.weight(1f))
+            Stat("Money in", Money.formatInr(r.received), Modifier.weight(1f))
             val net = r.received - r.spent
             Stat("Net", (if (net >= 0) "+" else "−") + Money.formatInr(kotlin.math.abs(net)), Modifier.weight(1f), if (net >= 0) MaterialTheme.colorScheme.primary else sc.overFg)
         }
@@ -161,6 +165,150 @@ private fun SummaryCard(r: Report) {
             Stat("Per day", Money.formatInr(r.perDay), Modifier.weight(1f))
             Stat("Payments", r.payments.toString(), Modifier.weight(1f))
         }
+    }
+}
+
+/**
+ * Profit & loss: money in (income, refunds, money back) against spending, and what's left. Money in
+ * never lowers spending; savings, investments and transfers between your own accounts are neither.
+ */
+@Composable
+private fun ProfitLossCard(pl: ProfitLoss) {
+    val sc = LocalStatusColors.current
+    val gain = MaterialTheme.colorScheme.primary
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Panel(modifier = Modifier.testTag("profit_loss")) {
+        Text("Profit & loss", style = MaterialTheme.typography.titleMedium)
+        Text(pl.title, style = MaterialTheme.typography.bodySmall, color = muted)
+        Gap(12.dp)
+        Row(Modifier.fillMaxWidth()) {
+            Stat("Money in", "+" + Money.formatInr(pl.moneyIn), Modifier.weight(1f).testTag("pl_in"), gain)
+            Stat("Spent", "−" + Money.formatInr(pl.spent), Modifier.weight(1f).testTag("pl_spent"))
+            Stat(
+                if (pl.net >= 0) "Saved" else "Overspent", Money.formatInr(kotlin.math.abs(pl.net)),
+                Modifier.weight(1f).testTag("pl_net"), if (pl.net >= 0) gain else sc.overFg,
+            )
+        }
+        Gap(8.dp)
+        Text(
+            when {
+                pl.moneyIn == 0L && pl.spent == 0L -> "Nothing came in or went out yet."
+                pl.keptPct == null -> "Nothing came in, so everything spent came from what you already had."
+                pl.net >= 0 -> "You kept ${pl.keptPct}% of what came in."
+                else -> "You spent ${Money.formatInr(-pl.net)} more than came in."
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (pl.net < 0) sc.overFg else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.testTag("pl_verdict"),
+        )
+        if (pl.moneyIn > 0 || pl.spent > 0) {
+            // How much of what came in was spent, as one bar
+            val total = maxOf(pl.moneyIn, pl.spent).coerceAtLeast(1)
+            Gap(8.dp)
+            Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+                Box(Modifier.fillMaxWidth(pl.moneyIn.toFloat() / total).height(10.dp).background(gain.copy(alpha = 0.35f)))
+                Box(Modifier.fillMaxWidth(pl.spent.toFloat() / total).height(10.dp).clip(RoundedCornerShape(5.dp)).background(if (pl.net < 0) sc.overFg else gain))
+            }
+        }
+
+        Gap(14.dp)
+        PlSection("Money in", "+" + Money.formatInr(pl.moneyIn), gain, "pl_income")
+        if (pl.income.isEmpty()) Text("Nothing came in.", style = MaterialTheme.typography.bodySmall, color = muted)
+        pl.income.forEach { PlRow(it, true) }
+        Gap(10.dp)
+        PlSection("Spending", "−" + Money.formatInr(pl.spent), MaterialTheme.colorScheme.onSurface, "pl_spending")
+        if (pl.spending.isEmpty()) Text("Nothing spent.", style = MaterialTheme.typography.bodySmall, color = muted)
+        pl.spending.forEach { PlRow(it, false) }
+        Divider()
+        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(if (pl.net >= 0) "Saved" else "Overspent", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            Text(
+                (if (pl.net >= 0) "+" else "−") + Money.formatInr(kotlin.math.abs(pl.net)),
+                style = MaterialTheme.typography.titleMedium, color = if (pl.net >= 0) gain else sc.overFg,
+            )
+        }
+
+        if (pl.months.size > 1) {
+            Gap(6.dp)
+            Text("Each month", style = MaterialTheme.typography.titleSmall)
+            Gap(4.dp)
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Text("Month", style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.weight(0.8f))
+                listOf("In", "Spent", "Net").forEach {
+                    Text(it, style = MaterialTheme.typography.labelMedium, color = muted, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                }
+            }
+            pl.months.forEach { m ->
+                Divider()
+                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).semantics(mergeDescendants = true) {}.testTag("pl_month_${m.label}")) {
+                    Text(m.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.8f))
+                    Text(Money.formatShort(m.moneyIn), style = MaterialTheme.typography.bodyMedium, color = gain, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                    Text(Money.formatShort(m.spent), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                    Text(
+                        (if (m.net >= 0) "+" else "−") + Money.formatShort(kotlin.math.abs(m.net)),
+                        style = MaterialTheme.typography.bodyMedium, color = if (m.net >= 0) gain else sc.overFg,
+                        textAlign = TextAlign.End, modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+
+        val apart = buildList {
+            if (pl.savingsOut > 0 || pl.savingsIn > 0) add(
+                "Savings & investments: " + listOfNotNull(
+                    pl.savingsOut.takeIf { it > 0 }?.let { "${Money.formatInr(it)} put away" },
+                    pl.savingsIn.takeIf { it > 0 }?.let { "${Money.formatInr(it)} back" },
+                ).joinToString(" · "),
+            )
+            if (pl.transfersOut > 0 || pl.transfersIn > 0) add(
+                "Transfers and card bills: " + listOfNotNull(
+                    pl.transfersOut.takeIf { it > 0 }?.let { "${Money.formatInr(it)} out" },
+                    pl.transfersIn.takeIf { it > 0 }?.let { "${Money.formatInr(it)} in" },
+                ).joinToString(" · "),
+            )
+            if (pl.leftOut > 0) add("${pl.leftOut} ${if (pl.leftOut == 1) "payment" else "payments"} you left out")
+        }
+        if (apart.isNotEmpty()) {
+            Gap(10.dp)
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp).testTag("pl_apart"),
+            ) {
+                Text("Not in profit & loss", style = MaterialTheme.typography.labelLarge)
+                apart.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = muted) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlSection(title: String, total: String, color: Color, tag: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag(tag), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+        Text(total, style = MaterialTheme.typography.titleSmall, color = color)
+    }
+}
+
+@Composable
+private fun PlRow(line: PlLine, moneyIn: Boolean) {
+    val c = line.category
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 6.dp).semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        CategoryTile(c, 28.dp)
+        Column(Modifier.weight(1f)) {
+            Text(c?.name ?: "Others", style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val what = if (moneyIn && c?.kind != com.owl.tracker.data.CategoryKind.INCOME) "refunds and money back" else null
+            Text(
+                listOfNotNull(what, "${line.count} ${if (line.count == 1) "payment" else "payments"}").joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            (if (moneyIn) "+" else "") + Money.formatInr(line.paise),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (moneyIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 

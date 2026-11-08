@@ -345,6 +345,46 @@ class ImportEngineTest {
     }
 
     @Test
+    fun moneySentToYouIsMoneyInAndOlderImportsAreRepaired() = runBlocking {
+        val inbox = sampleInbox()
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        c.repo.updateSettings { it.copy(onboarded = true) }
+        val now = TEST_CLOCK.millis()
+
+        // As versions before 0.8.0 stored them: money that came in, saved as spending
+        val toYou = "Rs.5000 transferred to your A/c XX4821 from RAMESH KUMAR via IMPS on 18-10-26. Ref 629999990101"
+        val paidToYou = "Rs.800 sent to your A/c XX4821 by SURESH on 18-10-26 via UPI. Ref 629999990102"
+        fun old(smsId: Long, body: String, paise: Long, cat: String) = com.owl.tracker.data.NewTxn(
+            amountPaise = paise, direction = com.owl.tracker.core.Direction.DEBIT, occurredAt = now - 3_600_000, merchantName = "HDFC Bank",
+            merchantKey = "hdfc_bank", merchantPackage = null, vpa = null, categoryId = cat, accountLabel = "HDFC Bank ••4821",
+            senderGroup = "hdfc", sender = "VM-HDFCBK-S", refNo = null, source = Source.SMS, smsId = smsId, needsReview = false, smsBody = body,
+        )
+        c.repo.insertAll(listOf(old(5301, toYou, 500_000, Cat.OTHERS), old(5302, paidToYou, 80_000, Cat.FOOD)))
+        val before = month(c).filter { it.direction == com.owl.tracker.core.Direction.DEBIT }.size
+
+        assertEquals(2, e.fixMoneyIn())
+        val fixed = month(c).associateBy { it.smsId }
+        assertEquals(com.owl.tracker.core.Direction.CREDIT, fixed.getValue(5301).direction)
+        assertEquals("Not picked by the user: now Income", Cat.INCOME, fixed.getValue(5301).categoryId)
+        assertEquals(com.owl.tracker.core.Direction.CREDIT, fixed.getValue(5302).direction)
+        assertEquals("Picked by the user: kept", Cat.FOOD, fixed.getValue(5302).categoryId)
+        assertEquals(before - 2, month(c).count { it.direction == com.owl.tracker.core.Direction.DEBIT })
+        assertEquals("Already right: nothing more to do", 0, e.fixMoneyIn())
+
+        // New messages like these come in as money in, and never count as spending
+        inbox += SmsMessage(5303, "VM-ICICIB-S", "INR 1,200.00 sent to your A/c XX9012 by RAMESH on 18-Oct-26 via UPI. Ref 629999990103", now - 60_000)
+        assertEquals(1, e.syncNew())
+        val t = month(c).first { it.smsId == 5303L }
+        assertEquals(com.owl.tracker.core.Direction.CREDIT, t.direction)
+        val cats = c.repo.categories().associateBy { it.id }
+        assertFalse(t.isSpending(cats[t.categoryId]))
+        assertTrue(t.isIncome(cats[t.categoryId]))
+        assertTrue("Money in never counts as spending, whatever its category", month(c).filter { it.isMoneyIn }.none { it.isSpending(cats[it.categoryId]) })
+    }
+
+    @Test
     fun eraseEverythingStartsFresh() = runBlocking {
         val c = testContainer(context)
         val e = c.importEngine

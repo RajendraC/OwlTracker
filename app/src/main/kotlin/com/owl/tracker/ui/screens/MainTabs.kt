@@ -257,7 +257,7 @@ fun HomeScreen(vm: AppViewModel) {
 
         item {
             Panel(padding = 4.dp) {
-                NavRow(Ic.chart, "Reports", "Trends, categories and top merchants", iconTint = MaterialTheme.colorScheme.primary, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
+                NavRow(Ic.chart, "Reports", "Profit & loss, trends, categories and merchants", iconTint = MaterialTheme.colorScheme.primary, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
             }
         }
     }
@@ -317,7 +317,7 @@ fun dayLabel(vm: AppViewModel, d: LocalDate): String = when (d) {
 
 @Composable
 fun TxnRow(vm: AppViewModel, t: Txn, category: Category?, showDay: Boolean) {
-    val counted = !t.excluded && (category?.countsAsSpend ?: true)
+    val counted = t.isSpending(category)
     val credit = t.direction == Direction.CREDIT
     val whenText = if (showDay) dayLabel(vm, vm.dateOf(t.occurredAt))
     else java.time.Instant.ofEpochMilli(t.occurredAt).atZone(java.time.ZoneId.systemDefault()).format(timeFmt)
@@ -333,7 +333,11 @@ fun TxnRow(vm: AppViewModel, t: Txn, category: Category?, showDay: Boolean) {
                 if (t.needsReview) UnsureBadge()
             }
             Text(
-                "${category?.name ?: "Others"} · $whenText" + if (t.excluded) " · not counted" else "",
+                "${category?.name ?: "Others"} · $whenText" + when {
+                    t.excluded -> " · not counted"
+                    credit -> " · money in"
+                    else -> ""
+                },
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
@@ -393,7 +397,7 @@ fun ActivityScreen(vm: AppViewModel) {
             }
             groups.forEach { (day, txns) ->
                 item(key = "d$day") {
-                    val total = txns.filter { vm.counts(it, catMap) }.sumOf { it.signedPaise }
+                    val total = txns.filter { vm.counts(it, catMap) }.sumOf { it.amountPaise }
                     Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp)) {
                         Text(dayLabel(vm, day), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                         if (total > 0) Text("${Money.formatInr(total)} spent", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)

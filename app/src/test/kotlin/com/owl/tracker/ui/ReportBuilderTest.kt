@@ -60,13 +60,13 @@ class ReportBuilderTest {
         return ReportBuilder.build(txns, cats, periods, previous, budget, range, filter, today, zone)
     }
 
-    @Test fun totalsCountSpendingNetOfRefundsAndLeaveOutTransfersAndExcluded() {
+    @Test fun onlyMoneyOutIsSpendingAndTransfersAndExcludedAreLeftOut() {
         val r = build()
-        assertEquals(230_000L, r.spent)          // 500 + 300 + 2000 − 500 refund
-        assertEquals(5_000_000L, r.received)
+        assertEquals(280_000L, r.spent)          // 500 + 300 + 2000: the ₹500 refund is money in, not less spending
+        assertEquals(5_050_000L, r.received)     // salary + refund
         assertEquals(200_000L, r.previousSpent)  // September
-        assertEquals(15, r.changePct)
-        assertEquals(230_000L / 18, r.perDay)    // 18 days so far
+        assertEquals(40, r.changePct)
+        assertEquals(280_000L / 18, r.perDay)    // 18 days so far
         assertEquals(3, r.payments)
         assertEquals("October 2026", r.title)
     }
@@ -83,8 +83,8 @@ class ReportBuilderTest {
     @Test fun categoriesAreRankedWithSharesAndLastPeriod() {
         val r = build()
         assertEquals(listOf(Cat.SHOPPING, Cat.FOOD), r.categories.map { it.category.id })
-        assertEquals(150_000L, r.categories[0].paise)
-        assertEquals(150f / 230f, r.categories[0].share, 0.001f)
+        assertEquals(200_000L, r.categories[0].paise)
+        assertEquals(200f / 280f, r.categories[0].share, 0.001f)
         assertEquals(100_000L, r.categories[0].previous)
         assertTrue(r.categories.none { it.category.id == Cat.TRANSFERS || it.category.id == Cat.INCOME || it.category.id == Cat.TRANSPORT })
     }
@@ -136,7 +136,7 @@ class ReportBuilderTest {
         assertEquals(listOf("Aug", "Sep", "Oct"), r.trend.map { it.label })
         assertFalse(r.trend[0].hasData)
         assertEquals(200_000L, r.trend[1].spent)
-        assertEquals(430_000L, r.spent)
+        assertEquals(480_000L, r.spent)
         assertNull("Nothing before August to compare with", r.previousSpent)
         assertEquals(300_000L, r.budgetLine)
         assertTrue(r.highlights.any { it.startsWith("1 of 1 finished month") })
@@ -144,12 +144,57 @@ class ReportBuilderTest {
 
     @Test fun highlightsSummariseTheMonth() {
         val r = build(budget = 3_100_000)
-        assertTrue(r.highlights.any { it.startsWith("Shopping was your biggest spend: 65%") })
-        assertTrue(r.highlights.any { it.startsWith("You spent 15% more than last month") })
+        assertTrue(r.highlights.any { it.startsWith("Shopping was your biggest spend: 71%") })
+        assertTrue(r.highlights.any { it.startsWith("You spent 40% more than last month") })
         assertTrue(r.highlights.any { it.startsWith("You spend most on Saturdays") })
         assertTrue(r.highlights.any { it.startsWith("Biggest payment: ₹2,000 to Amazon on 10 Oct") })
         assertTrue(r.highlights.size <= 5)
         assertTrue("Highlights are for the whole range only", build(filter = ReportFilter(categoryId = Cat.FOOD)).highlights.isEmpty())
+    }
+
+    @Test fun profitAndLossForTheMonth() {
+        val pl = build().profitLoss!!
+        assertEquals("October 2026", pl.title)
+        assertEquals(5_050_000L, pl.moneyIn)
+        assertEquals(listOf(Cat.INCOME to 5_000_000L, Cat.SHOPPING to 50_000L), pl.income.map { it.category?.id to it.paise })
+        assertEquals(280_000L, pl.spent)
+        assertEquals(listOf(Cat.SHOPPING to 200_000L, Cat.FOOD to 80_000L), pl.spending.map { it.category?.id to it.paise })
+        assertEquals(listOf(1, 2), pl.spending.map { it.count })
+        assertEquals(4_770_000L, pl.net)
+        assertEquals(94, pl.keptPct)
+        assertEquals(1_000_000L, pl.transfersOut)  // "To savings" is a transfer: neither money in nor spending
+        assertEquals(0L, pl.transfersIn)
+        assertEquals(1, pl.leftOut)                // the excluded Uber ride
+        assertTrue(pl.months.isEmpty())
+    }
+
+    @Test fun profitAndLossMonthByMonth() {
+        val pl = build(ReportRange.THREE).profitLoss!!
+        assertEquals("Aug 2026 – Oct 2026", pl.title)
+        assertEquals(listOf("Aug", "Sep", "Oct"), pl.months.map { it.label })
+        assertEquals(listOf(0L, 0L, 5_050_000L), pl.months.map { it.moneyIn })
+        assertEquals(listOf(0L, 200_000L, 280_000L), pl.months.map { it.spent })
+        assertEquals(-200_000L, pl.months[1].net)
+        assertEquals(480_000L, pl.spent)
+        assertEquals(4_570_000L, pl.net)
+    }
+
+    @Test fun profitAndLossFollowsAPickedDayButNotACategory() {
+        val day = build(filter = ReportFilter(bucket = 13)).profitLoss!!  // Wed 14 Oct: only the refund
+        assertEquals("Wed 14 Oct", day.title)
+        assertEquals(50_000L, day.moneyIn)
+        assertEquals(0L, day.spent)
+        assertNull("Nothing came in…", build(filter = ReportFilter(bucket = 2)).profitLoss!!.keptPct)
+        assertNull(build(filter = ReportFilter(categoryId = Cat.FOOD)).profitLoss)
+        assertNull(build(filter = ReportFilter(weekday = DayOfWeek.MONDAY)).profitLoss)
+    }
+
+    @Test fun moneyInLeftOutByTheUserIsNotIncome() {
+        val extra = txns + tx(oct(16), 70_000, "Ramesh", Cat.OTHERS, Direction.CREDIT, excluded = true)
+        val r = ReportBuilder.build(extra, cats, listOf(period(0)), listOf(period(1)), 0L, ReportRange.ONE, ReportFilter(), today, zone)
+        assertEquals(5_050_000L, r.received)
+        assertEquals(280_000L, r.spent)
+        assertEquals(2, r.profitLoss!!.leftOut)
     }
 
     @Test fun withNothingPickedTheBiggestPaymentsAreListed() {

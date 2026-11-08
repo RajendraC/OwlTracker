@@ -101,6 +101,47 @@ class SmsParserTest {
     }
 
     @Test
+    fun moneySentToYourAccountIsMoneyIn() {
+        // Testers saw these counted as spending: "sent", "paid" and "transferred to" read as money out.
+        val cases = listOf(
+            "VM-HDFCBK" to "Rs.5000 transferred to your A/c XX1234 from RAMESH KUMAR via IMPS on 07-11-25. Ref 530912345678",
+            "VM-ICICIB" to "INR 500.00 sent to your A/c XX123 by RAMESH on 07-Nov-25 via UPI. Ref 530912345678",
+            "VM-PAYTMB" to "Rs 500 paid to you by Ramesh Kumar on Paytm. UPI Ref 530912345678",
+            "VM-KOTAKB" to "Rs.5000 is credited to your Kotak Bank a/c XX1234 by IMPS from RAMESH KUMAR on 07/11/25. Ref 530912345678",
+            "VM-SBIINB" to "Rs.2,000 trf to ur a/c XX1234 by NEFT from ACME LTD on 07-11-25.",
+        )
+        cases.forEach { (from, body) -> assertEquals(body, Direction.CREDIT, accepted(from, body).direction) }
+        assertEquals("Ramesh Kumar", accepted(cases[0].first, cases[0].second).merchantRaw)
+        assertEquals("Ramesh Kumar", accepted(cases[2].first, cases[2].second).merchantRaw)
+    }
+
+    @Test
+    fun moneySentByYouIsStillMoneyOut() {
+        val cases = listOf(
+            "VM-HDFCBK" to "Amt Sent Rs.500.00 From HDFC Bank A/C *1234 To Ramesh On 07/11/25 Ref 530912345678 Not You? Call 18002586161",
+            "VM-SBIINB" to "Rs.2,000 transferred to RAMESH KUMAR from your A/c XX1234 on 07-11-25.",
+            "VM-ICICIB" to "Rs 500 paid to your friend Ramesh from A/c XX123 on 07-Nov-25 via UPI.",
+            "VM-HDFCBK" to "Rs.5,000 paid to your credit card XX9012 from HDFC Bank A/c XX1234 on 07-11-25.",
+            "VM-AXISBK" to "Rs 999 debited from A/c XX1234; amount sent to your biller AIRTEL on 07-11-25.",
+        )
+        cases.forEach { (from, body) -> assertEquals(body, Direction.DEBIT, accepted(from, body).direction) }
+    }
+
+    @Test
+    fun amountsWithAColonAreRead() {
+        val t = accepted("VM-UNIONB", "A/c *1234 Credited for Rs:500.00 on 07-11-2025 10:00:00 by Mob Bk ref no 530912345678 Avl Bal Rs:10000.00.Never Share OTP/PIN/CVV-Union Bank of India")
+        assertEquals(50_000L, t.amountPaise)
+        assertEquals(1_000_000L, t.balancePaise)
+        assertEquals(Direction.CREDIT, t.direction)
+    }
+
+    @Test
+    fun anAmountIsNeverTakenForWhoPaid() {
+        assertNull(accepted("VM-SBIUPI", "Dear SBI UPI User, ur A/cX1234 credited by Rs500 on 07Nov25 by (Ref no 530912345678)").merchantRaw)
+        assertNull(accepted("VM-SBIINB", "Dear Customer, your a/c no. XXXXXXXX1234 is credited by Rs.75,000.00 on 07-11-25 by a/c linked to mobile 9XXXXXX000-ACME PAYROLL (IMPS Ref no 530912345678).").merchantRaw)
+    }
+
+    @Test
     fun cleanMerchantTidiesNames() {
         assertEquals("Uber", SmsParser.cleanMerchant("UBER INDIA SYSTEMS PVT LTD"))
         assertEquals("Swiggy", SmsParser.cleanMerchant("VPA swiggy@icici"))

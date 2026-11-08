@@ -47,8 +47,17 @@ data class Txn(
     val kind: TxKind,
     val smsBody: String?,
 ) {
-    /** Spend contribution: debits add, credits (refunds) subtract. */
-    val signedPaise: Long get() = if (direction == Direction.DEBIT) amountPaise else -amountPaise
+    val isMoneyIn: Boolean get() = direction == Direction.CREDIT
+
+    /**
+     * Counts toward spending and budgets: money out, in an expense category, not left out by the user.
+     * Money in never does, not even a refund: it shows with a + and counts as money in on Profit & loss.
+     */
+    fun isSpending(category: Category?): Boolean = direction == Direction.DEBIT && !excluded && (category?.countsAsSpend ?: true)
+
+    /** Counts as money in on Profit & loss: income, refunds and money back. Transfers and savings coming back don't. */
+    fun isIncome(category: Category?): Boolean =
+        direction == Direction.CREDIT && !excluded && (category == null || category.kind == CategoryKind.INCOME || category.kind == CategoryKind.EXPENSE)
 }
 
 /** A transaction about to be written; the database assigns the id. */

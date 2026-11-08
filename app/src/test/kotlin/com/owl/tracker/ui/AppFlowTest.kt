@@ -21,7 +21,8 @@ import org.robolectric.shadows.ShadowBiometricManager
  * 8.0 (26), 9 (28), 11 (30), 13 (33), 14 (34), 15 (35) and 16 (36).
  *
  * The inbox is the 21 sample messages in SampleSms and the clock is fixed at 18 Oct 2026, so the
- * expected totals are exact: October spend is ₹13,457 across 13 imported transactions.
+ * expected totals are exact: October spend is ₹14,256 across 13 imported transactions (the ₹799
+ * Amazon refund is money in: it never lowers spending).
  */
 @RunWith(RobolectricTestRunner::class)
 // A common 6.3" phone; ScreenSizesTest covers small phones, tablets, foldables and large fonts.
@@ -51,10 +52,10 @@ class AppFlowTest {
             waitForText("Transactions saved")
             tapTag("import_continue")
 
-            // Budget ₹10,000 against ₹12,808 of spend -> over budget by ₹2,808
+            // Budget ₹10,000 against ₹13,607 of spend -> over budget by ₹3,607
             typeInto("budget_input", "10000")
             tapTag("save_budget")
-            waitForText("₹2,808 over your monthly budget")
+            waitForText("₹3,607 over your monthly budget")
             onNodeWithTag("budget_hero").assertIsDisplayed()
             waitForText("Over budget")
 

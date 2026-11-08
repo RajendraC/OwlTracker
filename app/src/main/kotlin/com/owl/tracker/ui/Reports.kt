@@ -51,6 +51,40 @@ data class CategorySlice(val category: Category, val paise: Long, val share: Flo
 data class MerchantRow(val key: String, val name: String, val pkg: String?, val categoryId: String, val paise: Long, val count: Int)
 data class WeekdayBar(val day: DayOfWeek, val paise: Long, val count: Int)
 
+/** One line of Profit & loss: a category's money in, or its spending. */
+data class PlLine(val category: Category?, val paise: Long, val count: Int)
+
+/** One budget month of Profit & loss. */
+data class PlMonth(val label: String, val title: String, val moneyIn: Long, val spent: Long) {
+    val net: Long get() = moneyIn - spent
+}
+
+/**
+ * Profit & loss for the range (or the day or month picked on the trend): what came in, what was spent
+ * and what's left. Money in is income, refunds and money back; spending is money out in expense
+ * categories. Savings, investments and transfers between your own accounts are neither, so they're
+ * shown apart, as are payments the user left out.
+ */
+data class ProfitLoss(
+    val title: String,
+    /** Income categories first, then refunds and money back by category; biggest first within each. */
+    val income: List<PlLine>,
+    val moneyIn: Long,
+    val spending: List<PlLine>,
+    val spent: Long,
+    /** Share of money in that was kept; null with no money in. Negative when more went out. */
+    val keptPct: Int?,
+    val savingsOut: Long,
+    val savingsIn: Long,
+    val transfersOut: Long,
+    val transfersIn: Long,
+    val leftOut: Int,
+    /** One row per budget month, oldest first, for ranges longer than a month. */
+    val months: List<PlMonth>,
+) {
+    val net: Long get() = moneyIn - spent
+}
+
 data class Report(
     val range: ReportRange,
     val title: String,
@@ -58,6 +92,7 @@ data class Report(
     /** One chip per active filter, to show and clear it. */
     val chips: List<Pair<FilterKind, String>>,
     val spent: Long,
+    /** Money in: income, refunds and money back (see [Txn.isIncome]). */
     val received: Long,
     /** Spending in the previous period of the same length (same category/merchant/weekday filters); null when there's no data for it. */
     val previousSpent: Long?,
@@ -76,6 +111,8 @@ data class Report(
     /** The payments matching the filters, newest first (or the biggest payments when nothing is picked). */
     val matches: List<Txn>,
     val matchCount: Int,
+    /** Null while a category, merchant or weekday is picked: Profit & loss is about everything. */
+    val profitLoss: ProfitLoss?,
 )
 
 /** Builds the Reports screen from the transactions of the range and the period before it. Pure, so it's tested on the JVM. */
@@ -98,11 +135,10 @@ object ReportBuilder {
         val catMap = cats.associateBy { it.id }
         val dates = HashMap<Long, LocalDate>()
         fun dateOf(t: Txn): LocalDate = dates.getOrPut(t.id) { Instant.ofEpochMilli(t.occurredAt).atZone(zone).toLocalDate() }
-        fun counts(t: Txn) = !t.excluded && (catMap[t.categoryId]?.countsAsSpend ?: true)
-        fun spendOf(list: List<Txn>) = list.filter { counts(it) }.sumOf { it.signedPaise }.coerceAtLeast(0)
-        fun receivedOf(list: List<Txn>) = list.filter {
-            !it.excluded && it.direction == Direction.CREDIT && catMap[it.categoryId]?.kind == CategoryKind.INCOME
-        }.sumOf { it.amountPaise }
+        // Only money out counts as spending; money in (even a refund) never lowers it.
+        fun counts(t: Txn) = t.isSpending(catMap[t.categoryId])
+        fun spendOf(list: List<Txn>) = list.filter { counts(it) }.sumOf { it.amountPaise }
+        fun receivedOf(list: List<Txn>) = list.filter { it.isIncome(catMap[it.categoryId]) }.sumOf { it.amountPaise }
 
         val from = periods.first().start
         val to = periods.last().endExclusive
@@ -172,10 +208,10 @@ object ReportBuilder {
         // Categories: all filters except the category.
         val forCats = inRange.filter { inBucket(it, bucket) && byMerchant(it) && byWeekday(it) && counts(it) }
         val prevForCats = inPrevious.filter { byMerchant(it) && byWeekday(it) && counts(it) }
-        val prevByCat = prevForCats.groupBy { it.categoryId }.mapValues { (_, l) -> l.sumOf { it.signedPaise }.coerceAtLeast(0) }
+        val prevByCat = prevForCats.groupBy { it.categoryId }.mapValues { (_, l) -> l.sumOf { it.amountPaise } }
         val catTotals = forCats.groupBy { it.categoryId }.mapNotNull { (id, list) ->
             val cat = catMap[id] ?: return@mapNotNull null
-            val paise = list.sumOf { it.signedPaise }
+            val paise = list.sumOf { it.amountPaise }
             if (paise <= 0) null else cat to paise
         }
         val catSum = catTotals.sumOf { it.second }.coerceAtLeast(1)
@@ -235,6 +271,41 @@ object ReportBuilder {
             highlights = highlights,
             matches = matches,
             matchCount = if (f.isEmpty) matches.size else matching.size,
+            profitLoss = if (f.categoryId != null || f.merchantKey != null || f.weekday != null) null else profitLoss(
+                title = bucket?.let { buckets[it].title } ?: if (daily) periodTitle(periods.first()) else
+                    "${periods.first().start.format(MONTH_YEAR)} – ${periods.last().start.format(MONTH_YEAR)}",
+                txns = inRange.filter { inBucket(it, bucket) },
+                catMap = catMap,
+                months = if (daily || bucket != null) emptyList() else buckets.map { b ->
+                    val inB = inRange.filter { val d = dateOf(it); !d.isBefore(b.start) && d.isBefore(b.end) }
+                    PlMonth(b.label, b.title, receivedOf(inB), spendOf(inB))
+                },
+            ),
+        )
+    }
+
+    /** See [ProfitLoss]. */
+    fun profitLoss(title: String, txns: List<Txn>, catMap: Map<String, Category>, months: List<PlMonth>): ProfitLoss {
+        fun lines(list: List<Txn>) = list.groupBy { it.categoryId }.map { (id, l) -> PlLine(catMap[id], l.sumOf { it.amountPaise }, l.size) }
+        val incoming = txns.filter { it.isIncome(catMap[it.categoryId]) }
+        val spending = txns.filter { it.isSpending(catMap[it.categoryId]) }
+        val moneyIn = incoming.sumOf { it.amountPaise }
+        val spent = spending.sumOf { it.amountPaise }
+        fun kindSum(kind: CategoryKind, dir: Direction) =
+            txns.filter { !it.excluded && it.direction == dir && catMap[it.categoryId]?.kind == kind }.sumOf { it.amountPaise }
+        return ProfitLoss(
+            title = title,
+            income = lines(incoming).sortedWith(compareBy<PlLine> { if (it.category?.kind == CategoryKind.INCOME) 0 else 1 }.thenByDescending { it.paise }),
+            moneyIn = moneyIn,
+            spending = lines(spending).sortedByDescending { it.paise },
+            spent = spent,
+            keptPct = if (moneyIn > 0) kotlin.math.round((moneyIn - spent) * 100.0 / moneyIn).toInt() else null,
+            savingsOut = kindSum(CategoryKind.SAVING, Direction.DEBIT),
+            savingsIn = kindSum(CategoryKind.SAVING, Direction.CREDIT),
+            transfersOut = kindSum(CategoryKind.TRANSFER, Direction.DEBIT),
+            transfersIn = kindSum(CategoryKind.TRANSFER, Direction.CREDIT),
+            leftOut = txns.count { it.excluded },
+            months = months,
         )
     }
 

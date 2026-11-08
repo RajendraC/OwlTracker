@@ -379,6 +379,27 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         d.update("transactions", CONFLICT_REPLACE, contentValuesOf("needs_review" to 0), "id = ?", arrayOf<Any?>(txId))
     }
 
+    /**
+     * SMS payments stored as money out whose text says the money came to you ("sent to your A/c",
+     * "paid to you by"): versions before 0.8.0 read some of these as spending. A cheap text filter;
+     * the parser decides (see ImportEngine.fixMoneyIn).
+     */
+    suspend fun smsMoneyOutMentioningYou(): List<Txn> = read { d ->
+        d.query(
+            "SELECT $TX_COLS FROM transactions WHERE source = 'SMS' AND direction = ? AND sms_body IS NOT NULL AND " +
+                "(sms_body LIKE '% to you%' OR sms_body LIKE '% to ur %' OR sms_body LIKE '% into your%' OR sms_body LIKE '% in your%')",
+            arrayOf<Any?>(Direction.DEBIT.name),
+        ).use { c -> c.toTxns() }
+    }
+
+    /** Turns a payment into money in, with [categoryId] when the user hadn't picked one. */
+    suspend fun setMoneyIn(txId: Long, categoryId: String?): Unit = write { d ->
+        val v = contentValuesOf("direction" to Direction.CREDIT.name)
+        if (categoryId != null) v.put("category_id", categoryId)
+        d.update("transactions", CONFLICT_REPLACE, v, "id = ?", arrayOf<Any?>(txId))
+        Unit
+    }
+
     /** Deletes one transaction. If it came from an SMS, remembers that so it never comes back. */
     suspend fun deleteTransaction(id: Long): Txn? = write { d ->
         val t = d.query("SELECT $TX_COLS FROM transactions WHERE id = ?", arrayOf<Any?>(id)).use { c -> c.toTxns().firstOrNull() } ?: return@write null

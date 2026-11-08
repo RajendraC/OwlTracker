@@ -907,7 +907,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH))
         else p.start.format(SHORT) + " – " + p.endExclusive.minusDays(1).format(SHORT)
 
-    fun counts(t: Txn, cats: Map<String, Category>): Boolean = !t.excluded && (cats[t.categoryId]?.countsAsSpend ?: true)
+    /** Money out that counts as spending. Money in never does (see [Txn.isSpending]). */
+    fun counts(t: Txn, cats: Map<String, Category>): Boolean = t.isSpending(cats[t.categoryId])
 
     private fun buildDashboard(txns: List<Txn>, cats: List<Category>, budgets: Map<String, Long>, p: BudgetPeriod): Dashboard {
         val catMap = cats.associateBy { it.id }
@@ -915,8 +916,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val isCurrent = p.contains(today)
         val dayNumber = if (isCurrent) p.dayNumber(today) else p.days
         val counted = txns.filter { counts(it, catMap) }
-        val spent = counted.sumOf { it.signedPaise }
-        val byCat = counted.groupBy { it.categoryId }.mapValues { e -> e.value.sumOf { it.signedPaise } }
+        val spent = counted.sumOf { it.amountPaise }
+        val byCat = counted.groupBy { it.categoryId }.mapValues { e -> e.value.sumOf { it.amountPaise } }
         val overall = budgets[Schema.OVERALL] ?: 0L
         val status = if (overall > 0) BudgetMath.status(spent, overall, dayNumber, p.days) else null
         val byCategory = byCat.filter { it.value > 0 }.mapNotNull { (id, v) -> catMap[id]?.let { CategorySpend(it, v) } }.sortedByDescending { it.paise }

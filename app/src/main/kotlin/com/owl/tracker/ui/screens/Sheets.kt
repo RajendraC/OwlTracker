@@ -209,12 +209,28 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         tx.refNo?.let { Divider(); DetailRow("Reference", it) }
         tx.sender?.let { Divider(); DetailRow("From", it) }
         Divider()
-        SwitchRow(
-            "Count in spend",
-            if (cat?.countsAsSpend == false) "Transfers, savings and income never count" else if (tx.excluded) "Left out of your budget" else "Counts toward your budget",
-            !tx.excluded && (cat?.countsAsSpend ?: true),
-            { on -> if (cat?.countsAsSpend == false) Unit else vm.setExcluded(tx.id, !on) },
-        )
+        if (credit) {
+            // Money in is shown, never spent: it can count as income on Profit & loss, or be left out.
+            val counts = cat == null || cat.kind == com.owl.tracker.data.CategoryKind.INCOME || cat.kind == com.owl.tracker.data.CategoryKind.EXPENSE
+            SwitchRow(
+                "Count as money in",
+                when {
+                    !counts -> "Transfers and savings coming back aren't income"
+                    tx.excluded -> "Left out of Profit & loss. Never counts as spending."
+                    else -> "Counts as money in on Profit & loss. Never counts as spending."
+                },
+                tx.isIncome(cat),
+                { on -> if (counts) vm.setExcluded(tx.id, !on) },
+                modifier = Modifier.testTag("count_money_in"),
+            )
+        } else {
+            SwitchRow(
+                "Count in spend",
+                if (cat?.countsAsSpend == false) "Transfers, savings and income never count" else if (tx.excluded) "Left out of your budget" else "Counts toward your budget",
+                tx.isSpending(cat),
+                { on -> if (cat?.countsAsSpend == false) Unit else vm.setExcluded(tx.id, !on) },
+            )
+        }
     }
 
     OutlinedTextField(
@@ -274,7 +290,9 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
     }
     SwitchRow("Always use for ${tx.merchantName}", "Creates a rule for past and future payments", rememberRule, { rememberRule = it })
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        cats.filter { !it.archived && it.id != Cat.INCOME }.forEach { c ->
+        // Money in can go to Income (listed first); money out never can.
+        val credit = tx.direction == com.owl.tracker.core.Direction.CREDIT
+        cats.filter { !it.archived && (credit || it.id != Cat.INCOME) }.sortedBy { if (credit && it.id == Cat.INCOME) 0 else 1 }.forEach { c ->
             val on = c.id == tx.categoryId
             Column(
                 Modifier.width(100.dp).heightIn(min = 92.dp).clip(RoundedCornerShape(16.dp))

@@ -47,13 +47,19 @@ class ReportsAndBackupFlowTest {
             tapTag("tab_more")
             tapText("Reports")
             waitForTag("report_summary")
+            // Profit & loss: the ₹1,20,000 salary and ₹799 refund came in, and spending never nets the refund off
+            waitForTag("profit_loss")
+            waitForText("You kept")
+            waitForText("refunds and money back")
             tapTag("range_3")
             waitForText("Month by month")
+            waitForText("Each month")
             waitForText("Biggest payments")
 
-            // A category: a chip appears and the payments list narrows to it
+            // A category: a chip appears and the payments list narrows to it; Profit & loss is about everything, so it goes
             tapTag("cat_food")
             waitForTag("filter_category")
+            onAllNodesWithTag("profit_loss").assertCountEquals(0)
             waitForText("matching payment")
             // Tapping the chip lets go again
             tapTag("filter_category")
@@ -71,6 +77,24 @@ class ReportsAndBackupFlowTest {
 
             tapTag("weekday_saturday")
             waitForTag("filter_weekday")
+        }
+    }
+
+    @Test
+    fun moneyInShowsWithAPlusAndCanBeLeftOutOrDeleted() {
+        setUpWithSms()
+        with(compose) {
+            tapTag("tab_activity")
+            tapText("Received")
+            waitForText("+₹799")
+            tapText("+₹799")
+            waitForTag("count_money_in")
+            waitForText("Never counts as spending")
+            // Left out of Profit & loss, then deleted
+            tapTag("count_money_in")
+            waitForText("Left out of Profit & loss")
+            tapTag("delete_txn")
+            waitForText("Transaction deleted")
         }
     }
 

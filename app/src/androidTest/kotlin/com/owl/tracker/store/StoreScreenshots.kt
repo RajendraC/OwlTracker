@@ -257,8 +257,8 @@ class StoreScreenshots {
         val start = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val cats = repo.categories().associateBy { it.id }
         val spent = repo.transactions(start, System.currentTimeMillis())
-            .filter { !it.excluded && cats[it.categoryId]?.countsAsSpend == true }
-            .groupBy { it.categoryId }.mapValues { (_, l) -> l.sumOf { it.signedPaise } / 100.0 }
+            .filter { it.isSpending(cats[it.categoryId]) }
+            .groupBy { it.categoryId }.mapValues { (_, l) -> l.sumOf { it.amountPaise } / 100.0 }
         val total = spent.values.sum()
         val elapsed = today.dayOfMonth.toDouble() / YearMonth.from(today).lengthOfMonth()
         fun up(x: Double, step: Int) = (ceil(x / step) * step).toLong().coerceAtLeast(step.toLong()) * 100
