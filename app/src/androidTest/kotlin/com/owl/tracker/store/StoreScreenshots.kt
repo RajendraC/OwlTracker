@@ -135,6 +135,17 @@ class StoreScreenshots {
                 tapText("Swiggy")
                 Thread.sleep(1200)
                 shot("31_txn_detail")
+                withVm { it.closeSheet() }
+                Thread.sleep(600)
+                runCatching { tapText("Received") }
+                Thread.sleep(800)
+                shot("32_money_in")
+                runCatching { onAllNodes(hasText("+₹", substring = true))[0].performClick() }
+                Thread.sleep(1200)
+                shot("33_money_in_detail")
+                withVm { it.closeSheet() }
+                Thread.sleep(600)
+                runCatching { tapText("All") }
             }
             section("reports") {
                 nav(Screen.MORE)
@@ -143,6 +154,12 @@ class StoreScreenshots {
                 waitForTag("report_summary", 20_000)
                 runCatching { tapTag("range_6") }
                 shot("50_reports_top")
+                runCatching { scrollTo(hasTestTag("profit_loss")) }
+                shot("50a_profit_loss")
+                runCatching { scrollTo(hasTestTag("pl_spending")) }
+                shot("50b_profit_loss_spending")
+                runCatching { scrollTo(hasText("Each month")) }
+                shot("50c_profit_loss_months")
                 scrollTo(hasTestTag("report_categories"))
                 shot("51_reports_categories")
                 runCatching { tapTag("cat_${Cat.SHOPPING}") }
