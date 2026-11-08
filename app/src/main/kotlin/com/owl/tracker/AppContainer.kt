@@ -42,8 +42,8 @@ class AppContainer(
     installedAt: () -> Long = { TrialClock.installTime(context) },
 ) {
     val db = Db(context, dbFactory, dbName)
-    val appIcons = AppIcons(context) { id -> repo.pictureBytes(id) }
-    val repo = Repository(db, clock, appIcons::bankApp)
+    val appIcons: AppIcons = AppIcons(context) { id -> repo.pictureBytes(id) }
+    val repo: Repository = Repository(db, clock, appIcons::bankApp)
     val importEngine = ImportEngine(sms, repo, clock, bankApp = appIcons::bankApp)
     val backups = BackupManager(context, repo, clock)
 
