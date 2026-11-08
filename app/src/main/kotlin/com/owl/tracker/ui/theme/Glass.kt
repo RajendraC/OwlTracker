@@ -30,11 +30,12 @@ fun GlassBackdrop(modifier: Modifier = Modifier) {
     val c = MaterialTheme.colorScheme
     val dark = isSystemInDarkTheme()
     val base = c.background
-    val a = if (dark) 0.38f else 0.75f
+    // Saturated enough to show through the cards, soft enough to keep text easy to read
+    val a = if (dark) 0.30f else 0.34f
     val pools = listOf(
-        Triple(Offset(0.05f, 0.08f), 0.75f, c.primaryContainer.copy(alpha = a)),
-        Triple(Offset(1.0f, 0.38f), 0.7f, lerp(c.tertiaryContainer, c.secondaryContainer, 0.3f).copy(alpha = a * 0.9f)),
-        Triple(Offset(0.15f, 0.92f), 0.8f, lerp(c.primaryContainer, Color(0xFFFFD9B8), if (dark) 0.15f else 0.55f).copy(alpha = a * 0.8f)),
+        Triple(Offset(0.0f, 0.06f), 0.80f, lerp(c.primary, c.primaryContainer, 0.35f).copy(alpha = a)),
+        Triple(Offset(1.0f, 0.40f), 0.72f, lerp(c.tertiary, c.tertiaryContainer, 0.35f).copy(alpha = a * 0.85f)),
+        Triple(Offset(0.12f, 0.95f), 0.85f, lerp(c.primary, Color(0xFFFF9F6B), 0.7f).copy(alpha = a * 0.75f)),
     )
     Canvas(modifier.fillMaxSize()) {
         drawRect(base)
@@ -51,7 +52,7 @@ fun GlassBackdrop(modifier: Modifier = Modifier) {
 @ReadOnlyComposable
 fun glassFill(): Color {
     val dark = isSystemInDarkTheme()
-    return MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.46f else 0.60f)
+    return MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.44f else 0.52f)
 }
 
 /** A thicker fill for things that float over content, like the tab bar (there's no blur behind them). */
