@@ -218,7 +218,7 @@ class BackupTest {
                         .put(
                             JSONObject().put("amountPaise", 700).put("direction", "DEBIT").put("time", now - DAY_MS)
                                 .put("merchant", "Call me 9876543210\u0007").put("merchantKey", "9876543210@ybl")
-                                .put("category", "x'; DROP").put("app", "com.evil.app").put("note", "line\u0000break"),
+                                .put("category", "x'; DROP").put("app", "../../data/com.evil.app").put("note", "line\u0000break"),
                         )),
             )
         val b = BackupCodec.decode(evil.toString().toByteArray(), null, now)
@@ -231,7 +231,7 @@ class BackupTest {
         assertEquals("Call me •••••", t.merchantName)
         assertEquals("xxxxx", t.merchantKey)
         assertEquals(Cat.OTHERS, t.categoryId)
-        assertNull(t.merchantPackage)
+        assertNull("only a well-formed package name or a known picture is kept as an icon", t.merchantPackage)
         assertEquals("linebreak", t.note)
     }
 
