@@ -8,6 +8,10 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.dp
 import com.owl.tracker.TestApp
 import com.owl.tracker.backup.BackupCodec
 import org.junit.Assert.assertEquals
@@ -84,6 +88,35 @@ class ReportsAndBackupFlowTest {
 
             tapTag("weekday_saturday")
             waitForTag("filter_weekday")
+        }
+    }
+
+    /** Touching the ring opens a category, then a merchant's payments; Back goes up one level at a time, then leaves. */
+    @Test
+    fun theRingOpensByTouchAndBackGoesUpOneLevelAtATime() {
+        setUpWithSms()
+        with(compose) {
+            tapTag("tab_more")
+            tapText("Reports")
+            waitForTag("report_summary")
+            waitForTag("category_donut")
+            // The biggest slice starts at the top of the ring
+            fun touchTopOfRing() = onNodeWithTag("category_donut").performTouchInput { click(Offset(centerX + 6f, 23.dp.toPx())) }
+            touchTopOfRing()
+            waitForTag("ring_up")
+            touchTopOfRing()
+            waitForTag("ring_payments")
+            waitForText("payment")
+
+            fun back() = activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+            back()
+            waitUntil(5_000) { onAllNodesWithTag("ring_payments").fetchSemanticsNodes().isEmpty() }
+            waitForTag("ring_up")
+            back()
+            waitUntil(5_000) { onAllNodesWithTag("ring_up").fetchSemanticsNodes().isEmpty() }
+            waitForTag("report_summary")
+            back()
+            waitForText("Backup & restore")
         }
     }
 

@@ -328,6 +328,17 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun tapReportMerchant(key: String) = reportFilter.update { it.copy(merchantKey = if (it.merchantKey == key) null else key) }
     fun tapReportWeekday(d: java.time.DayOfWeek) = reportFilter.update { it.copy(weekday = if (it.weekday == d) null else d) }
 
+    /** Back inside Reports: up one level of what was opened or picked: merchant, category, day, month, weekday. */
+    fun reportBack() = reportFilter.update { f ->
+        when {
+            f.merchantKey != null -> f.copy(merchantKey = null)
+            f.categoryId != null -> f.copy(categoryId = null)
+            f.day != null -> f.copy(day = null)
+            f.bucket != null -> f.copy(bucket = null)
+            else -> f.copy(weekday = null)
+        }
+    }
+
     fun clearReportFilter(kind: FilterKind? = null) = reportFilter.update {
         when (kind) {
             null -> ReportFilter()

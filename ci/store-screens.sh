@@ -4,8 +4,10 @@
 # StoreScreenshots#capture (Play screenshots) and StoreScreenshots#tour while recording the screen.
 # Everything lands in store-screens/.
 #   $1: emulator date as MMDDhhmmYYYY (empty keeps the real date)
+#   $2: "true" for the dark theme
 set -uo pipefail
 DATE="${1:-}"
+NIGHT="${2:-false}"
 OUT=store-screens
 mkdir -p "$OUT" logs
 PKG=com.owl.tracker
@@ -53,6 +55,7 @@ adb shell setprop persist.sys.timezone Asia/Kolkata || true
 [ -n "$DATE" ] && { adb shell "date $DATE.00" || echo "could not set the date; keeping the real one"; }
 adb shell date
 adb shell cmd overlay enable com.android.internal.systemui.navbar.gestural || true
+if [ "$NIGHT" = "true" ]; then adb shell cmd uimode night yes || true; else adb shell cmd uimode night no || true; fi
 sleep 15
 wait_ready >/dev/null 2>&1
 

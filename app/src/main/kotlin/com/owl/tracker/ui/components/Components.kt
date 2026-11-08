@@ -66,6 +66,8 @@ fun Panel(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composab
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(if (glass) 26.dp else 22.dp),
         color = if (glass) com.owl.tracker.ui.theme.glassFill() else MaterialTheme.colorScheme.surfaceContainerLowest,
+        // A see-through colour isn't one of the theme's, so say which text colour goes on it
+        contentColor = MaterialTheme.colorScheme.onSurface,
         border = if (glass) com.owl.tracker.ui.theme.glassEdge() else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(padding), content = content)

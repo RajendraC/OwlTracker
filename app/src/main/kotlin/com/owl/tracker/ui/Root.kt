@@ -65,7 +65,11 @@ import com.owl.tracker.ui.theme.Ic
 fun OwlTrackerRoot(vm: AppViewModel, platform: Platform) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val glass = settings?.glass ?: true
-    androidx.compose.runtime.CompositionLocalProvider(com.owl.tracker.ui.theme.LocalGlass provides glass) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        com.owl.tracker.ui.theme.LocalGlass provides glass,
+        // Everything drawn straight onto the background (lock screen included) gets the theme's text colour
+        androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+    ) {
         Box(Modifier.fillMaxSize()) {
             if (glass) com.owl.tracker.ui.theme.GlassBackdrop()
             RootContent(vm, platform, glass)
@@ -105,6 +109,8 @@ private fun RootContent(vm: AppViewModel, platform: Platform, glass: Boolean) {
     val tab = current?.tab
     Scaffold(
         containerColor = if (glass) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.background,
+        // Transparent has no matching text colour: without this, text outside cards is black in the dark theme
+        contentColor = MaterialTheme.colorScheme.onBackground,
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (tab != null && glass) {
@@ -234,6 +240,7 @@ private fun GlassTabBar(vm: AppViewModel, current: Tab) {
         androidx.compose.material3.Surface(
             shape = RoundedCornerShape(32.dp),
             color = com.owl.tracker.ui.theme.glassFillStrong(),
+            contentColor = MaterialTheme.colorScheme.onSurface,
             border = com.owl.tracker.ui.theme.glassEdge(),
             shadowElevation = 10.dp,
             modifier = Modifier.fillMaxWidth().height(64.dp),

@@ -175,6 +175,11 @@ class StoreScreenshots {
                 runCatching { tapTag("cat_${Cat.SHOPPING}") }
                 Thread.sleep(800)
                 shot("52_reports_filtered")
+                runCatching { tapTag("ring_merchant_amazon") }   // the third level: one merchant's payments
+                Thread.sleep(1200)
+                shot("52b_ring_merchant")
+                withVm { it.reportBack() }
+                Thread.sleep(600)
                 runCatching { scrollTo(hasTestTag("report_filters")) }
                 shot("53_reports_filtered_top")
                 runCatching { tapTag("filter_category") } // clear the filter

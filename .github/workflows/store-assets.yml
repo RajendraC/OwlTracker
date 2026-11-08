@@ -17,6 +17,10 @@ on:
       date:
         description: Emulator date as MMDDhhmmYYYY (leave empty for today)
         default: "112210302026"
+      night:
+        description: Dark theme (captures go to the store-screens-dark pre-release instead)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -63,7 +67,7 @@ jobs:
           disk-size: 4096M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -timezone Asia/Kolkata
           disable-animations: true
-          script: bash ci/store-screens.sh "${{ inputs.date }}"
+          script: bash ci/store-screens.sh "${{ inputs.date }}" "${{ inputs.night }}"
 
       - name: Upload captures
         if: always()
@@ -79,12 +83,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.night && 'store-screens-dark' || 'store-screens' }}
         run: |
           shopt -s nullglob
           files=(store-screens/* logs/*)
           [ ${#files[@]} -gt 0 ] || { echo "Nothing to publish"; exit 0; }
-          gh release delete store-screens -y --cleanup-tag 2>/dev/null || true
-          gh release create store-screens --prerelease --target "$GITHUB_SHA" \
-            --title "Store screenshots (raw captures)" \
+          gh release delete "$TAG" -y --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" --prerelease --target "$GITHUB_SHA" \
+            --title "Store screenshots (raw captures${TAG#store-screens})" \
             --notes "Raw emulator captures from run $GITHUB_RUN_ID. Made-up demo data. Not an app release." \
             "${files[@]}"
