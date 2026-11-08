@@ -210,7 +210,7 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
                 Ic.database,
                 if (storage.total > 0) "${storage.total} transactions stored" else "Nothing stored yet",
                 storage.oldestMs?.let { "Since " + vm.dateOf(it).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)) + " · encrypted on this phone" } ?: "Import or add expenses to get started",
-                iconTint = MaterialTheme.colorScheme.primary, iconBg = MaterialTheme.colorScheme.primaryContainer, trailing = {},
+                iconTint = MaterialTheme.colorScheme.onPrimaryContainer, iconBg = MaterialTheme.colorScheme.primaryContainer, trailing = {},
             ) { }
             Divider()
             NavRow(Ic.trash, "Delete transactions", "By age, by bank or card, or everything from SMS", iconTint = sc.overFg, iconBg = sc.overBg) { vm.openDelete() }

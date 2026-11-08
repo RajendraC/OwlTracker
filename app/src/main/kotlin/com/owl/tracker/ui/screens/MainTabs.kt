@@ -273,7 +273,7 @@ fun HomeScreen(vm: AppViewModel) {
             }
         }
 
-        plan?.takeIf { dash.isCurrent && it.tips.isNotEmpty() && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { SavingNudge(vm, p) } }
+        plan?.takeIf { dash.isCurrent && it.monthlyPaise > 0 && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { SavingNudge(vm, p) } }
 
         item {
             Panel(padding = 12.dp) {
@@ -291,7 +291,7 @@ fun HomeScreen(vm: AppViewModel) {
 
         item {
             Panel(padding = 4.dp) {
-                NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more", iconTint = MaterialTheme.colorScheme.primary, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
+                NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more", iconTint = MaterialTheme.colorScheme.onPrimaryContainer, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
             }
         }
     }
@@ -461,7 +461,7 @@ private fun SavingNudge(vm: AppViewModel, plan: com.owl.tracker.ui.SavingPlan) {
     val tip = plan.tips.first()
     Panel(modifier = Modifier.testTag("saving_nudge")) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            IconTile(Ic.bulb, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
+            IconTile(Ic.bulb, MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.primaryContainer)
             Column(Modifier.weight(1f)) {
                 Text("Ways to save", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(

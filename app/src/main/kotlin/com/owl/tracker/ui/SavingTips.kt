@@ -10,7 +10,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
 
-enum class TipKind { ABOVE_USUAL, TRIM, SUBSCRIPTIONS, KEEP }
+enum class TipKind { ABOVE_USUAL, ONE_OFF, TRIM, SUBSCRIPTIONS, KEEP }
 
 /** One way to save, with roughly how much it could save in a month. */
 data class SavingTip(
@@ -44,6 +44,9 @@ object SavingTips {
     /** Trimming needs at least ₹1,000 a month over 4+ payments: everyday spending, not one-offs. */
     private const val MIN_TRIM = 100_000L
     private const val MIN_TRIM_COUNT = 4.0
+
+    /** Commitments and needs: an EMI, rent, school fees or a hospital bill aren't "ways to save". */
+    private val FIXED = setOf(Cat.EMI, Cat.RENT, Cat.EDUCATION, Cat.HEALTH, Cat.INVESTMENTS)
 
     /** Everyday spending that is easy to cut back a little. */
     private val DISCRETIONARY = listOf(Cat.FOOD, Cat.SHOPPING, Cat.ENTERTAINMENT)
@@ -83,10 +86,21 @@ object SavingTips {
 
         // 1. A category already over, or heading over, its usual month
         for ((id, list) in now) {
+            if (id in FIXED) continue
             val u = usual[id] ?: continue
             if (u < MIN_USUAL) continue
             val soFar = list.sumOf { it.amountPaise }
-            if (soFar > u) {
+            val biggest = list.maxBy { it.amountPaise }
+            if (soFar > u && soFar - u >= maxOf(30_000L, u / 10) && biggest.amountPaise * 10 >= soFar * 6 && biggest.amountPaise >= 2 * u) {
+                // Mostly one big payment (a flight, a repair): said, but not counted as something to cut back every month
+                tips += SavingTip(
+                    "oneoff:$id", TipKind.ONE_OFF,
+                    "${name(id)}: one big payment this month",
+                    "${fmt(biggest.amountPaise)} to ${biggest.merchantName} on ${dateOf(biggest).format(DAY)} made ${name(id)} ${fmt(nice(soFar - u))} more than usual. " +
+                        "If it was a one-off, there's nothing to cut back.",
+                    0, id,
+                )
+            } else if (soFar > u) {
                 val over = nice(soFar - u)
                 if (soFar - u >= maxOf(30_000L, u / 10)) tips += SavingTip(
                     "above:$id", TipKind.ABOVE_USUAL,
@@ -110,6 +124,7 @@ object SavingTips {
 
         // 2. Everyday spending: one in five fewer
         for (id in DISCRETIONARY) {
+            if (id in FIXED) continue
             if (tips.any { it.categoryId == id }) continue
             val u = usual[id] ?: continue
             val count = usualCount[id] ?: 0.0
@@ -170,6 +185,8 @@ object SavingTips {
         }
         return SavingPlan(tips.sortedByDescending { it.monthlyPaise }.take(MAX_TIPS), keep, n)
     }
+
+    private val DAY = java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
 
     /** ₹1,234 → ₹1,200 and ₹437 → ₹440: tips are estimates, so they don't pretend to the rupee. */
     internal fun nice(paise: Long): Long = when {

@@ -104,6 +104,25 @@ class SavingTipsTest {
         assertTrue("Nothing this month, so nothing is over", p.tips.none { it.kind == TipKind.ABOVE_USUAL })
     }
 
+    @Test fun commitmentsAndOneOffPaymentsAreNotWaysToSave() {
+        val before = (7..9).flatMap { m ->
+            val d = month(m)
+            listOf(tx(d.plusDays(4), 25_000, "HDFC Loan", Cat.EMI)) + List(4) { tx(d.plusDays(it * 5L), 250, "Uber", Cat.TRANSPORT) }
+        }
+        val oct = listOf(
+            tx(month(10).plusDays(3), 40_000, "HDFC Loan", Cat.EMI),        // an EMI going up isn't something to cut back
+            tx(month(10).plusDays(4), 20_000, "Indigo", Cat.TRANSPORT),     // one flight
+            tx(month(10).plusDays(5), 300, "Uber", Cat.TRANSPORT),
+        )
+        val p = plan(before + oct)
+        assertTrue(p.tips.none { it.categoryId == Cat.EMI })
+        val flight = p.tips.single { it.categoryId == Cat.TRANSPORT }
+        assertEquals(TipKind.ONE_OFF, flight.kind)
+        assertEquals("Transport: one big payment this month", flight.title)
+        assertTrue(flight.detail.startsWith("₹20,000 to Indigo on 5 Oct made Transport ₹19,300 more than usual."))
+        assertEquals("Not counted as a saving", 0L, p.monthlyPaise)
+    }
+
     @Test fun withoutEarlierMonthsThereIsNothingToCompare() {
         val p = plan(october)
         assertTrue(p.isEmpty)

@@ -82,7 +82,7 @@ fun WelcomeScreen(vm: AppViewModel) {
 @Composable
 private fun Promise(icon: ImageVector, title: String, body: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        IconTile(icon, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
+        IconTile(icon, MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.primaryContainer)
         Column {
             Text(title, style = MaterialTheme.typography.titleSmall)
             Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -104,7 +104,7 @@ fun DisclosureScreen(vm: AppViewModel, platform: Platform) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        IconTile(Ic.message, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, 56.dp)
+        IconTile(Ic.message, MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.primaryContainer, 56.dp)
         Text("Read your bank SMS to track spending?", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Text(
             "Owl Tracker reads messages from banks, cards and UPI apps to find your transactions. " +

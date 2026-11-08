@@ -335,7 +335,7 @@ private fun WaysToSaveCard(plan: SavingPlan, catMap: Map<String, Category>, vm: 
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Panel(modifier = Modifier.testTag("ways_to_save")) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            com.owl.tracker.ui.components.IconTile(Ic.bulb, gain, MaterialTheme.colorScheme.primaryContainer)
+            com.owl.tracker.ui.components.IconTile(Ic.bulb, MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.primaryContainer)
             Column(Modifier.weight(1f)) {
                 Text("Ways to save", style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -344,7 +344,7 @@ private fun WaysToSaveCard(plan: SavingPlan, catMap: Map<String, Category>, vm: 
                 )
             }
         }
-        if (plan.tips.isNotEmpty()) {
+        if (plan.monthlyPaise > 0) {
             Gap(12.dp)
             Text("You could save about ${Money.formatInr(plan.monthlyPaise)} a month", style = MaterialTheme.typography.titleMedium, color = gain, modifier = Modifier.testTag("ways_total"))
             Text("That's ${Money.formatInr(plan.monthlyPaise * 12)} a year.", style = MaterialTheme.typography.bodySmall, color = muted)
@@ -364,9 +364,11 @@ private fun WaysToSaveCard(plan: SavingPlan, catMap: Map<String, Category>, vm: 
                         Text(tip.title, style = MaterialTheme.typography.titleSmall)
                         Text(tip.detail, style = MaterialTheme.typography.bodySmall, color = muted)
                     }
-                    Text(
+                    // Text on a container colour always uses its "on" colour: wallpaper palettes can make
+                    // primary and primaryContainer nearly the same
+                    if (tip.monthlyPaise > 0) Text(
                         Money.formatShort(tip.monthlyPaise) + "/mo",
-                        style = MaterialTheme.typography.labelLarge, color = gain,
+                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.primaryContainer).padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
@@ -667,7 +669,7 @@ private fun MerchantCard(r: Report, catMap: Map<String, Category>, vm: AppViewMo
             val isPicked = m.key == selected
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                    .background(if (isPicked) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                    .background(if (isPicked) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else Color.Transparent)
                     .clickable { vm.tapReportMerchant(m.key) }
                     .padding(vertical = 8.dp, horizontal = 4.dp)
                     .testTag("merchant_${m.key}"),
