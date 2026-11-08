@@ -17,6 +17,8 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
@@ -124,6 +126,15 @@ class StoreScreenshots {
             shot("11_home_lower")
             runCatching { scrollTo(hasTestTag("saving_nudge")) }
             shot("12_saving_nudge")
+            // Home drill-down: tap the budget circle's biggest part, then come back up
+            runCatching {
+                scrollTo(hasTestTag("budget_ring"))
+                onAllNodes(hasTestTag("budget_ring"))[0].performTouchInput { click(androidx.compose.ui.geometry.Offset(centerX + 4f, 11.dp.toPx())) }
+            }
+            Thread.sleep(1500)
+            shot("13_home_drill")
+            runCatching { activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() } }
+            Thread.sleep(800)
 
             section("budgets") {
                 tapTag("tab_budgets")

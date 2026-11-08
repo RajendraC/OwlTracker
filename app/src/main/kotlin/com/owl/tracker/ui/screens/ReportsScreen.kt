@@ -83,6 +83,9 @@ import com.owl.tracker.ui.Report
 import com.owl.tracker.ui.ReportBuilder
 import com.owl.tracker.ui.ReportRange
 import com.owl.tracker.ui.components.Divider
+import com.owl.tracker.ui.components.DrillRingCard
+import com.owl.tracker.ui.components.RingCategory
+import com.owl.tracker.ui.components.RingMerchant
 import com.owl.tracker.ui.components.Reveal
 import com.owl.tracker.ui.components.SettleEasing
 import com.owl.tracker.ui.components.animatedPaise
@@ -612,280 +615,32 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
     }
 }
 
-/** One slice of the ring: a category, or a merchant inside the category opened. */
-private data class RingSlice(val key: String, val name: String, val paise: Long, val share: Float, val color: Color)
-
-/**
- * "Where it went": a ring you can touch. Slide a finger round it to see each slice; tap a category to
- * open it into its merchants, and a merchant to see its payments. The arrow, or the phone's Back,
- * goes up one level at a time.
- */
+/** "Where it went" in Reports: the shared touchable ring, driven by the report's filters (so chips and Back follow it). */
 @Composable
 private fun CategoryCard(r: Report, catMap: Map<String, Category>, vm: AppViewModel) {
-    val sc = LocalStatusColors.current
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val track = MaterialTheme.colorScheme.surfaceVariant
-    val haptics = LocalHapticFeedback.current
-    val pick = r.filter.categoryId?.let { id -> r.categories.firstOrNull { it.category.id == id } }
-    val merchantKey = r.filter.merchantKey?.takeIf { pick != null }
-    val pickColor = pick?.let { Color(it.category.color) } ?: MaterialTheme.colorScheme.primary
-
-    // Level 0: categories. Level 1 and 2: the opened category's merchants (2 has one of them picked).
-    val slices: List<RingSlice> = remember(pick, r.categories, r.merchants, merchantKey) {
-        if (pick == null) {
-            r.categories.map { RingSlice(it.category.id, it.category.name, it.paise, it.share, Color(it.category.color)) }
-        } else {
-            // With a merchant picked, the category's own total is narrowed to that merchant, so the whole is
-            // rebuilt from its merchants (listed without the merchant filter): the ring stays the whole category
-            val ofCategory = r.merchants.filter { it.categoryId == pick.category.id }.sortedByDescending { it.paise }
-            val whole = if (merchantKey == null) pick.paise else ofCategory.sumOf { it.paise }
-            val total = whole.coerceAtLeast(1)
-            val top = ofCategory.take(6)
-            val rest = (whole - top.sumOf { it.paise }).coerceAtLeast(0)
-            val list = top.map { it.key to (it.name to it.paise) } + if (rest > 0) listOf("" to ("Others" to rest)) else emptyList()
-            list.mapIndexed { i, (k, v) ->
-                RingSlice(k, v.first, v.second, v.second.toFloat() / total, lerp(pickColor, Color.White, 0.55f * i / list.size.coerceAtLeast(1)))
-            }
-        }
-    }
-    val level = if (pick == null) 0 else if (merchantKey == null) 1 else 2
-    // The slice under the finger while touching the ring
-    var hover by remember(pick?.category?.id) { mutableStateOf<Int?>(null) }
-    val active = hover ?: slices.indexOfFirst { it.key.isNotEmpty() && it.key == merchantKey }.takeIf { it >= 0 }
-    val ring = growIn(r.range to (pick == null), 1000)
-    val open = growIn(pick?.category?.id, 1000)
-    val pickStart = remember(pick, r.categories) {
-        var acc = 0f
-        for (s in r.categories) { if (s.category.id == pick?.category?.id) break; acc += s.share * 360f }
-        -90f + acc
-    }
-    // Each slice eases out from the ring when it's touched or picked, and back when let go
-    val pops = key(pick?.category?.id, slices.size) {
-        slices.indices.map { i -> animateFloatAsState(if (active == i) 1f else 0f, spring(dampingRatio = 0.55f, stiffness = 520f), label = "pop").value }
-    }
-    fun tapSlice(i: Int) {
-        val s = slices.getOrNull(i) ?: return
-        when {
-            pick == null -> vm.tapReportCategory(s.key)
-            s.key.isNotEmpty() -> vm.tapReportMerchant(s.key)
-        }
-    }
-
-    Panel(modifier = Modifier.testTag("report_categories")) {
-        AnimatedContent(
-            targetState = level to (pick?.category?.name to slices.firstOrNull { it.key == merchantKey }?.name),
-            transitionSpec = {
-                val deeper = targetState.first > initialState.first
-                (fadeIn(tween(300)) + slideInHorizontally(tween(380, easing = SettleEasing)) { if (deeper) it / 3 else -it / 3 }) togetherWith fadeOut(tween(150))
-            },
-            label = "ring_title",
-        ) { (lv, names) ->
-            val (catName, merchantName) = names
-            if (lv == 0) {
-                Column {
-                    Text("Where it went", style = MaterialTheme.typography.titleMedium)
-                    Text("Slide round the ring · tap a slice to open it", style = MaterialTheme.typography.bodySmall, color = muted)
-                }
-            } else {
-                Row(
-                    Modifier.clip(RoundedCornerShape(12.dp))
-                        .clickable { if (lv == 2) vm.tapReportMerchant(merchantKey!!) else vm.tapReportCategory(pick!!.category.id) }
-                        .padding(end = 8.dp).testTag("ring_up"),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Ic.back, contentDescription = if (lv == 2) "Back to ${catName ?: "the category"}" else "Back to all categories", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Column {
-                        Text((if (lv == 2) merchantName else catName) ?: "", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            if (lv == 2) "$catName › payments · back to $catName" else "By merchant · tap one for its payments",
-                            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-            }
-        }
-        Gap(12.dp)
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Canvas(
-                Modifier.size(220.dp)
-                    .pointerInput(slices) {
-                        val centre = Offset(size.width / 2f, size.height / 2f)
-                        val outer = size.width / 2f
-                        fun sliceAt(p: Offset): Int? {
-                            if (slices.isEmpty()) return null
-                            val angle = ((Math.toDegrees(atan2((p.y - centre.y).toDouble(), (p.x - centre.x).toDouble())) + 90 + 360) % 360).toFloat()
-                            var acc = 0f
-                            slices.forEachIndexed { i, s -> acc += s.share * 360f; if (angle <= acc) return i }
-                            return slices.lastIndex
-                        }
-                        awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
-                            val d = hypot(down.position.x - centre.x, down.position.y - centre.y)
-                            if (d > outer || d < outer * 0.42f) return@awaitEachGesture   // only the ring itself
-                            hover = sliceAt(down.position)
-                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            var moved = false
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val ch = event.changes.firstOrNull { it.id == down.id } ?: break
-                                if (!ch.pressed) break
-                                if ((ch.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
-                                if (moved) {
-                                    ch.consume()   // sliding round the ring doesn't scroll the page
-                                    val i = sliceAt(ch.position)
-                                    if (i != hover) { hover = i; haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
-                                }
-                            }
-                            val last = hover
-                            hover = null
-                            if (!moved && last != null) tapSlice(last)
-                        }
-                    }
-                    .semantics {
-                        contentDescription = (if (pick == null) "Spending by category: " else "${pick.category.name} by merchant: ") +
-                            slices.joinToString { "${it.name} ${(it.share * 100).toInt()}%" }
-                    }
-                    .testTag("category_donut"),
-            ) {
-                val stroke = 24.dp.toPx()
-                val popOut = 9.dp.toPx()
-                val inset = stroke / 2 + popOut + 2.dp.toPx()
-                val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
-                val tl = Offset(inset, inset)
-                val dim = active != null
-                drawArc(track, 0f, 360f, false, tl, arcSize, style = Stroke(stroke))
-                fun slice(color: Color, start: Float, sweep: Float, pop: Float, width: Float = stroke) {
-                    // A popped slice moves outward along its middle and grows a little thicker
-                    val mid = Math.toRadians((start + sweep / 2).toDouble())
-                    val shift = Offset((kotlin.math.cos(mid) * popOut * pop).toFloat(), (kotlin.math.sin(mid) * popOut * pop).toFloat())
-                    drawArc(color, start, sweep, false, tl + shift, arcSize, style = Stroke(width * (1f + 0.3f * pop)))
-                }
-                if (pick == null) {
-                    // The ring sweeps round clockwise, slice after slice, like a fitness ring closing
-                    val shown = 360f * ring
-                    var start = -90f
-                    slices.forEachIndexed { i, s ->
-                        val sweep = s.share * 360f
-                        val visible = (shown - (start + 90f)).coerceIn(0f, sweep)
-                        val gap = if (slices.size > 1) 1.2f else 0f
-                        if (visible > gap) slice(s.color.copy(alpha = if (dim && active != i) 0.35f else 1f), start + gap / 2, (visible - gap).coerceAtLeast(0.5f), pops.getOrElse(i) { 0f })
-                        start += sweep
-                    }
-                } else {
-                    // 1: the opened slice swings round and fills the ring while the others fade
-                    val e = SettleEasing.transform((open / 0.45f).coerceIn(0f, 1f))
-                    if (e < 1f) {
-                        var start = -90f
-                        r.categories.forEach { s ->
-                            val sweep = s.share * 360f
-                            if (s.category.id != pick.category.id) drawArc(Color(s.category.color).copy(alpha = 0.9f * (1f - e)), start + 0.6f, (sweep - 1.2f).coerceAtLeast(0.5f), false, tl, arcSize, style = Stroke(stroke))
-                            start += sweep
-                        }
-                    }
-                    val pickSweep = pick.share * 360f
-                    if (open < 1f) drawArc(pickColor.copy(alpha = if (open < 0.45f) 1f else 1f - (open - 0.45f) / 0.55f), pickStart + (-90f - pickStart) * e, pickSweep + (360f - pickSweep) * e, false, tl, arcSize, style = Stroke(stroke))
-                    // 2: then its merchants sweep in, each a lighter shade of the category's colour
-                    if (open > 0.45f) {
-                        val shown = 360f * SettleEasing.transform(((open - 0.45f) / 0.55f).coerceIn(0f, 1f))
-                        var at = -90f
-                        slices.forEachIndexed { i, s ->
-                            val sweep = s.share * 360f
-                            val visible = (shown - (at + 90f)).coerceIn(0f, sweep)
-                            if (visible > 1.2f) slice(s.color.copy(alpha = if (dim && active != i) 0.4f else 1f), at + 0.6f, visible - 1.2f, pops.getOrElse(i) { 0f })
-                            at += sweep
-                        }
-                    }
-                }
-            }
-            // The centre answers the finger: the slice being touched, else the level's total
-            val focus = active?.let { slices.getOrNull(it) }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(118.dp).testTag("ring_centre")) {
-                Text(
-                    focus?.name ?: pick?.category?.name ?: "Total", style = MaterialTheme.typography.labelMedium,
-                    textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                )
-                Text(Money.formatInr(animatedPaise(focus?.paise ?: pick?.paise ?: r.categories.sumOf { it.paise }, 450)), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    when {
-                        focus != null -> "${(focus.share * 100).toInt()}%" + if (pick != null) " of ${pick.category.name}" else " of spending"
-                        pick != null -> "${(pick.share * 100).toInt()}% of spending"
-                        else -> "${slices.size} categories"
-                    },
-                    style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.Center,
-                )
-            }
-        }
-        Gap(8.dp)
-        when (level) {
-            0 -> r.categories.forEachIndexed { i, s ->
-                if (i > 0) Divider()
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                        .clickable { vm.tapReportCategory(s.category.id) }
-                        .padding(vertical = 10.dp, horizontal = 6.dp)
-                        .testTag("cat_${s.category.id}"),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Box(Modifier.size(12.dp).clip(CircleShape).background(Color(s.category.color)))
-                    Column(Modifier.weight(1f)) {
-                        Text(s.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        val change = changeText(s.paise, s.previous)
-                        Text(
-                            "${(s.share * 100).toInt()}%" + (change?.let { " · $it" } ?: ""),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (s.previous > 0 && s.paise > s.previous * 11 / 10) sc.overFg else muted,
-                        )
-                    }
-                    Text(Money.formatInr(s.paise), style = MaterialTheme.typography.titleSmall)
-                    Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
-                }
-            }
-            1 -> slices.forEachIndexed { i, s ->
-                if (i > 0) Divider()
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                        .then(if (s.key.isNotEmpty()) Modifier.clickable { vm.tapReportMerchant(s.key) } else Modifier)
-                        .padding(vertical = 10.dp, horizontal = 6.dp)
-                        .testTag("ring_merchant_${s.key.ifEmpty { "others" }}"),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Box(Modifier.size(12.dp).clip(CircleShape).background(s.color))
-                    Text(s.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text("${(s.share * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = muted)
-                    Text(Money.formatInr(s.paise), style = MaterialTheme.typography.titleSmall)
-                    if (s.key.isNotEmpty()) Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
-                }
-            }
-            else -> {
-                // The merchant's payments, newest first; tap one for its details
-                val shown = r.matches.take(20)
-                Column(Modifier.fillMaxWidth().testTag("ring_payments")) {
-                    Text(
-                        "${r.matchCount} ${if (r.matchCount == 1) "payment" else "payments"}" + (if (r.matchCount > shown.size) " · newest ${shown.size} here, all of them below" else ""),
-                        style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.padding(start = 6.dp, bottom = 4.dp),
-                    )
-                    shown.forEachIndexed { i, t ->
-                        if (i > 0) Divider()
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                                .clickable { vm.openSheet(com.owl.tracker.ui.Sheet.TxnDetail(t.id)) }
-                                .padding(vertical = 10.dp, horizontal = 6.dp)
-                                .testTag("ring_payment_${t.id}"),
-                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            MerchantAvatar(vm.appIcons, t.merchantPackage, t.merchantName, catMap[t.categoryId], 32.dp)
-                            Column(Modifier.weight(1f)) {
-                                Text(dayLabel(vm, vm.dateOf(t.occurredAt)), style = MaterialTheme.typography.titleSmall)
-                                Text(t.accountLabel ?: t.note ?: "", style = MaterialTheme.typography.bodySmall, color = muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            Text((if (t.isMoneyIn) "+" else "−") + Money.formatInr(t.amountPaise), style = MaterialTheme.typography.titleSmall)
-                        }
-                    }
-                }
-            }
-        }
-    }
+    DrillRingCard(
+        categories = r.categories.map { s ->
+            val change = changeText(s.paise, s.previous)
+            RingCategory(
+                s.category.id, s.category.name, Color(s.category.color), s.paise,
+                note = "${(s.share * 100).toInt()}%" + (change?.let { " · $it" } ?: ""),
+                warn = s.previous > 0 && s.paise > s.previous * 11 / 10,
+            )
+        },
+        pickedCategory = r.filter.categoryId,
+        pickedMerchant = r.filter.merchantKey,
+        merchants = r.merchants.filter { it.categoryId == r.filter.categoryId }.sortedByDescending { it.paise }.map { RingMerchant(it.key, it.name, it.paise) },
+        payments = r.matches,
+        paymentCount = r.matchCount,
+        sweepKey = r.range,
+        appIcons = vm.appIcons,
+        catMap = catMap,
+        dayText = { t -> dayLabel(vm, vm.dateOf(t.occurredAt)) },
+        onCategory = { vm.tapReportCategory(it) },
+        onMerchant = { vm.tapReportMerchant(it) },
+        onPayment = { vm.openSheet(com.owl.tracker.ui.Sheet.TxnDetail(it.id)) },
+        moreBelow = true,
+    )
 }
 
 private fun changeText(now: Long, before: Long): String? = when {

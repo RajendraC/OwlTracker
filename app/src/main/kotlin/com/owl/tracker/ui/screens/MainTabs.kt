@@ -30,6 +30,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,7 +56,6 @@ import com.owl.tracker.ui.ActivityFilter
 import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.Screen
 import com.owl.tracker.ui.Sheet
-import com.owl.tracker.ui.components.BudgetRing
 import com.owl.tracker.ui.components.CategoryTile
 import com.owl.tracker.ui.components.Divider
 import com.owl.tracker.ui.components.Donut
@@ -73,6 +78,7 @@ import com.owl.tracker.core.Money
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 // ======================= HOME =======================
 
@@ -122,11 +128,35 @@ fun HomeScreen(vm: AppViewModel) {
     val access by vm.access.collectAsStateWithLifecycle()
     val store by vm.store.collectAsStateWithLifecycle()
     val plan by vm.savingPlan.collectAsStateWithLifecycle()
+    val txns by vm.periodTxns.collectAsStateWithLifecycle()
     val dash = d ?: return
     val catMap = cats.associateBy { it.id }
     val sc = LocalStatusColors.current
 
-    LazyColumn(Modifier.fillMaxSize().testTag("home"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    // Drilling down on Home: a category, then one of its merchants (back up with the arrow or the phone's Back)
+    var openCat by androidx.compose.runtime.saveable.rememberSaveable(dash.period.start.toString()) { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    var openMerchant by androidx.compose.runtime.saveable.rememberSaveable(dash.period.start.toString()) { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    androidx.activity.compose.BackHandler(enabled = openCat != null) { if (openMerchant != null) openMerchant = null else openCat = null }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    // Where the ring card sits in the list, to scroll to it from the budget circle
+    val ringIndex = 1 + (if (access is Access.Trial || access == Access.TrialEnded) 1 else 0) +
+        (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) + 1 + dash.over.size
+    fun openFromBudget(category: String?) {
+        if (category != null) { openCat = category; openMerchant = null }
+        scope.launch { listState.animateScrollToItem(ringIndex) }
+    }
+    val spending = txns.filter { vm.counts(it, catMap) }
+    val ringMerchants = openCat?.let { id ->
+        spending.filter { it.categoryId == id }.groupBy { it.merchantKey }
+            .map { (k, l) -> com.owl.tracker.ui.components.RingMerchant(k, l.maxBy { it.occurredAt }.merchantName, l.sumOf { it.amountPaise }) }
+            .sortedByDescending { it.paise }
+    }.orEmpty()
+    val ringPayments = if (openCat == null || openMerchant == null) emptyList() else
+        txns.filter { it.categoryId == openCat && it.merchantKey == openMerchant }.sortedByDescending { it.occurredAt }
+    val budgetOf = dash.categoryRows.associateBy { it.category.id }
+
+    LazyColumn(Modifier.fillMaxSize().testTag("home"), state = listState, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -176,7 +206,7 @@ fun HomeScreen(vm: AppViewModel) {
             }
         }
 
-        item { BudgetHero(vm, dash.spent, dash.overall, dash.status, dash.period.days - dash.dayNumber, dash.isCurrent) }
+        item { BudgetHero(vm, dash.spent, dash.overall, dash.status, dash.period.days - dash.dayNumber, dash.isCurrent, dash.byCategory, dash.period.start, ::openFromBudget) }
 
         items(dash.over, key = { "over_" + it.budgetKey }) { o ->
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(sc.overBg).padding(16.dp).testTag("over_banner")) {
@@ -195,6 +225,45 @@ fun HomeScreen(vm: AppViewModel) {
             }
         }
 
+        // "Where it went", right under the budget: touch the ring, open a category, then a merchant's payments
+        item(key = "where") {
+            if (dash.byCategory.isEmpty()) {
+                Panel {
+                    Text("Where it went", style = MaterialTheme.typography.titleMedium)
+                    Text("Nothing spent yet this month.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                com.owl.tracker.ui.components.DrillRingCard(
+                    categories = dash.byCategory.map { cs ->
+                        val row = budgetOf[cs.category.id]
+                        val pct = (cs.paise * 100 / dash.spent.coerceAtLeast(1)).toInt()
+                        com.owl.tracker.ui.components.RingCategory(
+                            cs.category.id, cs.category.name, Color(cs.category.color), cs.paise,
+                            note = "$pct%" + when {
+                                row == null -> ""
+                                row.spent > row.limit -> " · ${Money.formatInr(row.spent - row.limit)} over its budget"
+                                else -> " · ${Money.formatInr(row.limit - row.spent)} left of ${Money.formatInr(row.limit)}"
+                            },
+                            warn = row != null && row.spent > row.limit,
+                        )
+                    },
+                    pickedCategory = openCat,
+                    pickedMerchant = openMerchant,
+                    merchants = ringMerchants,
+                    payments = ringPayments,
+                    paymentCount = ringPayments.size,
+                    sweepKey = dash.period.start,
+                    appIcons = vm.appIcons,
+                    catMap = catMap,
+                    dayText = { t -> dayLabel(vm, vm.dateOf(t.occurredAt)) },
+                    onCategory = { id -> openCat = if (openCat == id) null else id; openMerchant = null },
+                    onMerchant = { k -> openMerchant = if (openMerchant == k) null else k },
+                    onPayment = { t -> vm.openSheet(Sheet.TxnDetail(t.id)) },
+                    headerAction = { TextButton(onClick = { vm.showActivity() }) { Text("See all") } },
+                )
+            }
+        }
+
         if (dash.reviewCount > 0) item {
             Panel(padding = 4.dp) {
                 NavRow(
@@ -205,44 +274,6 @@ fun HomeScreen(vm: AppViewModel) {
         }
 
         plan?.takeIf { dash.isCurrent && it.tips.isNotEmpty() && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { SavingNudge(vm, p) } }
-
-        item {
-            Panel {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Where it went", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { vm.showActivity() }) { Text("See all") }
-                }
-                if (dash.byCategory.isEmpty()) {
-                    Text("Nothing spent yet this month.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    val top = dash.byCategory.take(5)
-                    val rest = dash.byCategory.drop(5).sumOf { it.paise }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Donut(
-                            top.map { DonutSlice(it.paise.toFloat(), Color(it.category.color)) } + if (rest > 0) listOf(DonutSlice(rest.toFloat(), Color(0xFFB9C2BC))) else emptyList(),
-                            Money.formatShort(dash.spent),
-                        )
-                        Column(Modifier.weight(1f)) {
-                            top.forEach { cs ->
-                                Row(
-                                    Modifier.fillMaxWidth().heightIn(min = 36.dp).clickable { vm.showActivity(cs.category.id) },
-                                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Dot(Color(cs.category.color))
-                                    Text(cs.category.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                                    Text(Money.formatInr(cs.paise), style = MaterialTheme.typography.labelLarge)
-                                }
-                            }
-                            if (rest > 0) Row(Modifier.heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Dot(Color(0xFFB9C2BC))
-                                Text("${dash.byCategory.size - 5} more", modifier = Modifier.weight(1f))
-                                Text(Money.formatInr(rest), style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         item {
             Panel(padding = 12.dp) {
@@ -267,7 +298,10 @@ fun HomeScreen(vm: AppViewModel) {
 }
 
 @Composable
-private fun BudgetHero(vm: AppViewModel, spent: Long, overall: Long, status: com.owl.tracker.core.BudgetStatus?, daysLeft: Int, isCurrent: Boolean) {
+private fun BudgetHero(
+    vm: AppViewModel, spent: Long, overall: Long, status: com.owl.tracker.core.BudgetStatus?, daysLeft: Int, isCurrent: Boolean,
+    byCategory: List<com.owl.tracker.ui.CategorySpend>, period: LocalDate, onOpen: (String?) -> Unit,
+) {
     val sc = LocalStatusColors.current
     Panel(modifier = Modifier.testTag("budget_hero")) {
         if (status == null) {
@@ -278,7 +312,7 @@ private fun BudgetHero(vm: AppViewModel, spent: Long, overall: Long, status: com
             return@Panel
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            BudgetRing(status.fraction, status.state, "${(status.fraction * 100).toInt()}%", "of budget")
+            BudgetDrillRing(status.fraction, spent, overall, byCategory, period, onOpen)
             Column(Modifier.weight(1f)) {
                 StatusPill(status.state)
                 Gap(6.dp)
@@ -305,6 +339,118 @@ private fun BudgetHero(vm: AppViewModel, spent: Long, overall: Long, status: com
         ) {
             Icon(if (status.state == BudgetState.ON_TRACK) Ic.check else Ic.alert, contentDescription = null, tint = sc.fg(status.state), modifier = Modifier.size(20.dp))
             Text(line, color = sc.fg(status.state), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), modifier = Modifier.testTag("budget_line"))
+        }
+    }
+}
+
+/**
+ * The budget circle, split into the categories the money went to (in their colours). Slide a finger
+ * round it to see each one in the middle; tap one to open it in "Where it went" just below, or tap
+ * the middle for the whole breakdown. Over budget, a red inner ring shows by how much.
+ */
+@Composable
+private fun BudgetDrillRing(fraction: Double, spent: Long, budget: Long, byCategory: List<com.owl.tracker.ui.CategorySpend>, period: LocalDate, onOpen: (String?) -> Unit) {
+    val sc = LocalStatusColors.current
+    val track = sc.track
+    val over = sc.overFg
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val parts = byCategory.filter { it.paise > 0 }
+    val sum = parts.sumOf { it.paise }.coerceAtLeast(1)
+    val filled = fraction.coerceIn(0.0, 1.0).toFloat() * 360f
+    // Each category's arc, in order round the circle: start and sweep in degrees from the top
+    val arcs = remember(parts, filled) {
+        var at = 0f
+        parts.map { p -> val sw = filled * p.paise / sum; (at to sw).also { at += sw } }
+    }
+    var hover by androidx.compose.runtime.remember(period) { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    val grow = com.owl.tracker.ui.components.growIn(period, 1100)
+    val pops = androidx.compose.runtime.key(parts.size, period) {
+        parts.indices.map { i ->
+            androidx.compose.animation.core.animateFloatAsState(
+                if (hover == i) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.55f, stiffness = 520f), label = "seg",
+            ).value
+        }
+    }
+    val focus = hover?.let { parts.getOrNull(it) }
+    Box(
+        Modifier.size(140.dp)
+            .pointerInput(arcs) {
+                val c = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                val outer = size.width / 2f
+                fun partAt(p: androidx.compose.ui.geometry.Offset): Int? {
+                    val angle = ((Math.toDegrees(kotlin.math.atan2((p.y - c.y).toDouble(), (p.x - c.x).toDouble())) + 90 + 360) % 360).toFloat()
+                    return arcs.indexOfFirst { (start, sw) -> angle >= start && angle < start + sw }.takeIf { it >= 0 }
+                }
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val d = kotlin.math.hypot(down.position.x - c.x, down.position.y - c.y)
+                    if (d > outer) return@awaitEachGesture
+                    val inRing = d > outer * 0.62f
+                    hover = if (inRing) partAt(down.position) else null
+                    if (hover != null) haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                    var moved = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val ch = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!ch.pressed) break
+                        if ((ch.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
+                        if (moved) {
+                            ch.consume()
+                            val i = partAt(ch.position)
+                            if (i != hover) { hover = i; if (i != null) haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove) }
+                        }
+                    }
+                    val last = hover
+                    hover = null
+                    if (!moved) onOpen(if (inRing) last?.let { parts[it].category.id } else null)
+                }
+            }
+            .semantics {
+                contentDescription = "${(fraction * 100).toInt()}% of budget. " + parts.joinToString { "${it.category.name} ${Money.formatInr(it.paise)}" } +
+                    ". Tap a part to see where it went."
+            }
+            .testTag("budget_ring"),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val stroke = size.minDimension * 0.095f
+            val pop = 5.dp.toPx()
+            val inset = stroke / 2 + pop
+            val arcSize = androidx.compose.ui.geometry.Size(size.width - inset * 2, size.height - inset * 2)
+            val tl = androidx.compose.ui.geometry.Offset(inset, inset)
+            drawArc(track, 0f, 360f, false, tl, arcSize, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+            // The spent part sweeps round, category after category
+            val shown = filled * grow
+            arcs.forEachIndexed { i, (start, sw) ->
+                val visible = (shown - start).coerceIn(0f, sw)
+                if (visible <= 0.4f) return@forEachIndexed
+                val p = pops.getOrElse(i) { 0f }
+                val mid = Math.toRadians((start - 90f + visible / 2).toDouble())
+                val shift = androidx.compose.ui.geometry.Offset((kotlin.math.cos(mid) * pop * p).toFloat(), (kotlin.math.sin(mid) * pop * p).toFloat())
+                val gap = if (arcs.size > 1) 1.5f else 0f
+                drawArc(
+                    Color(parts[i].category.color).copy(alpha = if (hover != null && hover != i) 0.35f else 1f),
+                    start - 90f + gap / 2, (visible - gap).coerceAtLeast(0.4f), false, tl + shift, arcSize,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(stroke * (1f + 0.35f * p)),
+                )
+            }
+            if (fraction > 1.0) {
+                val s2 = stroke * 0.55f
+                val inner = inset + stroke / 2 + s2
+                val innerSize = androidx.compose.ui.geometry.Size(size.width - inner * 2, size.height - inner * 2)
+                val innerSweep = ((fraction - 1.0).coerceIn(0.0, 1.0) * 360 * grow).toFloat()
+                drawArc(over, -90f, innerSweep, false, androidx.compose.ui.geometry.Offset(inner, inner), innerSize, style = androidx.compose.ui.graphics.drawscope.Stroke(s2, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.size(84.dp), verticalArrangement = Arrangement.Center) {
+            if (focus == null) {
+                Text("${(fraction * 100).toInt()}%", style = MaterialTheme.typography.headlineSmall)
+                Text("of budget", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Text(focus.category.name, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(Money.formatShort(focus.paise), style = MaterialTheme.typography.titleMedium)
+                Text("${(focus.paise * 100 / budget.coerceAtLeast(1))}% of budget", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
         }
     }
 }

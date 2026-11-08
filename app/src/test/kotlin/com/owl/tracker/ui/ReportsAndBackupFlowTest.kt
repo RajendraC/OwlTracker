@@ -91,6 +91,30 @@ class ReportsAndBackupFlowTest {
         }
     }
 
+    /** Home: tapping the budget circle opens that category right below; the ring opens a merchant's payments; Back goes up. */
+    @Test
+    fun theBudgetCircleOnHomeDrillsDownRightThere() {
+        setUpWithSms()
+        with(compose) {
+            waitForTag("budget_ring")
+            // The top of the circle is the biggest category's part
+            onNodeWithTag("budget_ring").performTouchInput { click(Offset(centerX + 4f, 11.dp.toPx())) }
+            waitForTag("ring_up")
+            waitForTag("category_donut")
+            onNodeWithTag("category_donut").performTouchInput { click(Offset(centerX + 6f, 23.dp.toPx())) }
+            waitForTag("ring_payments")
+
+            fun back() = activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+            back()
+            waitUntil(5_000) { onAllNodesWithTag("ring_payments").fetchSemanticsNodes().isEmpty() }
+            waitForTag("ring_up")
+            back()
+            waitUntil(5_000) { onAllNodesWithTag("ring_up").fetchSemanticsNodes().isEmpty() }
+            waitForTag("budget_hero")
+            onAllNodesWithTag("ring_up").assertCountEquals(0)
+        }
+    }
+
     /** Touching the ring opens a category, then a merchant's payments; Back goes up one level at a time, then leaves. */
     @Test
     fun theRingOpensByTouchAndBackGoesUpOneLevelAtATime() {
