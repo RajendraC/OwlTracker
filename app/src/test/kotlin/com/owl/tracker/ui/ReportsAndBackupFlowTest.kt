@@ -47,19 +47,19 @@ class ReportsAndBackupFlowTest {
             tapTag("tab_more")
             tapText("Reports")
             waitForTag("report_summary")
-            // Profit & loss: the ₹1,20,000 salary and ₹799 refund came in, and spending never nets the refund off
-            waitForTag("profit_loss")
-            waitForText("You kept")
+            // Income & expenses: the ₹1,20,000 salary and ₹799 refund are income, and expenses never net the refund off
+            waitForTag("income_expenses")
+            waitForText("of your income")
             waitForText("refunds and money back")
             tapTag("range_3")
             waitForText("Month by month")
             waitForText("Each month")
             waitForText("Biggest payments")
 
-            // A category: a chip appears and the payments list narrows to it; Profit & loss is about everything, so it goes
+            // A category: a chip appears and the payments list narrows to it; Income & expenses is about everything, so it goes
             tapTag("cat_food")
             waitForTag("filter_category")
-            onAllNodesWithTag("profit_loss").assertCountEquals(0)
+            onAllNodesWithTag("income_expenses").assertCountEquals(0)
             waitForText("matching payment")
             // Tapping the chip lets go again
             tapTag("filter_category")
@@ -90,9 +90,9 @@ class ReportsAndBackupFlowTest {
             tapText("+₹799")
             waitForTag("count_money_in")
             waitForText("Never counts as spending")
-            // Left out of Profit & loss, then deleted
+            // Left out of Income & expenses, then deleted
             tapTag("count_money_in")
-            waitForText("Left out of Profit & loss")
+            waitForText("Left out of Income & expenses")
             tapTag("delete_txn")
             waitForText("Transaction deleted")
         }

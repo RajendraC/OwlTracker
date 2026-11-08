@@ -210,14 +210,14 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         tx.sender?.let { Divider(); DetailRow("From", it) }
         Divider()
         if (credit) {
-            // Money in is shown, never spent: it can count as income on Profit & loss, or be left out.
+            // Money in is shown, never spent: it can count as income on Income & expenses, or be left out.
             val counts = cat == null || cat.kind == com.owl.tracker.data.CategoryKind.INCOME || cat.kind == com.owl.tracker.data.CategoryKind.EXPENSE
             SwitchRow(
-                "Count as money in",
+                "Count as income",
                 when {
                     !counts -> "Transfers and savings coming back aren't income"
-                    tx.excluded -> "Left out of Profit & loss. Never counts as spending."
-                    else -> "Counts as money in on Profit & loss. Never counts as spending."
+                    tx.excluded -> "Left out of Income & expenses. Never counts as spending."
+                    else -> "Counts as income in Reports. Never counts as spending."
                 },
                 tx.isIncome(cat),
                 { on -> if (counts) vm.setExcluded(tx.id, !on) },

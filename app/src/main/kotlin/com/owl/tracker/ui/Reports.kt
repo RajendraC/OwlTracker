@@ -51,26 +51,26 @@ data class CategorySlice(val category: Category, val paise: Long, val share: Flo
 data class MerchantRow(val key: String, val name: String, val pkg: String?, val categoryId: String, val paise: Long, val count: Int)
 data class WeekdayBar(val day: DayOfWeek, val paise: Long, val count: Int)
 
-/** One line of Profit & loss: a category's money in, or its spending. */
-data class PlLine(val category: Category?, val paise: Long, val count: Int)
+/** One line of Income & expenses: a category's income, or its expenses. */
+data class IeLine(val category: Category?, val paise: Long, val count: Int)
 
-/** One budget month of Profit & loss. */
-data class PlMonth(val label: String, val title: String, val moneyIn: Long, val spent: Long) {
+/** One budget month of Income & expenses. */
+data class IeMonth(val label: String, val title: String, val moneyIn: Long, val spent: Long) {
     val net: Long get() = moneyIn - spent
 }
 
 /**
- * Profit & loss for the range (or the day or month picked on the trend): what came in, what was spent
- * and what's left. Money in is income, refunds and money back; spending is money out in expense
+ * Income & expenses for the range (or the day or month picked on the trend): what came in, what was spent
+ * and what's left. Income is salary and other money in, refunds and money back; expenses are money out in expense
  * categories. Savings, investments and transfers between your own accounts are neither, so they're
  * shown apart, as are payments the user left out.
  */
-data class ProfitLoss(
+data class IncomeExpenses(
     val title: String,
     /** Income categories first, then refunds and money back by category; biggest first within each. */
-    val income: List<PlLine>,
+    val income: List<IeLine>,
     val moneyIn: Long,
-    val spending: List<PlLine>,
+    val spending: List<IeLine>,
     val spent: Long,
     /** Share of money in that was kept; null with no money in. Negative when more went out. */
     val keptPct: Int?,
@@ -80,7 +80,7 @@ data class ProfitLoss(
     val transfersIn: Long,
     val leftOut: Int,
     /** One row per budget month, oldest first, for ranges longer than a month. */
-    val months: List<PlMonth>,
+    val months: List<IeMonth>,
 ) {
     val net: Long get() = moneyIn - spent
 }
@@ -111,8 +111,8 @@ data class Report(
     /** The payments matching the filters, newest first (or the biggest payments when nothing is picked). */
     val matches: List<Txn>,
     val matchCount: Int,
-    /** Null while a category, merchant or weekday is picked: Profit & loss is about everything. */
-    val profitLoss: ProfitLoss?,
+    /** Null while a category, merchant or weekday is picked: Income & expenses is about everything. */
+    val incomeExpenses: IncomeExpenses?,
 )
 
 /** Builds the Reports screen from the transactions of the range and the period before it. Pure, so it's tested on the JVM. */
@@ -271,31 +271,31 @@ object ReportBuilder {
             highlights = highlights,
             matches = matches,
             matchCount = if (f.isEmpty) matches.size else matching.size,
-            profitLoss = if (f.categoryId != null || f.merchantKey != null || f.weekday != null) null else profitLoss(
+            incomeExpenses = if (f.categoryId != null || f.merchantKey != null || f.weekday != null) null else incomeExpenses(
                 title = bucket?.let { buckets[it].title } ?: if (daily) periodTitle(periods.first()) else
                     "${periods.first().start.format(MONTH_YEAR)} – ${periods.last().start.format(MONTH_YEAR)}",
                 txns = inRange.filter { inBucket(it, bucket) },
                 catMap = catMap,
                 months = if (daily || bucket != null) emptyList() else buckets.map { b ->
                     val inB = inRange.filter { val d = dateOf(it); !d.isBefore(b.start) && d.isBefore(b.end) }
-                    PlMonth(b.label, b.title, receivedOf(inB), spendOf(inB))
+                    IeMonth(b.label, b.title, receivedOf(inB), spendOf(inB))
                 },
             ),
         )
     }
 
-    /** See [ProfitLoss]. */
-    fun profitLoss(title: String, txns: List<Txn>, catMap: Map<String, Category>, months: List<PlMonth>): ProfitLoss {
-        fun lines(list: List<Txn>) = list.groupBy { it.categoryId }.map { (id, l) -> PlLine(catMap[id], l.sumOf { it.amountPaise }, l.size) }
+    /** See [IncomeExpenses]. */
+    fun incomeExpenses(title: String, txns: List<Txn>, catMap: Map<String, Category>, months: List<IeMonth>): IncomeExpenses {
+        fun lines(list: List<Txn>) = list.groupBy { it.categoryId }.map { (id, l) -> IeLine(catMap[id], l.sumOf { it.amountPaise }, l.size) }
         val incoming = txns.filter { it.isIncome(catMap[it.categoryId]) }
         val spending = txns.filter { it.isSpending(catMap[it.categoryId]) }
         val moneyIn = incoming.sumOf { it.amountPaise }
         val spent = spending.sumOf { it.amountPaise }
         fun kindSum(kind: CategoryKind, dir: Direction) =
             txns.filter { !it.excluded && it.direction == dir && catMap[it.categoryId]?.kind == kind }.sumOf { it.amountPaise }
-        return ProfitLoss(
+        return IncomeExpenses(
             title = title,
-            income = lines(incoming).sortedWith(compareBy<PlLine> { if (it.category?.kind == CategoryKind.INCOME) 0 else 1 }.thenByDescending { it.paise }),
+            income = lines(incoming).sortedWith(compareBy<IeLine> { if (it.category?.kind == CategoryKind.INCOME) 0 else 1 }.thenByDescending { it.paise }),
             moneyIn = moneyIn,
             spending = lines(spending).sortedByDescending { it.paise },
             spent = spent,

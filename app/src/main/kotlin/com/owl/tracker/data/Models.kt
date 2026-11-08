@@ -51,11 +51,11 @@ data class Txn(
 
     /**
      * Counts toward spending and budgets: money out, in an expense category, not left out by the user.
-     * Money in never does, not even a refund: it shows with a + and counts as money in on Profit & loss.
+     * Money in never does, not even a refund: it shows with a + and counts as income on Income & expenses.
      */
     fun isSpending(category: Category?): Boolean = direction == Direction.DEBIT && !excluded && (category?.countsAsSpend ?: true)
 
-    /** Counts as money in on Profit & loss: income, refunds and money back. Transfers and savings coming back don't. */
+    /** Counts as income on Income & expenses: salary and other money in, refunds and money back. Transfers and savings coming back don't. */
     fun isIncome(category: Category?): Boolean =
         direction == Direction.CREDIT && !excluded && (category == null || category.kind == CategoryKind.INCOME || category.kind == CategoryKind.EXPENSE)
 }
@@ -103,6 +103,8 @@ data class AppSettings(
     val lastSmsTimestamp: Long = 0,
     /** True after "Explore with sample data": the transactions are built-in examples, not the user's. */
     val sampleData: Boolean = false,
+    /** Saving tips are hidden from Home until this time (the end of the budget month they were hidden in). */
+    val tipsHiddenUntil: Long = 0,
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -114,6 +116,7 @@ data class AppSettings(
         "last_sync_at" to lastSyncAt.toString(),
         "last_sms_ts" to lastSmsTimestamp.toString(),
         "sample_data" to sampleData.toString(),
+        "tips_hidden_until" to tipsHiddenUntil.toString(),
     )
 
     companion object {
@@ -127,6 +130,7 @@ data class AppSettings(
             lastSyncAt = m["last_sync_at"]?.toLongOrNull() ?: 0,
             lastSmsTimestamp = m["last_sms_ts"]?.toLongOrNull() ?: 0,
             sampleData = m["sample_data"]?.toBoolean() ?: false,
+            tipsHiddenUntil = m["tips_hidden_until"]?.toLongOrNull() ?: 0,
         )
 
         fun filtersToJson(f: ImportFilters): String = JSONObject()

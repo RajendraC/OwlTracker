@@ -52,8 +52,9 @@ import com.owl.tracker.core.Money
 import com.owl.tracker.data.Category
 import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.FilterKind
-import com.owl.tracker.ui.PlLine
-import com.owl.tracker.ui.ProfitLoss
+import com.owl.tracker.ui.IeLine
+import com.owl.tracker.ui.IncomeExpenses
+import com.owl.tracker.ui.SavingPlan
 import com.owl.tracker.ui.components.CategoryTile
 import com.owl.tracker.ui.Report
 import com.owl.tracker.ui.ReportBuilder
@@ -80,6 +81,7 @@ fun ReportsScreen(vm: AppViewModel) {
     val range by vm.reportRange.collectAsStateWithLifecycle()
     val cats by vm.categories.collectAsStateWithLifecycle()
     val catMap = remember(cats) { cats.associateBy { it.id } }
+    val plan by vm.savingPlan.collectAsStateWithLifecycle()
 
     LazyColumn(
         Modifier.fillMaxSize().testTag("reports"),
@@ -95,7 +97,8 @@ fun ReportsScreen(vm: AppViewModel) {
         }
         if (r.chips.isNotEmpty()) item { ActiveFilters(r, vm) }
         item { SummaryCard(r) }
-        r.profitLoss?.let { pl -> item { ProfitLossCard(pl) } }
+        r.incomeExpenses?.let { pl -> item { IncomeExpensesCard(pl) } }
+        plan?.takeIf { r.filter.isEmpty && !it.isEmpty }?.let { p -> item { WaysToSaveCard(p, catMap, vm) } }
         item { TrendCard(r, vm) }
         if (r.categories.isNotEmpty()) item { CategoryCard(r, vm) }
         if (r.merchants.isNotEmpty()) item { MerchantCard(r, catMap, vm) }
@@ -156,7 +159,7 @@ private fun SummaryCard(r: Report) {
         }
         Gap(12.dp)
         Row(Modifier.fillMaxWidth()) {
-            Stat("Money in", Money.formatInr(r.received), Modifier.weight(1f))
+            Stat("Income", Money.formatInr(r.received), Modifier.weight(1f))
             val net = r.received - r.spent
             Stat("Net", (if (net >= 0) "+" else "−") + Money.formatInr(kotlin.math.abs(net)), Modifier.weight(1f), if (net >= 0) MaterialTheme.colorScheme.primary else sc.overFg)
         }
@@ -169,21 +172,21 @@ private fun SummaryCard(r: Report) {
 }
 
 /**
- * Profit & loss: money in (income, refunds, money back) against spending, and what's left. Money in
+ * Income & expenses: income (salary, other money in, refunds, money back) against expenses, and what's left. Money in
  * never lowers spending; savings, investments and transfers between your own accounts are neither.
  */
 @Composable
-private fun ProfitLossCard(pl: ProfitLoss) {
+private fun IncomeExpensesCard(pl: IncomeExpenses) {
     val sc = LocalStatusColors.current
     val gain = MaterialTheme.colorScheme.primary
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    Panel(modifier = Modifier.testTag("profit_loss")) {
-        Text("Profit & loss", style = MaterialTheme.typography.titleMedium)
+    Panel(modifier = Modifier.testTag("income_expenses")) {
+        Text("Income & expenses", style = MaterialTheme.typography.titleMedium)
         Text(pl.title, style = MaterialTheme.typography.bodySmall, color = muted)
         Gap(12.dp)
         Row(Modifier.fillMaxWidth()) {
-            Stat("Money in", "+" + Money.formatInr(pl.moneyIn), Modifier.weight(1f).testTag("pl_in"), gain)
-            Stat("Spent", "−" + Money.formatInr(pl.spent), Modifier.weight(1f).testTag("pl_spent"))
+            Stat("Income", "+" + Money.formatInr(pl.moneyIn), Modifier.weight(1f).testTag("pl_in"), gain)
+            Stat("Expenses", "−" + Money.formatInr(pl.spent), Modifier.weight(1f).testTag("pl_spent"))
             Stat(
                 if (pl.net >= 0) "Saved" else "Overspent", Money.formatInr(kotlin.math.abs(pl.net)),
                 Modifier.weight(1f).testTag("pl_net"), if (pl.net >= 0) gain else sc.overFg,
@@ -192,10 +195,10 @@ private fun ProfitLossCard(pl: ProfitLoss) {
         Gap(8.dp)
         Text(
             when {
-                pl.moneyIn == 0L && pl.spent == 0L -> "Nothing came in or went out yet."
-                pl.keptPct == null -> "Nothing came in, so everything spent came from what you already had."
-                pl.net >= 0 -> "You kept ${pl.keptPct}% of what came in."
-                else -> "You spent ${Money.formatInr(-pl.net)} more than came in."
+                pl.moneyIn == 0L && pl.spent == 0L -> "No income or expenses yet."
+                pl.keptPct == null -> "No income yet, so everything spent came from what you already had."
+                pl.net >= 0 -> "You saved ${pl.keptPct}% of your income."
+                else -> "You spent ${Money.formatInr(-pl.net)} more than your income."
             },
             style = MaterialTheme.typography.bodyMedium,
             color = if (pl.net < 0) sc.overFg else MaterialTheme.colorScheme.onSurface,
@@ -212,13 +215,13 @@ private fun ProfitLossCard(pl: ProfitLoss) {
         }
 
         Gap(14.dp)
-        PlSection("Money in", "+" + Money.formatInr(pl.moneyIn), gain, "pl_income")
-        if (pl.income.isEmpty()) Text("Nothing came in.", style = MaterialTheme.typography.bodySmall, color = muted)
-        pl.income.forEach { PlRow(it, true) }
+        IeSection("Income", "+" + Money.formatInr(pl.moneyIn), gain, "pl_income")
+        if (pl.income.isEmpty()) Text("No income.", style = MaterialTheme.typography.bodySmall, color = muted)
+        pl.income.forEach { IeRow(it, true) }
         Gap(10.dp)
-        PlSection("Spending", "−" + Money.formatInr(pl.spent), MaterialTheme.colorScheme.onSurface, "pl_spending")
-        if (pl.spending.isEmpty()) Text("Nothing spent.", style = MaterialTheme.typography.bodySmall, color = muted)
-        pl.spending.forEach { PlRow(it, false) }
+        IeSection("Expenses", "−" + Money.formatInr(pl.spent), MaterialTheme.colorScheme.onSurface, "pl_spending")
+        if (pl.spending.isEmpty()) Text("No expenses.", style = MaterialTheme.typography.bodySmall, color = muted)
+        pl.spending.forEach { IeRow(it, false) }
         Divider()
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(if (pl.net >= 0) "Saved" else "Overspent", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
@@ -234,7 +237,7 @@ private fun ProfitLossCard(pl: ProfitLoss) {
             Gap(4.dp)
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                 Text("Month", style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.weight(0.8f))
-                listOf("In", "Spent", "Net").forEach {
+                listOf("Income", "Expenses", "Net").forEach {
                     Text(it, style = MaterialTheme.typography.labelMedium, color = muted, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
                 }
             }
@@ -273,15 +276,71 @@ private fun ProfitLossCard(pl: ProfitLoss) {
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp).testTag("pl_apart"),
             ) {
-                Text("Not in profit & loss", style = MaterialTheme.typography.labelLarge)
+                Text("Not counted as income or expenses", style = MaterialTheme.typography.labelLarge)
                 apart.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = muted) }
             }
         }
     }
 }
 
+/** Every way to save, with the total a month and a year, then the share of income saved. */
 @Composable
-private fun PlSection(title: String, total: String, color: Color, tag: String) {
+private fun WaysToSaveCard(plan: SavingPlan, catMap: Map<String, Category>, vm: AppViewModel) {
+    val gain = MaterialTheme.colorScheme.primary
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Panel(modifier = Modifier.testTag("ways_to_save")) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            com.owl.tracker.ui.components.IconTile(Ic.bulb, gain, MaterialTheme.colorScheme.primaryContainer)
+            Column(Modifier.weight(1f)) {
+                Text("Ways to save", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "From your last ${plan.basedOnMonths} ${if (plan.basedOnMonths == 1) "month" else "months"} and this one",
+                    style = MaterialTheme.typography.bodySmall, color = muted,
+                )
+            }
+        }
+        if (plan.tips.isNotEmpty()) {
+            Gap(12.dp)
+            Text("You could save about ${Money.formatInr(plan.monthlyPaise)} a month", style = MaterialTheme.typography.titleMedium, color = gain, modifier = Modifier.testTag("ways_total"))
+            Text("That's ${Money.formatInr(plan.monthlyPaise * 12)} a year.", style = MaterialTheme.typography.bodySmall, color = muted)
+            Gap(6.dp)
+            plan.tips.forEachIndexed { i, tip ->
+                if (i > 0) Divider()
+                val cat = tip.categoryId?.let { catMap[it] }
+                Row(
+                    Modifier.fillMaxWidth()
+                        .then(if (cat != null) Modifier.clickable { vm.tapReportCategory(cat.id) } else Modifier)
+                        .padding(vertical = 10.dp)
+                        .testTag("tip_${tip.id}"),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    if (cat != null) CategoryTile(cat, 28.dp) else com.owl.tracker.ui.components.IconTile(Ic.calendar, muted, MaterialTheme.colorScheme.surfaceVariant, 28.dp)
+                    Column(Modifier.weight(1f)) {
+                        Text(tip.title, style = MaterialTheme.typography.titleSmall)
+                        Text(tip.detail, style = MaterialTheme.typography.bodySmall, color = muted)
+                    }
+                    Text(
+                        Money.formatShort(tip.monthlyPaise) + "/mo",
+                        style = MaterialTheme.typography.labelLarge, color = gain,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.primaryContainer).padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+            }
+        }
+        plan.keep?.let { k ->
+            Gap(10.dp)
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp).testTag("tip_keep"),
+            ) {
+                Text(k.title, style = MaterialTheme.typography.titleSmall)
+                Text(k.detail, style = MaterialTheme.typography.bodySmall, color = muted)
+            }
+        }
+    }
+}
+
+@Composable
+private fun IeSection(title: String, total: String, color: Color, tag: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag(tag), verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
         Text(total, style = MaterialTheme.typography.titleSmall, color = color)
@@ -289,7 +348,7 @@ private fun PlSection(title: String, total: String, color: Color, tag: String) {
 }
 
 @Composable
-private fun PlRow(line: PlLine, moneyIn: Boolean) {
+private fun IeRow(line: IeLine, moneyIn: Boolean) {
     val c = line.category
     Row(
         Modifier.fillMaxWidth().padding(vertical = 6.dp).semantics(mergeDescendants = true) {},

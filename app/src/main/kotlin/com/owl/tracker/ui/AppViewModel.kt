@@ -293,6 +293,28 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
+    /** Ways to save, from the last 3 budget months and this one; for Home and Reports. */
+    val savingPlan: StateFlow<SavingPlan?> = settings.map { it?.budgetStartDay ?: 1 }
+        .distinctUntilChanged()
+        .flatMapLatest { startDay ->
+            val current = periodAt(startDay, 0)
+            val history = (SavingTips.HISTORY_MONTHS downTo 1).map { periodAt(startDay, -it) }
+            combine(repo.observeTransactions(startMs(history.first().start), startMs(current.endExclusive)), categories) { txns, cats ->
+                SavingTips.build(txns, cats, history, current, today(), zone) as SavingPlan?
+            }.flowOn(Dispatchers.Default)
+        }
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** True while the user has hidden saving tips from Home for this budget month. */
+    fun tipsHidden(s: AppSettings?): Boolean = (s?.tipsHiddenUntil ?: 0) > startMs(today())
+
+    fun hideSavingTips() = viewModelScope.launch {
+        val until = startMs(periodAt(settings.value?.budgetStartDay ?: 1, 0).endExclusive)
+        repo.updateSettings { it.copy(tipsHiddenUntil = until) }
+        say("Saving tips hidden until next month. They're always in Reports.")
+    }
+
     fun setReportRange(r: ReportRange) {
         reportRange.value = r
         reportFilter.update { it.copy(bucket = null) }

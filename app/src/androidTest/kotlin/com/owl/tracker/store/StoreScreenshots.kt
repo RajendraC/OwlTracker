@@ -122,6 +122,8 @@ class StoreScreenshots {
             shot("10_home")
             runCatching { scrollTo(hasText("Recent")) }
             shot("11_home_lower")
+            runCatching { scrollTo(hasTestTag("saving_nudge")) }
+            shot("12_saving_nudge")
 
             section("budgets") {
                 tapTag("tab_budgets")
@@ -154,12 +156,14 @@ class StoreScreenshots {
                 waitForTag("report_summary", 20_000)
                 runCatching { tapTag("range_6") }
                 shot("50_reports_top")
-                runCatching { scrollTo(hasTestTag("profit_loss")) }
-                shot("50a_profit_loss")
+                runCatching { scrollTo(hasTestTag("income_expenses")) }
+                shot("50a_income_expenses")
                 runCatching { scrollTo(hasTestTag("pl_spending")) }
-                shot("50b_profit_loss_spending")
+                shot("50b_income_expenses_list")
                 runCatching { scrollTo(hasText("Each month")) }
-                shot("50c_profit_loss_months")
+                shot("50c_income_expenses_months")
+                runCatching { scrollTo(hasTestTag("ways_to_save")) }
+                shot("50d_ways_to_save")
                 scrollTo(hasTestTag("report_categories"))
                 shot("51_reports_categories")
                 runCatching { tapTag("cat_${Cat.SHOPPING}") }

@@ -81,7 +81,7 @@ fun MoreScreen(vm: AppViewModel) {
         Panel(padding = 8.dp) {
             NavRow(Ic.tag, "Categories", "${cats.count { !it.archived }} categories · add, edit, archive") { vm.go(Screen.CATEGORIES) }
             Divider()
-            NavRow(Ic.chart, "Reports", "Profit & loss, trends, categories and merchants") { vm.go(Screen.INSIGHTS) }
+            NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more") { vm.go(Screen.INSIGHTS) }
             Divider()
             NavRow(Ic.share, "Backup & restore", "Save to a file or move to another phone") { vm.openBackup() }
             Divider()

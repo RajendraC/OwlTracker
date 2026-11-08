@@ -47,6 +47,7 @@ object Ic {
     val eye = icon("M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z")
     val alert = icon("M12 4 2.5 20h19zM12 10v4.5M12 17.5h.01", 2f)
     val refresh = icon("M20 11a8 8 0 0 0-14.5-4.5M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5M20 20v-4h-4")
+    val bulb = icon("M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z")
     val chart = icon("M4 20V10M10 20V4M16 20v-7M2 20h20")
     val sliders = icon("M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4")
     val card = icon("M3 6h18v12H3zM3 10h18M7 15h3")

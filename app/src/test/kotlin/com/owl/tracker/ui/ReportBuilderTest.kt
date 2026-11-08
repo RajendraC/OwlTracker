@@ -152,8 +152,8 @@ class ReportBuilderTest {
         assertTrue("Highlights are for the whole range only", build(filter = ReportFilter(categoryId = Cat.FOOD)).highlights.isEmpty())
     }
 
-    @Test fun profitAndLossForTheMonth() {
-        val pl = build().profitLoss!!
+    @Test fun incomeAndExpensesForTheMonth() {
+        val pl = build().incomeExpenses!!
         assertEquals("October 2026", pl.title)
         assertEquals(5_050_000L, pl.moneyIn)
         assertEquals(listOf(Cat.INCOME to 5_000_000L, Cat.SHOPPING to 50_000L), pl.income.map { it.category?.id to it.paise })
@@ -168,8 +168,8 @@ class ReportBuilderTest {
         assertTrue(pl.months.isEmpty())
     }
 
-    @Test fun profitAndLossMonthByMonth() {
-        val pl = build(ReportRange.THREE).profitLoss!!
+    @Test fun incomeAndExpensesMonthByMonth() {
+        val pl = build(ReportRange.THREE).incomeExpenses!!
         assertEquals("Aug 2026 – Oct 2026", pl.title)
         assertEquals(listOf("Aug", "Sep", "Oct"), pl.months.map { it.label })
         assertEquals(listOf(0L, 0L, 5_050_000L), pl.months.map { it.moneyIn })
@@ -179,14 +179,14 @@ class ReportBuilderTest {
         assertEquals(4_570_000L, pl.net)
     }
 
-    @Test fun profitAndLossFollowsAPickedDayButNotACategory() {
-        val day = build(filter = ReportFilter(bucket = 13)).profitLoss!!  // Wed 14 Oct: only the refund
+    @Test fun incomeAndExpensesFollowsAPickedDayButNotACategory() {
+        val day = build(filter = ReportFilter(bucket = 13)).incomeExpenses!!  // Wed 14 Oct: only the refund
         assertEquals("Wed 14 Oct", day.title)
         assertEquals(50_000L, day.moneyIn)
         assertEquals(0L, day.spent)
-        assertNull("Nothing came in…", build(filter = ReportFilter(bucket = 2)).profitLoss!!.keptPct)
-        assertNull(build(filter = ReportFilter(categoryId = Cat.FOOD)).profitLoss)
-        assertNull(build(filter = ReportFilter(weekday = DayOfWeek.MONDAY)).profitLoss)
+        assertNull("Nothing came in…", build(filter = ReportFilter(bucket = 2)).incomeExpenses!!.keptPct)
+        assertNull(build(filter = ReportFilter(categoryId = Cat.FOOD)).incomeExpenses)
+        assertNull(build(filter = ReportFilter(weekday = DayOfWeek.MONDAY)).incomeExpenses)
     }
 
     @Test fun moneyInLeftOutByTheUserIsNotIncome() {
@@ -194,7 +194,7 @@ class ReportBuilderTest {
         val r = ReportBuilder.build(extra, cats, listOf(period(0)), listOf(period(1)), 0L, ReportRange.ONE, ReportFilter(), today, zone)
         assertEquals(5_050_000L, r.received)
         assertEquals(280_000L, r.spent)
-        assertEquals(2, r.profitLoss!!.leftOut)
+        assertEquals(2, r.incomeExpenses!!.leftOut)
     }
 
     @Test fun withNothingPickedTheBiggestPaymentsAreListed() {

@@ -121,6 +121,7 @@ fun HomeScreen(vm: AppViewModel) {
     val canForward by vm.canGoForward.collectAsStateWithLifecycle()
     val access by vm.access.collectAsStateWithLifecycle()
     val store by vm.store.collectAsStateWithLifecycle()
+    val plan by vm.savingPlan.collectAsStateWithLifecycle()
     val dash = d ?: return
     val catMap = cats.associateBy { it.id }
     val sc = LocalStatusColors.current
@@ -203,6 +204,8 @@ fun HomeScreen(vm: AppViewModel) {
             }
         }
 
+        plan?.takeIf { dash.isCurrent && it.tips.isNotEmpty() && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { SavingNudge(vm, p) } }
+
         item {
             Panel {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -257,7 +260,7 @@ fun HomeScreen(vm: AppViewModel) {
 
         item {
             Panel(padding = 4.dp) {
-                NavRow(Ic.chart, "Reports", "Profit & loss, trends, categories and merchants", iconTint = MaterialTheme.colorScheme.primary, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
+                NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more", iconTint = MaterialTheme.colorScheme.primary, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
             }
         }
     }
@@ -302,6 +305,35 @@ private fun BudgetHero(vm: AppViewModel, spent: Long, overall: Long, status: com
         ) {
             Icon(if (status.state == BudgetState.ON_TRACK) Ic.check else Ic.alert, contentDescription = null, tint = sc.fg(status.state), modifier = Modifier.size(20.dp))
             Text(line, color = sc.fg(status.state), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), modifier = Modifier.testTag("budget_line"))
+        }
+    }
+}
+
+/** Home's nudge: how much could be saved a month, and the biggest way to do it. Hidden until next month with ×. */
+@Composable
+private fun SavingNudge(vm: AppViewModel, plan: com.owl.tracker.ui.SavingPlan) {
+    val tip = plan.tips.first()
+    Panel(modifier = Modifier.testTag("saving_nudge")) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconTile(Ic.bulb, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
+            Column(Modifier.weight(1f)) {
+                Text("Ways to save", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "Save about ${Money.formatInr(plan.monthlyPaise)} a month",
+                    style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.testTag("saving_total"),
+                )
+            }
+            IconButton(onClick = { vm.hideSavingTips() }, modifier = Modifier.testTag("saving_hide")) {
+                Icon(Ic.close, contentDescription = "Hide saving tips until next month", modifier = Modifier.size(18.dp))
+            }
+        }
+        Gap(10.dp)
+        Text(tip.title, style = MaterialTheme.typography.titleSmall)
+        Text(tip.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Gap(4.dp)
+        TextButton(onClick = { vm.go(Screen.INSIGHTS) }, modifier = Modifier.testTag("saving_more")) {
+            Text(if (plan.tips.size > 1) "See all ${plan.tips.size} ways to save" else "See it in Reports")
         }
     }
 }
