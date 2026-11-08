@@ -4,7 +4,7 @@ Owl Tracker
 SHORT DESCRIPTION (74/80)
 Spending from your bank & UPI SMS: budgets, reports, backups. No internet.
 
-FULL DESCRIPTION (3351/4000)
+FULL DESCRIPTION (3433/4000)
 Owl Tracker reads the bank, card and UPI SMS alerts already on your phone and turns them into a clear monthly spending dashboard with budgets and reports. Reading these SMS is the app's core feature, and everything happens on your phone: Owl Tracker has no internet permission.
 
 HOW IT WORKS
@@ -31,7 +31,7 @@ BUDGETS THAT WARN YOU EARLY
 • Start your budget month on your salary day if you like.
 
 YOUR CATEGORIES, YOUR RULES
-• 18 ready-made categories; add, rename, recolour or archive your own.
+• 19 ready-made categories; add, rename, recolour or archive your own.
 • Fix a category once and Owl Tracker can remember it for that merchant.
 • Add cash expenses yourself.
 
