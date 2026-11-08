@@ -28,7 +28,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -60,6 +63,11 @@ import com.owl.tracker.ui.Report
 import com.owl.tracker.ui.ReportBuilder
 import com.owl.tracker.ui.ReportRange
 import com.owl.tracker.ui.components.Divider
+import com.owl.tracker.ui.components.Reveal
+import com.owl.tracker.ui.components.SettleEasing
+import com.owl.tracker.ui.components.animatedPaise
+import com.owl.tracker.ui.components.growIn
+import com.owl.tracker.ui.components.stagger
 import com.owl.tracker.ui.components.Gap
 import com.owl.tracker.ui.components.MerchantAvatar
 import com.owl.tracker.ui.components.Panel
@@ -82,12 +90,20 @@ fun ReportsScreen(vm: AppViewModel) {
     val cats by vm.categories.collectAsStateWithLifecycle()
     val catMap = remember(cats) { cats.associateBy { it.id } }
     val plan by vm.savingPlan.collectAsStateWithLifecycle()
+    // Cards rise into place once, the first time they appear
+    val seen = remember { mutableSetOf<Any>() }
+    val openedAt = remember { System.currentTimeMillis() }
 
     LazyColumn(
         Modifier.fillMaxSize().testTag("reports"),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        var order = 0
+        fun card(key: String, content: @Composable () -> Unit) {
+            val o = order++
+            item(key = key) { Reveal(key, seen, o, openedAt, content) }
+        }
         item { ScreenHeader("Reports", subtitle = report?.title, onBack = { vm.back() }) }
         item { RangeChips(range) { vm.setReportRange(it) } }
         val r = report
@@ -96,15 +112,15 @@ fun ReportsScreen(vm: AppViewModel) {
             return@LazyColumn
         }
         if (r.chips.isNotEmpty()) item { ActiveFilters(r, vm) }
-        item { SummaryCard(r) }
-        r.incomeExpenses?.let { pl -> item { IncomeExpensesCard(pl) } }
-        plan?.takeIf { r.filter.isEmpty && !it.isEmpty }?.let { p -> item { WaysToSaveCard(p, catMap, vm) } }
-        item { TrendCard(r, vm) }
-        if (r.categories.isNotEmpty()) item { CategoryCard(r, vm) }
-        if (r.merchants.isNotEmpty()) item { MerchantCard(r, catMap, vm) }
-        if (r.weekdays.any { it.paise > 0 }) item { WeekdayCard(r, vm) }
-        if (r.highlights.isNotEmpty()) item { HighlightsCard(r) }
-        item { PaymentsCard(r, catMap, vm) }
+        card("summary") { SummaryCard(r) }
+        r.incomeExpenses?.let { pl -> card("income_expenses") { IncomeExpensesCard(pl) } }
+        plan?.takeIf { r.filter.isEmpty && !it.isEmpty }?.let { p -> card("ways") { WaysToSaveCard(p, catMap, vm) } }
+        card("trend") { TrendCard(r, vm) }
+        if (r.categories.isNotEmpty()) card("categories") { CategoryCard(r, vm) }
+        if (r.merchants.isNotEmpty()) card("merchants") { MerchantCard(r, catMap, vm) }
+        if (r.weekdays.any { it.paise > 0 }) card("weekdays") { WeekdayCard(r, vm) }
+        if (r.highlights.isNotEmpty()) card("highlights") { HighlightsCard(r) }
+        card("payments") { PaymentsCard(r, catMap, vm) }
     }
 }
 
@@ -143,7 +159,7 @@ private fun SummaryCard(r: Report) {
     Panel(modifier = Modifier.testTag("report_summary")) {
         Text(if (r.filter.isEmpty) "Spent" else "Spent on what you picked", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(Money.formatInr(r.spent), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.testTag("report_spent"))
+            Text(Money.formatInr(animatedPaise(r.spent)), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.testTag("report_spent"))
             r.changePct?.let { pct ->
                 val up = pct > 0
                 val (fg, bg) = if (up) sc.overFg to sc.overBg else sc.okFg to sc.okBg
@@ -159,13 +175,13 @@ private fun SummaryCard(r: Report) {
         }
         Gap(12.dp)
         Row(Modifier.fillMaxWidth()) {
-            Stat("Income", Money.formatInr(r.received), Modifier.weight(1f))
+            Stat("Income", Money.formatInr(animatedPaise(r.received)), Modifier.weight(1f))
             val net = r.received - r.spent
-            Stat("Net", (if (net >= 0) "+" else "−") + Money.formatInr(kotlin.math.abs(net)), Modifier.weight(1f), if (net >= 0) MaterialTheme.colorScheme.primary else sc.overFg)
+            Stat("Net", (if (net >= 0) "+" else "−") + Money.formatInr(kotlin.math.abs(animatedPaise(net))), Modifier.weight(1f), if (net >= 0) MaterialTheme.colorScheme.primary else sc.overFg)
         }
         Gap(8.dp)
         Row(Modifier.fillMaxWidth()) {
-            Stat("Per day", Money.formatInr(r.perDay), Modifier.weight(1f))
+            Stat("Per day", Money.formatInr(animatedPaise(r.perDay)), Modifier.weight(1f))
             Stat("Payments", r.payments.toString(), Modifier.weight(1f))
         }
     }
@@ -185,10 +201,10 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
         Text(pl.title, style = MaterialTheme.typography.bodySmall, color = muted)
         Gap(12.dp)
         Row(Modifier.fillMaxWidth()) {
-            Stat("Income", "+" + Money.formatInr(pl.moneyIn), Modifier.weight(1f).testTag("pl_in"), gain)
-            Stat("Expenses", "−" + Money.formatInr(pl.spent), Modifier.weight(1f).testTag("pl_spent"))
+            Stat("Income", "+" + Money.formatInr(animatedPaise(pl.moneyIn)), Modifier.weight(1f).testTag("pl_in"), gain)
+            Stat("Expenses", "−" + Money.formatInr(animatedPaise(pl.spent)), Modifier.weight(1f).testTag("pl_spent"))
             Stat(
-                if (pl.net >= 0) "Saved" else "Overspent", Money.formatInr(kotlin.math.abs(pl.net)),
+                if (pl.net >= 0) "Saved" else "Overspent", Money.formatInr(kotlin.math.abs(animatedPaise(pl.net))),
                 Modifier.weight(1f).testTag("pl_net"), if (pl.net >= 0) gain else sc.overFg,
             )
         }
@@ -209,8 +225,12 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
             val total = maxOf(pl.moneyIn, pl.spent).coerceAtLeast(1)
             Gap(8.dp)
             Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                Box(Modifier.fillMaxWidth(pl.moneyIn.toFloat() / total).height(10.dp).background(gain.copy(alpha = 0.35f)))
-                Box(Modifier.fillMaxWidth(pl.spent.toFloat() / total).height(10.dp).clip(RoundedCornerShape(5.dp)).background(if (pl.net < 0) sc.overFg else gain))
+                // Income fills first, then expenses grow over it
+                val fill = growIn(pl.title, 1100)
+                val inFrac by animateFloatAsState(pl.moneyIn.toFloat() / total, tween(600, easing = SettleEasing), label = "in")
+                val outFrac by animateFloatAsState(pl.spent.toFloat() / total, tween(600, easing = SettleEasing), label = "out")
+                Box(Modifier.fillMaxWidth((inFrac * stagger(fill, 0, 2)).coerceIn(0f, 1f)).height(10.dp).background(gain.copy(alpha = 0.35f)))
+                Box(Modifier.fillMaxWidth((outFrac * stagger(fill, 1, 2)).coerceIn(0f, 1f)).height(10.dp).clip(RoundedCornerShape(5.dp)).background(if (pl.net < 0) sc.overFg else gain))
             }
         }
 
@@ -395,8 +415,12 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
             modifier = Modifier.testTag("trend_caption"),
         )
         Gap(12.dp)
-        val maxV = (r.trend.maxOfOrNull { it.spent } ?: 0L).coerceAtLeast((r.budgetLine * 11) / 10).coerceAtLeast(1L)
+        val maxTarget = (r.trend.maxOfOrNull { it.spent } ?: 0L).coerceAtLeast((r.budgetLine * 11) / 10).coerceAtLeast(1L)
         val desc = r.trend.filter { it.hasData }.joinToString { "${it.title}: ${Money.formatInr(it.spent)}" }
+        // Bars rise one after another when the range changes, and glide to new heights when something is tapped
+        val grow = growIn(r.range)
+        val maxV by animateFloatAsState(maxTarget.toFloat(), tween(500, easing = SettleEasing), label = "max")
+        val heights = key(r.range, r.trend.size) { r.trend.map { b -> animateFloatAsState(b.spent.toFloat(), tween(500, easing = SettleEasing), label = "bar").value } }
         Canvas(
             Modifier.fillMaxWidth().height(150.dp)
                 .pointerInput(r.trend.size) {
@@ -413,7 +437,10 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
             val w = slot * if (r.daily) 0.62f else 0.7f
             r.trend.forEachIndexed { i, b ->
                 if (!b.hasData) return@forEachIndexed
-                val h = (b.spent.toFloat() / maxV * size.height).coerceAtLeast(if (b.spent > 0) 2.dp.toPx() else 0f)
+                val g = stagger(grow, i, n)
+                if (g <= 0f) return@forEachIndexed
+                val v = heights.getOrElse(i) { b.spent.toFloat() }
+                val h = (v / maxV * size.height * g).coerceAtLeast(if (b.spent > 0) 2.dp.toPx() * g else 0f)
                 val over = r.budgetLine > 0 && b.spent > r.budgetLine
                 val base = if (over) sc.overRing else primary
                 val color = when {
@@ -425,7 +452,7 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
             }
             if (r.budgetLine > 0) {
                 val y = size.height - r.budgetLine.toFloat() / maxV * size.height
-                drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
+                drawLine(line.copy(alpha = grow), Offset(0f, y), Offset(size.width * grow, y), strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
             }
         }
         Gap(4.dp)
@@ -461,6 +488,7 @@ private fun CategoryCard(r: Report, vm: AppViewModel) {
     val sc = LocalStatusColors.current
     val selected = r.filter.categoryId
     val track = MaterialTheme.colorScheme.surfaceVariant
+    val ring = growIn(r.range, 1000)
     Panel(modifier = Modifier.testTag("report_categories")) {
         Text("Where it went", style = MaterialTheme.typography.titleMedium)
         Text("Tap a slice or a row to focus on that category", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -489,14 +517,17 @@ private fun CategoryCard(r: Report, vm: AppViewModel) {
                 val inset = stroke / 2 + 4.dp.toPx()
                 val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
                 drawArc(track, 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(stroke))
+                // The ring sweeps round clockwise, slice after slice, like a fitness ring closing
+                val shown = 360f * ring
                 var start = -90f
                 r.categories.forEach { s ->
                     val sweep = s.share * 360f
+                    val visible = (shown - (start + 90f)).coerceIn(0f, sweep)
                     val gap = if (r.categories.size > 1) 1.2f else 0f
                     val dim = selected != null && selected != s.category.id
                     val width = if (selected == s.category.id) stroke * 1.25f else stroke
-                    drawArc(
-                        Color(s.category.color).copy(alpha = if (dim) 0.25f else 1f), start + gap / 2, (sweep - gap).coerceAtLeast(0.5f), false,
+                    if (visible > gap) drawArc(
+                        Color(s.category.color).copy(alpha = if (dim) 0.25f else 1f), start + gap / 2, (visible - gap).coerceAtLeast(0.5f), false,
                         Offset(inset, inset), arcSize, style = Stroke(width),
                     )
                     start += sweep
@@ -504,7 +535,7 @@ private fun CategoryCard(r: Report, vm: AppViewModel) {
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(110.dp)) {
                 Text(pick?.category?.name ?: "Total", style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(Money.formatInr(pick?.paise ?: r.categories.sumOf { it.paise }), style = MaterialTheme.typography.titleMedium)
+                Text(Money.formatInr(animatedPaise(pick?.paise ?: r.categories.sumOf { it.paise })), style = MaterialTheme.typography.titleMedium)
                 pick?.let { Text("${(it.share * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
@@ -555,6 +586,7 @@ private fun changeText(now: Long, before: Long): String? = when {
 private fun MerchantCard(r: Report, catMap: Map<String, Category>, vm: AppViewModel) {
     val selected = r.filter.merchantKey
     val top = r.merchants.maxOfOrNull { it.paise }?.coerceAtLeast(1L) ?: 1L
+    val grow = growIn(r.range, 900)
     Panel(padding = 12.dp, modifier = Modifier.testTag("report_merchants")) {
         Text("Top merchants", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(4.dp))
         r.merchants.forEachIndexed { i, m ->
@@ -574,7 +606,8 @@ private fun MerchantCard(r: Report, catMap: Map<String, Category>, vm: AppViewMo
                     Text("${m.count} ${if (m.count == 1) "payment" else "payments"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Gap(4.dp)
                     Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                        Box(Modifier.fillMaxWidth((m.paise.toFloat() / top).coerceIn(0.02f, 1f)).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary))
+                        val frac by animateFloatAsState((m.paise.toFloat() / top).coerceIn(0.02f, 1f), tween(500, easing = SettleEasing), label = "merchant")
+                        Box(Modifier.fillMaxWidth((frac * stagger(grow, i, r.merchants.size)).coerceIn(0.001f, 1f)).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary))
                     }
                 }
                 Text(Money.formatInr(m.paise), style = MaterialTheme.typography.titleSmall)
@@ -588,11 +621,12 @@ private fun WeekdayCard(r: Report, vm: AppViewModel) {
     val selected = r.filter.weekday
     val maxV = r.weekdays.maxOf { it.paise }.coerceAtLeast(1)
     val primary = MaterialTheme.colorScheme.primary
+    val grow = growIn(r.range)
     Panel(modifier = Modifier.testTag("report_weekdays")) {
         Text("By day of the week", style = MaterialTheme.typography.titleMedium)
         Gap(12.dp)
         Row(Modifier.fillMaxWidth().height(130.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom) {
-            r.weekdays.forEach { w ->
+            r.weekdays.forEachIndexed { idx, w ->
                 val isPicked = w.day == selected
                 Column(
                     Modifier.weight(1f).fillMaxHeight().clickable { vm.tapReportWeekday(w.day) }
@@ -602,8 +636,9 @@ private fun WeekdayCard(r: Report, vm: AppViewModel) {
                 ) {
                     if (isPicked) Text(Money.formatShort(w.paise), style = MaterialTheme.typography.labelSmall, color = primary, maxLines = 1)
                     val frac = (w.paise.toFloat() / maxV).coerceIn(0f, 1f)
+                    val shown by animateFloatAsState(frac, tween(500, easing = SettleEasing), label = "weekday")
                     Box(
-                        Modifier.fillMaxWidth(0.7f).fillMaxHeight(0.75f * frac + 0.01f).clip(RoundedCornerShape(6.dp))
+                        Modifier.fillMaxWidth(0.7f).fillMaxHeight(0.75f * shown * stagger(grow, idx, 7) + 0.01f).clip(RoundedCornerShape(6.dp))
                             .background(
                                 when {
                                     selected == null -> primary.copy(alpha = 0.35f + 0.65f * frac)

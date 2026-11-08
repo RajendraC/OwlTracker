@@ -3,8 +3,6 @@ package com.owl.tracker.ui
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.performClick
 import com.owl.tracker.TestApp
 import com.owl.tracker.core.SmsMessage
 import com.owl.tracker.sampleInbox
@@ -66,7 +64,8 @@ class SavingNudgeTest {
             waitForTag("ways_to_save")
             waitForText("You could save about ₹119 a month")
             waitForText("That's ₹1,428 a year.")
-            onNodeWithContentDescription("Back").performClick()
+            // The header has scrolled away with the list, so go back as a phone's back gesture does
+            activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
 
             // Hidden until next month
             tapTag("saving_hide")
