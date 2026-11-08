@@ -89,4 +89,20 @@ class ManifestSecurityTest {
         val declared = Regex("""<package android:name="([^"]+)" />""").findAll(manifest).map { it.groupValues[1] }.toList()
         assertEquals("Only recognised apps may be queried", emptyList<String>(), declared - KnownApps.packageNames.toSet())
     }
+
+    /**
+     * Google Play restricts broad app visibility. The only intent query allowed is "apps that pay by UPI";
+     * a MAIN/LAUNCHER query (which would reveal nearly every app) must never be added.
+     */
+    @Test
+    fun theOnlyIntentQueryIsUpiApps() {
+        val manifest = java.io.File("src/main/AndroidManifest.xml").readText()
+        val queries = manifest.substringAfter("<queries>").substringBefore("</queries>")
+        val intents = Regex("""<intent>(.*?)</intent>""", RegexOption.DOT_MATCHES_ALL).findAll(queries).map { it.groupValues[1] }.toList()
+        assertEquals(1, intents.size)
+        assertTrue(intents[0].contains("""android.intent.action.VIEW""") && intents[0].contains("""android:scheme="upi""""))
+        assertFalse(queries.contains("android.intent.category.LAUNCHER"))
+        assertFalse(queries.contains("android.intent.action.MAIN"))
+        assertFalse(queries.contains("<provider"))
+    }
 }

@@ -154,6 +154,30 @@
         <package android:name="com.ausmallfinancebank.amb" />
         <package android:name="com.fedmobile" />
         <package android:name="indwin.c3.shareapp" />
+        <!-- Insurance apps (0.7.0) -->
+        <package android:name="com.policybazaar" />
+        <package android:name="com.policyx.policyx" />
+        <package android:name="com.godigit.digit" />
+        <package android:name="com.acko.android" />
+        <package android:name="com.lic.liccustomer" />
+        <package android:name="com.hdfcergo.here" />
+        <package android:name="icici.lombard.ghi" />
+        <package android:name="com.tataaig.android" />
+        <package android:name="com.tataaialife" />
+        <package android:name="com.ba.cp.controller" />
+        <package android:name="com.hdfcclife.activities" />
+        <package android:name="com.sbilife.smartcare" />
+        <package android:name="com.ipru.iciciprulife.customer.release" />
+        <package android:name="com.maxlifeinsurance.www.twa" />
+        <package android:name="com.star.customer_app" />
+        <package android:name="com.maxbupa.healthapp" />
+        <package android:name="com.religare.healthinsurance" />
+        <!-- Every UPI payment app (all bank and wallet apps that pay by UPI), so any of them can be a
+             merchant's icon. A narrow intent query: Owl Tracker never sees the full list of apps. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
     </queries>
 
     <application

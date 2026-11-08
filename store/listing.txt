@@ -15,7 +15,7 @@ HOW IT WORKS
 
 SEE WHERE YOUR MONEY GOES
 • Monthly dashboard with spending by category and your most recent transactions.
-• Real app icons for about 140 popular Indian apps, from Swiggy, Blinkit and Netflix to PhonePe, BHIM and your bank's own app, when they are installed on your phone.
+• Real app icons for about 155 popular Indian apps, from Swiggy, Blinkit and Netflix to PhonePe, Policybazaar and your bank's own app, when they are installed. Or use any picture as a merchant's icon.
 • Search your activity by merchant, category or note.
 
 REPORTS YOU CAN TAP THROUGH

@@ -3,6 +3,7 @@ package com.owl.tracker.backup
 import com.owl.tracker.core.CategoryRule
 import com.owl.tracker.core.Direction
 import com.owl.tracker.core.KnownApps
+import com.owl.tracker.core.MerchantPicture
 import com.owl.tracker.core.Privacy
 import com.owl.tracker.core.RuleMatch
 import com.owl.tracker.core.TxKind
@@ -39,6 +40,8 @@ data class BackupContent(
     val transactions: List<NewTxn>,
     /** Names and icons the user chose for merchants. Absent in backups from before version 0.5. */
     val merchants: List<MerchantOverride> = emptyList(),
+    /** Pictures chosen as merchant icons, by id ("pic:…"). Absent in backups from before version 0.7. */
+    val pictures: Map<String, ByteArray> = emptyMap(),
 ) {
     val firstAt: Long? get() = transactions.minOfOrNull { it.occurredAt }
     val lastAt: Long? get() = transactions.maxOfOrNull { it.occurredAt }
@@ -71,6 +74,7 @@ object BackupCodec {
     private const val MAX_TRANSACTIONS = 500_000
     private const val MAX_CATEGORIES = 500
     private const val MAX_RULES = 20_000
+    private const val MAX_PICTURES = 2_000
     private const val EARLIEST = 946_684_800_000L // 1 Jan 2000
     private const val MAX_PAISE = 1_000_000_000_000L // ₹1,000 crore
     private val AAD = "$FORMAT/$VERSION".toByteArray(Charsets.UTF_8)
@@ -81,12 +85,13 @@ object BackupCodec {
 
     /** Turns what's stored into a backup, leaving out everything SMS-specific. */
     fun fromSnapshot(s: Repository.Snapshot, now: Long, appVersion: String): BackupContent {
-        val known = KnownApps.packageNames.toSet()
+        val pictures = s.pictures.filter { (id, png) -> MerchantPicture.isPng(png) && MerchantPicture.idFor(png) == id }
+        val icon = iconCheck(pictures.keys)
         val txns = s.transactions.map { t ->
             NewTxn(
                 amountPaise = t.amountPaise, direction = t.direction, occurredAt = t.occurredAt,
                 merchantName = Privacy.merchant(t.merchantName), merchantKey = Privacy.merchantKey(t.merchantKey),
-                merchantPackage = t.merchantPackage?.takeIf { it in known },
+                merchantPackage = t.merchantPackage?.takeIf(icon),
                 vpa = null, categoryId = t.categoryId, accountLabel = null, senderGroup = null, sender = null, refNo = null,
                 source = if (t.source == Source.MANUAL) Source.MANUAL else Source.BACKUP, smsId = null,
                 needsReview = t.needsReview, note = t.note, kind = t.kind, smsBody = null, excluded = t.excluded,
@@ -99,15 +104,24 @@ object BackupCodec {
                 RuleMatch.VPA, null -> null // a UPI ID: never exported
             }
         }.distinctBy { it.match to it.pattern }
-        val merchants = s.merchants.mapNotNull { m -> scrubMerchant(m.key, m.name, m.logo, known) }.distinctBy { it.key }
-        return BackupContent(now, appVersion, s.settings.budgetStartDay, s.categories, s.budgets, rules, txns, merchants)
+        val merchants = s.merchants.mapNotNull { m -> scrubMerchant(m.key, m.name, m.logo, icon) }.distinctBy { it.key }
+        // Only the pictures something still uses
+        val used = (merchants.mapNotNull { it.logo } + txns.mapNotNull { it.merchantPackage }).toSet()
+        return BackupContent(
+            now, appVersion, s.settings.budgetStartDay, s.categories, s.budgets, rules, txns, merchants,
+            pictures.filterKeys { it in used },
+        )
     }
 
+    /** An icon value worth keeping: an app's package name, or one of [pictures]. */
+    private fun iconCheck(pictures: Set<String>): (String) -> Boolean =
+        { v -> KnownApps.isPackageName(v) || (MerchantPicture.isPicture(v) && v in pictures) }
+
     /** A merchant's chosen name and icon, scrubbed like the transactions' merchant names and keys. */
-    private fun scrubMerchant(key: String, name: String?, logo: String?, known: Set<String>): MerchantOverride? {
+    private fun scrubMerchant(key: String, name: String?, logo: String?, icon: (String) -> Boolean): MerchantOverride? {
         val k = Privacy.merchantKey(clean(key, 120)).ifEmpty { return null }
         val n = name?.let { Privacy.merchant(clean(it, 60)) }?.takeIf { it.isNotEmpty() && it != "UPI payment" }
-        val l = logo?.takeIf { it.isEmpty() || it in known }
+        val l = logo?.takeIf { it.isEmpty() || icon(it) }
         return if (n == null && l == null) null else MerchantOverride(k, n, l)
     }
 
@@ -180,8 +194,13 @@ object BackupCodec {
                 c.merchants.forEach { m ->
                     val o = JSONObject().put("merchantKey", m.key)
                     m.name?.let { o.put("name", it) }
-                    m.logo?.let { o.put("app", it) } // "" means: no app icon
+                    m.logo?.let { o.put("app", it) } // "" means: no app icon; "pic:…" one of the pictures
                     put(o)
+                }
+            })
+            .put("pictures", JSONArray().apply {
+                c.pictures.forEach { (id, png) ->
+                    put(JSONObject().put("id", id).put("png", java.util.Base64.getEncoder().encodeToString(png)))
                 }
             })
     }
@@ -293,7 +312,19 @@ object BackupCodec {
             CategoryRule(match, pattern, cat)
         }.distinctBy { it.match to it.pattern }
 
-        val known = KnownApps.packageNames.toSet()
+        // Pictures are checked like everything else: a small PNG whose id matches its contents.
+        val picturesJson = p.optJSONArray("pictures") ?: JSONArray()
+        if (picturesJson.length() > MAX_PICTURES) throw BackupException(BackupException.Problem.TOO_LARGE)
+        val pictures = buildMap<String, ByteArray> {
+            for (i in 0 until picturesJson.length()) {
+                val o = picturesJson.optJSONObject(i) ?: continue
+                val text = o.optString("png").takeIf { it.length <= MerchantPicture.MAX_BYTES * 4 / 3 + 4 } ?: continue
+                val png = runCatching { java.util.Base64.getDecoder().decode(text) }.getOrNull() ?: continue
+                val id = o.optString("id")
+                if (MerchantPicture.isPng(png) && MerchantPicture.idFor(png) == id) put(id, png)
+            }
+        }
+        val icon = iconCheck(pictures.keys)
         val txJson = p.optJSONArray("transactions") ?: JSONArray()
         if (txJson.length() > MAX_TRANSACTIONS) throw BackupException(BackupException.Problem.TOO_LARGE)
         val latest = now + 2 * 24 * 60 * 60 * 1000L
@@ -309,7 +340,7 @@ object BackupCodec {
                 amountPaise = amount, direction = direction, occurredAt = time,
                 merchantName = merchant,
                 merchantKey = Privacy.merchantKey(clean(o.optString("merchantKey"), 120)).ifEmpty { "unknown" },
-                merchantPackage = o.optString("app").takeIf { it in known },
+                merchantPackage = o.optString("app").takeIf(icon),
                 vpa = null,
                 categoryId = o.optString("category").takeIf { ID_KEY.matches(it) } ?: com.owl.tracker.core.Cat.OTHERS,
                 accountLabel = null, senderGroup = null, sender = null, refNo = null,
@@ -330,7 +361,7 @@ object BackupCodec {
                 o.optString("merchantKey"),
                 if (o.has("name")) o.optString("name") else null,
                 if (o.has("app")) o.optString("app") else null,
-                known,
+                icon,
             )
         }.distinctBy { it.key }
 
@@ -343,6 +374,7 @@ object BackupCodec {
             rules = rules,
             transactions = txns,
             merchants = merchants,
+            pictures = pictures,
         )
     }
 

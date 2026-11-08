@@ -7,6 +7,7 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.owl.tracker.core.Cat
+import com.owl.tracker.core.MerchantPicture
 import com.owl.tracker.data.Db
 import com.owl.tracker.data.Repository
 import com.owl.tracker.data.Schema
@@ -32,7 +33,7 @@ class SchemaMigrationTest {
         val helper = FrameworkSQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(context).name(name).callback(object : SupportSQLiteOpenHelper.Callback(1) {
                 override fun onCreate(db: SupportSQLiteDatabase) {
-                    Schema.CREATE.filterNot { it.contains(" merchants(") }.forEach { db.execSQL(it) }
+                    Schema.CREATE.filterNot { it.contains(" merchants(") || it.contains(" pictures(") }.forEach { db.execSQL(it) }
                     v1Categories.forEachIndexed { i, c ->
                         db.execSQL(
                             "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived) VALUES(?,?,?,?,?,?,1,0)",
@@ -57,7 +58,7 @@ class SchemaMigrationTest {
     }
 
     @Test
-    fun version1GainsSportsAndMerchantNamesAndKeepsEverythingElse() = runBlocking {
+    fun version1GainsSportsMerchantNamesAndPicturesAndKeepsEverythingElse() = runBlocking {
         createVersion1()
         val repo = Repository(Db(context, { FrameworkSQLiteOpenHelperFactory() }, name), TEST_CLOCK)
 
@@ -71,6 +72,13 @@ class SchemaMigrationTest {
         assertEquals(1, repo.renameMerchant(tx.id, "Kamal Stores (milk)", all = true))
         assertEquals("Kamal Stores (milk)", repo.merchantOverrides().getValue("kamal_stores").name)
         assertTrue(repo.categories().first { it.id == Cat.SPORTS }.isSystem)
+
+        // Version 3: pictures as icons
+        val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A) + ByteArray(64) { 7 }
+        assertEquals(1, repo.setMerchantPicture(tx.id, png))
+        val id = MerchantPicture.idFor(png)
+        assertEquals(id, repo.transactions(0, Long.MAX_VALUE).single().merchantPackage)
+        assertTrue(repo.pictureBytes(id)!!.contentEquals(png))
         assertTrue(context.deleteDatabase(name))
     }
 }

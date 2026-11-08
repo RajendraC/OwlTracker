@@ -11,6 +11,7 @@ import com.owl.tracker.backup.BackupManager
 import com.owl.tracker.core.Cat
 import com.owl.tracker.core.Direction
 import com.owl.tracker.core.ImportFilters
+import com.owl.tracker.core.MerchantPicture
 import com.owl.tracker.core.RuleMatch
 import com.owl.tracker.data.NewTxn
 import com.owl.tracker.data.Schema
@@ -273,6 +274,43 @@ class BackupTest {
         assertEquals("Milkman Ravi", mine.getValue("xxxxx").name)
         assertEquals("", mine.getValue("swiggy").logo)
         assertTrue(fresh.repo.transactions(0, now + 1).any { it.merchantName == "Milkman Ravi" && it.merchantKey == "xxxxx" })
+    }
+
+    @Test
+    fun pictureIconsAndUpiAppIconsTravelAndTamperedPicturesAreDropped() = runBlocking {
+        val c = phoneWithData()
+        val txns = c.repo.transactions(0, now + 1)
+        val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A) + ByteArray(80) { it.toByte() }
+        val id = MerchantPicture.idFor(png)
+        c.repo.setMerchantPicture(txns.first { it.merchantKey == "swiggy" }.id, png)
+        // Any UPI app on the phone can be chosen, not only recognised ones
+        c.repo.setMerchantLogo(txns.first { it.merchantKey == "vet_clinic" }.id, "com.idbibank.abhay_card")
+
+        val bytes = BackupCodec.encode(backupOf(c), null, zone)
+        val b = BackupCodec.decode(bytes, null, now)
+        assertTrue(b.pictures.getValue(id).contentEquals(png))
+        val fresh = testContainer(context)
+        fresh.repo.open()
+        fresh.repo.restore(b, replace = true, finishOnboarding = true)
+        val mine = fresh.repo.merchantOverrides()
+        assertEquals(id, mine.getValue("swiggy").logo)
+        assertEquals("com.idbibank.abhay_card", mine.getValue("vet_clinic").logo)
+        assertTrue(fresh.repo.transactions(0, now + 1).filter { it.merchantKey == "swiggy" }.all { it.merchantPackage == id })
+        assertTrue(fresh.repo.pictureBytes(id)!!.contentEquals(png))
+
+        // A picture changed by hand no longer matches its id: it is dropped, and nothing points at it
+        val root = JSONObject(String(bytes, Charsets.UTF_8))
+        val pic = root.getJSONObject("payload").getJSONArray("pictures").getJSONObject(0)
+        pic.put("png", java.util.Base64.getEncoder().encodeToString(png + 1))
+        val tampered = BackupCodec.decode(root.toString().toByteArray(), null, now)
+        assertTrue(tampered.pictures.isEmpty())
+        assertNull(tampered.merchants.firstOrNull { it.key == "swiggy" }?.logo)
+        assertTrue(tampered.transactions.none { MerchantPicture.isPicture(it.merchantPackage) })
+
+        // Going back to automatic removes the picture from the phone
+        fresh.repo.setMerchantLogo(fresh.repo.transactions(0, now + 1).first { it.merchantKey == "swiggy" }.id, null)
+        assertNull(fresh.repo.pictureBytes(id))
+        assertEquals("in.swiggy.android", fresh.repo.transactions(0, now + 1).first { it.merchantKey == "swiggy" }.merchantPackage)
     }
 
     @Test

@@ -78,6 +78,36 @@ class MerchantLogosTest {
         assertEquals("jio", key("RELIANCE JIO"))
     }
 
+    @Test fun recognisesInsuranceApps() {
+        assertEquals("policybazaar", key("PB FINTECH LIMITED"))
+        assertEquals("policybazaar", key("POLICYBAZAAR INSURANCE BROKERS"))
+        assertEquals("policyx", key("POLICYX.COM"))
+        assertEquals("digit", key("GO DIGIT GENERAL INSURANCE LTD"))
+        assertEquals("acko", key("ACKO GENERAL INSURANCE"))
+        assertEquals("lic", key("LIC OF INDIA"))
+        assertEquals("lic", key("LIFE INSURANCE CORPORATION OF INDIA"))
+        assertEquals("hdfcergo", key("HDFC ERGO GENERAL INSURANCE"))
+        assertEquals("icicilombard", key("ICICI LOMBARD GIC LTD"))
+        assertEquals("tataaig", key("TATA AIG GENERAL INSURANCE"))
+        assertEquals("tataaia", key("TATA AIA LIFE INSURANCE"))
+        assertEquals("bajajgeneral", key("BAJAJ ALLIANZ GENERAL INSURANCE"))
+        assertEquals("hdfclife", key("HDFC LIFE INSURANCE CO"))
+        assertEquals("sbilife", key("SBI LIFE INSURANCE"))
+        assertEquals("icicipru", key("ICICI PRUDENTIAL LIFE INSURANCE"))
+        assertEquals("axismaxlife", key("AXIS MAX LIFE INSURANCE"))
+        assertEquals("starhealth", key("STAR HEALTH AND ALLIED INSURANCE"))
+        assertEquals("nivabupa", key("NIVA BUPA HEALTH INSURANCE"))
+        assertEquals("carehealth", key("CARE HEALTH INSURANCE LTD"))
+        assertEquals(Cat.HEALTH, MerchantRegistry.match("STAR HEALTH", null)?.category)
+        assertEquals(Cat.BILLS, MerchantRegistry.match("ACKO", null)?.category)
+        // Look-alikes stay apart
+        assertNull(key("DIGITAL STORE"))
+        assertNull(key("LICIOUS")?.takeIf { it != "licious" })
+        assertNull(key("MAX LIFESTYLE"))
+        assertNull(key("ICICI PRUDENTIAL MUTUAL FUND"))
+        assertNull(key("CARE HEALTH PHARMACY"))
+    }
+
     @Test fun wholeWordNamesNeedTheWholeWord() {
         assertNull(key("CANVAS PRINTS"))
         assertNull(key("ZOOMCAR INDIA"))

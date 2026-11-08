@@ -8,6 +8,10 @@ import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.owl.tracker.backup.BackupManager
 import com.owl.tracker.core.Institutions
 import com.owl.tracker.core.KnownApps
+import com.owl.tracker.core.MerchantPicture
+import android.net.Uri
+import android.graphics.BitmapFactory
+import android.content.Intent
 import com.owl.tracker.data.Db
 import com.owl.tracker.data.Repository
 import com.owl.tracker.licence.Licence
@@ -38,7 +42,7 @@ class AppContainer(
     installedAt: () -> Long = { TrialClock.installTime(context) },
 ) {
     val db = Db(context, dbFactory, dbName)
-    val appIcons = AppIcons(context)
+    val appIcons = AppIcons(context) { id -> repo.pictureBytes(id) }
     val repo = Repository(db, clock, appIcons::bankApp)
     val importEngine = ImportEngine(sms, repo, clock, bankApp = appIcons::bankApp)
     val backups = BackupManager(context, repo, clock)
@@ -95,10 +99,11 @@ class AppContainer(
 }
 
 /**
- * Icons of installed apps (Swiggy, Uber...). Android draws them for us; we never ship anyone's logo.
- * Only packages declared in the manifest's <queries> block are visible on Android 11+.
+ * Icons for merchants: an installed app's own icon by package name (Swiggy, Uber...), or a picture the
+ * user chose ("pic:…", read through [pictures]). Android draws app icons for us; we never ship anyone's
+ * logo. Only apps the manifest's <queries> block names (or that pay by UPI) are visible on Android 11+.
  */
-class AppIcons(private val context: Context) {
+class AppIcons(private val context: Context, private val pictures: (String) -> ByteArray? = { null }) {
     private val cache = ConcurrentHashMap<String, Any>()
     private object Missing
 
@@ -106,7 +111,11 @@ class AppIcons(private val context: Context) {
         if (packageName == null) return null
         val v = cache.getOrPut(packageName) {
             try {
-                context.packageManager.getApplicationIcon(packageName).toBitmap(96, 96)
+                if (MerchantPicture.isPicture(packageName)) {
+                    pictures(packageName)?.let { BitmapFactory.decodeByteArray(it, 0, it.size) } ?: Missing
+                } else {
+                    context.packageManager.getApplicationIcon(packageName).toBitmap(96, 96)
+                }
             } catch (e: PackageManager.NameNotFoundException) {
                 Missing
             } catch (e: Exception) {
@@ -120,21 +129,26 @@ class AppIcons(private val context: Context) {
     fun bankApp(institutionId: String?): String? = Institutions.appsFor(institutionId).firstOrNull { get(it) != null }
 
     /**
-     * The recognised apps (merchants, banks, UPI apps) that are installed, with their names, for picking a
-     * merchant's icon by hand. Only these packages are ever looked up; the phone's full app list is never read.
-     * Call off the main thread.
+     * Apps a merchant's icon can be picked from: the recognised apps that are installed, and every app on
+     * the phone that pays by UPI (the manifest's narrow upi:// query, which covers bank and wallet apps).
+     * The phone's full list of apps is never read. Call off the main thread.
      */
-    fun installedKnownApps(): List<KnownApp> =
-        KnownApps.packageNames.mapNotNull { pkg ->
+    fun pickableApps(): List<KnownApp> {
+        val pm = context.packageManager
+        val upi = runCatching {
+            @Suppress("DEPRECATION")
+            pm.queryIntentActivities(Intent(Intent.ACTION_VIEW, Uri.parse("upi://pay")), 0).map { it.activityInfo.packageName }
+        }.getOrDefault(emptyList())
+        return (KnownApps.packageNames + upi).distinct().filter { it != context.packageName }.mapNotNull { pkg ->
             if (get(pkg) == null) return@mapNotNull null
             val label = runCatching {
-                val pm = context.packageManager
                 @Suppress("DEPRECATION")
                 pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
             }.getOrNull()?.takeIf { it.isNotBlank() }
                 ?: KnownApps.nameFor(pkg)
             KnownApp(pkg, label)
         }.sortedBy { it.label.lowercase() }
+    }
 }
 
 data class KnownApp(val packageName: String, val label: String)

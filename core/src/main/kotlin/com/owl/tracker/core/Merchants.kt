@@ -156,6 +156,24 @@ object MerchantRegistry {
         m("headspace", "Headspace", "com.getsomeheadspace.android", Cat.HEALTH, "headspace"),
         m("calm", "Calm", "com.calm.android", Cat.HEALTH, "calm.com"),
         m("strava", "Strava", "com.strava", Cat.SPORTS, "strava"),
+        // Insurance: aggregators, then insurers. Health insurers count as Health, the rest as Bills.
+        m("policybazaar", "Policybazaar", "com.policybazaar", Cat.BILLS, "policybazaar", "policy bazaar", "pb fintech", "pbfintech"),
+        m("policyx", "PolicyX", "com.policyx.policyx", Cat.BILLS, "policyx"),
+        m("digit", "Digit Insurance", "com.godigit.digit", Cat.BILLS, "go digit", "godigit", "digit insurance", "digit general", "digit life"),
+        m("acko", "ACKO", "com.acko.android", Cat.BILLS, "acko$", "acko general", "acko tech"),
+        m("lic", "LIC", "com.lic.liccustomer", Cat.BILLS, "lic of india", "licindia", "life insurance corp"),
+        m("hdfcergo", "HDFC ERGO", "com.hdfcergo.here", Cat.BILLS, "hdfc ergo", "hdfcergo"),
+        m("icicilombard", "ICICI Lombard", "icici.lombard.ghi", Cat.BILLS, "icici lombard", "icicilombard"),
+        m("tataaig", "Tata AIG", "com.tataaig.android", Cat.BILLS, "tata aig", "tataaig"),
+        m("tataaia", "Tata AIA Life", "com.tataaialife", Cat.BILLS, "tata aia", "tataaia"),
+        m("bajajgeneral", "Bajaj General Insurance", "com.ba.cp.controller", Cat.BILLS, "bajaj allianz general", "bajaj allianz gen", "bajaj general"),
+        m("hdfclife", "HDFC Life", "com.hdfcclife.activities", Cat.BILLS, "hdfc life", "hdfclife", "hdfc standard life"),
+        m("sbilife", "SBI Life", "com.sbilife.smartcare", Cat.BILLS, "sbi life", "sbilife"),
+        m("icicipru", "ICICI Prudential Life", "com.ipru.iciciprulife.customer.release", Cat.BILLS, "icici prudential life", "icici pru life", "iciciprulife"),
+        m("axismaxlife", "Axis Max Life", "com.maxlifeinsurance.www.twa", Cat.BILLS, "max life$", "max life insurance", "maxlifeinsurance"),
+        m("starhealth", "Star Health", "com.star.customer_app", Cat.HEALTH, "star health", "starhealth"),
+        m("nivabupa", "Niva Bupa", "com.maxbupa.healthapp", Cat.HEALTH, "niva bupa", "nivabupa", "max bupa", "maxbupa"),
+        m("carehealth", "Care Health Insurance", "com.religare.healthinsurance", Cat.HEALTH, "care health insurance", "care health ins", "religare health", "careinsurance"),
         m("byjus", "BYJU'S", "com.byjus.thelearningapp", Cat.EDUCATION, "byju", "think and learn"),
         m("unacademy", "Unacademy", "com.unacademyapp", Cat.EDUCATION, "unacademy", "sorting hat"),
         m("coursera", "Coursera", "org.coursera.android", Cat.EDUCATION, "coursera"),
@@ -197,6 +215,11 @@ object MerchantRegistry {
 /** Every Android app whose icon Owl Tracker may show: recognised merchants, banks, cards and wallets. */
 object KnownApps {
     val packageNames: List<String> = (MerchantRegistry.packageNames + Institutions.packageNames).distinct()
+
+    private val PACKAGE = Regex("""[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+""")
+
+    /** Whether [s] is shaped like an Android package name (for icons chosen by hand, e.g. any UPI app). */
+    fun isPackageName(s: String?): Boolean = s != null && s.length <= 150 && PACKAGE.matches(s)
 
     /** A name for the app when Android can't give its label. */
     fun nameFor(pkg: String): String =

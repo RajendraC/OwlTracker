@@ -45,6 +45,7 @@ class MerchantEditFlowTest {
             tapTag("change_icon")
             waitForText("None of the apps Owl Tracker recognises are installed")
             waitForText("never reads the full list of apps")
+            waitForTag("icon_picture") // any picture can be the icon too
             tapTag("icon_none")
             waitForText("App icon removed")
             waitForText("Category icon")

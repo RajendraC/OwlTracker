@@ -748,8 +748,18 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     /** Recognised apps installed on this phone, for choosing a merchant's icon. */
-    suspend fun installedKnownApps(): List<com.owl.tracker.KnownApp> =
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { c.appIcons.installedKnownApps() }
+    suspend fun pickableApps(): List<com.owl.tracker.KnownApp> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { c.appIcons.pickableApps() }
+
+    /** A picture (a small square PNG) as the icon for this payment's merchant, now and for future payments. */
+    fun setMerchantPicture(txId: Long, png: ByteArray) = viewModelScope.launch {
+        if (!editable()) return@launch
+        val n = runCatching { repo.setMerchantPicture(txId, png) }.getOrElse { say("That picture couldn't be used"); return@launch }
+        _sheet.value = Sheet.TxnDetail(txId)
+        say(if (n > 1) "Picture set for $n payments" else "Picture set")
+    }
+
+    fun pictureNotOpened() = say("That picture couldn't be opened. Try a PNG, JPEG or screenshot.")
 
     /** [logo]: null = automatic, "" = no app icon, else a recognised app's package. */
     fun setMerchantIcon(txId: Long, logo: String?) = viewModelScope.launch {

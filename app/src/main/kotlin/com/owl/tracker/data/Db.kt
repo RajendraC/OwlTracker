@@ -74,13 +74,14 @@ class Db(
 
         override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
             if (oldVersion < 2) Schema.upgradeTo2(db)
+            if (oldVersion < 3) Schema.upgradeTo3(db)
         }
     }
 }
 
 object Schema {
-    /** 1: first release. 2: Sports & Fitness category, and the merchants table (names and icons the user chose). */
-    const val VERSION = 2
+    /** 1: first release. 2: Sports & Fitness category, and the merchants table (names and icons the user chose). 3: pictures. */
+    const val VERSION = 3
     const val OVERALL = "__overall__"
 
     val CREATE = listOf(
@@ -129,6 +130,7 @@ object Schema {
         "CREATE TABLE deleted_sms(sms_id INTEGER PRIMARY KEY NOT NULL, deleted_at INTEGER NOT NULL)",
         "CREATE TABLE settings(key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)",
         MERCHANTS_TABLE,
+        PICTURES_TABLE,
     )
 
     /**
@@ -138,6 +140,18 @@ object Schema {
      */
     private const val MERCHANTS_TABLE =
         "CREATE TABLE IF NOT EXISTS merchants(merchant_key TEXT PRIMARY KEY NOT NULL, name TEXT, logo TEXT, updated_at INTEGER NOT NULL)"
+
+    /**
+     * Pictures the user chose as merchant icons: small square PNGs, by id ("pic:" + hash of the PNG).
+     * A merchant's logo, and its payments' merchant_package, then hold that id.
+     */
+    private const val PICTURES_TABLE =
+        "CREATE TABLE IF NOT EXISTS pictures(id TEXT PRIMARY KEY NOT NULL, png BLOB NOT NULL)"
+
+    /** 3: pictures as merchant icons. */
+    fun upgradeTo3(db: SupportSQLiteDatabase) {
+        db.execSQL(PICTURES_TABLE)
+    }
 
     data class SeedCategory(val id: String, val name: String, val icon: String, val color: Long, val kind: CategoryKind)
 

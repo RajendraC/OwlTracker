@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.owl.tracker.data.Schema
 import com.owl.tracker.data.Source
 import com.owl.tracker.core.Cat
+import com.owl.tracker.core.MerchantPicture
 import com.owl.tracker.core.TxKind
 import com.owl.tracker.data.Repository
 import com.owl.tracker.sms.FakeSmsSource
@@ -162,7 +163,9 @@ class ImportEngineTest {
         assertEquals(count, c.repo.renameMerchant(swiggy.id, "  Food delivery  ", all = true))
         assertTrue(month(c).filter { it.merchantKey == "swiggy" }.all { it.merchantName == "Food delivery" })
         assertEquals(count, c.repo.setMerchantLogo(swiggy.id, "com.application.zomato"))
-        assertEquals(0, c.repo.setMerchantLogo(swiggy.id, "com.example.not.recognised"))
+        // Any app's package name is accepted (UPI apps aren't all recognised); anything else isn't
+        assertEquals(0, c.repo.setMerchantLogo(swiggy.id, "not a package"))
+        assertEquals(0, c.repo.setMerchantLogo(swiggy.id, "pic:0123456789abcdef")) // no such picture
 
         inbox += SmsMessage(5100, "VM-HDFCBK-S", "Sent Rs.410.00 From HDFC Bank A/C *4821 To SWIGGY On 18/10/26 Ref 629999990001", TEST_CLOCK.millis() - 60_000)
         assertEquals(1, e.syncNew())
@@ -178,6 +181,35 @@ class ImportEngineTest {
         assertTrue(month(c).filter { it.merchantKey == "swiggy" }.all { it.merchantPackage == "in.swiggy.android" })
         assertEquals(null, c.repo.merchantOverrides()["swiggy"]?.logo)
         assertEquals("Food delivery", c.repo.merchantOverrides()["swiggy"]?.name)
+    }
+
+    @Test
+    fun aPictureIconAppliesToPastAndNewPayments() = runBlocking {
+        val inbox = sampleInbox()
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        c.repo.updateSettings { it.copy(onboarded = true) }
+        val swiggy = month(c).first { it.merchantKey == "swiggy" }
+        val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A) + ByteArray(120) { (it * 3).toByte() }
+        val id = MerchantPicture.idFor(png)
+
+        val count = month(c).count { it.merchantKey == "swiggy" }
+        assertEquals(count, c.repo.setMerchantPicture(swiggy.id, png))
+        assertEquals(id, c.repo.merchantOverrides().getValue("swiggy").logo)
+        assertTrue(month(c).filter { it.merchantKey == "swiggy" }.all { it.merchantPackage == id })
+
+        // New SMS from the same merchant get the picture too, and the sync's icon filling leaves it alone
+        inbox += SmsMessage(5200, "VM-HDFCBK-S", "Sent Rs.199.00 From HDFC Bank A/C *4821 To SWIGGY On 18/10/26 Ref 629999990002", TEST_CLOCK.millis() - 60_000)
+        assertEquals(1, e.syncNew())
+        assertEquals(id, month(c).first { it.smsId == 5200L }.merchantPackage)
+
+        // Not a PNG: refused
+        assertTrue(runCatching { c.repo.setMerchantPicture(swiggy.id, "GIF89a and some more bytes here".toByteArray()) }.isFailure)
+
+        // Choosing an app instead removes the picture from the phone
+        c.repo.setMerchantLogo(swiggy.id, "com.application.zomato")
+        assertNull(c.repo.pictureBytes(id))
     }
 
     @Test

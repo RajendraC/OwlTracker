@@ -8,6 +8,7 @@ import com.owl.tracker.core.Cat
 import com.owl.tracker.core.CategoryRule
 import com.owl.tracker.core.Direction
 import com.owl.tracker.core.KnownApps
+import com.owl.tracker.core.MerchantPicture
 import com.owl.tracker.core.MerchantRegistry
 import com.owl.tracker.core.RuleMatch
 import com.owl.tracker.core.TxKind
@@ -247,17 +248,19 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
 
     /**
      * Sets the icon for every payment from this payment's merchant, now and in future imports.
-     * [logo]: null = automatic (the recognised app, if any), "" = no app icon, else a recognised app's package.
+     * [logo]: null = automatic (the recognised app, if any), "" = no app icon, else an app's package
+     * (a recognised app or any UPI app on the phone) or a picture already saved by [setMerchantPicture].
      */
     suspend fun setMerchantLogo(txId: Long, logo: String?): Int = write { d ->
         val key = merchantKeyOf(d, txId) ?: return@write 0
         val pkg = when (logo) {
             null -> MerchantRegistry.all.firstOrNull { it.key == key }?.packageName
             "" -> null
-            else -> logo.takeIf { it in KnownApps.packageNames } ?: return@write 0
+            else -> logo.takeIf { KnownApps.isPackageName(it) || (MerchantPicture.isPicture(it) && hasPicture(d, it)) } ?: return@write 0
         }
         upsertMerchant(d, key, "logo" to logo)
         val n = d.update("transactions", CONFLICT_REPLACE, contentValuesOf("merchant_package" to pkg), "merchant_key = ?", arrayOf<Any?>(key))
+        prunePictures(d)
         if (logo == null && pkg == null) {
             // A card bill payment has no merchant app: automatic means the app of the bank that sent the SMS.
             val bill = TxKind.CARD_BILL_PAYMENT.name
@@ -301,6 +304,44 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             }
         }
     }
+
+    /**
+     * Uses a picture (a small square PNG, see [MerchantPicture]) as the icon for every payment from this
+     * payment's merchant, now and in future imports. Returns how many payments changed.
+     */
+    suspend fun setMerchantPicture(txId: Long, png: ByteArray): Int {
+        require(MerchantPicture.isPng(png)) { "Not a PNG picture icon" }
+        val id = MerchantPicture.idFor(png)
+        return write { d ->
+            val key = merchantKeyOf(d, txId) ?: return@write 0
+            d.insert("pictures", CONFLICT_IGNORE, contentValuesOf("id" to id, "png" to png))
+            upsertMerchant(d, key, "logo" to id)
+            val n = d.update("transactions", CONFLICT_REPLACE, contentValuesOf("merchant_package" to id), "merchant_key = ?", arrayOf<Any?>(key))
+            prunePictures(d)
+            n
+        }
+    }
+
+    /** A picture icon's PNG, for drawing it. Small and quick; called once per picture by the icon cache. */
+    fun pictureBytes(id: String): ByteArray? {
+        if (!MerchantPicture.isPicture(id)) return null
+        return db.get().query("SELECT png FROM pictures WHERE id = ?", arrayOf<Any?>(id)).use { c -> if (c.moveToFirst()) c.getBlob(0) else null }
+    }
+
+    private fun hasPicture(d: SupportSQLiteDatabase, id: String): Boolean =
+        d.query("SELECT 1 FROM pictures WHERE id = ?", arrayOf<Any?>(id)).use { it.moveToFirst() }
+
+    /** Removes pictures no merchant or payment uses any more. */
+    private fun prunePictures(d: SupportSQLiteDatabase) {
+        d.delete(
+            "pictures",
+            "id NOT IN (SELECT logo FROM merchants WHERE logo IS NOT NULL) AND id NOT IN (SELECT merchant_package FROM transactions WHERE merchant_package IS NOT NULL)",
+            null,
+        )
+    }
+
+    private fun readPictures(d: SupportSQLiteDatabase): Map<String, ByteArray> =
+        d.query("SELECT id, png FROM pictures").use { c -> buildMap<String, ByteArray> { while (c.moveToNext()) put(c.getString(0), c.getBlob(1)) } }
 
     private fun merchantKeyOf(d: SupportSQLiteDatabase, txId: Long): String? =
         d.query("SELECT merchant_key FROM transactions WHERE id = ?", arrayOf<Any?>(txId)).use { c -> if (c.moveToFirst()) c.getString(0) else null }
@@ -398,6 +439,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         val rules: List<RuleRow>,
         val transactions: List<Txn>,
         val merchants: List<MerchantOverride> = emptyList(),
+        val pictures: Map<String, ByteArray> = emptyMap(),
     )
 
     suspend fun snapshot(): Snapshot = read { d ->
@@ -408,7 +450,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             buildList { while (c.moveToNext()) add(RuleRow(c.getString(0), c.getString(1), c.getString(2))) }
         }
         val txns = d.query("SELECT $TX_COLS FROM transactions ORDER BY occurred_at, id").use { c -> c.toTxns() }
-        Snapshot(readSettings(d), readCategories(d), budgets, rules, txns, readMerchants(d))
+        Snapshot(readSettings(d), readCategories(d), budgets, rules, txns, readMerchants(d), readPictures(d))
     }
 
     data class RestoreCounts(val added: Int, val skipped: Int, val categoriesAdded: Int, val budgetsSet: Int, val rulesAdded: Int)
@@ -428,6 +470,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             d.delete("budgets", null, null)
             d.delete("categories", null, null)
             d.delete("merchants", null, null)
+            d.delete("pictures", null, null)
         }
 
         fun categoryIds(): Set<String> = d.query("SELECT id FROM categories").use { c -> buildSet { while (c.moveToNext()) add(c.getString(0)) } }
@@ -464,6 +507,10 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             if (d.insert("rules", CONFLICT_IGNORE, row) != -1L) rulesAdded++
         }
 
+        // Pictures first, so the names and icons chosen on the other phone can use them.
+        b.pictures.forEach { (id, png) ->
+            if (MerchantPicture.isPng(png) && MerchantPicture.idFor(png) == id) d.insert("pictures", CONFLICT_IGNORE, contentValuesOf("id" to id, "png" to png))
+        }
         // Names and icons chosen on the other phone; when adding, this phone's own choices win.
         b.merchants.forEach { m ->
             d.insert("merchants", CONFLICT_IGNORE, contentValuesOf("merchant_key" to m.key, "name" to m.name, "logo" to m.logo, "updated_at" to clock.millis()))
@@ -497,6 +544,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             sampleData = if (replace) false else s.sampleData,
         )
         next.toMap().forEach { (k, v) -> d.insert("settings", CONFLICT_REPLACE, contentValuesOf("key" to k, "value" to v)) }
+        prunePictures(d)
 
         RestoreCounts(added, skipped, categoriesAdded, budgetsSet, rulesAdded)
     }

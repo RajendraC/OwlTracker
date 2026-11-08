@@ -42,6 +42,7 @@ object Ic {
     val noNet = icon("M3 3l18 18M8.5 16.4a5 5 0 0 1 7 0M5 12.6a10 10 0 0 1 4.3-2.4M13.4 10a10 10 0 0 1 5.6 2.6M2 8.9A15 15 0 0 1 6.4 6M10.4 5.1A15 15 0 0 1 22 8.9M12 20h.01")
     val tag = icon("M3 12V4h8l9 9-8 8zM7.5 7.5h.01")
     val edit = icon("M4 20h4L19 9l-4-4L4 16zM14 6l4 4")
+    val image = icon("M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15.5 7.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z")
     val trash = icon("M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13")
     val eye = icon("M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z")
     val alert = icon("M12 4 2.5 20h19zM12 10v4.5M12 17.5h.01", 2f)

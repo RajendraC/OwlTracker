@@ -69,6 +69,8 @@ import com.owl.tracker.ui.components.Gap
 import com.owl.tracker.ui.components.InfoNote
 import com.owl.tracker.ui.components.MerchantAvatar
 import com.owl.tracker.ui.components.Panel
+import com.owl.tracker.ui.components.PictureIcons
+import com.owl.tracker.ui.components.PictureCropDialog
 import com.owl.tracker.ui.components.SwitchRow
 import com.owl.tracker.ui.theme.Ic
 import com.owl.tracker.ui.theme.LocalStatusColors
@@ -78,6 +80,7 @@ import com.owl.tracker.core.Institutions
 import com.owl.tracker.core.Money
 import com.owl.tracker.core.RejectReason
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -326,9 +329,34 @@ private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
     val txFlow = remember(txId) { vm.txnFlow(txId) }
     val t by txFlow.collectAsStateWithLifecycle(initialValue = null)
     val cats by vm.categories.collectAsStateWithLifecycle()
-    val apps by androidx.compose.runtime.produceState<List<com.owl.tracker.KnownApp>?>(null) { value = vm.installedKnownApps() }
+    val apps by androidx.compose.runtime.produceState<List<com.owl.tracker.KnownApp>?>(null) { value = vm.pickableApps() }
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var picked by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    // Android's photo picker: no storage permission, and Owl Tracker only gets the one picture chosen
+    val pickPicture = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { PictureIcons.load(context, uri) }
+            if (bitmap == null) vm.pictureNotOpened() else picked = bitmap
+        }
+    }
     val tx = t ?: return
     val cat = cats.firstOrNull { it.id == tx.categoryId }
+    picked?.let { source ->
+        PictureCropDialog(
+            source,
+            onCancel = { picked = null },
+            onUse = { box ->
+                scope.launch {
+                    val png = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { PictureIcons.iconPng(source, box) }
+                    picked = null
+                    vm.setMerchantPicture(txId, png)
+                }
+            },
+        )
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
         SheetTitle("Icon for ${tx.merchantName}", "Used for all its payments, now and later")
@@ -340,12 +368,28 @@ private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
             Text("  Category icon")
         }
     }
+    val hasPicture = com.owl.tracker.core.MerchantPicture.isPicture(tx.merchantPackage)
+    OutlinedButton(
+        onClick = {
+            pickPicture.launch(
+                androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly),
+            )
+        },
+        modifier = Modifier.fillMaxWidth().testTag("icon_picture"),
+        border = androidx.compose.foundation.BorderStroke(
+            if (hasPicture) 2.dp else 1.dp,
+            if (hasPicture) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+        ),
+    ) {
+        if (hasPicture) MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cat, 20.dp) else Icon(Ic.image, contentDescription = null)
+        Text(if (hasPicture) "  Change picture" else "  Use a picture")
+    }
     Text("Apps on this phone", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     val list = apps
     when {
         list == null -> Text("Looking…", color = MaterialTheme.colorScheme.onSurfaceVariant)
         list.isEmpty() -> Text(
-            "None of the apps Owl Tracker recognises are installed.",
+            "None of the apps Owl Tracker recognises are installed. Use a picture instead.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         else -> FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -366,7 +410,10 @@ private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
             }
         }
     }
-    InfoNote("Only apps Owl Tracker recognises are shown. It never reads the full list of apps on your phone.")
+    InfoNote(
+        "Shows the apps Owl Tracker recognises and every app here that pays by UPI. For anything else, use a picture, " +
+            "such as a screenshot of the app's icon. Owl Tracker never reads the full list of apps on your phone.",
+    )
 }
 
 // ---------------- budgets & categories ----------------
