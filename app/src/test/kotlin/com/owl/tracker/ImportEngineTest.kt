@@ -222,7 +222,7 @@ class ImportEngineTest {
         inbox += SmsMessage(5300, "VM-HDFCBK-S", "Sent Rs.1500.00 From HDFC Bank A/C *4821 To SHREE GANESH HPCL On 18/10/26 Ref 629999990003", TEST_CLOCK.millis() - 60_000)
         assertEquals(1, e.syncNew())
         val pump = month(c).first { it.smsId == 5300L }
-        assertEquals("SHREE GANESH HPCL", pump.merchantName) // which pump, not just "HPCL"
+        assertEquals("Shree Ganesh Hpcl", pump.merchantName) // which pump, not just "HPCL"
         assertEquals("shree_ganesh_hpcl", pump.merchantKey)
         assertEquals("com.drivetrackplusrefuel", pump.merchantPackage)
         assertEquals(Cat.FUEL, pump.categoryId)
