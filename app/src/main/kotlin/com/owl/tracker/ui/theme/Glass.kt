@@ -2,7 +2,6 @@ package com.owl.tracker.ui.theme
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -28,7 +27,7 @@ val LocalGlass = staticCompositionLocalOf { false }
 @Composable
 fun GlassBackdrop(modifier: Modifier = Modifier) {
     val c = MaterialTheme.colorScheme
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val base = c.background
     // Saturated enough to show through the cards, soft enough to keep text easy to read. In the dark
     // theme the pools glow: the theme's light accent colours over the near-black background.
@@ -66,7 +65,7 @@ fun glassColors(): androidx.compose.material3.ColorScheme {
 @Composable
 @ReadOnlyComposable
 fun glassFill(): Color {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     // Solid enough that text stays easy to read whatever colour shows through (with wallpaper colours,
     // the wash can be close to the text's own colour); the colour still glows through and round the edges
     return if (dark) MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.74f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.68f)
@@ -76,7 +75,7 @@ fun glassFill(): Color {
 @Composable
 @ReadOnlyComposable
 fun glassFillStrong(): Color {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     return if (dark) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.90f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)
 }
 
@@ -84,7 +83,7 @@ fun glassFillStrong(): Color {
 @Composable
 @ReadOnlyComposable
 fun glassEdge(): BorderStroke {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val top = Color.White.copy(alpha = if (dark) 0.34f else 0.95f)
     val bottom = Color.White.copy(alpha = if (dark) 0.06f else 0.30f)
     return BorderStroke(1.dp, Brush.linearGradient(listOf(top, bottom, top.copy(alpha = top.alpha * 0.4f))))

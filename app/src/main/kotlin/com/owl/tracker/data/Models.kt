@@ -6,6 +6,22 @@ import com.owl.tracker.core.TxKind
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** Light or dark: follow the phone (SYSTEM), or always one of them. [key] is how it's stored. */
+enum class ThemeMode(val key: String, val label: String) {
+    SYSTEM("system", "System"), LIGHT("light", "Light"), DARK("dark", "Dark");
+
+    /** Whether to draw dark, given whether the phone itself is in dark mode. */
+    fun isDark(systemDark: Boolean): Boolean = when (this) {
+        SYSTEM -> systemDark
+        LIGHT -> false
+        DARK -> true
+    }
+
+    companion object {
+        fun from(key: String?): ThemeMode = entries.firstOrNull { it.key == key } ?: SYSTEM
+    }
+}
+
 /** Where a transaction came from. BACKUP: restored from a backup file (originally an SMS, with the SMS details left out). */
 enum class Source { SMS, MANUAL, BACKUP }
 
@@ -107,6 +123,8 @@ data class AppSettings(
     val tipsHiddenUntil: Long = 0,
     /** The see-through "glass" look (on by default); off is the plain solid look. */
     val glass: Boolean = true,
+    /** Light, dark, or follow the phone (the default). */
+    val theme: ThemeMode = ThemeMode.SYSTEM,
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -120,6 +138,7 @@ data class AppSettings(
         "sample_data" to sampleData.toString(),
         "tips_hidden_until" to tipsHiddenUntil.toString(),
         "glass" to glass.toString(),
+        "theme" to theme.key,
     )
 
     companion object {
@@ -135,6 +154,7 @@ data class AppSettings(
             sampleData = m["sample_data"]?.toBoolean() ?: false,
             tipsHiddenUntil = m["tips_hidden_until"]?.toLongOrNull() ?: 0,
             glass = m["glass"]?.toBoolean() ?: true,
+            theme = ThemeMode.from(m["theme"]),
         )
 
         fun filtersToJson(f: ImportFilters): String = JSONObject()

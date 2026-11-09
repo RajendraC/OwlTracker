@@ -572,6 +572,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun setScreenPrivacy(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(screenPrivacy = on) } }
 
     fun setGlass(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(glass = on) } }
+    fun setTheme(mode: com.owl.tracker.data.ThemeMode) = viewModelScope.launch { repo.updateSettings { it.copy(theme = mode) } }
 
     fun setStartDay(day: Int) = viewModelScope.launch {
         repo.updateSettings { it.copy(budgetStartDay = day.coerceIn(1, 28)) }

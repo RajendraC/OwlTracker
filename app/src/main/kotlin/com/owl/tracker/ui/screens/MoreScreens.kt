@@ -18,6 +18,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.owl.tracker.data.ThemeMode
 import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.ImportMode
 import com.owl.tracker.ui.Platform
@@ -41,6 +45,7 @@ import com.owl.tracker.ui.components.BankIcon
 import com.owl.tracker.ui.components.CategoryTile
 import com.owl.tracker.ui.components.Divider
 import com.owl.tracker.ui.components.Gap
+import com.owl.tracker.ui.components.IconTile
 import com.owl.tracker.ui.components.InfoNote
 import com.owl.tracker.ui.components.MerchantAvatar
 import com.owl.tracker.ui.components.NavRow
@@ -158,6 +163,8 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
 
         SectionLabel("Appearance")
         Panel(padding = 12.dp) {
+            ThemeChoice(settings.theme) { vm.setTheme(it) }
+            Divider()
             SwitchRow(
                 "Glass look", "See-through cards over a soft wash of colour. Off: plain solid cards.", settings.glass, { vm.setGlass(it) }, Ic.sparkle,
                 modifier = Modifier.testTag("glass_switch"),
@@ -265,5 +272,46 @@ private fun PrivacyPara(title: String, body: String) {
         Text(title, style = MaterialTheme.typography.titleSmall)
         Gap(4.dp)
         Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Light, dark or follow the phone; applies straight away. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemeChoice(mode: ThemeMode, onPick: (ThemeMode) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconTile(Ic.moon, c.onSurfaceVariant, c.surfaceVariant, 36.dp)
+            Column(Modifier.weight(1f)) {
+                Text("Theme", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    when (mode) {
+                        ThemeMode.SYSTEM -> "Follows your phone's dark mode setting"
+                        ThemeMode.LIGHT -> "Always light"
+                        ThemeMode.DARK -> "Always dark"
+                    },
+                    style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
+                )
+            }
+        }
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().testTag("theme_choice")) {
+            ThemeMode.entries.forEachIndexed { i, m ->
+                SegmentedButton(
+                    selected = m == mode,
+                    onClick = { onPick(m) },
+                    shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
+                    // See-through when not picked, so the glass shows; the picked one uses a container colour with its own text colour
+                    colors = SegmentedButtonDefaults.colors(
+                        inactiveContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                        inactiveContentColor = c.onSurface,
+                        activeContainerColor = c.secondaryContainer,
+                        activeContentColor = c.onSecondaryContainer,
+                    ),
+                    modifier = Modifier.testTag("theme_${m.key}"),
+                    label = { Text(m.label) },
+                )
+            }
+        }
     }
 }

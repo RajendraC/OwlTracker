@@ -1,13 +1,21 @@
 package com.owl.tracker.ui
 
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.WindowManager
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
@@ -23,6 +31,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.owl.tracker.OwlTrackerApp
+import com.owl.tracker.data.ThemeMode
 import com.owl.tracker.ui.theme.OwlTrackerTheme
 import kotlinx.coroutines.launch
 
@@ -38,19 +47,40 @@ class MainActivity : FragmentActivity() {
         override fun onStop(owner: LifecycleOwner) = vm.onAppBackground()
     }
 
+    /** Whether the app is drawn dark right now (for tests). */
+    internal var drawsDark = false
+        private set
+
+    /**
+     * A copy of the theme choice outside the encrypted database, so the first frame is already the
+     * right colour (the settings take a moment to load). The choice itself lives in the settings.
+     */
+    private val look by lazy { getSharedPreferences("look", MODE_PRIVATE) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        val startTheme = ThemeMode.from(look.getString("theme", null))
+        applySystemBars(startTheme.isDark(systemDark()))
         super.onCreate(savedInstanceState)
         val container = (application as OwlTrackerApp).container
         vm = ViewModelProvider(this, viewModelFactory { initializer { AppViewModel(container) } })[AppViewModel::class.java]
 
         lifecycleScope.launch {
-            vm.settings.collect { s -> applyScreenPrivacy(s?.screenPrivacy ?: true) }
+            vm.settings.collect { s ->
+                applyScreenPrivacy(s?.screenPrivacy ?: true)
+                if (s != null && look.getString("theme", null) != s.theme.key) look.edit().putString("theme", s.theme.key).apply()
+            }
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(processObserver)
 
         setContent {
-            OwlTrackerTheme {
+            val settings by vm.settings.collectAsStateWithLifecycle()
+            val dark = (settings?.theme ?: startTheme).isDark(isSystemInDarkTheme())
+            // Status and navigation bar icons follow the app's theme, not the phone's
+            DisposableEffect(dark) {
+                applySystemBars(dark)
+                onDispose {}
+            }
+            OwlTrackerTheme(dark = dark) {
                 OwlTrackerRoot(vm, platform)
             }
         }
@@ -59,6 +89,20 @@ class MainActivity : FragmentActivity() {
     override fun onDestroy() {
         ProcessLifecycleOwner.get().lifecycle.removeObserver(processObserver)
         super.onDestroy()
+    }
+
+    private fun systemDark(): Boolean =
+        (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+    /** Edge to edge, with light or dark bar icons to match the theme, and a matching window colour behind. */
+    private fun applySystemBars(dark: Boolean) {
+        drawsDark = dark
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark },
+            navigationBarStyle = SystemBarStyle.auto(LIGHT_SCRIM, DARK_SCRIM) { dark },
+        )
+        // Seen for a moment at start-up and behind the keyboard; the same colours as @color/window_background
+        window.setBackgroundDrawable(ColorDrawable(if (dark) 0xFF101512.toInt() else 0xFFF4F6F3.toInt()))
     }
 
     /** Blocks screenshots, screen recording and the Recents thumbnail while on. */
@@ -109,6 +153,10 @@ class MainActivity : FragmentActivity() {
         }
     }
 }
+
+// The scrims enableEdgeToEdge() uses by default behind 3-button navigation
+private val LIGHT_SCRIM = Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
+private val DARK_SCRIM = Color.argb(0x80, 0x1b, 0x1b, 0x1b)
 
 /** What the UI needs from the activity, behind an interface so tests can run without a fingerprint. */
 interface Platform {

@@ -21,6 +21,12 @@ import com.owl.tracker.core.BudgetState
 
 val Brand = Color(0xFF0F6B4F)
 
+/**
+ * True while the app draws dark. Use this, not isSystemInDarkTheme(): the user can pick light or dark
+ * in Settings whatever the phone is set to.
+ */
+val LocalDarkTheme = staticCompositionLocalOf { false }
+
 private val LightColors = lightColorScheme(
     primary = Brand,
     onPrimary = Color.White,
@@ -115,7 +121,7 @@ fun OwlTrackerTheme(dark: Boolean = isSystemInDarkTheme(), dynamic: Boolean = tr
         dark -> DarkColors
         else -> LightColors
     }
-    CompositionLocalProvider(LocalStatusColors provides if (dark) DarkStatus else LightStatus) {
+    CompositionLocalProvider(LocalStatusColors provides if (dark) DarkStatus else LightStatus, LocalDarkTheme provides dark) {
         MaterialTheme(colorScheme = colors, typography = AppTypography, content = content)
     }
 }
