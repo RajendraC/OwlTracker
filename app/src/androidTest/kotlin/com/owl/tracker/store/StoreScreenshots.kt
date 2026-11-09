@@ -213,6 +213,19 @@ class StoreScreenshots {
                 waitForTag("backup_screen", 20_000)
                 shot("70_backup")
             }
+            section("settings") {
+                nav(Screen.SETTINGS)
+                waitForTag("theme_choice", 20_000)
+                shot("75_settings")
+                // The opposite of the phone's own mode, then back to following the phone
+                val phoneDark = (app.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                val flip = if (phoneDark) "theme_light" else "theme_dark"
+                onNode(hasTestTag(flip)).performClick()
+                Thread.sleep(1200)
+                shot("76_settings_theme_flipped")
+                onNode(hasTestTag("theme_system")).performClick()
+                Thread.sleep(800)
+            }
             nav(Screen.HOME)
         }
         val files = out.listFiles()?.map { it.name }?.sorted().orEmpty()
