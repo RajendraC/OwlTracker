@@ -5,9 +5,12 @@
 # Everything lands in store-screens/.
 #   $1: emulator date as MMDDhhmmYYYY (empty keeps the real date)
 #   $2: "true" for the dark theme
+#   $3: "sms-demo" for the SMS permission walkthrough (StoreScreenshots#smsDemo) instead, saved in
+#       store-screens/ too, for tools/make_sms_demo_video.py
 set -uo pipefail
 DATE="${1:-}"
 NIGHT="${2:-false}"
+WHAT="${3:-screenshots}"
 OUT=store-screens
 mkdir -p "$OUT" logs
 PKG=com.owl.tracker
@@ -65,6 +68,24 @@ wait_ready >/dev/null 2>&1
 echo "== Install"
 adb install -r -g app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+
+if [ "$WHAT" = "sms-demo" ]; then
+  echo "== SMS permission walkthrough"
+  adb logcat -c || true
+  adb shell am instrument -w -r -e storeShots 1 -e class "$CLASS#seedInbox" "$RUNNER" 2>&1 | tee logs/seed.log
+  ran_ok logs/seed.log || { echo "::error::StoreScreenshots#seedInbox did not pass"; status=1; }
+  # Installed with -g, so take READ_SMS away again: the walkthrough must show Android's own prompt
+  adb shell pm revoke $PKG android.permission.READ_SMS || true
+  adb shell pm clear-permission-flags $PKG android.permission.READ_SMS user-set user-fixed >/dev/null 2>&1 || true
+  sleep 3
+  adb shell am instrument -w -r -e storeShots 1 -e class "$CLASS#smsDemo" "$RUNNER" 2>&1 | tee logs/sms-demo.log
+  ran_ok logs/sms-demo.log || { echo "::error::StoreScreenshots#smsDemo did not pass"; status=1; }
+  adb logcat -d -s OwlStoreShots:* TestRunner:* AndroidRuntime:E > logs/sms-demo-logcat.txt 2>&1 || true
+  adb pull /sdcard/Android/data/$PKG/files/sms-demo/. "$OUT/" || echo "::warning::Could not pull the walkthrough"
+  adb shell am broadcast -a com.android.systemui.demo -e command exit >/dev/null 2>&1 || true
+  ls -la "$OUT"
+  exit $status
+fi
 
 echo "== Screenshots"
 adb logcat -c || true

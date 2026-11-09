@@ -1,6 +1,10 @@
 package com.owl.tracker.store
 
 import android.Manifest
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.pm.PackageManager
+import android.graphics.Rect
+import android.view.accessibility.AccessibilityNodeInfo
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -82,7 +86,10 @@ class StoreScreenshots {
             override fun evaluate() {
                 assumeTrue("Store screenshots run only with -e storeShots 1", InstrumentationRegistry.getArguments().getString("storeShots") == "1")
                 assumeTrue("Store screenshots replace the SMS inbox, so they run only on an emulator", isEmulator())
-                if (description.methodName == "capture") freshAppWithDemoInbox()
+                when (description.methodName) {
+                    "capture", "seedInbox" -> freshAppWithDemoInbox()
+                    "smsDemo" -> prepareSmsDemo()
+                }
                 base.evaluate()
             }
         }
@@ -233,6 +240,80 @@ class StoreScreenshots {
         assertTrue("Only ${files.size} screenshots; failed sections: $failures", files.size >= 10)
     }
 
+    /** Fills the SMS inbox for [smsDemo] ([prepare] does the work). The workflow then takes READ_SMS away again. */
+    @Test
+    fun seedInbox() {
+        Log.i(TAG, "Demo inbox ready")
+    }
+
+    /**
+     * The walkthrough for Google Play's SMS Permissions Declaration video: a new user goes from the
+     * welcome screen through the disclosure, Android's own permission prompt and the import, then opens
+     * a payment's original SMS. Saves a PNG at each step in sms-demo/, and in taps.txt where each tap
+     * lands ("<shot> <x> <y>" in screen pixels), for tools/make_sms_demo_video.py.
+     */
+    @Test
+    fun smsDemo() {
+        assertTrue(
+            "READ_SMS must not be granted yet, so Android's prompt shows",
+            app.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED,
+        )
+        with(compose) {
+            waitForTag("get_started", 30_000)
+            demoShot("d01_welcome", hasTestTag("get_started"))
+            tapTag("get_started")
+
+            waitForTag("allow_sms")
+            demoShot("d02_disclosure", hasTestTag("allow_sms"))
+            onNode(hasTestTag("allow_sms")).performClick()
+
+            // Android's own permission prompt, tapped the way a person would
+            val allow = waitForAllowButton(30_000)
+            Thread.sleep(1000)
+            val r = Rect().also { allow.getBoundsInScreen(it) }
+            demoShot("d03_android_prompt", tap = r.centerX() to r.centerY())
+            if (!allow.performAction(AccessibilityNodeInfo.ACTION_CLICK)) shell("input tap ${r.centerX()} ${r.centerY()}")
+
+            waitForText("transactions from", timeoutMs = 90_000)
+            demoShot("d04_choose_senders", hasTestTag("review_button"))
+            tapTag("review_button")
+
+            waitForTag("import_selected", 30_000)
+            demoShot("d05_review", hasTestTag("import_selected"))
+            tapTag("import_selected")
+
+            waitForTag("import_continue", 90_000)
+            demoShot("d06_saved", hasTestTag("import_continue"))
+            tapTag("import_continue")
+
+            val budgets = budgetsFromSpending()
+            typeInto("budget_input", (budgets.getValue(Schema.OVERALL) / 100).toString())
+            demoShot("d07_budget", hasTestTag("save_budget"))
+            tapTag("save_budget")
+
+            waitForTag("budget_hero", 30_000)
+            demoShot("d08_home")
+
+            tapTag("tab_activity")
+            waitForText("Swiggy", timeoutMs = 20_000)
+            demoShot("d09_activity", hasText("Swiggy"))
+            tapText("Swiggy")
+            Thread.sleep(1200)
+
+            val viewSms = hasText("View original SMS", substring = true)
+            demoShot("d10_payment", viewSms)
+            onAllNodes(viewSms)[0].performClick()
+            Thread.sleep(900)
+            runCatching { onNode(hasTestTag("delete_txn")).performScrollTo() }
+            demoShot("d11_original_sms")
+            withVm { it.closeSheet() }
+            Thread.sleep(600)
+
+            nav(Screen.MORE)
+            demoShot("d12_no_internet")
+        }
+    }
+
     /** Slow walk through the app for the promo video; the workflow records the screen meanwhile. */
     @Test
     fun tour() {
@@ -265,6 +346,20 @@ class StoreScreenshots {
     }
 
     // ---- set-up ----
+
+    /** For [smsDemo]: the app as [seedInbox] left it (not set up yet, demo inbox filled), unlocked, screenshots allowed. */
+    private fun prepareSmsDemo() {
+        val ctx = app
+        ctx.getSharedPreferences(TrialClock.PREFS, Context.MODE_PRIVATE).edit().putBoolean("unlock_owned", true).commit()
+        shell("settings put global sysui_demo_allowed 1")
+        shell("am broadcast -a com.android.systemui.demo -e command enter")
+        shell("am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1030")
+        shell("am broadcast -a com.android.systemui.demo -e command battery -e level 92 -e plugged false")
+        shell("am broadcast -a com.android.systemui.demo -e command network -e wifi hide -e mobile show -e datatype none -e level 4")
+        shell("am broadcast -a com.android.systemui.demo -e command notifications -e visible false")
+        runBlocking { ctx.container.repo.updateSettings { it.copy(screenPrivacy = false) } }
+        demoOut.listFiles()?.forEach { it.delete() }
+    }
 
     private fun freshAppWithDemoInbox() {
         val ctx = app
@@ -346,12 +441,51 @@ class StoreScreenshots {
     /** Straight to a screen, closing any sheet, the way the app's own navigation does. */
     private fun nav(s: Screen) = withVm { it.closeSheet(); it.dismissConfirm(); it.go(s) }
 
-    private fun shot(name: String) {
+    private fun shot(name: String, dir: File = out) {
         compose.waitForIdle()
         Thread.sleep(900)
         val bmp: Bitmap = instrumentation.uiAutomation.takeScreenshot() ?: error("No screenshot for $name")
-        File(out, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        File(dir, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
         Log.i(TAG, "Saved $name (${bmp.width}x${bmp.height})")
+    }
+
+    private val demoOut: File by lazy { File(app.getExternalFilesDir(null), "sms-demo").apply { mkdirs() } }
+
+    /** A [smsDemo] screenshot, noting where the next tap lands: on [tapOn]'s centre, or at [tap]. */
+    private fun demoShot(name: String, tapOn: SemanticsMatcher? = null, tap: Pair<Int, Int>? = null) {
+        if (tapOn != null) runCatching { compose.onAllNodes(tapOn)[0].performScrollTo() }
+        shot(name, demoOut)
+        val at = tap ?: tapOn?.let { m ->
+            runCatching {
+                val n = compose.onAllNodes(m)[0].fetchSemanticsNode()
+                val p = n.positionOnScreen
+                (p.x + n.size.width / 2f).toInt() to (p.y + n.size.height / 2f).toInt()
+            }.onFailure { Log.w(TAG, "No tap spot for $name", it) }.getOrNull()
+        }
+        if (at != null) File(demoOut, "taps.txt").appendText("$name ${at.first} ${at.second}\n")
+    }
+
+    /** The Allow button of Android's permission prompt, found through accessibility. */
+    private fun waitForAllowButton(timeoutMs: Long): AccessibilityNodeInfo {
+        val ua = instrumentation.uiAutomation
+        ua.serviceInfo?.let { info ->
+            info.flags = info.flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            ua.serviceInfo = info
+        }
+        val ids = listOf("com.android.permissioncontroller", "com.google.android.permissioncontroller", "com.android.packageinstaller")
+            .map { "$it:id/permission_allow_button" }
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) {
+            val roots = runCatching { ua.windows.mapNotNull { it.root } }.getOrDefault(emptyList()) + listOfNotNull(ua.rootInActiveWindow)
+            for (root in roots) {
+                for (id in ids) root.findAccessibilityNodeInfosByViewId(id).firstOrNull()?.let { return it }
+                root.findAccessibilityNodeInfosByText("Allow")
+                    .firstOrNull { it.isClickable && it.text?.toString().equals("Allow", ignoreCase = true) }
+                    ?.let { return it }
+            }
+            Thread.sleep(300)
+        }
+        error("Android's permission prompt didn't appear")
     }
 
     /** Scrolls the screen's main list until the node matching [m] sits near the top. */

@@ -21,6 +21,11 @@ on:
         description: Dark theme (captures go to the store-screens-dark pre-release instead)
         type: boolean
         default: false
+      what:
+        description: "screenshots: Play screenshots and tour; sms-demo: the SMS permission walkthrough for the declaration video (sms-demo pre-release)"
+        type: choice
+        options: [screenshots, sms-demo]
+        default: screenshots
 
 permissions:
   contents: write
@@ -67,7 +72,7 @@ jobs:
           disk-size: 4096M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -timezone Asia/Kolkata
           disable-animations: true
-          script: bash ci/store-screens.sh "${{ inputs.date }}" "${{ inputs.night }}"
+          script: bash ci/store-screens.sh "${{ inputs.date }}" "${{ inputs.night }}" "${{ inputs.what }}"
 
       - name: Upload captures
         if: always()
@@ -83,13 +88,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ inputs.night && 'store-screens-dark' || 'store-screens' }}
+          TAG: ${{ inputs.what == 'sms-demo' && 'sms-demo' || (inputs.night && 'store-screens-dark' || 'store-screens') }}
         run: |
           shopt -s nullglob
           files=(store-screens/* logs/*)
           [ ${#files[@]} -gt 0 ] || { echo "Nothing to publish"; exit 0; }
           gh release delete "$TAG" -y --cleanup-tag 2>/dev/null || true
           gh release create "$TAG" --prerelease --target "$GITHUB_SHA" \
-            --title "Store screenshots (raw captures${TAG#store-screens})" \
+            --title "Raw emulator captures ($TAG)" \
             --notes "Raw emulator captures from run $GITHUB_RUN_ID. Made-up demo data. Not an app release." \
             "${files[@]}"
