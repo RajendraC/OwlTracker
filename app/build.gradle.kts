@@ -1,3 +1,5 @@
+import java.io.StringReader
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -7,8 +9,8 @@ plugins {
 }
 
 /** The default version (see version.properties). */
-val appVersion = java.util.Properties().apply {
-    load(java.io.StringReader(providers.fileContents(rootProject.layout.projectDirectory.file("version.properties")).asText.get()))
+val appVersion = Properties().apply {
+    load(StringReader(providers.fileContents(rootProject.layout.projectDirectory.file("version.properties")).asText.get()))
 }
 
 android {
