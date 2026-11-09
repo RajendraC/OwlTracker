@@ -25,7 +25,7 @@ import org.robolectric.annotation.Config
  * is saved with the other settings, and survives the screen being rebuilt.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = TestApp::class, sdk = [26, 36], qualifiers = "w393dp-h852dp-xxhdpi-notnight")
+@Config(application = TestApp::class, sdk = [26, 36], qualifiers = "w393dp-h852dp-notnight-xxhdpi")
 class ThemeSettingTest {
 
     @get:Rule
