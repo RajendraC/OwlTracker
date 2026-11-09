@@ -56,6 +56,9 @@ adb shell setprop persist.sys.timezone Asia/Kolkata || true
 adb shell date
 adb shell cmd overlay enable com.android.internal.systemui.navbar.gestural || true
 if [ "$NIGHT" = "true" ]; then adb shell cmd uimode night yes || true; else adb shell cmd uimode night no || true; fi
+# A slow emulator can show "<app> isn't responding" over every screenshot: hide such dialogs, and close any already up
+adb shell settings put global hide_error_dialogs 1 || true
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
 sleep 15
 wait_ready >/dev/null 2>&1
 
