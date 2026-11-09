@@ -6,6 +6,11 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+/** The default version (see version.properties). */
+val appVersion = java.util.Properties().apply {
+    load(java.io.StringReader(providers.fileContents(rootProject.layout.projectDirectory.file("version.properties")).asText.get()))
+}
+
 android {
     namespace = "com.owl.tracker"
     compileSdk = 36
@@ -16,8 +21,9 @@ android {
         minSdk = 26
         targetSdk = 36
         // The release workflow sets these; every Play upload needs a higher versionCode than the last.
-        versionCode = System.getenv("OWL_TRACKER_VERSION_CODE")?.toIntOrNull() ?: 15
-        versionName = System.getenv("OWL_TRACKER_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.11.1"
+        // Other builds take them from version.properties at the top of the project.
+        versionCode = System.getenv("OWL_TRACKER_VERSION_CODE")?.toIntOrNull() ?: appVersion.getProperty("versionCode").toInt()
+        versionName = System.getenv("OWL_TRACKER_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: appVersion.getProperty("versionName")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

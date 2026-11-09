@@ -72,6 +72,8 @@ Installing on your phone: see the step-by-step guide shared with this project.
 
 ## Versions
 
+Owl Tracker 1.0 is the first public version. Test and local builds take their version from `version.properties`; the release workflow sets the Play version itself (version code = 100 + run number).
+
 AGP 8.13.2 · Gradle 8.14.3 · Kotlin 2.2.20 · Compose BOM 2025.12.00 (Material 3) · compileSdk/targetSdk 36 · minSdk 26 · SQLCipher for Android 4.10.0 · Robolectric 4.16.1.
 
 ## Before publishing to Google Play
