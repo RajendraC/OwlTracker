@@ -2,6 +2,8 @@ package com.owl.tracker.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,23 +32,24 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.owl.tracker.core.BudgetState
+import com.owl.tracker.core.Direction
+import com.owl.tracker.core.Money
 import com.owl.tracker.data.Category
 import com.owl.tracker.data.Schema
 import com.owl.tracker.data.Txn
@@ -70,11 +73,10 @@ import com.owl.tracker.ui.components.Panel
 import com.owl.tracker.ui.components.ScreenHeader
 import com.owl.tracker.ui.components.SectionLabel
 import com.owl.tracker.ui.components.StatusPill
+import com.owl.tracker.ui.scene.CategoryScene
+import com.owl.tracker.ui.scene.Scenes
 import com.owl.tracker.ui.theme.Ic
 import com.owl.tracker.ui.theme.LocalStatusColors
-import com.owl.tracker.core.BudgetState
-import com.owl.tracker.core.Direction
-import com.owl.tracker.core.Money
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -260,6 +262,17 @@ fun HomeScreen(vm: AppViewModel) {
                     onMerchant = { k -> openMerchant = if (openMerchant == k) null else k },
                     onPayment = { t -> vm.openSheet(Sheet.TxnDetail(t.id)) },
                     headerAction = { TextButton(onClick = { vm.showActivity() }) { Text("See all") } },
+                    scene = { id ->
+                        val cat = catMap[id]
+                        val spent = dash.byCategory.firstOrNull { it.category.id == id }?.paise
+                        if (cat != null && spent != null) {
+                            val limit = budgetOf[id]?.limit
+                            val spec = remember(cat, spent, limit, dash.overall, dash.spent, ringMerchants) {
+                                Scenes.forCategory(cat, spent, limit, dash.overall, dash.spent, ringMerchants.map { it.name to it.paise })
+                            }
+                            CategoryScene(spec, cat.name)
+                        }
+                    },
                 )
             }
         }

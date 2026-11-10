@@ -96,6 +96,8 @@ fun DrillRingCard(
     moreBelow: Boolean = false,
     /** Shown beside the title at the top level, like Home's "See all". */
     headerAction: (@Composable () -> Unit)? = null,
+    /** The picture of the category opened, shown above its merchants (Home has one). */
+    scene: (@Composable (categoryId: String) -> Unit)? = null,
 ) {
     val sc = LocalStatusColors.current
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -186,6 +188,10 @@ fun DrillRingCard(
             }
         }
         Gap(12.dp)
+        if (pick != null && scene != null) {
+            scene(pick.id)
+            Gap(12.dp)
+        }
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Canvas(
                 Modifier.size(220.dp)

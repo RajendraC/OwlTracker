@@ -91,7 +91,7 @@ class ReportsAndBackupFlowTest {
         }
     }
 
-    /** Home: tapping the budget circle opens that category right below; the ring opens a merchant's payments; Back goes up. */
+    /** Home: tapping the budget circle opens that category right below, with its picture; the ring opens a merchant's payments; Back goes up. */
     @Test
     fun theBudgetCircleOnHomeDrillsDownRightThere() {
         setUpWithSms()
@@ -100,6 +100,9 @@ class ReportsAndBackupFlowTest {
             // The top of the circle is the biggest category's part
             onNodeWithTag("budget_ring").performTouchInput { click(Offset(centerX + 4f, 11.dp.toPx())) }
             waitForTag("ring_up")
+            // The opened category's picture sits above its merchants (Home only)
+            waitForTag("category_scene")
+            waitForText("tap the picture to play it again", substring = true)
             waitForTag("category_donut")
             onNodeWithTag("category_donut").performTouchInput { click(Offset(centerX + 6f, 23.dp.toPx())) }
             waitForTag("ring_payments")
