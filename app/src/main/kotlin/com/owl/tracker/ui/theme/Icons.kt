@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
+import com.owl.tracker.core.ShopKind
 
 /** Line icons drawn from SVG paths, so the app needs no icon library. Tint them with Icon(tint = ...). */
 object Ic {
@@ -103,4 +104,29 @@ object Ic {
     )
 
     fun forCategory(key: String): ImageVector = categoryIcons[key] ?: categoryIcons.getValue("others")
+
+    // Shops with no app, by the kind of shop their name says (see ShopKinds)
+    private val jeweller = icon("M6 15a6 6 0 1 0 12 0a6 6 0 1 0-12 0M9 4.5 10.5 2.5h3L15 4.5 12 8z")
+    private val clothes = icon("M8 3 3 6.5l2.5 4 2-1V21h9V9.5l2 1 2.5-4L16 3q-4 3.5-8 0z")
+    private val books = icon("M3 5.5q4.5-1.5 9 1 4.5-2.5 9-1V19q-4.5-1.5-9 1-4.5-2.5-9-1zM12 6.5V20")
+    private val pharmacy = icon("M10.6 4.4a4 4 0 0 1 5.66 5.66l-6.86 6.86a4 4 0 0 1-5.66-5.66zM7.2 7.8l5.66 5.66")
+    private val glasses = icon("M3 14a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0M14 14a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0M10 13.5q2-1.5 4 0M3.2 13 5 7M20.8 13 19 7")
+    private val cake = icon("M4 20h16v-7.5H4zM4 16q4 2 8 0t8 0M12 12.5v-4M12 6.5v-1")
+    private val scissors = icon("M3.5 17a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M15.5 17a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M7.8 15.3 18 4M16.2 15.3 6 4")
+    private val phone = icon("M7.5 3h9Q18 3 18 4.5v15q0 1.5-1.5 1.5h-9Q6 21 6 19.5v-15Q6 3 7.5 3zM10.5 18h3")
+    private val wrench = icon("M15 3.5a4.5 4.5 0 0 0-4.3 5.8L3.8 16.2a2.1 2.1 0 0 0 3 3l6.9-6.9A4.5 4.5 0 0 0 19.5 9l-2.7 2.7-2.6-.8-.8-2.6L16.1 5.6A4.5 4.5 0 0 0 15 3.5z")
+    private val clinic = icon("M4 4h16v16H4zM12 8v8M8 12h8")
+
+    fun forShop(kind: ShopKind): ImageVector = when (kind) {
+        ShopKind.JEWELLERY -> jeweller
+        ShopKind.CLOTHING -> clothes
+        ShopKind.BOOKS -> books
+        ShopKind.PHARMACY -> pharmacy
+        ShopKind.OPTICALS -> glasses
+        ShopKind.BAKERY -> cake
+        ShopKind.SALON -> scissors
+        ShopKind.MOBILES -> phone
+        ShopKind.HARDWARE -> wrench
+        ShopKind.CLINIC -> clinic
+    }
 }

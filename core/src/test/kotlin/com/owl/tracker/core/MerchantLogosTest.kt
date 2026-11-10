@@ -198,6 +198,59 @@ class MerchantLogosTest {
         }
     }
 
+    @Test fun recognisesJewellersClothingAndBooks() {
+        assertEquals("tanishq", key("TANISHQ JEWELLERY"))
+        assertEquals("caratlane", key("CARATLANE TRADING PVT LTD"))
+        assertEquals("malabargold", key("MALABAR GOLD AND DIAMONDS LTD"))
+        assertEquals("joyalukkas", key("JOYALUKKAS INDIA LTD"))
+        assertEquals("bluestone", key("BLUESTONE JEWELLERY AND LIFESTYLE"))
+        assertEquals("giva", key("GIVA"))
+        assertEquals("senco", key("SENCO GOLD LIMITED"))
+        assertEquals("titaneye", key("TITAN EYE PLUS"))
+        assertEquals("westside", key("WESTSIDE"))
+        assertEquals("maxfashion", key("MAX FASHION"))
+        assertEquals("lifestyle", key("LIFESTYLE INTERNATIONAL PVT LTD"))
+        assertEquals("pantaloons", key("PANTALOONS"))
+        assertEquals("shoppersstop", key("SHOPPERS STOP LTD"))
+        assertEquals("hm", key("H&M HENNES & MAURITZ RETAIL"))
+        assertEquals("hm", key("H & M"))
+        assertEquals("zara", key("INDITEX TRENT RETAIL INDIA"))
+        assertEquals("uniqlo", key("UNIQLO INDIA"))
+        assertEquals("fabindia", key("FABINDIA OVERSEAS"))
+        assertEquals("souledstore", key("THE SOULED STORE"))
+        assertEquals("snitch", key("SNITCH APPARELS"))
+        assertEquals("bewakoof", key("BEWAKOOF BRANDS"))
+        assertEquals("playbooks", key("GOOGLE PLAY BOOKS"))
+        assertEquals("googleplay", key("GOOGLE PLAY"))
+        assertEquals("storytel", key("STORYTEL"))
+        assertEquals("pratilipi", key("NASADIYA TECHNOLOGIES"))
+        assertEquals(Cat.SHOPPING, MerchantRegistry.match("TANISHQ", null)?.category)
+        assertEquals(Cat.EDUCATION, MerchantRegistry.match("PLAY BOOKS", null)?.category)
+        // Look-alikes and people's names stay apart
+        assertNull(key("ZARA KHAN"))
+        assertNull(key("MALABAR CAFE"))
+        assertNull(key("GOLD PALACE JEWELLERS"))
+        assertNull(key("ZUDIO TRENT LTD"))
+        assertNull(key("GIVAN SINGH"))
+        assertNull(key("SH&MS TRADERS"))
+        assertNull(key("KALYAN SILKS"))
+    }
+
+    @Test fun moreBanksShowTheirApps() {
+        assertEquals("com.snapwork.IDBI", Institutions.appsFor("idbi").first())
+        assertEquals("com.iob.iobconnect", Institutions.appsFor(Institutions.forEntity("IOBCHN")?.id).first())
+        assertEquals("com.lcode.ucomobilebanking", Institutions.appsFor("uco").first())
+        assertEquals("com.centralbank.retail.omni", Institutions.appsFor("central").first())
+        assertEquals("com.iexceed.ib.digitalbankingprod", Institutions.appsFor("indianbank").first())
+        assertEquals("com.rblbank.mobank", Institutions.appsFor("rbl").first())
+        assertEquals("com.bandhan.mBandhan", Institutions.appsFor("bandhan").first())
+        assertEquals("air.app.scb.breeze.android.main.in.prod", Institutions.appsFor("scb").first())
+        assertEquals("com.americanexpress.android.acctsvcs.in", Institutions.appsFor("amex").first())
+        assertEquals("com.creditcard.onecard", Institutions.appsFor("onecard").first())
+        assertEquals("American Express", KnownApps.nameFor("com.americanexpress.android.acctsvcs.in"))
+        assertEquals("Tanishq", KnownApps.nameFor("com.titancompany.tanishqapp"))
+    }
+
     @Test fun everyKnownMerchantHasAValidPackageName() {
         val pkg = Regex("[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]+)+")
         MerchantRegistry.all.forEach { m -> m.packageName?.let { assertTrue("${m.key}: $it", pkg.matches(it)) } }

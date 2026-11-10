@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -58,6 +59,7 @@ import com.owl.tracker.ui.theme.LocalStatusColors
 import com.owl.tracker.core.BudgetState
 import com.owl.tracker.core.Cat
 import com.owl.tracker.core.Institutions
+import com.owl.tracker.core.ShopKinds
 
 @Composable
 fun Panel(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
@@ -112,14 +114,24 @@ fun CategoryTile(category: Category?, size: Dp = 40.dp) {
 }
 
 /**
- * The merchant's real app icon when that app is installed; otherwise the category icon;
- * otherwise the first letter of the merchant name.
+ * The merchant's real app icon when that app is installed; otherwise, for a shop with no app, an icon for the
+ * kind of shop its name says (jeweller, opticals, bakery…); otherwise the category icon; otherwise the
+ * merchant's initials. Money received never gets a shop icon: a salary from a pharma company is not a pharmacy.
  */
 @Composable
 fun MerchantAvatar(appIcons: AppIcons, packageName: String?, merchantName: String, category: Category?, size: Dp = 42.dp) {
     val bitmap = remember(packageName) { appIcons.get(packageName)?.asImageBitmap() }
+    val shop = remember(merchantName, category?.id) {
+        if (category?.id == Cat.INCOME) null else ShopKinds.of(merchantName)
+    }
     when {
         bitmap != null -> Image(bitmap, contentDescription = null, modifier = Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)))
+        shop != null -> {
+            val color = Color(category?.color ?: 0xFF7F8682)
+            Box(Modifier.testTag("shop_icon_${shop.name.lowercase()}")) {
+                IconTile(Ic.forShop(shop), color, color.copy(alpha = 0.13f), size)
+            }
+        }
         category != null && category.id != Cat.OTHERS && category.id != Cat.INCOME -> CategoryTile(category, size)
         else -> {
             // A badge of the merchant's initials, in a colour that's always the same for that name.

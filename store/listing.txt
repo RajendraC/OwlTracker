@@ -15,7 +15,7 @@ HOW IT WORKS
 
 SEE WHERE YOUR MONEY GOES
 • Monthly dashboard with spending by category and your most recent transactions.
-• Real app icons for about 170 popular Indian apps, from Swiggy, FanCode and your petrol pump's brand to PhonePe, FASTag and your bank's own app, when they are installed. Or use any picture as a merchant's icon.
+• Real app icons for about 200 popular Indian apps, from Swiggy, Tanishq, FanCode and your petrol pump's brand to PhonePe, FASTag and your bank's own app, when they are installed. Shops with no app get an icon for their kind of shop: jeweller, clothing, books, pharmacy, opticals and more. Or use any picture as a merchant's icon.
 • Search your activity by merchant, category or note.
 
 REPORTS YOU CAN TAP THROUGH

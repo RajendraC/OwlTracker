@@ -190,6 +190,45 @@
         <package android:name="com.shell.sitibv.shellgoplusindia" />
         <package android:name="com.nhai.rajmargyatra" />
         <package android:name="com.fastaguser" />
+        <!-- Jewellers, clothing, books and stories (1.2) -->
+        <package android:name="com.titancompany.tanishqapp" />
+        <package android:name="com.titan.eyecare" />
+        <package android:name="com.caratlane.android" />
+        <package android:name="malabargold.qburst.com.malabargold" />
+        <package android:name="com.joyalukkas.mcstaging.twa" />
+        <package android:name="com.bluestone.android" />
+        <package android:name="co.giva.jewellery" />
+        <package android:name="com.india.senco" />
+        <package android:name="com.westside" />
+        <package android:name="com.applications.max" />
+        <package android:name="com.applications.lifestyle" />
+        <package android:name="com.pantaloons" />
+        <package android:name="shoppersstop.shoppersstop" />
+        <package android:name="com.hm.goe" />
+        <package android:name="com.inditex.zara" />
+        <package android:name="com.uniqlo.in.catalogue" />
+        <package android:name="com.fabindia.shopping" />
+        <package android:name="com.thesouledstore" />
+        <package android:name="co.shopney.snitch" />
+        <package android:name="com.bewakoof.bewakoof" />
+        <package android:name="com.google.android.apps.books" />
+        <package android:name="grit.storytel.app" />
+        <package android:name="com.pratilipi.mobile.android" />
+        <!-- More banks and cards (1.2) -->
+        <package android:name="com.snapwork.IDBI" />
+        <package android:name="com.iob.iobconnect" />
+        <package android:name="com.fss.iob6" />
+        <package android:name="com.lcode.ucomobilebanking" />
+        <package android:name="com.centralbank.retail.omni" />
+        <package android:name="com.infrasofttech.CentralBank" />
+        <package android:name="com.iexceed.ib.digitalbankingprod" />
+        <package android:name="com.IndianBank.IndOASIS" />
+        <package android:name="com.rblbank.mobank" />
+        <package android:name="com.bandhan.mBandhan" />
+        <package android:name="com.bandhan.mBandhanN" />
+        <package android:name="air.app.scb.breeze.android.main.in.prod" />
+        <package android:name="com.americanexpress.android.acctsvcs.in" />
+        <package android:name="com.creditcard.onecard" />
         <!-- Every UPI payment app (all bank and wallet apps that pay by UPI), so any of them can be a
              merchant's icon. A narrow intent query: Owl Tracker never sees the full list of apps. -->
         <intent>
