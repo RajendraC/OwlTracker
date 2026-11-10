@@ -79,8 +79,14 @@ fun ComposeTestRule.typeInto(tag: String, value: String) {
 }
 
 private fun ComposeTestRule.tap(node: SemanticsNodeInteraction) {
-    node.performScrollToSafe()
-    waitForIdle()
+    // Just after typing, the keyboard (and a screen's ime padding with it) can still be moving: give the scroll a few tries
+    val end = System.currentTimeMillis() + 3_000
+    while (true) {
+        node.performScrollToSafe()
+        waitForIdle()
+        if (runCatching { node.assertIsDisplayed() }.isSuccess || System.currentTimeMillis() > end) break
+        Thread.sleep(200)
+    }
     node.assertIsDisplayed()
     node.performSemanticsAction(SemanticsActions.OnClick)
     waitForIdle()
