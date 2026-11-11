@@ -97,7 +97,12 @@ fun MoreScreen(vm: AppViewModel) {
             @Suppress("DEPRECATION")
             runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
         }
-        Text("Owl Tracker $version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        Text(
+            "Owl Tracker $version\nFont: Plus Jakarta Sans, under the SIL Open Font License 1.1",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+        )
+        // Room for the raised Add button
+        Gap(36.dp)
     }
 }
 
@@ -164,11 +169,6 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
         SectionLabel("Appearance")
         Panel(padding = 12.dp) {
             ThemeChoice(settings.theme) { vm.setTheme(it) }
-            Divider()
-            SwitchRow(
-                "Glass look", "See-through cards over a soft wash of colour. Off: plain solid cards.", settings.glass, { vm.setGlass(it) }, Ic.sparkle,
-                modifier = Modifier.testTag("glass_switch"),
-            )
         }
 
         SectionLabel("Security")
@@ -301,12 +301,12 @@ private fun ThemeChoice(mode: ThemeMode, onPick: (ThemeMode) -> Unit) {
                     selected = m == mode,
                     onClick = { onPick(m) },
                     shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                    // See-through when not picked, so the glass shows; the picked one uses a container colour with its own text colour
+                    // The picked one uses a container colour with its own text colour
                     colors = SegmentedButtonDefaults.colors(
                         inactiveContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                         inactiveContentColor = c.onSurface,
-                        activeContainerColor = c.secondaryContainer,
-                        activeContentColor = c.onSecondaryContainer,
+                        activeContainerColor = c.primaryContainer,
+                        activeContentColor = c.onPrimaryContainer,
                     ),
                     modifier = Modifier.testTag("theme_${m.key}"),
                     label = { Text(m.label) },

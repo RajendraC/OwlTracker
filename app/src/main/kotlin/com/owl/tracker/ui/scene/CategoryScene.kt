@@ -31,25 +31,36 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.owl.tracker.core.Money
 import kotlin.math.roundToInt
 
 /**
- * The picture for an opened category: a short animated scene drawn by assets/scenes (the people, vehicles,
- * bowls and cups of the design), played once when it opens and again when tapped. It shows how much of the
- * budget the category has used. The page is the app's own file: it never reaches the network.
+ * A category's picture: a short animated scene drawn by assets/scenes (glossy groceries in a basket, coffee and
+ * cake on a board, cars on a road...), filling up with how much of the budget the category has used. It plays once when it
+ * appears and again when tapped (or, with [onClick], tapping does that instead). The page is the app's own file:
+ * it never reaches the network.
+ *
+ * [caption] adds the line underneath that says what the picture is measured against.
  */
 @Composable
-fun CategoryScene(spec: SceneSpec, categoryName: String, modifier: Modifier = Modifier) {
+fun CategoryScene(
+    spec: SceneSpec,
+    categoryName: String,
+    modifier: Modifier = Modifier,
+    caption: Boolean = true,
+    tag: String = "category_scene",
+    onClick: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     val still = remember { animationsOff(context) }
     val holder = remember { SceneHolder() }
     val json = spec.toJson(still)
-    val tint = lerp(Color(android.graphics.Color.parseColor(spec.color)), Color.White, 0.92f)
+    val tint = lerp(Color(android.graphics.Color.parseColor(spec.color)), Color.White, 0.86f)
     val spoken = describe(spec, categoryName)
     Column(modifier.fillMaxWidth()) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(248f / 120f).clip(RoundedCornerShape(16.dp)).background(tint)
-                .testTag("category_scene"),
+            Modifier.fillMaxWidth().aspectRatio(320f / 180f).clip(RoundedCornerShape(22.dp)).background(tint)
+                .testTag(tag),
         ) {
             AndroidView(
                 factory = { ctx -> holder.create(ctx) },
@@ -60,11 +71,11 @@ fun CategoryScene(spec: SceneSpec, categoryName: String, modifier: Modifier = Mo
             // Taps go to the picture as a whole (the page itself takes none)
             Box(
                 Modifier.matchParentSize()
-                    .clickable(onClickLabel = "Play it again") { holder.replay() }
+                    .clickable(onClickLabel = if (onClick == null) "Play it again" else "Open $categoryName") { if (onClick != null) onClick() else holder.replay() }
                     .semantics { contentDescription = spoken },
             )
         }
-        Text(
+        if (caption) Text(
             when (spec.basis) {
                 SceneBasis.CATEGORY_BUDGET -> "Against its own budget · tap the picture to play it again"
                 SceneBasis.MONTH_BUDGET -> "Against the month's budget · tap the picture to play it again"
@@ -88,7 +99,7 @@ internal fun describe(spec: SceneSpec, categoryName: String): String {
         else -> "$pct% of all spending"
     }
     val parts = spec.order.joinToString(", ") { it.second }
-    return "Picture of $categoryName: $how" + (if (parts.isEmpty()) "" else ". Shows $parts") + "."
+    return "Picture of $categoryName, ${Money.formatInr(spec.spentRupees * 100)}: $how" + (if (parts.isEmpty()) "" else ". Shows $parts") + "."
 }
 
 /** With animations turned off in the phone's settings, the picture shows its last frame without moving. */

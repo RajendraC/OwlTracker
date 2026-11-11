@@ -4,7 +4,7 @@ Owl Tracker
 SHORT DESCRIPTION (74/80)
 Spending from your bank & UPI SMS: budgets, reports, backups. No internet.
 
-FULL DESCRIPTION (3433/4000)
+FULL DESCRIPTION (3739/4000)
 Owl Tracker reads the bank, card and UPI SMS alerts already on your phone and turns them into a clear monthly spending dashboard with budgets and reports. Reading these SMS is the app's core feature, and everything happens on your phone: Owl Tracker has no internet permission.
 
 HOW IT WORKS
@@ -15,6 +15,7 @@ HOW IT WORKS
 
 SEE WHERE YOUR MONEY GOES
 • Monthly dashboard with spending by category and your most recent transactions.
+• This month in pictures: a bright picture for each category, a basket of vegetables, a road of cars and autos, a suitcase of stickers, that fills up with how much of its budget is used.
 • Real app icons for about 200 popular Indian apps, from Swiggy, Tanishq, FanCode and your petrol pump's brand to PhonePe, FASTag and your bank's own app, when they are installed. Shops with no app get an icon for their kind of shop: jeweller, clothing, books, pharmacy, opticals and more. Or use any picture as a merchant's icon.
 • Search your activity by merchant, category or note.
 

@@ -1,30 +1,73 @@
 <!doctype html>
-<!-- Made by tools/scenes/export_assets.py: do not edit by hand. -->
+<!--
+  Owl Tracker's category pictures. bright-art.js (made by tools/scenes/export_bright.py) holds the glossy objects;
+  bright.js places and times them. The app calls renderScene(spec) once the page has loaded:
+    { kind, name, color, p, spent, budget, sub, chip, over, order, still }
+  and replay() when the picture is tapped. Nothing here reaches the network: the page, its scripts and its font
+  are the app's own files.
+-->
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-html{overflow:hidden}
-html,body{margin:0;padding:0;background:transparent;-webkit-user-select:none;user-select:none}
-#stage{position:relative;width:248px;height:120px;transform-origin:0 0}
-#stage svg{display:block}
-.w1,.w15,.w2,.w3,.w4,.w45,.w5,.w6,.w7,.w10,.w12,.road,.gauge{fill:none;stroke-linecap:round;stroke-linejoin:round}
-.w1{stroke-width:1.2}.w15{stroke-width:1.6}.w2{stroke-width:2}.w3{stroke-width:3}.w4{stroke-width:4}.w45{stroke-width:4.5}
-.w5{stroke-width:5}.w6{stroke-width:6}.w7{stroke-width:7}.w10{stroke-width:10}.w12{stroke-width:12}
-.road{stroke-width:6}.gauge{stroke-width:8}
-.sh{fill-opacity:.13}.tint{fill-opacity:.88}
-.dash{stroke-dasharray:4 4}.dots{stroke-dasharray:1 6}
-.lbl{font:500 11px Roboto, system-ui, sans-serif;fill:#46524C}
-.lbl-end{text-anchor:end}.lbl-mid{text-anchor:middle}
-.lbl-red{font:700 11px Roboto, system-ui, sans-serif;fill:#B3261E;text-anchor:end}
-.lbl-good{font:700 11px Roboto, system-ui, sans-serif;fill:#0B5A41;text-anchor:end}
-.tiny{font:700 6px Roboto, system-ui, sans-serif;fill:#FFFFFF;text-anchor:middle}
-.pump{position:absolute;left:24px;top:30px;width:44px;height:20px;border-radius:3px;background:#16211C;color:#7FD3AE;display:flex;align-items:center;justify-content:center;font:700 12px 'Roboto Mono', ui-monospace, monospace;overflow:hidden}
-.dg{display:inline-block;width:7.4px;height:14px;overflow:hidden;line-height:14px}
-.col{display:flex;flex-direction:column}
-.w16,.w25,.w9{fill:none;stroke-linecap:round;stroke-linejoin:round}.w16{stroke-width:16}.w25{stroke-width:2.5}.w9{stroke-width:9}
-.chip{font:700 11px Roboto, system-ui, sans-serif;fill:#16211C}
-.ghost path,.ghost ellipse,.ghost circle,.ghost rect{fill:#C3CCDD;stroke:none}</style>
+@font-face{font-family:'Plus Jakarta Sans';font-weight:600;src:url('../fonts/jakarta_semibold.ttf') format('truetype')}
+@font-face{font-family:'Plus Jakarta Sans';font-weight:800;src:url('../fonts/jakarta_extrabold.ttf') format('truetype')}
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent;-webkit-user-select:none;user-select:none}
+#stage{position:absolute;inset:0}
+#stage svg{display:block;width:100%;height:100%}
+</style>
 <style id="anim"></style>
 </head><body><div id="stage"></div>
-<script src="acts.js"></script>
-<script src="scenes.js"></script>
+<script src="bright-art.js"></script>
+<script src="bright.js"></script>
+<script>
+(function () {
+  'use strict';
+  var last = null, runs = 0, rest = null;
+  // The text waits for the font (so it doesn't change shape mid-animation), but never for long
+  var fontsReady = new Promise(function (done) {
+    var give = setTimeout(done, 700);
+    try {
+      Promise.all([
+        document.fonts.load("800 31px 'Plus Jakarta Sans'"),
+        document.fonts.load("600 12px 'Plus Jakarta Sans'")
+      ]).then(function () { clearTimeout(give); done(); }, function () { clearTimeout(give); done(); });
+    } catch (e) { clearTimeout(give); done(); }
+  });
+
+  /** After a while the small idle movements (steam, bobbing, twinkles) come to rest, to save the battery. */
+  function settleLater() {
+    if (rest) clearTimeout(rest);
+    rest = setTimeout(function () {
+      document.getAnimations().forEach(function (a) {
+        var t = a.effect && a.effect.getComputedTiming();
+        if (!t) return;
+        if (isFinite(t.endTime)) { a.currentTime = t.endTime; } else { a.currentTime = t.delay > 0 ? t.delay : 0; }
+        a.pause();
+      });
+    }, 14000);
+  }
+
+  function draw(spec) {
+    runs += 1;
+    var out = window.BrightKit.scene(spec, 'r' + runs, false, 4.4, null);
+    document.getElementById('anim').textContent = out[1];
+    document.getElementById('stage').innerHTML = out[0];
+    if (!spec.still) settleLater();
+  }
+
+  /** Draws the scene into the page and starts it. With still, it shows the finished picture without moving. */
+  window.renderScene = function (spec) {
+    last = spec;
+    fontsReady.then(function () { if (last === spec) draw(spec); });
+  };
+
+  /** Plays the scene again from the start. */
+  window.replay = function () {
+    if (!last || last.still) return;
+    var stage = document.getElementById('stage');
+    stage.innerHTML = '';
+    void stage.offsetWidth; // let the old animations go before the new ones start
+    draw(last);
+  };
+}());
+</script>
 </body></html>

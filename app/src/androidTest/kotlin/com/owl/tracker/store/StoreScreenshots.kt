@@ -128,7 +128,11 @@ class StoreScreenshots {
             runBlocking { budgets.filterKeys { it != Schema.OVERALL }.forEach { (k, v) -> app.container.repo.setBudget(k, v) } }
 
             waitForTag("budget_hero", 30_000)
+            Thread.sleep(2500) // the pictures come in a moment later, then play
             shot("10_home")
+            runCatching { scrollTo(hasTestTag("pictures")) }
+            Thread.sleep(4500)
+            shot("10b_home_pictures")
             runCatching { scrollTo(hasText("Recent")) }
             shot("11_home_lower")
             runCatching { scrollTo(hasTestTag("saving_nudge")) }

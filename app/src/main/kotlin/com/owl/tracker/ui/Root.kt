@@ -3,6 +3,15 @@ package com.owl.tracker.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,11 +27,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -63,29 +69,18 @@ import com.owl.tracker.ui.theme.Ic
 
 @Composable
 fun OwlTrackerRoot(vm: AppViewModel, platform: Platform) {
-    val settings by vm.settings.collectAsStateWithLifecycle()
-    val glass = settings?.glass ?: true
     androidx.compose.runtime.CompositionLocalProvider(
-        com.owl.tracker.ui.theme.LocalGlass provides glass,
         // Everything drawn straight onto the background (lock screen included) gets the theme's text colour
         androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onBackground,
     ) {
-        Box(Modifier.fillMaxSize()) {
-            if (glass) com.owl.tracker.ui.theme.GlassBackdrop()
-            if (glass) {
-                // Stronger secondary text everywhere while cards are see-through
-                MaterialTheme(colorScheme = com.owl.tracker.ui.theme.glassColors(), typography = MaterialTheme.typography, shapes = MaterialTheme.shapes) {
-                    RootContent(vm, platform, glass)
-                }
-            } else {
-                RootContent(vm, platform, glass)
-            }
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            RootContent(vm, platform)
         }
     }
 }
 
 @Composable
-private fun RootContent(vm: AppViewModel, platform: Platform, glass: Boolean) {
+private fun RootContent(vm: AppViewModel, platform: Platform) {
     val screen by vm.screen.collectAsStateWithLifecycle()
     val locked by vm.locked.collectAsStateWithLifecycle()
     val confirm by vm.confirm.collectAsStateWithLifecycle()
@@ -115,29 +110,16 @@ private fun RootContent(vm: AppViewModel, platform: Platform, glass: Boolean) {
     val current = screen
     val tab = current?.tab
     Scaffold(
-        containerColor = if (glass) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.background,
-        // Transparent has no matching text colour: without this, text outside cards is black in the dark theme
+        containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
+        // Home's mango header runs up behind the status bar and draws its own room for it
+        contentWindowInsets = if (current == Screen.HOME) {
+            WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+        } else {
+            androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
+        },
         snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            if (tab != null && glass) {
-                GlassTabBar(vm, tab)
-            } else if (tab != null) {
-                NavigationBar {
-                    TabItem(vm, Tab.HOME, tab, "Home", Ic.home, Screen.HOME)
-                    TabItem(vm, Tab.ACTIVITY, tab, "Activity", Ic.list, Screen.ACTIVITY)
-                    TabItem(vm, Tab.BUDGETS, tab, "Budgets", Ic.wallet, Screen.BUDGETS)
-                    TabItem(vm, Tab.MORE, tab, "More", Ic.grid, Screen.MORE)
-                }
-            }
-        },
-        floatingActionButton = {
-            if (current == Screen.HOME || current == Screen.ACTIVITY) {
-                FloatingActionButton(onClick = { vm.openSheet(Sheet.AddExpense) }, modifier = Modifier.testTag("add_expense")) {
-                    Icon(Ic.plus, contentDescription = "Add expense")
-                }
-            }
-        },
+        bottomBar = { if (tab != null) MangoTabBar(vm, tab) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (current) {
@@ -230,71 +212,77 @@ private val TABS = listOf(
 )
 
 /**
- * The glass tab bar: a floating capsule with a lens that glides to the tab you pick, stretching a
- * little on the way like a drop of liquid, then settling with a spring.
+ * The bottom bar: four tabs on a white bar with rounded top corners, the picked one in cocoa with a mango dot
+ * under it, and the round mango Add button raised in the middle.
  */
 @Composable
-private fun GlassTabBar(vm: AppViewModel, current: Tab) {
+private fun MangoTabBar(vm: AppViewModel, current: Tab) {
+    val brand = com.owl.tracker.ui.theme.LocalBrand.current
     val icons = mapOf(Tab.HOME to Ic.home, Tab.ACTIVITY to Ic.list, Tab.BUDGETS to Ic.wallet, Tab.MORE to Ic.grid)
-    val index = TABS.indexOfFirst { it.first == current }.coerceAtLeast(0)
-    val pos by androidx.compose.animation.core.animateFloatAsState(
-        index.toFloat(), androidx.compose.animation.core.spring(dampingRatio = 0.72f, stiffness = 380f), label = "lens",
-    )
-    val primary = MaterialTheme.colorScheme.primary
-    androidx.compose.foundation.layout.Box(
-        Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 10.dp),
-    ) {
+    Box(Modifier.fillMaxWidth()) {
         androidx.compose.material3.Surface(
-            shape = RoundedCornerShape(32.dp),
-            color = com.owl.tracker.ui.theme.glassFillStrong(),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            color = brand.bar,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            border = com.owl.tracker.ui.theme.glassEdge(),
-            shadowElevation = 10.dp,
-            modifier = Modifier.fillMaxWidth().height(64.dp),
+            shadowElevation = 14.dp,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().padding(5.dp)) {
-                val slot = maxWidth / TABS.size
-                // Stretches most halfway between two tabs
-                val frac = kotlin.math.abs(pos - kotlin.math.round(pos))
-                val stretch = 1f + 0.35f * frac * 2f
-                androidx.compose.foundation.layout.Box(
-                    Modifier.offset(x = slot * pos).width(slot).fillMaxHeight()
-                        .graphicsLayer { scaleX = stretch; scaleY = 1f - 0.08f * frac * 2f }
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(primary.copy(alpha = 0.20f), primary.copy(alpha = 0.12f)))),
-                )
-                androidx.compose.foundation.layout.Row(Modifier.fillMaxSize()) {
-                    TABS.forEach { (t, label, target) ->
-                        val on = t == current
-                        val tint by androidx.compose.animation.animateColorAsState(
-                            if (on) primary else MaterialTheme.colorScheme.onSurfaceVariant, label = "tab",
+            androidx.compose.foundation.layout.Row(
+                Modifier.fillMaxWidth().navigationBarsPadding().height(68.dp).padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TABS.forEachIndexed { i, (t, label, target) ->
+                    if (i == 2) androidx.compose.foundation.layout.Spacer(Modifier.width(76.dp))
+                    val on = t == current
+                    val tint by androidx.compose.animation.animateColorAsState(if (on) brand.barActive else brand.barIdle, label = "tab")
+                    val dot by androidx.compose.animation.core.animateFloatAsState(if (on) 1f else 0f, label = "dot")
+                    androidx.compose.foundation.layout.Column(
+                        Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(20.dp))
+                            .selectable(selected = on, role = androidx.compose.ui.semantics.Role.Tab) {
+                                if (target == Screen.ACTIVITY) vm.showActivity() else vm.go(target)
+                            }
+                            .testTag("tab_${t.name.lowercase()}"),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                    ) {
+                        Icon(icons.getValue(t), contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+                        Text(label, style = MaterialTheme.typography.labelMedium, color = tint, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Bold)
+                        Box(
+                            Modifier.padding(top = 3.dp).size(5.dp).graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot }
+                                .clip(androidx.compose.foundation.shape.CircleShape).background(com.owl.tracker.ui.theme.Mango),
                         )
-                        androidx.compose.foundation.layout.Column(
-                            Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(28.dp))
-                                .selectable(selected = on, role = androidx.compose.ui.semantics.Role.Tab) {
-                                    if (target == Screen.ACTIVITY) vm.showActivity() else vm.go(target)
-                                }
-                                .testTag("tab_${t.name.lowercase()}"),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                        ) {
-                            Icon(icons.getValue(t), contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
-                            Text(label, style = MaterialTheme.typography.labelSmall, color = tint, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Medium)
-                        }
                     }
                 }
             }
         }
+        AddButton(
+            onClick = { vm.openSheet(Sheet.AddExpense) },
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-26).dp),
+        )
     }
 }
 
+/** The raised, glossy mango Add button, ringed in the background colour so it seems to sit in a notch. */
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.TabItem(vm: AppViewModel, tab: Tab, current: Tab, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, target: Screen) {
-    NavigationBarItem(
-        selected = tab == current,
-        onClick = { if (target == Screen.ACTIVITY) vm.showActivity() else vm.go(target) },
-        icon = { Icon(icon, contentDescription = null) },
-        label = { Text(label) },
-        modifier = Modifier.testTag("tab_${tab.name.lowercase()}"),
-    )
+private fun AddButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val brand = com.owl.tracker.ui.theme.LocalBrand.current
+    val ground = MaterialTheme.colorScheme.background
+    val press = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(if (pressed) 0.92f else 1f, label = "press")
+    Box(
+        modifier.size(70.dp).graphicsLayer { scaleX = scale; scaleY = scale }
+            .shadow(10.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = brand.add[2], spotColor = brand.add[2])
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(ground)
+            .padding(5.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(com.owl.tracker.ui.theme.glossBrush(brand.add))
+            .clickable(interactionSource = press, indication = androidx.compose.material3.ripple(), role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Add expense") { onClick() }
+            .semantics { contentDescription = "Add expense" }
+            .testTag("add_expense"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Ic.plus, contentDescription = null, tint = brand.onAdd, modifier = Modifier.size(30.dp))
+    }
 }
