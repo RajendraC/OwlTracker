@@ -128,7 +128,7 @@ class StoreScreenshots {
             runBlocking { budgets.filterKeys { it != Schema.OVERALL }.forEach { (k, v) -> app.container.repo.setBudget(k, v) } }
 
             waitForTag("budget_hero", 30_000)
-            Thread.sleep(2500) // the pictures come in a moment later, then play
+            Thread.sleep(6000) // the pictures come in a moment later, then play (the first WebView takes longest)
             shot("10_home")
             // Home runs up behind the status bar: keep the heading clear of it
             runCatching { scrollTo(hasText("This month in pictures"), below = 40f) }
