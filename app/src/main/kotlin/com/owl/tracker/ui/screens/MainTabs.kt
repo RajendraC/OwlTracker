@@ -433,7 +433,7 @@ private fun HomeHeader(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, can
                     )
                 }
                 Box(
-                    Modifier.size(48.dp).clip(CircleShape).background(brand.headerButton).clickable(onClickLabel = "Open Reports") { vm.go(Screen.INSIGHTS) }
+                    Modifier.size(48.dp).clay(CircleShape, brand.clay, elevation = 6.dp).clickable(onClickLabel = "Open Reports") { vm.go(Screen.INSIGHTS) }
                         .semantics { contentDescription = "Reports" },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -442,7 +442,7 @@ private fun HomeHeader(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, can
             }
             Gap(12.dp)
             // The month: back to earlier ones, and forward again
-            Row(Modifier.clip(RoundedCornerShape(24.dp)).background(brand.headerButton), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.clay(RoundedCornerShape(24.dp), brand.clay, elevation = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { vm.previousMonth() }, modifier = Modifier.size(40.dp)) {
                     Icon(Ic.chevL, contentDescription = "Previous month", tint = brand.onHeader, modifier = Modifier.size(20.dp))
                 }
@@ -523,7 +523,7 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatPill("Spent", Money.formatInr(dash.spent), brand.spentBg, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), valueTag = "spent_total", art = com.owl.tracker.R.drawable.glossy_coins)
                 StatPill(
-                    "Over budget",
+                    "Over",
                     when (overRows.size) { 0 -> "None"; 1 -> overRows[0].category.name; else -> "${overRows.size} budgets" },
                     if (overRows.isEmpty()) sc.okBg else sc.overBg, if (overRows.isEmpty()) sc.okFg else sc.overFg, Modifier.weight(1f),
                     art = overRows.firstOrNull()?.let { com.owl.tracker.ui.components.glossyArt(it.category.icon) },
