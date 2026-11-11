@@ -995,7 +995,7 @@ fun ordinal(n: Int): String = n.toString() + when {
 
 /** What the owl in "Where it went" says: about the month against its budget, and each category against its own. */
 private fun ringMoods(dash: com.owl.tracker.ui.Dashboard, budgetOf: Map<String, com.owl.tracker.ui.CategoryBudgetRow>): com.owl.tracker.ui.components.RingMoods {
-    val inr = Money::formatInr
+    val inr = { p: Long -> Money.formatInr(p) }
     val month = (if (dash.isCurrent) "This month" else dash.label) + " · " + inr(dash.spent)
     val monthLine = when {
         dash.overall <= 0 -> "Set a month budget and I'll keep watch"
