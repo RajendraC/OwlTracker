@@ -58,9 +58,7 @@ fun WelcomeScreen(vm: AppViewModel) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        Box(Modifier.size(64.dp).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-            Icon(Ic.logo, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(34.dp))
-        }
+        com.owl.tracker.ui.components.OwlBadge(size = 72.dp)
         Text("Your spending, sorted from your bank SMS", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
         Text(
             "Owl Tracker turns bank, card and UPI alerts into a monthly dashboard, without sending anything anywhere.",
@@ -206,9 +204,7 @@ fun LockScreen(onUnlock: () -> Unit, canUseDeviceLock: Boolean, onFallbackUnlock
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(Modifier.size(72.dp).clip(RoundedCornerShape(22.dp)).background(Color.White), contentAlignment = Alignment.Center) {
-            Icon(Ic.logo, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(38.dp))
-        }
+        com.owl.tracker.ui.components.OwlBadge(size = 80.dp)
         Gap(16.dp)
         Text("Owl Tracker is locked", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onPrimary)
         Text("Use your fingerprint, face or screen lock to open", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f))

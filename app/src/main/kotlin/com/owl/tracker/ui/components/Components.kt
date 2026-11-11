@@ -75,6 +75,22 @@ fun Panel(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composab
     }
 }
 
+/** The app's badge, as on the launcher: the owl and its coin on ripe mango. */
+@Composable
+fun OwlBadge(modifier: Modifier = Modifier, size: Dp = 72.dp) {
+    // Always mango, in the dark theme too, like the launcher icon
+    Box(
+        modifier.size(size).clip(RoundedCornerShape(size * 0.3f))
+            .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFFF1B3), Color(0xFFFFC85C), Color(0xFFFF9A3D)))),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.foundation.Image(
+            androidx.compose.ui.res.painterResource(com.owl.tracker.R.drawable.owl_mascot), contentDescription = null,
+            modifier = Modifier.size(size * 0.8f),
+        )
+    }
+}
+
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(

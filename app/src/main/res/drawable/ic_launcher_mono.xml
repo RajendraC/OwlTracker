@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Made by tools/make_icon.py: the owl and its coin as plain shapes, for Android 13+ themed icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="49" android:translateY="80">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M0,-47a20,23 0,1 0,0.01 0z M-8,-41a8,8 0,1 0,0.01 0z M8,-41a8,8 0,1 0,0.01 0z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M-17,-40L-12,-52L-6,-44z M17,-40L12,-52L6,-44z M-7,-36.5a4,4 0,1 0,0.01 0z M9,-36.5a4,4 0,1 0,0.01 0z" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:pathData="M-6,-1l-2,-3M-3,-1l0,-3M6,-1l2,-3M3,-1l0,-3" />
+    </group>
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M69,65.6a7.2,7.2 0,1 0,0.01 0z M69,68a4.8,4.8 0,1 1,-0.01 0z" />
+</vector>

@@ -130,7 +130,8 @@ class StoreScreenshots {
             waitForTag("budget_hero", 30_000)
             Thread.sleep(2500) // the pictures come in a moment later, then play
             shot("10_home")
-            runCatching { scrollTo(hasTestTag("pictures")) }
+            // Home runs up behind the status bar: keep the heading clear of it
+            runCatching { scrollTo(hasText("This month in pictures"), below = 40f) }
             Thread.sleep(4500)
             shot("10b_home_pictures")
             runCatching { scrollTo(hasText("Recent")) }
@@ -493,7 +494,8 @@ class StoreScreenshots {
     }
 
     /** Scrolls the screen's main list until the node matching [m] sits near the top. */
-    private fun scrollTo(m: SemanticsMatcher) {
+    /** Scrolls the longest list so the node sits [below] dp under the list's top edge. */
+    private fun scrollTo(m: SemanticsMatcher, below: Float = 12f) {
         compose.waitForNode(m, 15_000)
         runCatching { compose.onAllNodes(m)[0].performScrollTo() }
         compose.waitForIdle()
@@ -502,7 +504,7 @@ class StoreScreenshots {
             val lists = compose.onAllNodes(hasScrollAction())
             val nodes = lists.fetchSemanticsNodes()
             val i = nodes.indices.maxBy { nodes[it].boundsInRoot.height }
-            val dy = target.top - nodes[i].boundsInRoot.top - 12 * compose.density.density
+            val dy = target.top - nodes[i].boundsInRoot.top - below * compose.density.density
             if (dy > 1f) lists[i].performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, dy) }
         }
         compose.waitForIdle()
