@@ -1,74 +1,78 @@
-"""Builds the Google Play listing images from raw emulator captures.
+"""Builds the Google Play listing images from raw emulator captures, in the Mango & Cocoa look.
 
     python3 tools/make_store_assets.py CAPTURES_DIR
 
 CAPTURES_DIR holds the PNGs saved by StoreScreenshots#capture (download the "store-screens"
-artifact or pre-release of the "Store screenshots" workflow). Writes into store/:
-  play-icon-512.png                 512x512, 32-bit PNG (Play adds the rounded corners)
+pre-release of the "Store screenshots" workflow). Writes into store/:
   play-feature-graphic-1024x500.png 1024x500, 24-bit PNG, centre kept clear for the video play button
   phone/NN-name.png                 1080x1920 captioned phone screenshots, 24-bit PNG, no alpha
+The icon (store/play-icon-512.png) comes from tools/make_icon.py, and is used here as it is.
 """
+import glob
 import os
 import sys
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-BRAND = (15, 107, 79)
-BRAND_DARK = (9, 74, 54)
-BRAND_DEEP = (7, 56, 41)
-MINT = (205, 235, 221)
+# Mango & Cocoa
+MANGO_TOP = (255, 241, 179)
+MANGO_MID = (255, 200, 92)
+MANGO_DEEP = (255, 154, 61)
+INK = (42, 23, 8)
+COCOA = (75, 36, 18)
+COCOA_SOFT = (122, 59, 24)
+CREAM = (255, 248, 238)
 WHITE = (255, 255, 255)
-BEZEL = (16, 21, 18)
+BEZEL = (28, 20, 16)
+RIM = (92, 70, 58)
+SHADOW = (90, 40, 0)
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 OUT = os.path.join(ROOT, "store")
-FONTS = "/usr/share/fonts/truetype/google-fonts"
+FONTS = os.path.join(ROOT, "app", "src", "main", "res", "font")
+WEIGHTS = {"Medium": "medium", "SemiBold": "semibold", "Bold": "bold", "ExtraBold": "extrabold", "Regular": "regular"}
 
 
 def font(weight, size):
-    return ImageFont.truetype(f"{FONTS}/Poppins-{weight}.ttf", size)
+    """Plus Jakarta Sans, the app's own font."""
+    return ImageFont.truetype(os.path.join(FONTS, f"jakarta_{WEIGHTS[weight]}.ttf"), size)
 
 
 # Phone screenshots, in listing order: capture file, headline, line under it.
 SCREENS = [
     ("10_home", "See where your money goes", "Every bank, card and UPI payment, sorted from your SMS"),
+    ("10b_home_pictures", "Your month in pictures", "A bright picture for each category fills up with its budget"),
+    ("13_home_drill", "Tap in to see where it went", "Each category's shops, then every payment"),
     ("01_welcome", "Private by design", "No internet permission. Nothing ever leaves your phone."),
-    ("50_reports_top", "Reports you can tap into", "Trends, categories and merchants across 1 to 12 months"),
     ("20_budgets", "Warned before you overspend", "Monthly budgets for everything, or one category at a time"),
-    ("30_activity", "Every payment in one place", "Search, change categories or add cash spends"),
-    ("53_reports_filtered_top", "Drill into any category", "Tap a slice, a merchant or a weekday to filter"),
+    ("50_reports_top", "Reports you can tap into", "Trends, categories and merchants across 1 to 12 months"),
     ("03_import_filters", "You choose what's imported", "Pick the banks and how far back. Offers and OTPs are skipped."),
     ("70_backup", "Your data, your backups", "Save a file, add a password, restore it on a new phone"),
 ]
 
 
-NAMES = ["home", "privacy", "reports", "budgets", "activity", "drill-down", "import", "backup"]
+NAMES = ["home", "pictures", "where-it-went", "privacy", "budgets", "reports", "import", "backup"]
 
 
 # ---------- drawing helpers ----------
 
-def glyph(draw, cx, cy, size, color=WHITE):
-    """The launcher glyph (a lens over three rising bars), drawn in a 24-unit box centred on (cx, cy)."""
-    u = size / 24.0
-    ox, oy = cx - 12 * u, cy - 12 * u
-    w = max(2, round(2 * u))
+def play_icon(size):
+    """The Play icon (made by tools/make_icon.py) with rounded corners, as Play shows it."""
+    im = Image.open(os.path.join(OUT, "play-icon-512.png")).convert("RGBA").resize((size, size), Image.LANCZOS)
+    im.putalpha(rounded_mask((size, size), round(size * 0.22)))
+    return im
 
-    def p(x, y):
-        return (ox + x * u, oy + y * u)
 
-    def line(x1, y1, x2, y2):
-        draw.line([p(x1, y1), p(x2, y2)], fill=color, width=w)
-        r = w / 2
-        for (x, y) in ((x1, y1), (x2, y2)):
-            X, Y = p(x, y)
-            draw.ellipse([X - r, Y - r, X + r, Y + r], fill=color)
-
-    c = p(10.5, 10.5)
-    r = 6.5 * u
-    draw.ellipse([c[0] - r, c[1] - r, c[0] + r, c[1] + r], outline=color, width=w)
-    line(15.5, 15.5, 20, 20)
-    line(8, 12.5, 8, 11)
-    line(10.5, 12.5, 10.5, 8.5)
-    line(13, 12.5, 13, 10)
+def mango(w, h):
+    """The listing's ground: ripe mango from the top left to the bottom right, with a soft sun up top."""
+    small = Image.new("RGB", (64, 64))
+    for y in range(64):
+        for x in range(64):
+            t = (x * 0.35 + y) / (64 * 1.35)
+            c = [MANGO_TOP, MANGO_MID, MANGO_DEEP]
+            a, b, u = (c[0], c[1], t / 0.55) if t < 0.55 else (c[1], c[2], (t - 0.55) / 0.45)
+            small.putpixel((x, y), tuple(round(a[i] + (b[i] - a[i]) * u) for i in range(3)))
+    im = small.resize((w, h), Image.BICUBIC).convert("RGBA")
+    return Image.alpha_composite(im, glow((w, h), (round(w * 0.22), round(h * 0.06)), round(max(w, h) * 0.42), WHITE, 120))
 
 
 def vertical_gradient(w, h, top, bottom):
@@ -129,7 +133,7 @@ def phone(screen, width):
     im = Image.new("RGBA", (pw + 2 * pad, ph + 2 * pad), (0, 0, 0, 0))
 
     shadow = Image.new("RGBA", im.size, (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).rounded_rectangle([pad, pad + round(pad * 0.35), pad + pw, pad + ph + round(pad * 0.35)], radius=r_out, fill=(0, 20, 12, 120))
+    ImageDraw.Draw(shadow).rounded_rectangle([pad, pad + round(pad * 0.35), pad + pw, pad + ph + round(pad * 0.35)], radius=r_out, fill=SHADOW + (110,))
     im = Image.alpha_composite(im, shadow.filter(ImageFilter.GaussianBlur(pad * 0.45)))
 
     body = Image.new("RGBA", (pw, ph), BEZEL + (255,))
@@ -137,7 +141,7 @@ def phone(screen, width):
     im.alpha_composite(body, (pad, pad))
     # thin lighter rim
     rim = Image.new("RGBA", (pw * 4, ph * 4), (0, 0, 0, 0))
-    ImageDraw.Draw(rim).rounded_rectangle([2, 2, pw * 4 - 3, ph * 4 - 3], radius=r_out * 4, outline=(70, 82, 76, 255), width=6)
+    ImageDraw.Draw(rim).rounded_rectangle([2, 2, pw * 4 - 3, ph * 4 - 3], radius=r_out * 4, outline=RIM + (255,), width=6)
     im.alpha_composite(rim.resize((pw, ph), Image.LANCZOS), (pad, pad))
 
     s = scr.convert("RGBA")
@@ -147,7 +151,7 @@ def phone(screen, width):
     cam = max(6, round(sw * 0.026))
     cx, cy = pad + bez + sw // 2, pad + bez + round(sh * 0.0155)
     hole = Image.new("RGBA", (cam * 8, cam * 8), (0, 0, 0, 0))
-    ImageDraw.Draw(hole).ellipse([0, 0, cam * 8 - 1, cam * 8 - 1], fill=(8, 10, 9, 255))
+    ImageDraw.Draw(hole).ellipse([0, 0, cam * 8 - 1, cam * 8 - 1], fill=(10, 8, 6, 255))
     im.alpha_composite(hole.resize((cam * 2, cam * 2), Image.LANCZOS), (cx - cam, cy - cam))
     return im, pad
 
@@ -201,14 +205,13 @@ def centered(draw, y, lines, fnt, fill, W, gap):
 def store_screenshot(raw, headline, sub, dest, h_size):
     """One 1080x1920 listing image. Every image uses the same headline size and phone position."""
     W, H = 1080, 1920
-    canvas = vertical_gradient(W, H, BRAND, BRAND_DEEP).convert("RGBA")
-    canvas = Image.alpha_composite(canvas, glow((W, H), (W // 2, 1180), 520, (60, 170, 125), 90))
+    canvas = mango(W, H)
     d = ImageDraw.Draw(canvas)
-    h_font, s_font = font("Bold", h_size), font("Medium", 35)
-    y = centered(d, 100, [headline], h_font, WHITE, W, 6)
+    h_font, s_font = font("ExtraBold", h_size), font("SemiBold", 36)
+    y = centered(d, 100, [headline], h_font, INK, W, 6)
     lines = balanced(d, sub, s_font, 940)
     slot = 2 * (s_font.size + 10)               # room for two lines; one line sits in the middle
-    centered(d, y + 22 + (slot - len(lines) * (s_font.size + 10)) // 2, lines, s_font, MINT, W, 10)
+    centered(d, y + 22 + (slot - len(lines) * (s_font.size + 10)) // 2, lines, s_font, COCOA_SOFT, W, 10)
     top = y + 22 + slot + 34
     avail = H - 40 - top                        # whole phone visible, 40 px above the bottom edge
     width = int(avail / (2400 / 1080 + 2 * 0.028))
@@ -220,41 +223,30 @@ def store_screenshot(raw, headline, sub, dest, h_size):
 def headline_size():
     """The largest size at which every headline fits on one line."""
     d = ImageDraw.Draw(Image.new("RGB", (10, 10)))
-    return min(fitted(d, head, "Bold", 70, 54, 980).size for _, head, _ in SCREENS)
+    return min(fitted(d, head, "ExtraBold", 70, 54, 980).size for _, head, _ in SCREENS)
 
 
 def feature_graphic(home_raw, dest):
     W, H, k = 1024, 500, 2
-    im = vertical_gradient(W * k, H * k, BRAND, BRAND_DARK).convert("RGBA")
-    im = Image.alpha_composite(im, glow((W * k, H * k), (780 * k, 250 * k), 260 * k, (70, 180, 135), 110))
+    im = mango(W * k, H * k)
     d = ImageDraw.Draw(im)
-    # icon tile and name, left
-    tile = 92 * k
-    tx, ty = 64 * k, 118 * k
-    d.rounded_rectangle([tx, ty, tx + tile, ty + tile], radius=24 * k, fill=WHITE)
-    glyph(d, tx + tile / 2 + 2 * k, ty + tile / 2 + 2 * k, tile * 0.78, color=BRAND)
-    d.text((tx + tile + 22 * k, ty + 10 * k), "Owl Tracker", font=font("Bold", 46 * k), fill=WHITE)
-    lines = ["Spending sorted from", "your bank & UPI SMS"]
+    # the icon and the name, left
+    tile = 96 * k
+    tx, ty = 64 * k, 112 * k
+    shade = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    ImageDraw.Draw(shade).rounded_rectangle([tx, ty + 8 * k, tx + tile, ty + tile + 8 * k], radius=22 * k, fill=SHADOW + (70,))
+    im.alpha_composite(shade.filter(ImageFilter.GaussianBlur(10 * k)))
+    im.alpha_composite(play_icon(tile), (tx, ty))
+    d.text((tx + tile + 22 * k, ty + 16 * k), "Owl Tracker", font=font("ExtraBold", 46 * k), fill=INK)
     y = ty + tile + 34 * k
-    for ln in lines:
-        d.text((tx, y), ln, font=font("SemiBold", 31 * k) if os.path.exists(f"{FONTS}/Poppins-SemiBold.ttf") else font("Medium", 31 * k), fill=WHITE)
+    for ln in ["Spending sorted from", "your bank & UPI SMS"]:
+        d.text((tx, y), ln, font=font("Bold", 31 * k), fill=INK)
         y += 42 * k
-    d.text((tx, y + 14 * k), "On your phone only. No internet.", font=font("Medium", 20 * k), fill=MINT)
-    # phone, right, rising from the bottom edge
+    d.text((tx, y + 14 * k), "On your phone only. No internet.", font=font("SemiBold", 20 * k), fill=COCOA_SOFT)
+    # the phone, right, rising from the bottom edge
     ph, pad = phone(home_raw, 250 * k)
-    px = 690 * k - pad
-    py = 56 * k - pad
-    im.alpha_composite(ph, (px, py))
-    im = im.resize((W, H), Image.LANCZOS).convert("RGB")
-    im.save(dest, optimize=True)
-
-
-def icon(dest):
-    S = 2048  # draw large, then downsample for smooth edges
-    im = Image.new("RGB", (S, S), BRAND)
-    glyph(ImageDraw.Draw(im), S / 2 + S * 0.02, S / 2 + S * 0.02, S * 0.72)
-    im = im.resize((512, 512), Image.LANCZOS).convert("RGBA")  # Play asks for a 32-bit PNG
-    im.save(dest, optimize=True)
+    im.alpha_composite(ph, (690 * k - pad, 56 * k - pad))
+    im.resize((W, H), Image.LANCZOS).convert("RGB").save(dest, optimize=True)
 
 
 def main():
@@ -262,7 +254,8 @@ def main():
         sys.exit(__doc__)
     src = sys.argv[1]
     os.makedirs(os.path.join(OUT, "phone"), exist_ok=True)
-    icon(os.path.join(OUT, "play-icon-512.png"))
+    for old in glob.glob(os.path.join(OUT, "phone", "*.png")):
+        os.remove(old)
     size = headline_size()
     for i, (name, head, sub) in enumerate(SCREENS, 1):
         raw = Image.open(os.path.join(src, name + ".png"))
@@ -270,7 +263,7 @@ def main():
         store_screenshot(raw, head, sub, dest, size)
         print("wrote", os.path.relpath(dest, ROOT))
     feature_graphic(Image.open(os.path.join(src, "10_home.png")), os.path.join(OUT, "play-feature-graphic-1024x500.png"))
-    print("wrote store/play-feature-graphic-1024x500.png and store/play-icon-512.png")
+    print("wrote store/play-feature-graphic-1024x500.png")
 
 
 if __name__ == "__main__":

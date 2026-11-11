@@ -161,8 +161,8 @@ def write_app(variant=VARIANT):
     for d, k in DENSITIES.items():
         size = round(108 * k)
         jobs.append((svg(variant, ("fg",), size), size, os.path.join(RES, f"mipmap-{d}", "ic_launcher_fg.png")))
-    # Play shows the whole square (and rounds its corners): the middle 72 dp, as a launcher shows it
-    jobs.append((svg(variant, ("bg", "fg"), 512, view="18 18 72 72"), 512, os.path.join(ROOT, "store", "play-icon-512.png")))
+    # Play shows the whole square (and rounds its corners): the middle 80 dp, a little roomier than a launcher
+    jobs.append((svg(variant, ("bg", "fg"), 512, view="14 14 80 80"), 512, os.path.join(ROOT, "store", "play-icon-512.png")))
     # Home's header owl, on its own (192 px, shown at 48 dp)
     p = A.P("m")
     art = owl(p)
