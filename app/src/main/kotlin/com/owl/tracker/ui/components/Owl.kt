@@ -43,7 +43,7 @@ enum class OwlMood(val label: String, val says: String, val ink: Color) {
     SAD("sad", "A little over", Color(0xFFA84A12)),
     UPSET("upset", "Well over budget", Color(0xFFB42318)),
     CRYING("crying", "Way, way over!", Color(0xFFA8174F)),
-    CURIOUS("curious", "No budget here yet", Color(0xFF1F5F96));
+    CURIOUS("curious", "No budget yet", Color(0xFF1F5F96));
 
     companion object {
         /**

@@ -192,7 +192,7 @@ private fun tube(c: Color, t: Float): Color {
     return if (s >= 0f) lerp(c, Color.White, s) else lerp(c, Color.Black, -s)
 }
 
-private const val BANDS = 12
+private const val BANDS = 24
 private const val STEP = 3f   // degrees between the points along an arc
 
 /** How each slice stands: dropped in (1 when settled), and lifted (0–1). */
@@ -265,9 +265,10 @@ private fun DrawScope.drawRing3D(
                 val r = if (outer) g.r1 else g.r0
                 val lit = (fu * lx + fv * lv).coerceAtLeast(0f)
                 val kk = if (outer) 0.40f + 0.40f * lit else 0.30f + 0.32f * lit
+                val next = if (k < angles.size - 2) angles[k + 1] + 0.5f else angles[k + 1]
                 val p0 = point(s, r, angles[k], 0f)
-                val p1 = point(s, r, angles[k + 1], 0f)
-                val p2 = point(s, r, angles[k + 1], -g.depth)
+                val p1 = point(s, r, next, 0f)
+                val p2 = point(s, r, next, -g.depth)
                 val p3 = point(s, r, angles[k], -g.depth)
                 path.reset(); path.moveTo(p0.x, p0.y); path.lineTo(p1.x, p1.y); path.lineTo(p2.x, p2.y); path.lineTo(p3.x, p3.y); path.close()
                 drawPath(path, col.shaded(kk))

@@ -1005,7 +1005,7 @@ private fun ringMoods(dash: com.owl.tracker.ui.Dashboard, budgetOf: Map<String, 
     val cats = dash.byCategory.associate { cs ->
         val row = budgetOf[cs.category.id]
         val line = when {
-            row == null || row.limit <= 0 -> "No budget yet · set one in Budgets"
+            row == null || row.limit <= 0 -> "Give it a budget in Budgets and I'll keep watch"
             row.spent <= row.limit -> "${inr(row.limit - row.spent)} left of ${inr(row.limit)}"
             else -> "${inr(row.spent - row.limit)} over its ${inr(row.limit)} budget"
         }
