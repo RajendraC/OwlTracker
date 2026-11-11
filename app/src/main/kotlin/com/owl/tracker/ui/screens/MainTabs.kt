@@ -21,6 +21,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -154,9 +158,14 @@ fun HomeScreen(vm: AppViewModel) {
     val whereIndex = 1 + (if (access is Access.Trial || access == Access.TrialEnded) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
         dash.over.size + (if (showPictures) 1 else 0)
+    // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
+    // the status bar readable, and a card scrolled to stops just below it
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val topInset = androidx.compose.foundation.layout.WindowInsets.statusBars.getTop(density)
+    var headerPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     fun openCategory(category: String?) {
         if (category != null) { openCat = category; openMerchant = null }
-        scope.launch { listState.animateScrollToItem(whereIndex) }
+        scope.launch { listState.animateScrollToItem(whereIndex, -(topInset + with(density) { 8.dp.roundToPx() })) }
     }
     val spending = remember(txns, catMap) { txns.filter { vm.counts(it, catMap) } }
     // Each category's merchants and their totals, biggest first
@@ -175,158 +184,170 @@ fun HomeScreen(vm: AppViewModel) {
         cat, spent, budgetOf[cat.id]?.limit, dash.overall, dash.spent, merchantsOf[cat.id].orEmpty().map { it.name to it.paise },
     )
 
-    LazyColumn(Modifier.fillMaxSize().testTag("home"), state = listState, contentPadding = PaddingValues(bottom = 44.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        // The mango header, with the budget card resting on its lower edge
-        item(key = "top") {
-            Column {
-                HomeHeader(vm, dash, canForward)
-                BudgetCard(vm, dash, plan, ::openCategory, Modifier.padding(horizontal = 16.dp).pullUp(60.dp))
-            }
-        }
-
-        when (val a = access) {
-            is Access.Trial -> item { Box(side) { TrialBanner(a.daysLeft, store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }
-            Access.TrialEnded -> item { Box(side) { TrialEndedBanner(store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }
-            Access.Unlocked -> Unit
-        }
-
-        if (settings?.sampleData == true) item {
-            Panel(modifier = side.testTag("sample_banner")) {
-                Text("You're looking at sample data", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    "These transactions are built-in examples. Reset Owl Tracker to start with your own SMS.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Gap(10.dp)
-                OutlinedButton(onClick = { vm.requestReset() }, modifier = Modifier.fillMaxWidth()) { Text("Reset and use my SMS") }
-            }
-        }
-
-        if (settings?.smsEnabled == false && settings?.sampleData != true) item {
-            Panel(modifier = side) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    IconTile(Ic.message, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
-                    Column(Modifier.weight(1f)) {
-                        Text("SMS import is off", style = MaterialTheme.typography.titleSmall)
-                        Text("You're in manual mode. Add expenses with +, or turn on SMS import.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                Gap(10.dp)
-                OutlinedButton(onClick = { vm.go(Screen.DISCLOSURE) }, modifier = Modifier.fillMaxWidth()) { Text("Turn on SMS import") }
-            }
-        }
-
-        items(dash.over, key = { "over_" + it.budgetKey }) { o ->
-            Column(side.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(sc.overBg).padding(16.dp).testTag("over_banner")) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(Ic.alert, contentDescription = null, tint = sc.overFg, modifier = Modifier.size(22.dp))
-                    Column {
-                        Text(o.title, style = MaterialTheme.typography.titleMedium, color = sc.overFg)
-                        Text(o.subtitle, style = MaterialTheme.typography.bodySmall, color = sc.overFg)
-                    }
-                }
-                Gap(10.dp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { vm.showActivity(o.categoryId) }, colors = ButtonDefaults.buttonColors(containerColor = sc.overFg, contentColor = sc.overBg)) { Text("See where it went") }
-                    OutlinedButton(onClick = { vm.openSheet(Sheet.BudgetEdit(o.budgetKey)) }) { Text("Adjust budget", color = sc.overFg) }
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize().testTag("home"), state = listState, contentPadding = PaddingValues(bottom = 44.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            // The mango header, with the budget card resting on its lower edge
+            item(key = "top") {
+                Column {
+                    HomeHeader(vm, dash, canForward, Modifier.onSizeChanged { headerPx = it.height })
+                    BudgetCard(vm, dash, plan, ::openCategory, Modifier.padding(horizontal = 16.dp).pullUp(60.dp))
                 }
             }
-        }
 
-        // A picture for each category the money went to; tapping one opens it in "Where it went" below
-        if (showPictures) item(key = "pictures") {
-            val pictures = dash.byCategory.take(MAX_PICTURES).map { cs -> cs.category to sceneFor(cs.category, cs.paise) }
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    if (dash.isCurrent) "This month in pictures" else "That month in pictures",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(horizontal = 20.dp).semantics { heading() },
-                )
-                PicturesRow(pictures, onOpen = { id -> openCategory(id) })
+            when (val a = access) {
+                is Access.Trial -> item { Box(side) { TrialBanner(a.daysLeft, store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }
+                Access.TrialEnded -> item { Box(side) { TrialEndedBanner(store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }
+                Access.Unlocked -> Unit
             }
-        }
 
-        // "Where it went": touch the ring, open a category, then a merchant's payments
-        item(key = "where") {
-            Box(side) {
-                if (dash.byCategory.isEmpty()) {
-                    Panel {
-                        Text("Where it went", style = MaterialTheme.typography.titleMedium)
-                        Text("Nothing spent yet this month.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                } else {
-                    com.owl.tracker.ui.components.DrillRingCard(
-                        categories = dash.byCategory.map { cs ->
-                            val row = budgetOf[cs.category.id]
-                            val pct = (cs.paise * 100 / dash.spent.coerceAtLeast(1)).toInt()
-                            com.owl.tracker.ui.components.RingCategory(
-                                cs.category.id, cs.category.name, Color(cs.category.color), cs.paise,
-                                note = "$pct%" + when {
-                                    row == null -> ""
-                                    row.spent > row.limit -> " · ${Money.formatInr(row.spent - row.limit)} over its budget"
-                                    else -> " · ${Money.formatInr(row.limit - row.spent)} left of ${Money.formatInr(row.limit)}"
-                                },
-                                warn = row != null && row.spent > row.limit,
-                            )
-                        },
-                        pickedCategory = openCat,
-                        pickedMerchant = openMerchant,
-                        merchants = ringMerchants,
-                        payments = ringPayments,
-                        paymentCount = ringPayments.size,
-                        sweepKey = dash.period.start,
-                        appIcons = vm.appIcons,
-                        catMap = catMap,
-                        dayText = { t -> dayLabel(vm, vm.dateOf(t.occurredAt)) },
-                        onCategory = { id -> openCat = if (openCat == id) null else id; openMerchant = null },
-                        onMerchant = { k -> openMerchant = if (openMerchant == k) null else k },
-                        onPayment = { t -> vm.openSheet(Sheet.TxnDetail(t.id)) },
-                        headerAction = { TextButton(onClick = { vm.showActivity() }) { Text("See all") } },
-                        scene = { id ->
-                            val cat = catMap[id]
-                            val spent = dash.byCategory.firstOrNull { it.category.id == id }?.paise
-                            if (cat != null && spent != null) {
-                                val spec = remember(cat, spent, budgetOf[id]?.limit, dash.overall, dash.spent, ringMerchants) { sceneFor(cat, spent) }
-                                CategoryScene(spec, cat.name)
-                            }
-                        },
+            if (settings?.sampleData == true) item {
+                Panel(modifier = side.testTag("sample_banner")) {
+                    Text("You're looking at sample data", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "These transactions are built-in examples. Reset Owl Tracker to start with your own SMS.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Gap(10.dp)
+                    OutlinedButton(onClick = { vm.requestReset() }, modifier = Modifier.fillMaxWidth()) { Text("Reset and use my SMS") }
                 }
             }
-        }
 
-        if (dash.reviewCount > 0) item {
-            Panel(modifier = side, padding = 4.dp) {
-                NavRow(
-                    Ic.info, "${dash.reviewCount} ${if (dash.reviewCount == 1) "transaction needs" else "transactions need"} a quick look",
-                    "Unsure matches wait here until you confirm", iconTint = sc.warnFg, iconBg = sc.warnBg,
-                ) { vm.showActivity(filter = ActivityFilter.REVIEW) }
-            }
-        }
-
-        plan?.takeIf { dash.isCurrent && it.monthlyPaise > 0 && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { Box(side) { SavingNudge(vm, p) } } }
-
-        item {
-            Column(side) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Recent", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() })
-                    TextButton(onClick = { vm.showActivity() }) { Text("See all") }
+            if (settings?.smsEnabled == false && settings?.sampleData != true) item {
+                Panel(modifier = side) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        IconTile(Ic.message, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
+                        Column(Modifier.weight(1f)) {
+                            Text("SMS import is off", style = MaterialTheme.typography.titleSmall)
+                            Text("You're in manual mode. Add expenses with +, or turn on SMS import.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Gap(10.dp)
+                    OutlinedButton(onClick = { vm.go(Screen.DISCLOSURE) }, modifier = Modifier.fillMaxWidth()) { Text("Turn on SMS import") }
                 }
-                Panel(padding = 8.dp) {
-                    if (dash.recent.isEmpty()) Text("No transactions yet. Tap + to add one.", modifier = Modifier.padding(8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    dash.recent.forEachIndexed { i, t ->
-                        if (i > 0) Divider()
-                        TxnRow(vm, t, catMap[t.categoryId], showDay = true)
+            }
+
+            items(dash.over, key = { "over_" + it.budgetKey }) { o ->
+                Column(side.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(sc.overBg).padding(16.dp).testTag("over_banner")) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(Ic.alert, contentDescription = null, tint = sc.overFg, modifier = Modifier.size(22.dp))
+                        Column {
+                            Text(o.title, style = MaterialTheme.typography.titleMedium, color = sc.overFg)
+                            Text(o.subtitle, style = MaterialTheme.typography.bodySmall, color = sc.overFg)
+                        }
+                    }
+                    Gap(10.dp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { vm.showActivity(o.categoryId) }, colors = ButtonDefaults.buttonColors(containerColor = sc.overFg, contentColor = sc.overBg)) { Text("See where it went") }
+                        OutlinedButton(onClick = { vm.openSheet(Sheet.BudgetEdit(o.budgetKey)) }) { Text("Adjust budget", color = sc.overFg) }
                     }
                 }
             }
-        }
 
-        item {
-            Panel(modifier = side, padding = 4.dp) {
-                NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more", iconTint = MaterialTheme.colorScheme.onPrimaryContainer, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
+            // A picture for each category the money went to; tapping one opens it in "Where it went" below
+            if (showPictures) item(key = "pictures") {
+                val pictures = dash.byCategory.take(MAX_PICTURES).map { cs -> cs.category to sceneFor(cs.category, cs.paise) }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        if (dash.isCurrent) "This month in pictures" else "That month in pictures",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(horizontal = 20.dp).semantics { heading() },
+                    )
+                    PicturesRow(pictures, onOpen = { id -> openCategory(id) })
+                }
+            }
+
+            // "Where it went": touch the ring, open a category, then a merchant's payments
+            item(key = "where") {
+                Box(side) {
+                    if (dash.byCategory.isEmpty()) {
+                        Panel {
+                            Text("Where it went", style = MaterialTheme.typography.titleMedium)
+                            Text("Nothing spent yet this month.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        com.owl.tracker.ui.components.DrillRingCard(
+                            categories = dash.byCategory.map { cs ->
+                                val row = budgetOf[cs.category.id]
+                                val pct = (cs.paise * 100 / dash.spent.coerceAtLeast(1)).toInt()
+                                com.owl.tracker.ui.components.RingCategory(
+                                    cs.category.id, cs.category.name, Color(cs.category.color), cs.paise,
+                                    note = "$pct%" + when {
+                                        row == null -> ""
+                                        row.spent > row.limit -> " · ${Money.formatInr(row.spent - row.limit)} over its budget"
+                                        else -> " · ${Money.formatInr(row.limit - row.spent)} left of ${Money.formatInr(row.limit)}"
+                                    },
+                                    warn = row != null && row.spent > row.limit,
+                                )
+                            },
+                            pickedCategory = openCat,
+                            pickedMerchant = openMerchant,
+                            merchants = ringMerchants,
+                            payments = ringPayments,
+                            paymentCount = ringPayments.size,
+                            sweepKey = dash.period.start,
+                            appIcons = vm.appIcons,
+                            catMap = catMap,
+                            dayText = { t -> dayLabel(vm, vm.dateOf(t.occurredAt)) },
+                            onCategory = { id -> openCat = if (openCat == id) null else id; openMerchant = null },
+                            onMerchant = { k -> openMerchant = if (openMerchant == k) null else k },
+                            onPayment = { t -> vm.openSheet(Sheet.TxnDetail(t.id)) },
+                            headerAction = { TextButton(onClick = { vm.showActivity() }) { Text("See all") } },
+                            scene = { id ->
+                                val cat = catMap[id]
+                                val spent = dash.byCategory.firstOrNull { it.category.id == id }?.paise
+                                if (cat != null && spent != null) {
+                                    val spec = remember(cat, spent, budgetOf[id]?.limit, dash.overall, dash.spent, ringMerchants) { sceneFor(cat, spent) }
+                                    CategoryScene(spec, cat.name)
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (dash.reviewCount > 0) item {
+                Panel(modifier = side, padding = 4.dp) {
+                    NavRow(
+                        Ic.info, "${dash.reviewCount} ${if (dash.reviewCount == 1) "transaction needs" else "transactions need"} a quick look",
+                        "Unsure matches wait here until you confirm", iconTint = sc.warnFg, iconBg = sc.warnBg,
+                    ) { vm.showActivity(filter = ActivityFilter.REVIEW) }
+                }
+            }
+
+            plan?.takeIf { dash.isCurrent && it.monthlyPaise > 0 && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { Box(side) { SavingNudge(vm, p) } } }
+
+            item {
+                Column(side) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Recent", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() })
+                        TextButton(onClick = { vm.showActivity() }) { Text("See all") }
+                    }
+                    Panel(padding = 8.dp) {
+                        if (dash.recent.isEmpty()) Text("No transactions yet. Tap + to add one.", modifier = Modifier.padding(8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        dash.recent.forEachIndexed { i, t ->
+                            if (i > 0) Divider()
+                            TxnRow(vm, t, catMap[t.categoryId], showDay = true)
+                        }
+                    }
+                }
+            }
+
+            item {
+                Panel(modifier = side, padding = 4.dp) {
+                    NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more", iconTint = MaterialTheme.colorScheme.onPrimaryContainer, iconBg = MaterialTheme.colorScheme.primaryContainer) { vm.go(Screen.INSIGHTS) }
+                }
             }
         }
+        val covered by remember(headerPx, topInset) {
+            androidx.compose.runtime.derivedStateOf {
+                listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > (headerPx - topInset).coerceAtLeast(0)
+            }
+        }
+        val scrim by androidx.compose.animation.core.animateFloatAsState(if (covered) 1f else 0f, label = "scrim")
+        Box(
+            Modifier.fillMaxWidth().windowInsetsTopHeight(androidx.compose.foundation.layout.WindowInsets.statusBars)
+                .graphicsLayer { alpha = scrim }.background(MaterialTheme.colorScheme.background),
+        )
     }
 }
 
@@ -348,7 +369,7 @@ private fun greeting(): String = when (java.time.LocalTime.now().hour) {
 
 /** Home's mango header: the owl, a greeting, the month, and the way to Reports. It runs up behind the status bar. */
 @Composable
-private fun HomeHeader(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, canForward: Boolean) {
+private fun HomeHeader(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, canForward: Boolean, modifier: Modifier = Modifier) {
     val brand = LocalBrand.current
     val dark = com.owl.tracker.ui.theme.LocalDarkTheme.current
     val monthName = dash.period.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH))
@@ -357,7 +378,7 @@ private fun HomeHeader(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, can
         dash.period.start.dayOfMonth == 1 -> "$monthName so far"
         else -> "This month so far"
     }
-    Box(Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(brand.header))) {
+    Box(modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(brand.header))) {
         // A soft sun in the corner
         androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
             val c = androidx.compose.ui.geometry.Offset(size.width - 24.dp.toPx(), 10.dp.toPx())

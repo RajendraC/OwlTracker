@@ -91,7 +91,7 @@ echo "== Screenshots"
 adb logcat -c || true
 adb shell am instrument -w -r -e storeShots 1 -e class "$CLASS#capture" "$RUNNER" 2>&1 | tee logs/capture.log
 ran_ok logs/capture.log || { echo "::error::StoreScreenshots#capture did not pass"; status=1; }
-adb logcat -d -s OwlStoreShots:* TestRunner:* AndroidRuntime:E > logs/capture-logcat.txt 2>&1 || true
+adb logcat -d -s OwlStoreShots:* TestRunner:* AndroidRuntime:E OwlScene:* chromium:W > logs/capture-logcat.txt 2>&1 || true
 adb pull /sdcard/Android/data/$PKG/files/store-screens/. "$OUT/" || echo "::warning::Could not pull screenshots"
 ls -la "$OUT"
 

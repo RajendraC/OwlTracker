@@ -115,6 +115,8 @@ private class SceneHolder {
 
     @SuppressLint("SetJavaScriptEnabled") // the page and its scripts are the app's own files; it loads nothing else
     fun create(context: Context): WebView = WebView(context).apply {
+        // Fills the box it's given: with WRAP_CONTENT, a WebView gives its page no height to lay out in
+        layoutParams = android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT)
         setBackgroundColor(android.graphics.Color.TRANSPARENT)
         isVerticalScrollBarEnabled = false
         isHorizontalScrollBarEnabled = false
@@ -128,16 +130,29 @@ private class SceneHolder {
         settings.setSupportZoom(false)
         settings.builtInZoomControls = false
         settings.displayZoomControls = false
+        val debuggable = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (debuggable) webChromeClient = object : android.webkit.WebChromeClient() {
+            // Test builds only: the page's own errors, to find a picture that didn't draw
+            override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
+                android.util.Log.w("OwlScene", "${m.messageLevel()}: ${m.message()} (${m.sourceId()?.substringAfterLast('/')}:${m.lineNumber()})")
+                return true
+            }
+        }
         webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
 
-            override fun onPageFinished(view: WebView, url: String?) {
-                ready = true
-                pending?.let { render(it) }
-            }
+            // Either may come first; the page picks up a picture handed over before its script ran
+            override fun onPageCommitVisible(view: WebView, url: String?) = pageReady()
+
+            override fun onPageFinished(view: WebView, url: String?) = pageReady()
         }
         web = this
         loadUrl("file:///android_asset/scenes/scene.html")
+    }
+
+    private fun pageReady() {
+        ready = true
+        pending?.let { render(it) }
     }
 
     fun show(json: String) {
@@ -149,11 +164,11 @@ private class SceneHolder {
     private fun render(json: String) {
         shown = json
         pending = null
-        web?.evaluateJavascript("renderScene($json)", null)
+        web?.evaluateJavascript("window.__scene=$json;if(window.renderScene)window.renderScene(window.__scene);", null)
     }
 
     fun replay() {
-        web?.evaluateJavascript("replay()", null)
+        web?.evaluateJavascript("if(window.replay)window.replay();", null)
     }
 
     fun release() {

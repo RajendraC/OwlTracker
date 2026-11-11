@@ -114,20 +114,17 @@ class SceneSpecTest {
     @Test
     fun theScenePageLoadsNothingFromOutside() {
         val dir = listOf(File("src/main/assets/scenes"), File("app/src/main/assets/scenes")).first { it.isDirectory }
-        val files = listOf("scene.html", "bright-art.js", "bright.js").map { File(dir, it) }
+        val files = listOf("scene.html", "bright-font.js", "bright-art.js", "bright.js").map { File(dir, it) }
         files.forEach { assertTrue("${it.name} is missing", it.isFile) }
         val all = files.joinToString("\n") { it.readText() }
         listOf("http://", "https://", "fetch(", "XMLHttpRequest", "WebSocket", "importScripts").forEach {
             assertFalse("the scenes must not use $it", all.contains(it))
         }
+        // url() only ever points inside the picture itself (its gradients and filters), never at a file
+        assertEquals(emptyList<String>(), Regex("url\\((?!#)[^)]*\\)").findAll(all).map { it.value }.toList())
         val html = files[0].readText()
-        assertEquals(listOf("bright-art.js", "bright.js"), Regex("<script src=\"([^\"]+)\"").findAll(html).map { it.groupValues[1] }.toList())
-        // Its only other files are the font, from the app's own assets
-        assertEquals(
-            listOf("../fonts/jakarta_semibold.ttf", "../fonts/jakarta_extrabold.ttf"),
-            Regex("url\\('([^']+)'\\)").findAll(html).map { it.groupValues[1] }.toList(),
-        )
-        assertTrue(File(dir, "../fonts/jakarta_extrabold.ttf").isFile)
+        assertEquals(listOf("bright-font.js", "bright-art.js", "bright.js"), Regex("<script src=\"([^\"]+)\"").findAll(html).map { it.groupValues[1] }.toList())
+        // The font comes with its licence
         assertTrue(File(dir, "../fonts/OFL.txt").isFile)
     }
 }

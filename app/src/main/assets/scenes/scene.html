@@ -1,42 +1,50 @@
 <!doctype html>
 <!--
-  Owl Tracker's category pictures. bright-art.js (made by tools/scenes/export_bright.py) holds the glossy objects;
-  bright.js places and times them. The app calls renderScene(spec) once the page has loaded:
-    { kind, name, color, p, spent, budget, sub, chip, over, order, still }
-  and replay() when the picture is tapped. Nothing here reaches the network: the page, its scripts and its font
-  are the app's own files.
+  Owl Tracker's category pictures. bright-art.js (made by tools/scenes/export_bright.py) holds the glossy objects,
+  bright-font.js the font for the words; bright.js places and times them. The app hands over the picture as
+    window.__scene = { kind, name, color, p, spent, budget, sub, chip, over, order, still }
+  and calls renderScene(window.__scene) if the page is ready (otherwise the page picks it up itself), and replay()
+  when the picture is tapped. Nothing here reaches the network, or even another file: the page and its scripts are
+  the app's own files, and the font is read from memory.
 -->
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-@font-face{font-family:'Plus Jakarta Sans';font-weight:600;src:url('../fonts/jakarta_semibold.ttf') format('truetype')}
-@font-face{font-family:'Plus Jakarta Sans';font-weight:800;src:url('../fonts/jakarta_extrabold.ttf') format('truetype')}
-html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent;-webkit-user-select:none;user-select:none}
-#stage{position:absolute;inset:0}
-#stage svg{display:block;width:100%;height:100%}
+html,body{margin:0;padding:0;overflow:hidden;background:transparent;-webkit-user-select:none;user-select:none}
+/* Sized from the width alone (320 × 180): a WebView's page height can read as 0, so nothing here relies on it */
+#stage{position:relative;width:100%;height:0;padding-top:56.25%}
+#stage svg{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 </style>
 <style id="anim"></style>
 </head><body><div id="stage"></div>
+<script src="bright-font.js"></script>
 <script src="bright-art.js"></script>
 <script src="bright.js"></script>
 <script>
 (function () {
   'use strict';
   var last = null, runs = 0, rest = null;
-  // The text waits for the font (so it doesn't change shape mid-animation), but never for long
+
+  /** The font, from memory. The words wait for it (so they don't change shape mid-animation), but never for long. */
   var fontsReady = new Promise(function (done) {
-    var give = setTimeout(done, 700);
+    var give = setTimeout(done, 500);
+    function finish() { clearTimeout(give); done(); }
     try {
-      Promise.all([
-        document.fonts.load("800 31px 'Plus Jakarta Sans'"),
-        document.fonts.load("600 12px 'Plus Jakarta Sans'")
-      ]).then(function () { clearTimeout(give); done(); }, function () { clearTimeout(give); done(); });
-    } catch (e) { clearTimeout(give); done(); }
+      if (!window.FontFace || !document.fonts || !window.BRIGHT_FONTS) { finish(); return; }
+      Promise.all(window.BRIGHT_FONTS.map(function (f) {
+        var bin = atob(f[1]), bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        var face = new FontFace('Plus Jakarta Sans', bytes.buffer, { weight: f[0], style: 'normal' });
+        document.fonts.add(face);
+        return face.load();
+      })).then(finish, finish);
+    } catch (e) { finish(); }
   });
 
   /** After a while the small idle movements (steam, bobbing, twinkles) come to rest, to save the battery. */
   function settleLater() {
     if (rest) clearTimeout(rest);
     rest = setTimeout(function () {
+      if (!document.getAnimations) return;
       document.getAnimations().forEach(function (a) {
         var t = a.effect && a.effect.getComputedTiming();
         if (!t) return;
@@ -56,6 +64,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:t
 
   /** Draws the scene into the page and starts it. With still, it shows the finished picture without moving. */
   window.renderScene = function (spec) {
+    if (!spec || spec === last) return;
     last = spec;
     fontsReady.then(function () { if (last === spec) draw(spec); });
   };
@@ -68,6 +77,9 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:t
     void stage.offsetWidth; // let the old animations go before the new ones start
     draw(last);
   };
+
+  // The app may have handed the picture over before this script ran
+  if (window.__scene) window.renderScene(window.__scene);
 }());
 </script>
 </body></html>
