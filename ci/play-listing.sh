@@ -3,7 +3,10 @@
 # full descriptions from STORE_DIR/listing.txt, and the icon, feature graphic and phone screenshots.
 #   play-listing.sh PACKAGE STORE_DIR
 # PLAY_TOKEN: a short-lived OAuth access token for the androidpublisher scope. Nothing is stored.
-# CONTACT_EMAIL / CONTACT_WEBSITE (optional): the public contact details shown on the listing.
+# CONTACT_EMAIL / CONTACT_WEBSITE (optional): the public contact details shown on the listing; unset = left as they are.
+# LISTING_TEXT (optional): which text to send: "all" (name, short and full description, the default), "full"
+#   (the full description only; the name and short description in Play stay) or "none".
+# VIDEO_URL (optional): the preview video's YouTube link; sent as https://www.youtube.com/watch?v=<id>.
 # The service account needs Play Console's "Manage store presence" permission for the app.
 set -euo pipefail
 export LC_ALL=C.UTF-8 # count characters, not bytes (₹, •)
@@ -28,6 +31,16 @@ check() { # name value limit
 check "The app name" "$title" 30
 check "The short description" "$short" 80
 check "The full description" "$full" 4000
+LISTING_TEXT="${LISTING_TEXT:-all}"
+case "$LISTING_TEXT" in all|full|none) ;; *) echo "::error::LISTING_TEXT must be all, full or none, not $LISTING_TEXT"; exit 1 ;; esac
+
+# --- The video: any YouTube link to one video (youtu.be/ID, watch?v=ID&...), sent in the plain form Play asks for
+video=""
+if [ -n "${VIDEO_URL:-}" ]; then
+  id=$(printf '%s' "$VIDEO_URL" | sed -nE 's#^https?://(www\.|m\.)?(youtu\.be/|youtube\.com/watch\?(.*&)?v=|youtube\.com/shorts/)([A-Za-z0-9_-]{11}).*$#\4#p')
+  [ -n "$id" ] || { echo "::error::$VIDEO_URL isn't a link to one YouTube video (a playlist or channel link won't do)"; exit 1; }
+  video="https://www.youtube.com/watch?v=$id"
+fi
 
 # --- The pictures
 icon="$DIR/play-icon-512.png"
@@ -91,11 +104,16 @@ if [ -n "${CONTACT_EMAIL:-}" ]; then
     fail "Google Play didn't accept the contact details"
 fi
 
-# PATCH, not PUT: anything else on the listing (such as a promo video added in Play Console) stays.
-listing=$(jq -n --arg l "$lang" --arg t "$title" --arg s "$short" --arg f "$full" \
-  '{language: $l, title: $t, shortDescription: $s, fullDescription: $f}')
-call PATCH "$APP/edits/$edit/listings/$lang" -H "Content-Type: application/json" -d "$listing" > /dev/null ||
-  fail "Google Play didn't accept the listing text"
+# PATCH, not PUT: whatever isn't sent (the video when none is given, text left out) stays as it is in Play.
+listing=$(jq -cn --arg l "$lang" --arg t "$title" --arg s "$short" --arg f "$full" --arg v "$video" --arg which "$LISTING_TEXT" \
+  '{language: $l}
+   + (if $which == "all" then {title: $t, shortDescription: $s} else {} end)
+   + (if $which != "none" then {fullDescription: $f} else {} end)
+   + (if $v != "" then {video: $v} else {} end)')
+if [ "$listing" != "{\"language\":\"$lang\"}" ]; then
+  call PATCH "$APP/edits/$edit/listings/$lang" -H "Content-Type: application/json" -d "$listing" > /dev/null ||
+    fail "Google Play didn't accept the listing text or video"
+fi
 
 # Pictures: replace each kind as a whole, in file-name order.
 put_images() { # type file...
@@ -125,7 +143,12 @@ edit=""
 
 echo "### Store listing sent to Google Play"
 echo ""
-echo "- Language **$lang**: **$title**, short description (${#short}/80), full description (${#full}/4000)."
+case "$LISTING_TEXT" in
+  all) echo "- Language **$lang**: **$title**, short description (${#short}/80), full description (${#full}/4000)." ;;
+  full) echo "- Language **$lang**: full description (${#full}/4000); the name and short description in Play are kept." ;;
+  none) echo "- Language **$lang**: the text in Play is kept." ;;
+esac
+if [ -n "$video" ]; then echo "- Preview video: $video"; fi
 echo "- Icon, feature graphic and ${#shots[@]} phone screenshots."
 if [ -n "${CONTACT_EMAIL:-}" ]; then echo "- Contact email: $CONTACT_EMAIL"; fi
 if [ "$review" = waiting ]; then

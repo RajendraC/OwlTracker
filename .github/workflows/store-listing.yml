@@ -3,11 +3,21 @@ name: Update Google Play store listing
 # Run by hand (Actions → "Update Google Play store listing" → Run workflow) after changing anything in
 # store/: the app name and descriptions in store/listing.txt, the icon, feature graphic or phone
 # screenshots. Needs the Play publishing account to have "Manage store presence" for Owl Tracker.
-# It REPLACES the icon, feature graphic, phone screenshots and contact email in Google Play with the
-# ones from store/ and below (a promo video added in Play Console stays). If the listing was made in
-# Play Console, run "Check what Google Play holds" first and only run this to switch to store/.
+# It REPLACES the icon, feature graphic and phone screenshots in Google Play with the ones in store/, the
+# text chosen below, and the preview video when a link is given. The contact details in Play are left as
+# they are. Run "Check what Google Play holds" first to see what's there.
 on:
   workflow_dispatch:
+    inputs:
+      text:
+        description: "Text to send from store/listing.txt"
+        type: choice
+        options: [full description only, name and both descriptions, none]
+        default: full description only
+      video_url:
+        description: "Preview video: a YouTube link to one video (empty = keep the one in Play)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -51,7 +61,7 @@ jobs:
       - name: Send the store listing
         env:
           PLAY_TOKEN: ${{ steps.google.outputs.access_token }}
-          CONTACT_EMAIL: rajendra.chandrasekhar@gmail.com
-          CONTACT_WEBSITE: https://rajendrac.github.io/OwlTracker/
+          LISTING_TEXT: ${{ inputs.text == 'name and both descriptions' && 'all' || inputs.text == 'none' && 'none' || 'full' }}
+          VIDEO_URL: ${{ inputs.video_url }}
         shell: bash
         run: bash ci/play-listing.sh com.owl.tracker store | tee -a "$GITHUB_STEP_SUMMARY"
