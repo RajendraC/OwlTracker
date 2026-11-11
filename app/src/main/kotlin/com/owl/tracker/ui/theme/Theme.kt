@@ -22,7 +22,8 @@ import com.owl.tracker.R
 import com.owl.tracker.core.BudgetState
 
 /*
- * Mango & Cocoa: a warm cream ground, a ripe-mango header and Add button, and cocoa for the things you press.
+ * Mango & Cocoa: a warm cream ground, a ripe-mango header and Add button, and cocoa for the things you press;
+ * surfaces in the clay look (Clay.kt).
  * The colours are fixed (not taken from the wallpaper) so the app looks the same on every phone, and budget
  * states always mean the same thing.
  */
@@ -52,15 +53,15 @@ private val LightColors = lightColorScheme(
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFDDF3D2),
     onTertiaryContainer = Color(0xFF0E3A1C),
-    background = Color(0xFFFFF8EE),
+    background = Color(0xFFFFF1E0),
     onBackground = Color(0xFF2A1708),
-    surface = Color(0xFFFFF8EE),
+    surface = Color(0xFFFFF1E0),
     onSurface = Color(0xFF2A1708),
     surfaceVariant = Color(0xFFF6EADB),
     onSurfaceVariant = Color(0xFF6A5040),
     surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color.White,
-    surfaceContainer = Color.White,
+    surfaceContainerLow = Color(0xFFFFF7EC),
+    surfaceContainer = Color(0xFFFFF7EC),
     surfaceContainerHigh = Color(0xFFFBF1E4),
     surfaceContainerHighest = Color(0xFFF6EADB),
     surfaceBright = Color.White,
@@ -122,7 +123,7 @@ private val LightStatus = StatusColors(
     okFg = Color(0xFF1E6A2E), okBg = Color(0xFFE7F6DA),
     warnFg = Color(0xFF7A4A00), warnBg = Color(0xFFFFF0CF), warnRing = Color(0xFFE08A00),
     overFg = Color(0xFFB3261E), overBg = Color(0xFFFFE6E2), overRing = Color(0xFFD93B2B),
-    track = Color(0xFFF4EBDD),
+    track = Color(0xFFF1E2CC),
 )
 private val DarkStatus = StatusColors(
     okFg = Color(0xFF9EE6A8), okBg = Color(0xFF1F3A22),
@@ -153,6 +154,12 @@ data class BrandColors(
     /** Soft fills for the small figures under the budget: spent, over, could save. */
     val spentBg: Color,
     val shadow: Color,
+    /** The clay look's colours. */
+    val clay: ClayColors,
+    /** The three layers of hills at the foot of Home's header, back to front. */
+    val hills: List<Color>,
+    /** The dish the budget ring sits in. */
+    val dish: Color,
 )
 
 private val LightBrand = BrandColors(
@@ -160,9 +167,12 @@ private val LightBrand = BrandColors(
     onHeader = Color(0xFF2A1708), onHeaderSoft = Color(0xFF7A3B18),
     headerButton = Color.White.copy(alpha = 0.7f),
     add = listOf(Color(0xFFFFE08A), Mango, Color(0xFFE07A0A)), onAdd = Cocoa,
-    bar = Color.White, barIdle = Color(0xFF8A7466), barActive = Cocoa,
-    spentBg = Color(0xFFFFF4DE),
-    shadow = Color(0xFF2A1708),
+    bar = Color(0xFFFFF7EC), barIdle = Color(0xFF8A7466), barActive = Cocoa,
+    spentBg = Color(0xFFFFF1D6),
+    shadow = Color(0xFF7A3B18),
+    clay = LightClay,
+    hills = listOf(Color(0xFFFFB347), Color(0xFFFF9A3D), Color(0xFFF6862E)),
+    dish = Color(0xFFFBEBD6),
 )
 private val DarkBrand = BrandColors(
     header = listOf(Color(0xFF4A2C12), Color(0xFF3A2210), Color(0xFF26170C)),
@@ -172,9 +182,23 @@ private val DarkBrand = BrandColors(
     bar = Color(0xFF2A1D14), barIdle = Color(0xFFB8A08C), barActive = Color(0xFFFFC24D),
     spentBg = Color(0xFF3A2A1E),
     shadow = Color.Black,
+    clay = DarkClay,
+    hills = listOf(Color(0xFF3A2410), Color(0xFF301D0D), Color(0xFF26170A)),
+    dish = Color(0xFF1F150E),
 )
 
 val LocalBrand = staticCompositionLocalOf { LightBrand }
+
+/** The Add button's mango ball: a bright spot at the top left, deepening to burnt orange at the edge. */
+val SphereBrush: androidx.compose.ui.graphics.Brush = object : androidx.compose.ui.graphics.ShaderBrush() {
+    override fun createShader(size: androidx.compose.ui.geometry.Size): androidx.compose.ui.graphics.Shader =
+        androidx.compose.ui.graphics.RadialGradientShader(
+            center = androidx.compose.ui.geometry.Offset(size.width * 0.34f, size.height * 0.28f),
+            radius = maxOf(size.width, size.height) * 0.82f,
+            colors = listOf(Color(0xFFFFFBE6), Color(0xFFFFE08A), Mango, Color(0xFFE8840F), Color(0xFFB65A05)),
+            colorStops = listOf(0f, 0.18f, 0.52f, 0.78f, 1f),
+        )
+}
 
 /** A glossy ball of colour, like the pictures: [colors] light, middle and deep, lit from the top left. */
 fun glossBrush(colors: List<Color>): androidx.compose.ui.graphics.Brush = object : androidx.compose.ui.graphics.ShaderBrush() {

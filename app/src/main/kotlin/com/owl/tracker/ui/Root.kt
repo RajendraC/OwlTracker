@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import com.owl.tracker.ui.theme.clay
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -212,32 +214,27 @@ private val TABS = listOf(
 )
 
 /**
- * The bottom bar: four tabs on a white bar with rounded top corners, the picked one in cocoa with a mango dot
- * under it, and the round mango Add button raised in the middle.
+ * The bottom bar, in clay: one moulded pill floating above the bottom edge, the open tab pressed into it, and the
+ * glossy mango Add button rising out of its middle.
  */
 @Composable
 private fun MangoTabBar(vm: AppViewModel, current: Tab) {
     val brand = com.owl.tracker.ui.theme.LocalBrand.current
     val icons = mapOf(Tab.HOME to Ic.home, Tab.ACTIVITY to Ic.list, Tab.BUDGETS to Ic.wallet, Tab.MORE to Ic.grid)
-    Box(Modifier.fillMaxWidth()) {
-        androidx.compose.material3.Surface(
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            color = brand.bar,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shadowElevation = 14.dp,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
+    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
+        com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(30.dp), Modifier.fillMaxWidth(), color = brand.bar, elevation = 16.dp) {
             androidx.compose.foundation.layout.Row(
-                Modifier.fillMaxWidth().navigationBarsPadding().height(68.dp).padding(horizontal = 8.dp),
+                Modifier.fillMaxWidth().height(70.dp).padding(horizontal = 6.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TABS.forEachIndexed { i, (t, label, target) ->
-                    if (i == 2) androidx.compose.foundation.layout.Spacer(Modifier.width(76.dp))
+                    if (i == 2) androidx.compose.foundation.layout.Spacer(Modifier.width(78.dp))
                     val on = t == current
                     val tint by androidx.compose.animation.animateColorAsState(if (on) brand.barActive else brand.barIdle, label = "tab")
-                    val dot by androidx.compose.animation.core.animateFloatAsState(if (on) 1f else 0f, label = "dot")
+                    val shape = RoundedCornerShape(22.dp)
                     androidx.compose.foundation.layout.Column(
-                        Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(20.dp))
+                        Modifier.weight(1f).fillMaxHeight().padding(horizontal = 2.dp)
+                            .then(if (on) Modifier.clay(shape, brand.clay, brand.clay.pressed, pressed = true) else Modifier.clip(shape))
                             .selectable(selected = on, role = androidx.compose.ui.semantics.Role.Tab) {
                                 if (target == Screen.ACTIVITY) vm.showActivity() else vm.go(target)
                             }
@@ -247,42 +244,52 @@ private fun MangoTabBar(vm: AppViewModel, current: Tab) {
                     ) {
                         Icon(icons.getValue(t), contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
                         Text(label, style = MaterialTheme.typography.labelMedium, color = tint, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Bold)
-                        Box(
-                            Modifier.padding(top = 3.dp).size(5.dp).graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot }
-                                .clip(androidx.compose.foundation.shape.CircleShape).background(com.owl.tracker.ui.theme.Mango),
-                        )
                     }
                 }
             }
         }
         AddButton(
             onClick = { vm.openSheet(Sheet.AddExpense) },
-            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-26).dp),
+            ring = brand.bar,
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-30).dp),
         )
     }
 }
 
-/** The raised, glossy mango Add button, ringed in the background colour so it seems to sit in a notch. */
+/** The Add button: a glossy mango ball with a highlight and its shadow, ringed in the bar's colour. */
 @Composable
-private fun AddButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun AddButton(onClick: () -> Unit, ring: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
     val brand = com.owl.tracker.ui.theme.LocalBrand.current
-    val ground = MaterialTheme.colorScheme.background
     val press = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
     val scale by androidx.compose.animation.core.animateFloatAsState(if (pressed) 0.92f else 1f, label = "press")
     Box(
-        modifier.size(70.dp).graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow(10.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = brand.add[2], spotColor = brand.add[2])
+        modifier.size(74.dp).graphicsLayer { scaleX = scale; scaleY = scale }
+            .shadow(14.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = brand.add[2], spotColor = brand.add[2])
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(ground)
+            .background(ring)
             .padding(5.dp)
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(com.owl.tracker.ui.theme.glossBrush(brand.add))
+            .background(com.owl.tracker.ui.theme.SphereBrush)
+            .drawBehind {
+                // Shade underneath and a bright spot up top, so it reads as a ball
+                drawCircle(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        0.55f to androidx.compose.ui.graphics.Color.Transparent,
+                        1f to androidx.compose.ui.graphics.Color(0x66964600),
+                    ),
+                )
+                drawOval(
+                    androidx.compose.ui.graphics.Color.White.copy(alpha = 0.55f),
+                    topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.22f, size.height * 0.1f),
+                    size = androidx.compose.ui.geometry.Size(size.width * 0.34f, size.height * 0.2f),
+                )
+            }
             .clickable(interactionSource = press, indication = androidx.compose.material3.ripple(), role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Add expense") { onClick() }
             .semantics { contentDescription = "Add expense" }
             .testTag("add_expense"),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Ic.plus, contentDescription = null, tint = brand.onAdd, modifier = Modifier.size(30.dp))
+        Icon(Ic.plus, contentDescription = null, tint = brand.onAdd, modifier = Modifier.size(32.dp))
     }
 }

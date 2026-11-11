@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Window colour behind the first frame; values-night overrides it for dark mode. -->
-    <color name="window_background">#FFF8EE</color>
+    <color name="window_background">#FFF1E0</color>
 </resources>

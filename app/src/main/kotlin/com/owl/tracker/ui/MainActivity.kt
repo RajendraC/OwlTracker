@@ -102,7 +102,7 @@ class MainActivity : FragmentActivity() {
             navigationBarStyle = SystemBarStyle.auto(LIGHT_SCRIM, DARK_SCRIM) { dark },
         )
         // Seen for a moment at start-up and behind the keyboard; the same colours as @color/window_background
-        window.setBackgroundDrawable(ColorDrawable(if (dark) 0xFF1A120C.toInt() else 0xFFFFF8EE.toInt()))
+        window.setBackgroundDrawable(ColorDrawable(if (dark) 0xFF1A120C.toInt() else 0xFFFFF1E0.toInt()))
     }
 
     /** Blocks screenshots, screen recording and the Recents thumbnail while on. */

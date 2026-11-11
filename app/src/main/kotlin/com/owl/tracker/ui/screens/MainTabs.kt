@@ -87,6 +87,9 @@ import com.owl.tracker.ui.scene.CategoryScene
 import com.owl.tracker.ui.scene.Scenes
 import com.owl.tracker.ui.theme.Ic
 import com.owl.tracker.ui.theme.LocalBrand
+import com.owl.tracker.ui.theme.clay
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.translate
 import com.owl.tracker.ui.theme.LocalStatusColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -190,7 +193,7 @@ fun HomeScreen(vm: AppViewModel) {
             item(key = "top") {
                 Column {
                     HomeHeader(vm, dash, canForward, Modifier.onSizeChanged { headerPx = it.height })
-                    BudgetCard(vm, dash, plan, ::openCategory, Modifier.padding(horizontal = 16.dp).pullUp(60.dp))
+                    BudgetCard(vm, dash, plan, ::openCategory, Modifier.padding(horizontal = 14.dp).pullUp(76.dp))
                 }
             }
 
@@ -322,11 +325,15 @@ fun HomeScreen(vm: AppViewModel) {
                         Text("Recent", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() })
                         TextButton(onClick = { vm.showActivity() }) { Text("See all") }
                     }
-                    Panel(padding = 8.dp) {
-                        if (dash.recent.isEmpty()) Text("No transactions yet. Tap + to add one.", modifier = Modifier.padding(8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        dash.recent.forEachIndexed { i, t ->
-                            if (i > 0) Divider()
-                            TxnRow(vm, t, catMap[t.categoryId], showDay = true)
+                    if (dash.recent.isEmpty()) {
+                        Panel { Text("No transactions yet. Tap + to add one.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                    // Each payment its own little clay card
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        dash.recent.forEach { t ->
+                            com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(24.dp), Modifier.fillMaxWidth(), elevation = 6.dp) {
+                                Box(Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) { TxnRow(vm, t, catMap[t.categoryId], showDay = true) }
+                            }
                         }
                     }
                 }
@@ -387,8 +394,27 @@ private fun HomeHeader(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, can
                 androidx.compose.ui.graphics.Brush.radialGradient(listOf(Color.White.copy(alpha = if (dark) 0.10f else 0.75f), Color.White.copy(alpha = 0f)), c, r),
                 r, c,
             )
+            // Three layers of mango hills at the foot, each casting a soft shadow up onto the one behind
+            val w = size.width
+            val h = size.height
+            val band = 92.dp.toPx()
+            fun hill(top: Float, a: Float, b: Float, c2: Float) = androidx.compose.ui.graphics.Path().apply {
+                val y0 = h - band
+                moveTo(0f, y0 + band * top)
+                cubicTo(w * 0.2f, y0 + band * (top - a), w * 0.38f, y0 + band * (top + b), w * 0.56f, y0 + band * (top - c2))
+                cubicTo(w * 0.74f, y0 + band * (top - c2 - 0.08f), w * 0.88f, y0 + band * (top + 0.06f), w, y0 + band * (top - 0.04f))
+                lineTo(w, h)
+                lineTo(0f, h)
+                close()
+            }
+            listOf(hill(0.42f, 0.3f, 0.1f, 0.2f), hill(0.62f, 0.22f, 0.1f, 0.14f), hill(0.8f, 0.16f, 0.06f, 0.1f)).forEachIndexed { i, path ->
+                for (k in 4 downTo 1) {
+                    translate(top = -k * 1.2f.dp.toPx()) { drawPath(path, brand.clay.shadow.copy(alpha = 0.05f)) }
+                }
+                drawPath(path, brand.hills[i])
+            }
         }
-        Column(Modifier.statusBarsPadding().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 76.dp)) {
+        Column(Modifier.statusBarsPadding().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 96.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier.size(54.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(MaterialTheme.colorScheme.background),
@@ -440,14 +466,8 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val status = dash.status
     val daysLeft = dash.period.days - dash.dayNumber
-    androidx.compose.material3.Surface(
-        shape = RoundedCornerShape(30.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shadowElevation = 10.dp,
-        modifier = modifier.fillMaxWidth().testTag("budget_hero"),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(36.dp), modifier.fillMaxWidth().testTag("budget_hero"), elevation = 18.dp) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (status == null) {
                 Column {
                     Text("Spent this month", style = MaterialTheme.typography.labelLarge, color = muted)
@@ -501,36 +521,50 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
             // Three small figures: spent, which budget is over, and what could be saved
             val overRows = dash.categoryRows.filter { it.status.state == BudgetState.OVER }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatPill("Spent", Money.formatInr(dash.spent), brand.spentBg, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), valueTag = "spent_total")
+                StatPill("Spent", Money.formatInr(dash.spent), brand.spentBg, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), valueTag = "spent_total", art = com.owl.tracker.R.drawable.glossy_coins)
                 StatPill(
                     "Over budget",
                     when (overRows.size) { 0 -> "None"; 1 -> overRows[0].category.name; else -> "${overRows.size} budgets" },
                     if (overRows.isEmpty()) sc.okBg else sc.overBg, if (overRows.isEmpty()) sc.okFg else sc.overFg, Modifier.weight(1f),
+                    art = overRows.firstOrNull()?.let { com.owl.tracker.ui.components.glossyArt(it.category.icon) },
                     onClick = overRows.firstOrNull()?.let { r -> { onOpen(r.category.id) } },
                 )
                 val save = plan?.monthlyPaise?.takeIf { it > 0 && dash.isCurrent }
                 if (save != null) {
-                    StatPill("Could save", Money.formatInr(save), sc.okBg, sc.okFg, Modifier.weight(1f), onClick = { vm.go(Screen.INSIGHTS) })
+                    StatPill("Could save", Money.formatInr(save), sc.okBg, sc.okFg, Modifier.weight(1f), art = com.owl.tracker.R.drawable.glossy_piggy, onClick = { vm.go(Screen.INSIGHTS) })
                 } else {
-                    StatPill(if (dash.isCurrent) "Days left" else "Days", "${if (dash.isCurrent) daysLeft else dash.period.days}", brand.spentBg, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
+                    StatPill(
+                        if (dash.isCurrent) "Days left" else "Days", "${if (dash.isCurrent) daysLeft else dash.period.days}", brand.spentBg,
+                        MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), art = com.owl.tracker.R.drawable.glossy_emi,
+                    )
                 }
             }
         }
     }
 }
 
+/** One of the figures under the budget: a small clay pill with its glossy picture, its label and its value. */
 @Composable
-private fun StatPill(label: String, value: String, bg: Color, fg: Color, modifier: Modifier = Modifier, valueTag: String? = null, onClick: (() -> Unit)? = null) {
-    Column(
-        modifier.clip(RoundedCornerShape(18.dp)).background(bg)
+private fun StatPill(
+    label: String, value: String, bg: Color, fg: Color, modifier: Modifier = Modifier, valueTag: String? = null, art: Int? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    val clay = LocalBrand.current.clay
+    Row(
+        modifier.clay(RoundedCornerShape(20.dp), clay, bg.compositeOver(clay.surface), elevation = 4.dp)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(start = 6.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(
-            value, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = if (valueTag != null) Modifier.testTag(valueTag) else Modifier,
-        )
+        if (art != null) androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(art), contentDescription = null, modifier = Modifier.size(26.dp))
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                value, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = if (valueTag != null) Modifier.testTag(valueTag) else Modifier,
+            )
+        }
     }
 }
 
@@ -547,14 +581,23 @@ private fun PicturesRow(pictures: List<Pair<Category, com.owl.tracker.ui.scene.S
     val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
     androidx.compose.foundation.lazy.LazyRow(
         state = rowState,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 10.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 18.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(rowState),
         modifier = Modifier.fillMaxWidth().testTag("pictures"),
     ) {
         items(pictures, key = { it.first.id }) { (cat, spec) ->
             val shape = RoundedCornerShape(22.dp)
-            Box(Modifier.width(280.dp).shadow(6.dp, shape, ambientColor = brand.shadow, spotColor = brand.shadow)) {
+            Box(
+                Modifier.width(280.dp)
+                    // Leaning back a little, like a card stood up on the table
+                    .graphicsLayer {
+                        rotationX = 4f
+                        cameraDistance = 12f * density
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+                    }
+                    .shadow(12.dp, shape, ambientColor = brand.shadow, spotColor = brand.shadow),
+            ) {
                 if (live) {
                     CategoryScene(spec, cat.name, caption = false, tag = "picture_${cat.id}", onClick = { onOpen(cat.id) })
                 } else {
@@ -573,6 +616,7 @@ private fun PicturesRow(pictures: List<Pair<Category, com.owl.tracker.ui.scene.S
 @Composable
 private fun BudgetDrillRing(fraction: Double, spent: Long, budget: Long, byCategory: List<com.owl.tracker.ui.CategorySpend>, period: LocalDate, onOpen: (String?) -> Unit) {
     val sc = LocalStatusColors.current
+    val brand = LocalBrand.current
     val track = sc.track
     val over = sc.overFg
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
@@ -635,12 +679,29 @@ private fun BudgetDrillRing(fraction: Double, spent: Long, budget: Long, byCateg
         contentAlignment = Alignment.Center,
     ) {
         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-            val stroke = size.minDimension * 0.095f
+            val stroke = size.minDimension * 0.12f
             val pop = 5.dp.toPx()
             val inset = stroke / 2 + pop
             val arcSize = androidx.compose.ui.geometry.Size(size.width - inset * 2, size.height - inset * 2)
             val tl = androidx.compose.ui.geometry.Offset(inset, inset)
-            drawArc(track, 0f, 360f, false, tl, arcSize, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+            val ringStroke = androidx.compose.ui.graphics.drawscope.Stroke(stroke)
+            // The dish the ring sits in: shaded at the top, where its rim hides the light
+            val dishR = arcSize.width / 2 - stroke / 2
+            drawCircle(brand.dish, dishR, center)
+            drawCircle(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(brand.clay.shade, Color.Transparent), center.y - dishR, center.y,
+                ),
+                dishR, center,
+            )
+            // The ring's shadow on the card, then the ring as a tube: the track, the categories, light on top, shade below
+            for (k in 1..3) {
+                drawArc(
+                    brand.clay.shadow.copy(alpha = 0.06f), 0f, 360f, false, tl + androidx.compose.ui.geometry.Offset(0f, k * 1.5f.dp.toPx()), arcSize,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(stroke + k * 2.dp.toPx()),
+                )
+            }
+            drawArc(track, 0f, 360f, false, tl, arcSize, style = ringStroke)
             // The spent part sweeps round, category after category
             val shown = filled * grow
             arcs.forEachIndexed { i, (start, sw) ->
@@ -656,6 +717,17 @@ private fun BudgetDrillRing(fraction: Double, spent: Long, budget: Long, byCateg
                     style = androidx.compose.ui.graphics.drawscope.Stroke(stroke * (1f + 0.35f * p)),
                 )
             }
+            drawArc(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = 0.5f), 0.45f to Color.White.copy(alpha = 0.04f), 0.6f to Color.Transparent, 1f to Color(0x473A1C0C),
+                    startY = tl.y - stroke / 2, endY = tl.y + arcSize.height + stroke / 2,
+                ),
+                0f, 360f, false, tl, arcSize, style = ringStroke,
+            )
+            val rimOuter = androidx.compose.ui.geometry.Size(arcSize.width + stroke, arcSize.height + stroke)
+            val rimInner = androidx.compose.ui.geometry.Size(arcSize.width - stroke, arcSize.height - stroke)
+            drawArc(Color(0x1F3A1C0C), 0f, 360f, false, tl - androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2), rimOuter, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+            drawArc(Color(0x1A3A1C0C), 0f, 360f, false, tl + androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2), rimInner, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
             // A soft highlight on the upper left, so the ring looks glossy like the pictures
             if (shown > 1f) drawArc(
                 Color.White.copy(alpha = 0.35f), -165f, 60f, false, tl + androidx.compose.ui.geometry.Offset(stroke * 0.12f, stroke * 0.12f),

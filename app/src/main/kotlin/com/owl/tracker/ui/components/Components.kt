@@ -54,23 +54,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.owl.tracker.AppIcons
 import com.owl.tracker.data.Category
+import com.owl.tracker.R
 import com.owl.tracker.ui.theme.Ic
+import com.owl.tracker.ui.theme.clay
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.res.painterResource
 import com.owl.tracker.ui.theme.LocalStatusColors
 import com.owl.tracker.core.BudgetState
 import com.owl.tracker.core.Cat
 import com.owl.tracker.core.Institutions
 import com.owl.tracker.core.ShopKinds
 
+/** A card in the clay look: moulded, lit from the top left, casting a soft warm shadow. */
 @Composable
 fun Panel(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        // White on the cream ground; in the dark theme a step lighter than the background
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
+    com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(28.dp), modifier.fillMaxWidth(), elevation = 8.dp) {
         Column(Modifier.padding(padding), content = content)
     }
 }
@@ -115,17 +113,52 @@ fun ScreenHeader(title: String, subtitle: String? = null, onBack: (() -> Unit)? 
     }
 }
 
+/** A small clay tile holding a line icon. [background] may be see-through: it's laid over the card's colour. */
 @Composable
 fun IconTile(icon: ImageVector, tint: Color, background: Color, size: Dp = 40.dp) {
-    Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(background), contentAlignment = Alignment.Center) {
+    val clay = com.owl.tracker.ui.theme.LocalBrand.current.clay
+    Box(
+        Modifier.size(size).clay(RoundedCornerShape(size * 0.32f), clay, background.compositeOver(clay.surface), elevation = if (size >= 32.dp) 3.dp else 0.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size * 0.5f))
     }
 }
 
+/** The glossy pictures drawn for the category icons (tools/make_glossy_icons.py); other icons keep their line icon. */
+private val GLOSSY = mapOf(
+    "food" to R.drawable.glossy_food, "coffee" to R.drawable.glossy_coffee, "groceries" to R.drawable.glossy_groceries,
+    "shopping" to R.drawable.glossy_shopping, "transport" to R.drawable.glossy_transport, "fuel" to R.drawable.glossy_fuel,
+    "bills" to R.drawable.glossy_bills, "recharge" to R.drawable.glossy_recharge, "entertainment" to R.drawable.glossy_entertainment,
+    "health" to R.drawable.glossy_health, "travel" to R.drawable.glossy_travel, "education" to R.drawable.glossy_education,
+    "rent" to R.drawable.glossy_rent, "emi" to R.drawable.glossy_emi, "investments" to R.drawable.glossy_investments,
+    "cash" to R.drawable.glossy_cash, "transfer" to R.drawable.glossy_transfer, "income" to R.drawable.glossy_income,
+    "others" to R.drawable.glossy_others, "sports" to R.drawable.glossy_sports, "gift" to R.drawable.glossy_gift,
+    "wallet" to R.drawable.glossy_wallet,
+)
+
+/** The glossy picture for a category icon, if one was drawn. */
+fun glossyArt(icon: String?): Int? = GLOSSY[icon ?: "others"]
+
+/**
+ * A category's tile: its glossy picture (a basket of vegetables, a cup, an auto…) on a clay tile tinted with the
+ * category's colour. Small tiles, and icons with no picture, keep the line icon.
+ */
 @Composable
 fun CategoryTile(category: Category?, size: Dp = 40.dp) {
     val color = Color(category?.color ?: 0xFF7F8682)
-    IconTile(Ic.forCategory(category?.icon ?: "others"), color, color.copy(alpha = 0.13f), size)
+    val art = GLOSSY[category?.icon ?: "others"]
+    if (art == null || size < 28.dp) {
+        IconTile(Ic.forCategory(category?.icon ?: "others"), color, color.copy(alpha = 0.13f), size)
+        return
+    }
+    val clay = com.owl.tracker.ui.theme.LocalBrand.current.clay
+    Box(
+        Modifier.size(size).clay(RoundedCornerShape(size * 0.32f), clay, color.copy(alpha = 0.16f).compositeOver(clay.surface), elevation = 3.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(painterResource(art), contentDescription = null, modifier = Modifier.size(size * 0.86f))
+    }
 }
 
 /**
