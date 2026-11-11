@@ -147,6 +147,23 @@ class StoreScreenshots {
             shot("13_home_drill")
             runCatching { activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() } }
             Thread.sleep(800)
+            // The 3D ring with the owl: the month, then the slice at the front turned towards you
+            runCatching {
+                scrollTo(hasTestTag("owl_bubble"), below = 70f)
+                Thread.sleep(3800)
+                shot("14_home_ring")
+                val ring = compose.onAllNodes(hasTestTag("ring3d"))[0]
+                val node = ring.fetchSemanticsNode()
+                val g = com.owl.tracker.ui.components.Ring3DGeometry(node.size.width.toFloat(), node.size.height.toFloat(), compose.density.density)
+                val r = (g.r0 + g.r1) / 2f
+                ring.performTouchInput { click(g.project(0f, r, 0f, 0f, com.owl.tracker.ui.components.RING_TILT)) }
+                Thread.sleep(2600)
+                shot("15_home_ring_pick")
+                // and the one at the back, which then comes round to the front
+                ring.performTouchInput { click(g.project(0f, -r, 0f, 0f, com.owl.tracker.ui.components.RING_TILT)) }
+                Thread.sleep(2600)
+                shot("15b_home_ring_pick")
+            }
 
             section("budgets") {
                 tapTag("tab_budgets")

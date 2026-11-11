@@ -7,6 +7,8 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.click
@@ -14,6 +16,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import com.owl.tracker.TestApp
 import com.owl.tracker.backup.BackupCodec
+import com.owl.tracker.ui.components.RING_TILT
+import com.owl.tracker.ui.components.Ring3DGeometry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -115,6 +119,35 @@ class ReportsAndBackupFlowTest {
             waitUntil(5_000) { onAllNodesWithTag("ring_up").fetchSemanticsNodes().isEmpty() }
             waitForTag("budget_hero")
             onAllNodesWithTag("ring_up").assertCountEquals(0)
+        }
+    }
+
+    /** Home's 3D ring: a tap turns a slice to the front and the owl talks about it; the middle goes back to the month; Open opens it. */
+    @Test
+    fun theOwlTalksAboutTheTappedSliceAndOpenOpensIt() {
+        setUpWithSms()
+        with(compose) {
+            waitForTag("ring3d")
+            onNodeWithTag("ring3d").performScrollTo()
+            waitForTag("owl")
+            waitForText("This month ·")
+            val node = onNodeWithTag("ring3d").fetchSemanticsNode()
+            val g = Ring3DGeometry(node.size.width.toFloat(), node.size.height.toFloat(), density.density)
+            val front = g.project(0f, (g.r0 + g.r1) / 2f, 0f, 0f, RING_TILT)
+            val middle = g.project(0f, 0f, 0f, 0f, RING_TILT)
+
+            onNodeWithTag("ring3d").performTouchInput { click(front) }
+            waitForTag("owl_open")
+            onAllNodesWithText("This month ·", substring = true).assertCountEquals(0)
+            // The owl's own spot, in the middle: back to the month
+            onNodeWithTag("ring3d").performTouchInput { click(middle) }
+            waitForText("This month ·")
+            onAllNodesWithTag("owl_open").assertCountEquals(0)
+
+            onNodeWithTag("ring3d").performTouchInput { click(front) }
+            tapTag("owl_open")
+            waitForTag("ring_up")
+            waitForTag("category_donut")
         }
     }
 

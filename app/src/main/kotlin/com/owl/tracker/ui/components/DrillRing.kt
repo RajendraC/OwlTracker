@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,6 +56,7 @@ import com.owl.tracker.core.Money
 import com.owl.tracker.data.Category
 import com.owl.tracker.data.Txn
 import com.owl.tracker.ui.theme.Ic
+import com.owl.tracker.ui.theme.LocalBrand
 import com.owl.tracker.ui.theme.LocalStatusColors
 import kotlin.math.atan2
 import kotlin.math.hypot
@@ -64,6 +66,12 @@ data class RingCategory(val id: String, val name: String, val color: Color, val 
 
 /** A merchant inside the category opened. */
 data class RingMerchant(val key: String, val name: String, val paise: Long)
+
+/**
+ * Home's top level: the ring lies on the card in 3D with the owl in the middle, saying how the [month] is going,
+ * or a category once its slice is tapped ([byCategory], by category id).
+ */
+data class RingMoods(val month: OwlSay, val byCategory: Map<String, OwlSay>)
 
 private data class Slice(val key: String, val name: String, val paise: Long, val share: Float, val color: Color)
 
@@ -98,6 +106,10 @@ fun DrillRingCard(
     headerAction: (@Composable () -> Unit)? = null,
     /** The picture of the category opened, shown above its merchants (Home has one). */
     scene: (@Composable (categoryId: String) -> Unit)? = null,
+    /** With these, the top level is the 3D ring with the owl: a tap turns a slice to the front, a second tap opens it. */
+    moods: RingMoods? = null,
+    /** Show each category's glossy picture in the list instead of a dot. */
+    tiles: Boolean = false,
 ) {
     val sc = LocalStatusColors.current
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -126,6 +138,10 @@ fun DrillRingCard(
         }
     }
     val level = if (pick == null) 0 else if (merchantKey == null) 1 else 2
+    // The 3D ring's chosen slice (turned to the front, the owl talking about it), and a count to replay the owl's act
+    var chosen by remember(sweepKey) { mutableStateOf<String?>(null) }
+    var act by remember { mutableIntStateOf(0) }
+    val chosenHere = chosen?.takeIf { id -> categories.any { it.id == id } }
     var hover by remember(pick?.id) { mutableStateOf<Int?>(null) }
     val active = hover ?: slices.indexOfFirst { it.key.isNotEmpty() && it.key == merchantKey }.takeIf { it >= 0 }
     val ring = growIn(sweepKey to (pick == null), 1000)
@@ -161,7 +177,10 @@ fun DrillRingCard(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(title, style = MaterialTheme.typography.titleMedium)
-                        Text("Slide round the ring · tap a slice to open it", style = MaterialTheme.typography.bodySmall, color = muted)
+                        Text(
+                            if (moods != null) "Tap a slice to see how it's doing · tap again to open it" else "Slide round the ring · tap a slice to open it",
+                            style = MaterialTheme.typography.bodySmall, color = muted,
+                        )
                     }
                     headerAction?.invoke()
                 }
@@ -192,7 +211,24 @@ fun DrillRingCard(
             scene(pick.id)
             Gap(12.dp)
         }
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        if (level == 0 && moods != null) {
+            RingOwlStage(
+                slices = categories.map { Ring3DSlice(it.id, it.color, it.paise.toFloat() / total) },
+                description = "Spending by category: " + categories.joinToString { "${it.name} ${it.paise * 100 / total}%" },
+                say = chosenHere?.let { moods.byCategory[it] } ?: moods.month,
+                picked = chosenHere,
+                actKey = act,
+                sweepKey = sweepKey,
+                onTap = { hit ->
+                    when (hit) {
+                        is RingHit.Slice -> if (chosenHere == hit.id) onCategory(hit.id) else chosen = hit.id
+                        RingHit.Middle -> if (chosenHere != null) chosen = null else act++
+                        RingHit.Outside -> Unit
+                    }
+                },
+                onOpen = chosenHere?.let { id -> { onCategory(id) } },
+            )
+        } else Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Canvas(
                 Modifier.size(220.dp)
                     .pointerInput(slices) {
@@ -306,14 +342,16 @@ fun DrillRingCard(
         when (level) {
             0 -> categories.forEachIndexed { i, c ->
                 if (i > 0) Divider()
+                val on = moods != null && chosenHere == c.id
                 Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(if (tiles) 18.dp else 10.dp))
+                        .then(if (on) Modifier.background(LocalBrand.current.clay.pressed) else Modifier)
                         .clickable { onCategory(c.id) }
-                        .padding(vertical = 10.dp, horizontal = 6.dp)
+                        .padding(vertical = if (tiles) 8.dp else 10.dp, horizontal = 6.dp)
                         .testTag("cat_${c.id}"),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (tiles) 12.dp else 10.dp),
                 ) {
-                    Box(Modifier.size(12.dp).clip(CircleShape).background(c.color))
+                    if (tiles) CategoryTile(catMap[c.id], 40.dp) else Box(Modifier.size(12.dp).clip(CircleShape).background(c.color))
                     Column(Modifier.weight(1f)) {
                         Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(

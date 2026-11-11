@@ -295,6 +295,8 @@ fun HomeScreen(vm: AppViewModel) {
                             onMerchant = { k -> openMerchant = if (openMerchant == k) null else k },
                             onPayment = { t -> vm.openSheet(Sheet.TxnDetail(t.id)) },
                             headerAction = { TextButton(onClick = { vm.showActivity() }) { Text("See all") } },
+                            moods = remember(dash, budgetOf) { ringMoods(dash, budgetOf) },
+                            tiles = true,
                             scene = { id ->
                                 val cat = catMap[id]
                                 val spent = dash.byCategory.firstOrNull { it.category.id == id }?.paise
@@ -988,4 +990,30 @@ fun ordinal(n: Int): String = n.toString() + when {
     n % 10 == 2 -> "nd"
     n % 10 == 3 -> "rd"
     else -> "th"
+}
+
+
+/** What the owl in "Where it went" says: about the month against its budget, and each category against its own. */
+private fun ringMoods(dash: com.owl.tracker.ui.Dashboard, budgetOf: Map<String, com.owl.tracker.ui.CategoryBudgetRow>): com.owl.tracker.ui.components.RingMoods {
+    val inr = Money::formatInr
+    val month = (if (dash.isCurrent) "This month" else dash.label) + " · " + inr(dash.spent)
+    val monthLine = when {
+        dash.overall <= 0 -> "Set a month budget and I'll keep watch"
+        dash.spent <= dash.overall -> "${inr(dash.overall - dash.spent)} left of ${inr(dash.overall)}"
+        else -> "${inr(dash.spent - dash.overall)} over the ${inr(dash.overall)} budget"
+    }
+    val cats = dash.byCategory.associate { cs ->
+        val row = budgetOf[cs.category.id]
+        val line = when {
+            row == null || row.limit <= 0 -> "No budget yet · set one in Budgets"
+            row.spent <= row.limit -> "${inr(row.limit - row.spent)} left of ${inr(row.limit)}"
+            else -> "${inr(row.spent - row.limit)} over its ${inr(row.limit)} budget"
+        }
+        cs.category.id to com.owl.tracker.ui.components.OwlSay(
+            com.owl.tracker.ui.components.OwlMood.of(row?.spent ?: cs.paise, row?.limit), "${cs.category.name} · ${inr(cs.paise)}", line,
+        )
+    }
+    return com.owl.tracker.ui.components.RingMoods(
+        com.owl.tracker.ui.components.OwlSay(com.owl.tracker.ui.components.OwlMood.of(dash.spent, dash.overall.takeIf { it > 0 }), month, monthLine), cats,
+    )
 }
