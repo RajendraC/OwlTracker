@@ -144,6 +144,38 @@ class ImportEngineTest {
         assertTrue(month(c).any { it.merchantName == "Blinkit" })
     }
 
+    /**
+     * 1.5.1 learned card alerts with no verb ("Txn Rs.841.00 On HDFC Bank Card 9110 At …"). The first sync after the
+     * update looks back over the import period for those only: payments deleted in bulk before don't come back.
+     */
+    @Test
+    fun anUpdateThatReadsNewKindsOfMessageLooksBackOnceForThoseOnly() = runBlocking {
+        val inbox = sampleInbox()
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        assertEquals(com.owl.tracker.core.SmsParser.VERSION, c.repo.settings().parserVersion)
+        val hdfcBefore = c.repo.countSmsInGroup("hdfc")
+        assertTrue(hdfcBefore > 0)
+
+        // As it was on 1.5: the alert sits in the inbox, 20 days back, skipped; HDFC's payments were deleted in bulk
+        val old = TEST_CLOCK.millis() - 20 * DAY_MS
+        inbox += SmsMessage(6000, "VM-HDFCBK-S", "Txn Rs.841.00\nOn HDFC Bank Card 9110\nAt *payu@i \nby UPI 473638160589\nOn 11-11\nNot You?\nCall 18002586161/SMS BLOCK CC 9110 to 7308080808", old)
+        c.repo.deleteSmsInGroup("hdfc")
+        // (the last sync had seen every message there, so the usual overlap re-reads none of them)
+        c.repo.updateSettings { it.copy(onboarded = true, parserVersion = 1, lastSmsTimestamp = TEST_CLOCK.millis() + 2 * DAY_MS) }
+
+        assertEquals(1, e.syncNew())
+        assertEquals(1, c.repo.countSmsInGroup("hdfc"))
+        val t = c.repo.smsTransactionsSince(0).first { it.smsId == 6000L }
+        assertEquals(84_100L, t.amountPaise)
+        assertEquals(com.owl.tracker.core.Direction.DEBIT, t.direction)
+        assertEquals("HDFC Bank card ••9110", t.accountLabel)
+        assertEquals(com.owl.tracker.core.SmsParser.VERSION, c.repo.settings().parserVersion)
+        // Once only
+        assertEquals(0, e.syncNew())
+    }
+
     @Test
     fun chosenNamesAndIconsApplyToPastAndNewPayments() = runBlocking {
         val inbox = sampleInbox()

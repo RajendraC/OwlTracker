@@ -123,6 +123,11 @@ data class AppSettings(
     val tipsHiddenUntil: Long = 0,
     /** Light, dark, or follow the phone (the default). */
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    /**
+     * The SMS parser version the inbox was last read with in full. When the app's parser is newer, the next sync
+     * looks back over the import period once for messages of the kinds it has newly learned. Before 1.5.1: 1.
+     */
+    val parserVersion: Int = 1,
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -136,6 +141,7 @@ data class AppSettings(
         "sample_data" to sampleData.toString(),
         "tips_hidden_until" to tipsHiddenUntil.toString(),
         "theme" to theme.key,
+        "parser_version" to parserVersion.toString(),
     )
 
     companion object {
@@ -151,6 +157,7 @@ data class AppSettings(
             sampleData = m["sample_data"]?.toBoolean() ?: false,
             tipsHiddenUntil = m["tips_hidden_until"]?.toLongOrNull() ?: 0,
             theme = ThemeMode.from(m["theme"]),
+            parserVersion = m["parser_version"]?.toIntOrNull() ?: 1,
         )
 
         fun filtersToJson(f: ImportFilters): String = JSONObject()

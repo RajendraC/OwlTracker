@@ -148,6 +148,58 @@ class SmsParserTest {
         assertNull(SmsParser.cleanMerchant("12345"))
     }
 
+    /** A tester's HDFC credit card paid by UPI: no "spent" or "debited" anywhere, so it was skipped as not a transaction. */
+    @Test
+    fun cardAndUpiOnCardAlertsWithNoVerbAreMoneyOut() {
+        val hdfcUpi = "Txn Rs.841.00\nOn HDFC Bank Card 9110\nAt *payu@i \nby UPI 473638160589\nOn 11-11\nNot You?\nCall 18002586161/SMS BLOCK CC 9110 to 7308080808"
+        accepted("VM-HDFCBK-S", hdfcUpi).let { t ->
+            assertEquals(84_100L, t.amountPaise)
+            assertEquals(Direction.DEBIT, t.direction)
+            assertEquals("9110", t.accountLast4)
+            assertTrue(t.isCard)
+            assertEquals("Payu", t.merchantRaw)
+            assertEquals("473638160589", t.reference)
+            assertEquals("hdfc", t.senderGroup)
+            assertEquals(TxKind.NORMAL, t.kind)  // "SMS BLOCK CC 9110" is not a card bill
+            assertFalse(t.needsReview)
+            assertEquals(2, t.format)
+        }
+        accepted("AD-HDFCBK", "Thank you for using your HDFC Bank Credit Card ending 1234 for Rs 1,250.00 at AMAZON on 2026-11-11:10:12:44. Authorization code:- 004512").let { t ->
+            assertEquals(125_000L, t.amountPaise)
+            assertEquals(Direction.DEBIT, t.direction)
+            assertEquals("1234", t.accountLast4)
+            assertEquals("AMAZON", t.merchantRaw?.uppercase())
+        }
+        accepted("JM-INDUSB", "Your IndusInd Bank Credit Card ending 4321 has been used for INR 2,000.00 at RELIANCE DIGITAL on 11-11-2026 14:02.").let { t ->
+            assertEquals(200_000L, t.amountPaise)
+            assertEquals(Direction.DEBIT, t.direction)
+            assertEquals("4321", t.accountLast4)
+        }
+        accepted("VK-KOTAKB", "Transaction of Rs.560.00 done on your Kotak Bank Card xx7788 at BIGBASKET on 11/11/26.").let { t ->
+            assertEquals(56_000L, t.amountPaise)
+            assertEquals(Direction.DEBIT, t.direction)
+        }
+        // Messages that always worked keep their format number
+        assertEquals(1, accepted("VM-HDFCBK-S", "Spent Rs.499.00 On HDFC Bank Card 9110 At SWIGGY On 2026-11-11:20:01:00").format)
+    }
+
+    @Test
+    fun cardAlertsWithNoVerbStillSkipOtpsFailuresPromosAndPending() {
+        fun reason(body: String, address: String = "VM-HDFCBK-S") = (SmsParser.parse(SmsMessage(1, address, body, now)) as? ParseResult.Rejected)?.reason
+        assertEquals(RejectReason.OTP, reason("Txn of Rs.841.00 at PAYU on HDFC Bank Card 9110: OTP is 482910. Do not share it with anyone."))
+        assertEquals(RejectReason.FAILED, reason("Txn Rs.841.00 On HDFC Bank Card 9110 At PAYU declined due to insufficient limit"))
+        assertEquals(RejectReason.FUTURE_OR_REMINDER, reason("Txn of Rs.649.00 for NETFLIX on HDFC Bank Card 9110 will be debited on 15-11-26"))
+        assertEquals(RejectReason.NOT_A_TRANSACTION, reason("Txn Rs.1,500.00 on HDFC Bank Card 9110 at MYNTRA is pending. Approve in the app to complete it."))
+        assertEquals(RejectReason.PROMOTIONAL, reason("Transaction of Rs 5000 or more on your HDFC Bank Card gets 5% cashback. Limited period offer!", "VM-HDFCBK-T"))
+        // No card or UPI anywhere: a bare "Txn Rs…" is not enough
+        assertEquals(RejectReason.NOT_A_TRANSACTION, reason("Txn Rs.200.00 noted. Thank you."))
+        // A reversal on the card is money back, not money out
+        accepted("VM-HDFCBK-S", "Txn Rs.841.00 On HDFC Bank Card 9110 At PAYU has been reversed to your card on 12-11").let { t ->
+            assertEquals(Direction.CREDIT, t.direction)
+            assertEquals(1, t.format)
+        }
+    }
+
     private fun accepted(address: String, body: String): ParsedTransaction {
         val r = SmsParser.parse(SmsMessage(1, address, body, now))
         assertTrue("Expected a transaction but got $r", r is ParseResult.Accepted)

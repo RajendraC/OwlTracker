@@ -184,13 +184,15 @@ class ImportEngine(
         repo.updateSettings { s ->
             if (sample) {
                 // Sample data never turns on inbox sync.
-                s.copy(filters = filters, smsEnabled = false, sampleData = true)
+                s.copy(filters = filters, smsEnabled = false, sampleData = true, parserVersion = SmsParser.VERSION)
             } else {
+                // A full import reads everything with today's parser: nothing to look back for later
                 s.copy(
                     filters = filters,
                     smsEnabled = true,
                     lastSyncAt = clock.millis(),
                     lastSmsTimestamp = maxOf(s.lastSmsTimestamp, latest, clock.millis() - 60_000),
+                    parserVersion = SmsParser.VERSION,
                 )
             }
         }
@@ -214,15 +216,20 @@ class ImportEngine(
         if (!s.onboarded || !s.smsEnabled || !sms.hasPermission()) return 0
         val rangeFrom = rangeStart(s.filters)
         val since = maxOf(rangeFrom, s.lastSmsTimestamp - OVERLAP_MS)
-        val messages = sms.read(since)
+        // After an update that reads more kinds of message, look back over the whole import period once, but only
+        // for messages of the new kinds: anything an older version read and the user has since deleted stays deleted.
+        val catchUp = s.parserVersion < SmsParser.VERSION
+        val messages = sms.read(if (catchUp) rangeFrom else since)
         val known = repo.existingSmsIds()
         val fresh = messages.filter { it.id !in known }
             .mapNotNull { (SmsParser.parse(it) as? ParseResult.Accepted)?.tx }
+            .filter { it.timestamp >= since || it.format > s.parserVersion }
             .filter { s.filters.accepts(it) }
             .map { toCandidate(it) }
         var added = 0
         if (fresh.isNotEmpty()) {
-            val existing = repo.smsTransactionsSince(since - Deduper.WINDOW_MS)
+            val oldest = minOf(since, fresh.minOf { it.tx.timestamp })
+            val existing = repo.smsTransactionsSince(oldest - Deduper.WINDOW_MS)
             val deduper = Deduper(existing.map { Deduper.DedupeEntry(it.amountPaise, it.direction, it.occurredAt, it.accountLabel?.filter { ch -> ch.isDigit() }?.takeLast(4), it.refNo) })
             val categorizer = Categorizer(repo.rules())
             val chosenNames = repo.merchantOverrides()
@@ -232,7 +239,7 @@ class ImportEngine(
         // Payments imported before this version learned their app (or before a bank app was installed)
         repo.fillMissingIcons()
         val latest = messages.maxOfOrNull { it.timestamp } ?: s.lastSmsTimestamp
-        repo.updateSettings { it.copy(lastSyncAt = clock.millis(), lastSmsTimestamp = maxOf(it.lastSmsTimestamp, latest)) }
+        repo.updateSettings { it.copy(lastSyncAt = clock.millis(), lastSmsTimestamp = maxOf(it.lastSmsTimestamp, latest), parserVersion = SmsParser.VERSION) }
         return added
     }
 

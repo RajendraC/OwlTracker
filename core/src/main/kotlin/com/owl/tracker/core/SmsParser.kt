@@ -29,6 +29,8 @@ data class ParsedTransaction(
     val kind: TxKind,
     val confidence: Double,
     val body: String,
+    /** The [SmsParser.VERSION] that first understood this wording: an update can look back for messages older versions skipped. */
+    val format: Int = 1,
 ) {
     /** Low-confidence parses wait in Needs review instead of going straight to the dashboard. */
     val needsReview: Boolean get() = confidence < 0.75
@@ -44,6 +46,13 @@ sealed class ParseResult {
  * Pure Kotlin with no Android imports, so every format is pinned down by fast JVM unit tests.
  */
 object SmsParser {
+
+    /**
+     * Goes up whenever the parser learns a kind of message it used to skip. After such an update the app looks back
+     * over the import period once, for messages of the new kinds only ([ParsedTransaction.format]).
+     * 2: card and UPI-on-card alerts with no verb ("Txn Rs.841.00 On HDFC Bank Card 9110 At …").
+     */
+    const val VERSION = 2
 
     private const val NUM = """([0-9][0-9,]*(?:\.[0-9]{1,2})?)"""
     private val CURRENCY_AMOUNT = Regex("""(?i)(?:rs[.:]?|inr:?|₹)\s*$NUM""")
@@ -66,6 +75,20 @@ object SmsParser {
     private const val TO_YOU = """\s+(?:to|into|in)\s+$YOU"""
     private val DEBIT_VERB = Regex("""(?i)\b(debited|spent|(?:paid|sent|transferred\s+to|trf\s+to)(?!$TO_YOU|\s+$YOU)|withdrawn|deducted|purchase\s+of|charged)\b""")
     private val CREDIT_VERB = Regex("""(?i)\b(?:(credited|received|deposited|refund(?:ed)?|reversed|cashback\s+of)\b|(?:paid|sent|transferred|trf)$TO_YOU)""")
+
+    // Card and UPI-on-card alerts that name no verb at all (format 2):
+    // "Txn Rs.841.00 On HDFC Bank Card 9110 At *payu@i by UPI 473638160589 On 11-11 Not You?…",
+    // "Thank you for using your HDFC Bank Credit Card ending 1234 for Rs 500.00 at AMAZON on…",
+    // "Your IndusInd Bank Credit Card ending 4321 has been used for INR 2,000.00 at…",
+    // "Transaction of Rs.500 done on your card…". Read as money out, and only when no other verb is there.
+    private val CARD_USE = listOf(
+        Regex("""(?i)^\s*(?:txn|transaction)\s*(?:of|amt|amount)?\s*[:\-]?\s*(?:rs[.:]?|inr:?|₹)\s*[0-9]"""),
+        Regex("""(?is)\bthank\s+you\s+for\s+using\b.{0,60}?\bcard\b.{0,40}?\bfor\s+(?:rs[.:]?|inr:?|₹)\s*[0-9]"""),
+        Regex("""(?is)\bcard\b.{0,40}?\b(?:has\s+been|was|is)\s+used\s+for\b"""),
+        Regex("""(?i)\b(?:txn|transaction)\s+of\s+(?:rs[.:]?|inr:?|₹)\s*$NUM\s+(?:has\s+been\s+|was\s+|is\s+)?(?:done|made|successful|completed)\b"""),
+    )
+    private val CARD_OR_UPI = Regex("""(?i)\b(card|upi)\b""")
+    private val NOT_YET = Regex("""(?i)\b(pending|on\s+hold|initiated|awaiting|approve|authori[sz]ation\s+(?:request|required)|to\s+authori[sz]e)\b""")
 
     private val ACCOUNT = Regex("""(?i)\b(?:a/c|acct|account|ac)\b\.?\s*(?:no\.?|number)?\s*[:\-]?\s*(?:ending\s+(?:with\s+|in\s+)?)?[x*#]*\s*([0-9]{3,6})""")
     private val ACCOUNT_TIGHT = Regex("""(?i)\b(?:a/c|acct|account|ac)([x*]+[0-9]{3,6})""")
@@ -94,18 +117,24 @@ object SmsParser {
 
         val debitAt = DEBIT_VERB.find(body)?.range?.first
         val creditAt = CREDIT_VERB.find(body)?.range?.first
-        val hasCompletedVerb = debitAt != null || creditAt != null
+        val hasVerb = debitAt != null || creditAt != null
+        // A card alert with no verb counts only when nothing else says which way the money went
+        val cardUse = !hasVerb && CARD_OR_UPI.containsMatchIn(body) && CARD_USE.any { it.containsMatchIn(body) }
 
-        if (OTP.containsMatchIn(body) && !hasCompletedVerb) return reject(RejectReason.OTP)
+        // An OTP is an OTP even when it quotes the payment it is for ("Txn of Rs 500 at AMAZON… OTP is …")
+        if (OTP.containsMatchIn(body) && !hasVerb) return reject(RejectReason.OTP)
         if (FAILED.containsMatchIn(body) && !REFUND_WORDS.containsMatchIn(body)) return reject(RejectReason.FAILED)
 
         val amount = findAmount(body) ?: return reject(RejectReason.NO_AMOUNT)
-        if (!hasCompletedVerb) {
+        if (!hasVerb && !cardUse) {
             return reject(if (PROMO.containsMatchIn(body)) RejectReason.PROMOTIONAL else RejectReason.NOT_A_TRANSACTION)
         }
+        if (cardUse && PROMO.containsMatchIn(body)) return reject(RejectReason.PROMOTIONAL)
+        if (cardUse && NOT_YET.containsMatchIn(body)) return reject(RejectReason.NOT_A_TRANSACTION)
 
         // The earliest verb decides: "Acct XX710 debited for Rs 1,240; ZEPTO credited." is a debit.
         val direction = when {
+            cardUse -> Direction.DEBIT
             debitAt == null -> Direction.CREDIT
             creditAt == null -> Direction.DEBIT
             else -> if (debitAt <= creditAt) Direction.DEBIT else Direction.CREDIT
@@ -157,6 +186,7 @@ object SmsParser {
                 kind = kind,
                 confidence = confidence.coerceIn(0.0, 1.0),
                 body = body,
+                format = if (cardUse) 2 else 1,
             )
         )
     }
