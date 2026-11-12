@@ -89,13 +89,6 @@ if jq -e '.error' <<< "$otp" > /dev/null; then
   echo "**One-time products:** can't read: $(jq -r .error <<< "$otp")"
 else
   n=$(jq '.oneTimeProducts // [] | length' <<< "${otp:-{\}}" 2>/dev/null || echo "?")
-  echo "**One-time products: ${n:-0}** (Google's answer: $(printf '%s' "$otp" | tr -d '\n' | head -c 200 | sed 's/^$/empty/'))"
+  echo "**One-time products: ${n:-0}**"
   jq -r '.oneTimeProducts // [] | .[] | "- \(.productId): " + ([.listings // [] | .[] | "\(.languageCode) \"\(.title)\""] | join(", ")) + "; options: " + ([.purchaseOptions // [] | .[] | "\(.purchaseOptionId) \(.state // "?")" + ([.regionalPricingAndAvailabilityConfigs // [] | .[] | select(.regionCode == "IN") | " India \(.price.currencyCode) \(.price.units // "0").\((.price.nanos // 0) / 10000000 | floor) \(.availability // "")"] | join(""))] | join("; "))' <<< "$otp"
-fi
-iap=$(get "$APP/inappproducts")
-if jq -e '.error' <<< "$iap" > /dev/null; then
-  echo "**In-app products (older API):** can't read: $(jq -r .error <<< "$iap")"
-else
-  echo "**In-app products (older API): $(jq '.inappproduct // [] | length' <<< "$iap")**"
-  jq -r '.inappproduct // [] | .[] | "- \(.sku): \(.status), \(.purchaseType), default \((.defaultPrice.priceMicros // "0") | tonumber / 1000000) \(.defaultPrice.currency // ""), India \(((.prices.IN.priceMicros // "0") | tonumber) / 1000000) \(.prices.IN.currency // "")"' <<< "$iap"
 fi
