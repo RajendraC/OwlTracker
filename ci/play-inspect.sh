@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Read-only look at what Google Play holds for the app: store listing per language (text, video,
-# pictures), contact details and testing tracks. Opens an edit to read, then throws it away; changes nothing.
+# pictures), contact details, testing tracks with their countries and tester groups, and in-app products.
+# Opens an edit to read, then throws it away; changes nothing.
 #   play-inspect.sh PACKAGE
 # PLAY_TOKEN: a short-lived OAuth access token for the androidpublisher scope.
 set -euo pipefail
@@ -70,4 +71,31 @@ else
   echo "**Tracks:**"
   echo ""
   jq -r '.tracks // [] | .[] | "- \(.track): " + ([.releases // [] | .[] | "\(.name // "?") (codes \((.versionCodes // []) | join(","))) \(.status)"] | join("; ") | if . == "" then "no releases" else . end)' <<< "$tracks"
+fi
+echo ""
+
+# Where each testing track is offered, and who tests it
+for t in internal alpha; do
+  ca=$(get "$E/countryAvailability/$t")
+  echo "**Countries ($t):** $(jq -r 'if .error then "can'"'"'t read: " + .error else (if .syncWithProduction then "same as production; " else "" end) + ((.countries // []) | map(.countryCode) | if length == 0 then "none listed" elif length > 12 then "\(length) countries" + (if index("IN") then ", India included" else ", India NOT included" end) else join(", ") end) + (if .restOfWorld then " + rest of world" else "" end) end' <<< "$ca")"
+  te=$(get "$E/testers/$t")
+  echo "**Tester Google Groups ($t):** $(jq -r 'if .error then "can'"'"'t read: " + .error else ((.googleGroups // []) | if length == 0 then "none (email lists don'"'"'t show through the API)" else join(", ") end) end' <<< "$te")"
+done
+echo ""
+
+# In-app products: the ₹50 unlock should be here, active, priced for India
+otp=$(get "$APP/oneTimeProducts")
+if jq -e '.error' <<< "$otp" > /dev/null; then
+  echo "**One-time products:** can't read: $(jq -r .error <<< "$otp")"
+else
+  n=$(jq '.oneTimeProducts // [] | length' <<< "$otp")
+  echo "**One-time products: $n**"
+  jq -r '.oneTimeProducts // [] | .[] | "- \(.productId): " + ([.listings // [] | .[] | "\(.languageCode) \"\(.title)\""] | join(", ")) + "; options: " + ([.purchaseOptions // [] | .[] | "\(.purchaseOptionId) \(.state // "?")" + ([.regionalPricingAndAvailabilityConfigs // [] | .[] | select(.regionCode == "IN") | " India \(.price.currencyCode) \(.price.units // "0").\((.price.nanos // 0) / 10000000 | floor) \(.availability // "")"] | join(""))] | join("; "))' <<< "$otp"
+fi
+iap=$(get "$APP/inappproducts")
+if jq -e '.error' <<< "$iap" > /dev/null; then
+  echo "**In-app products (older API):** can't read: $(jq -r .error <<< "$iap")"
+else
+  echo "**In-app products (older API): $(jq '.inappproduct // [] | length' <<< "$iap")**"
+  jq -r '.inappproduct // [] | .[] | "- \(.sku): \(.status), \(.purchaseType), default \((.defaultPrice.priceMicros // "0") | tonumber / 1000000) \(.defaultPrice.currency // ""), India \(((.prices.IN.priceMicros // "0") | tonumber) / 1000000) \(.prices.IN.currency // "")"' <<< "$iap"
 fi
