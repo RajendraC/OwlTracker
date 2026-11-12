@@ -58,7 +58,7 @@ object SampleSms {
         Sample("VM-HDFCBK-S", "Rs.10000.00 will be debited from your A/c XX4821 on 01-11-26 towards SIP. Ensure sufficient balance.",
             minutesAgo = 2 * D, expectReject = RejectReason.FUTURE_OR_REMINDER),
         Sample("VM-HDFCBK-T", "Your HDFC Bank Credit Card ending 9012 statement is ready. Total Amt Due Rs.18,400; Min Amt Due Rs.920; due by 25-10-26",
-            minutesAgo = 9 * D, expectReject = RejectReason.NOT_A_TRANSACTION),
+            minutesAgo = 9 * D, expectReject = RejectReason.FUTURE_OR_REMINDER),
         Sample("JX-PAYTMB-S", "Ravi has requested money from you. On approving, Rs.500 will be debited from your account.",
             minutesAgo = 8 * H, expectReject = RejectReason.FUTURE_OR_REMINDER),
         Sample("VM-ICICIT-S", "Your transaction of Rs 350.00 to xyz@ybl has failed. Any amount debited will be reversed in 48 hours.",

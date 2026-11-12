@@ -200,6 +200,36 @@ class SmsParserTest {
         }
     }
 
+    @Test
+    fun paymentRemindersAreSkippedEvenWhenTheySayIgnoreIfPaid() {
+        fun reason(body: String, address: String = "JM-HDFCBK-S") = (SmsParser.parse(SmsMessage(1, address, body, now)) as? ParseResult.Rejected)?.reason
+        // The message from the report: "paid" in "Ignore if paid" used to read as money out
+        assertEquals(
+            RejectReason.FUTURE_OR_REMINDER,
+            reason("Timely payments reflect good discipline. Rs.12923 EMI for HDFC Bank Personal Loan 7142 is due on 07-Nov-26. Avoid interest on unpaid EMI. Ignore if paid."),
+        )
+        assertEquals(RejectReason.FUTURE_OR_REMINDER, reason("Your HDFC Bank Credit Card 9110 bill of Rs 4,210.00 is due by 15-Nov-26. If already paid, please ignore."))
+        assertEquals(RejectReason.FUTURE_OR_REMINDER, reason("Reminder: EMI of INR 8,450 for loan a/c XX2231 not yet paid. Pay now to avoid late payment charges.", "AX-ICICIT-S"))
+        assertEquals(RejectReason.FUTURE_OR_REMINDER, reason("Rs.2,999 is yet to be paid for your SBI Card ending 4410. Kindly disregard if already paid.", "VM-SBICRD-S"))
+        assertEquals(RejectReason.FUTURE_OR_REMINDER, reason("Total amount due Rs.18,240.55, minimum amount due Rs.912 on your Axis Bank Credit Card XX7781. Payable by 20-11-2026.", "AD-AXISBK-S"))
+        assertEquals(RejectReason.FUTURE_OR_REMINDER, reason("Rs 1,499 to be debited from a/c XX1234 on 14-Nov for NACH mandate of ABC Finance", "VM-KOTAKB-S"))
+    }
+
+    @Test
+    fun aRealPaymentThatMentionsTheNextDueDateIsStillRead() {
+        accepted("JM-HDFCBK-S", "EMI of Rs.12,923.00 for HDFC Bank Personal Loan 7142 has been debited from A/c XX4521 on 07-Nov-26. Next EMI is due on 07-Dec-26.").let { t ->
+            assertEquals(1292300L, t.amountPaise)
+            assertEquals(Direction.DEBIT, t.direction)
+        }
+        accepted("VM-HDFCBK-S", "Rs.4,210.00 paid towards your HDFC Bank Credit Card 9110 bill due on 15-Nov-26 from A/c XX4521. Thank you.").let { t ->
+            assertEquals(421000L, t.amountPaise)
+        }
+        // The verb still decides when the reminder words come after it
+        accepted("VM-ICICIT-S", "INR 8,450.00 debited from A/c XX2231 towards loan EMI. Avoid late payment charges by keeping balance for the next EMI.").let { t ->
+            assertEquals(Direction.DEBIT, t.direction)
+        }
+    }
+
     private fun accepted(address: String, body: String): ParsedTransaction {
         val r = SmsParser.parse(SmsMessage(1, address, body, now))
         assertTrue("Expected a transaction but got $r", r is ParseResult.Accepted)

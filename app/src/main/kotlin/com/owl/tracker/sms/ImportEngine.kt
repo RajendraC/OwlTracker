@@ -212,7 +212,7 @@ class ImportEngine(
      */
     suspend fun syncNew(): Int {
         val s = repo.settings()
-        if (s.onboarded) fixMoneyIn()
+        if (s.onboarded) { fixMoneyIn(); dropReminders() }
         if (!s.onboarded || !s.smsEnabled || !sms.hasPermission()) return 0
         val rangeFrom = rangeStart(s.filters)
         val since = maxOf(rangeFrom, s.lastSmsTimestamp - OVERLAP_MS)
@@ -264,6 +264,22 @@ class ImportEngine(
             fixed++
         }
         return fixed
+    }
+
+    /**
+     * Payment reminders that versions before 1.5.2 stored as spending ("Rs.12923 EMI … is due on 07-Nov-26 …
+     * Ignore if paid."). Reads only the stored text of payments that mention "due", "paid" or "to be"; removes the
+     * ones the parser now skips as reminders, and remembers them as deleted so no later scan brings them back.
+     * Returns how many were removed.
+     */
+    suspend fun dropReminders(): Int {
+        var dropped = 0
+        for (t in repo.smsMaybeReminders()) {
+            val r = SmsParser.parse(com.owl.tracker.core.SmsMessage(t.smsId ?: 0L, t.sender ?: continue, t.smsBody ?: continue, t.occurredAt))
+            if ((r as? ParseResult.Rejected)?.reason != RejectReason.FUTURE_OR_REMINDER) continue
+            if (repo.deleteTransaction(t.id) != null) dropped++
+        }
+        return dropped
     }
 
     /** [chosen]: names and icons the user picked for merchants; they win over what the SMS says. */

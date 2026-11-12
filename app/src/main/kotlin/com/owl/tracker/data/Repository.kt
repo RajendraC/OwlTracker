@@ -392,6 +392,18 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         ).use { c -> c.toTxns() }
     }
 
+    /**
+     * Imported payments whose text may be a reminder rather than money that moved ("… is due on 07-Nov-26 … Ignore
+     * if paid."): versions before 1.5.2 read some of these as spending. A cheap text filter; the parser decides
+     * (see ImportEngine.dropReminders).
+     */
+    suspend fun smsMaybeReminders(): List<Txn> = read { d ->
+        d.query(
+            "SELECT $TX_COLS FROM transactions WHERE source = 'SMS' AND sms_body IS NOT NULL AND " +
+                "(sms_body LIKE '%due%' OR sms_body LIKE '%paid%' OR sms_body LIKE '%to be %')",
+        ).use { c -> c.toTxns() }
+    }
+
     /** Turns a payment into money in, with [categoryId] when the user hadn't picked one. */
     suspend fun setMoneyIn(txId: Long, categoryId: String?): Unit = write { d ->
         val v = contentValuesOf("direction" to Direction.CREDIT.name)

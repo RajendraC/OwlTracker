@@ -417,6 +417,43 @@ class ImportEngineTest {
     }
 
     @Test
+    fun paymentRemindersStoredAsSpendingAreRemovedOnceAndStayGone() = runBlocking {
+        val inbox = sampleInbox()
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        c.repo.updateSettings { it.copy(onboarded = true) }
+        val now = TEST_CLOCK.millis()
+
+        // As versions before 1.5.2 stored them: a reminder read as spending because of "Ignore if paid"
+        val reminder = "Timely payments reflect good discipline. Rs.12923 EMI for HDFC Bank Personal Loan 7142 is due on 07-Nov-26. " +
+            "Avoid interest on unpaid EMI. Ignore if paid."
+        val realEmi = "EMI of Rs.12,923.00 for HDFC Bank Personal Loan 7142 has been debited from A/c XX4821 on 07-Nov-26. Next EMI is due on 07-Dec-26."
+        fun stored(smsId: Long, body: String, at: Long) = com.owl.tracker.data.NewTxn(
+            amountPaise = 1_292_300, direction = com.owl.tracker.core.Direction.DEBIT, occurredAt = at, merchantName = "HDFC Bank",
+            merchantKey = "hdfc_bank", merchantPackage = null, vpa = null, categoryId = Cat.EMI, accountLabel = "HDFC Bank ••7142",
+            senderGroup = "hdfc", sender = "JM-HDFCBK-S", refNo = null, source = Source.SMS, smsId = smsId, needsReview = true, smsBody = body,
+        )
+        c.repo.insertAll(listOf(stored(6101, reminder, now - 3 * 3_600_000), stored(6102, reminder, now - 2 * 3_600_000), stored(6103, realEmi, now - 3_600_000)))
+        // Still in the inbox, so a scan could bring them back
+        inbox += SmsMessage(6101, "JM-HDFCBK-S", reminder, now - 3 * 3_600_000)
+        inbox += SmsMessage(6102, "JM-HDFCBK-S", reminder, now - 2 * 3_600_000)
+
+        assertEquals(2, e.dropReminders())
+        val left = month(c).filter { it.smsId in setOf(6101L, 6102L, 6103L) }.map { it.smsId }
+        assertEquals("The real EMI debit stays", listOf(6103L), left)
+        assertEquals("Already right: nothing more to do", 0, e.dropReminders())
+
+        // A sync, even one that looks back over the whole period, doesn't bring them back
+        c.repo.updateSettings { it.copy(parserVersion = 1) }
+        e.syncNew()
+        assertTrue(month(c).none { it.smsId == 6101L || it.smsId == 6102L })
+        // and a new reminder is never imported
+        inbox += SmsMessage(6104, "JM-HDFCBK-S", reminder.replace("07-Nov-26", "07-Dec-26"), now - 60_000)
+        assertEquals(0, e.syncNew())
+    }
+
+    @Test
     fun eraseEverythingStartsFresh() = runBlocking {
         val c = testContainer(context)
         val e = c.importEngine

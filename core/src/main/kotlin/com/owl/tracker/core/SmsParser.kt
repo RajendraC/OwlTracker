@@ -51,8 +51,10 @@ object SmsParser {
      * Goes up whenever the parser learns a kind of message it used to skip. After such an update the app looks back
      * over the import period once, for messages of the new kinds only ([ParsedTransaction.format]).
      * 2: card and UPI-on-card alerts with no verb ("Txn Rs.841.00 On HDFC Bank Card 9110 At …").
+     * 3: payment reminders whose only verb is in "Ignore if paid" ("Rs.12923 EMI … is due on 07-Nov-26 … Ignore if
+     *    paid.") are skipped; ones stored by older versions are removed once (ImportEngine.dropReminders).
      */
-    const val VERSION = 2
+    const val VERSION = 3
 
     private const val NUM = """([0-9][0-9,]*(?:\.[0-9]{1,2})?)"""
     private val CURRENCY_AMOUNT = Regex("""(?i)(?:rs[.:]?|inr:?|₹)\s*$NUM""")
@@ -62,6 +64,11 @@ object SmsParser {
 
     private val OTP = Regex("""(?i)\b(otp|one[\s-]time\s+password|verification\s+code|security\s+code)\b""")
     private val FUTURE = Regex("""(?i)\bwill\s+be\s+(debited|deducted|charged|credited|auto[\s-]?debited|reversed|refunded)\b|\bscheduled\s+(?:to\s+be\s+)?debit""")
+    // Reminders: "Rs.12923 EMI for HDFC Bank Personal Loan 7142 is due on 07-Nov-26. Avoid interest on unpaid EMI.
+    // Ignore if paid.", "Your card bill of Rs 4,210 is due by 15-Nov. If already paid, please ignore."
+    // Words like "paid" in "Ignore if paid" are not money that moved, so verbs are looked for with these blanked out.
+    private val NOT_MOVED = Regex("""(?i)\b(?:ignore|disregard)\s+(?:this\s+(?:message|msg|sms|reminder)\s+)?if\s+(?:already\s+)?(?:paid|done|made)\b|\bif\s+(?:already\s+|not\s+(?:yet\s+)?)?paid\b|\bnot\s+(?:yet\s+)?(?:been\s+)?paid\b|\b(?:yet\s+|remaining\s+)?to\s+be\s+(?:paid|debited|deducted|charged|auto[\s-]?debited)\b""")
+    private val DUE = Regex("""(?i)\b(?:is|are|was|falls?|becomes?)\s+(?:now\s+)?due\b|\bdue\s+(?:on|by|date|today|tomorrow|in|for)\b|\b(?:total|min(?:imum)?|amt|amount)\.?\s+due\b|\boverdue\b|\bavoid\s+(?:late\s+(?:fee|payment|charges?)|interest|penalt|bounce|charges)|\bpayable\s+(?:by|on|before)\b|\bpay\s+(?:now|before|by|immediately|today)\b""")
     private val REQUEST = Regex("""(?i)\b(requested\s+money|has\s+requested|collect\s+request|is\s+requesting|payment\s+request|request\s+of\s+(?:rs|inr|₹))""")
     private val FAILED = Regex("""(?i)\b(failed|declined|unsuccessful|could\s+not\s+be\s+processed|was\s+not\s+successful)\b""")
     private val REFUND_WORDS = Regex("""(?i)\b(refund(?:ed)?|reversed|reversal|credited\s+back)\b""")
@@ -115,15 +122,21 @@ object SmsParser {
         if (FUTURE.containsMatchIn(body)) return reject(RejectReason.FUTURE_OR_REMINDER)
         if (REQUEST.containsMatchIn(body)) return reject(RejectReason.REQUEST)
 
-        val debitAt = DEBIT_VERB.find(body)?.range?.first
-        val creditAt = CREDIT_VERB.find(body)?.range?.first
+        // Same length as body, so positions still line up
+        val verbBody = NOT_MOVED.replace(body) { " ".repeat(it.value.length) }
+        val debitAt = DEBIT_VERB.find(verbBody)?.range?.first
+        val creditAt = CREDIT_VERB.find(verbBody)?.range?.first
         val hasVerb = debitAt != null || creditAt != null
+        // A reminder that money is due, with no word saying any has moved. A real debit can still mention the next
+        // due date ("EMI of Rs 12,923 debited… Next EMI due on 07-Dec") because its verb is still there.
+        val reminder = !hasVerb && (verbBody != body || DUE.containsMatchIn(body))
         // A card alert with no verb counts only when nothing else says which way the money went
         val cardUse = !hasVerb && CARD_OR_UPI.containsMatchIn(body) && CARD_USE.any { it.containsMatchIn(body) }
 
         // An OTP is an OTP even when it quotes the payment it is for ("Txn of Rs 500 at AMAZON… OTP is …")
         if (OTP.containsMatchIn(body) && !hasVerb) return reject(RejectReason.OTP)
         if (FAILED.containsMatchIn(body) && !REFUND_WORDS.containsMatchIn(body)) return reject(RejectReason.FAILED)
+        if (reminder) return reject(RejectReason.FUTURE_OR_REMINDER)
 
         val amount = findAmount(body) ?: return reject(RejectReason.NO_AMOUNT)
         if (!hasVerb && !cardUse) {
