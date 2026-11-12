@@ -88,8 +88,8 @@ otp=$(get "$APP/oneTimeProducts")
 if jq -e '.error' <<< "$otp" > /dev/null; then
   echo "**One-time products:** can't read: $(jq -r .error <<< "$otp")"
 else
-  n=$(jq '.oneTimeProducts // [] | length' <<< "$otp")
-  echo "**One-time products: $n**"
+  n=$(jq '.oneTimeProducts // [] | length' <<< "${otp:-{\}}" 2>/dev/null || echo "?")
+  echo "**One-time products: ${n:-0}** (Google's answer: $(printf '%s' "$otp" | tr -d '\n' | head -c 200 | sed 's/^$/empty/'))"
   jq -r '.oneTimeProducts // [] | .[] | "- \(.productId): " + ([.listings // [] | .[] | "\(.languageCode) \"\(.title)\""] | join(", ")) + "; options: " + ([.purchaseOptions // [] | .[] | "\(.purchaseOptionId) \(.state // "?")" + ([.regionalPricingAndAvailabilityConfigs // [] | .[] | select(.regionCode == "IN") | " India \(.price.currencyCode) \(.price.units // "0").\((.price.nanos // 0) / 10000000 | floor) \(.availability // "")"] | join(""))] | join("; "))' <<< "$otp"
 fi
 iap=$(get "$APP/inappproducts")
