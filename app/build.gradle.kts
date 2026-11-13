@@ -80,6 +80,11 @@ android {
             all {
                 it.maxHeapSize = "3g"
                 it.systemProperty("robolectric.logging", "stderr")
+                // A failing test's message and stack in the CI log, not just its class and line
+                it.testLogging {
+                    events("failed")
+                    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                }
             }
         }
         animationsDisabled = true

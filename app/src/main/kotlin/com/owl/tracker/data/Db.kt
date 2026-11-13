@@ -160,7 +160,13 @@ object Schema {
 
     /** 4: a payment can be split across categories ("shopping=1299900|groceries=153709"; NULL when it isn't). */
     fun upgradeTo4(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE transactions ADD COLUMN parts TEXT")
+        val has = db.query("PRAGMA table_info(transactions)").use { c ->
+            val name = c.getColumnIndex("name")
+            var found = false
+            while (c.moveToNext()) if (c.getString(name) == "parts") found = true
+            found
+        }
+        if (!has) db.execSQL("ALTER TABLE transactions ADD COLUMN parts TEXT")
     }
 
     data class SeedCategory(val id: String, val name: String, val icon: String, val color: Long, val kind: CategoryKind)

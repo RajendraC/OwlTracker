@@ -228,9 +228,9 @@ fun initials(name: String): String {
 }
 
 @Composable
-fun NavRow(icon: ImageVector, title: String, subtitle: String? = null, iconTint: Color? = null, iconBg: Color? = null, titleColor: Color = Color.Unspecified, leading: @Composable (() -> Unit)? = null, trailing: @Composable (() -> Unit)? = null, onClick: () -> Unit) {
+fun NavRow(icon: ImageVector, title: String, subtitle: String? = null, iconTint: Color? = null, iconBg: Color? = null, titleColor: Color = Color.Unspecified, leading: @Composable (() -> Unit)? = null, trailing: @Composable (() -> Unit)? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(vertical = 10.dp),
+        modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

@@ -2,7 +2,6 @@ package com.owl.tracker.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -89,9 +88,10 @@ fun MoreScreen(vm: AppViewModel) {
             NavRow(Ic.tag, "Categories", "${cats.count { !it.archived }} categories · add, edit, archive") { vm.go(Screen.CATEGORIES) }
             Divider()
             val ruleCount by vm.ruleCount.collectAsStateWithLifecycle()
-            Box(Modifier.testTag("open_rules")) {
-                NavRow(Ic.sliders, "Rules", if (ruleCount == 0) "None yet · which category a merchant's payments go to" else "$ruleCount · see and delete them") { vm.go(Screen.RULES) }
-            }
+            NavRow(
+                Ic.sliders, "Rules", if (ruleCount == 0) "None yet · which category a merchant's payments go to" else "$ruleCount · see and delete them",
+                modifier = Modifier.testTag("open_rules"),
+            ) { vm.go(Screen.RULES) }
             Divider()
             NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more") { vm.go(Screen.INSIGHTS) }
             Divider()
@@ -194,13 +194,12 @@ fun RulesScreen(vm: AppViewModel) {
                     Text("New ${p.rule.name} payments will get their usual category again.")
                     if (p.moves.isNotEmpty()) {
                         val n = p.moves.size
-                        Box(Modifier.testTag("rule_put_back")) {
-                            SwitchRow(
-                                "Put $n ${if (n == 1) "payment" else "payments"} back in ${p.mainCategory ?: "their usual category"}",
-                                if (putBack) "You can still move any one of them, like a real grocery order" else "Off: they stay in $catName",
-                                putBack, { putBack = it },
-                            )
-                        }
+                        SwitchRow(
+                            "Put $n ${if (n == 1) "payment" else "payments"} back in ${p.mainCategory ?: "their usual category"}",
+                            if (putBack) "You can still move any one of them, like a real grocery order" else "Off: they stay in $catName",
+                            putBack, { putBack = it },
+                            modifier = Modifier.testTag("rule_put_back"),
+                        )
                     }
                 }
             },

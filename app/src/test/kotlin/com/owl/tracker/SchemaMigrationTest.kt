@@ -33,7 +33,10 @@ class SchemaMigrationTest {
         val helper = FrameworkSQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(context).name(name).callback(object : SupportSQLiteOpenHelper.Callback(1) {
                 override fun onCreate(db: SupportSQLiteDatabase) {
-                    Schema.CREATE.filterNot { it.contains(" merchants(") || it.contains(" pictures(") }.forEach { db.execSQL(it) }
+                    // Version 1 had no merchants or pictures tables, and payments had no parts column
+                    Schema.CREATE.filterNot { it.contains(" merchants(") || it.contains(" pictures(") }
+                        .map { it.replace(Regex(""",\s*parts TEXT\)"""), ")") }
+                        .forEach { db.execSQL(it) }
                     v1Categories.forEachIndexed { i, c ->
                         db.execSQL(
                             "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived) VALUES(?,?,?,?,?,?,1,0)",

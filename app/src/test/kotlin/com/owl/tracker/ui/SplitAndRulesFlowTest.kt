@@ -2,6 +2,8 @@ package com.owl.tracker.ui
 
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import com.owl.tracker.TestApp
@@ -64,7 +66,11 @@ class SplitAndRulesFlowTest {
             back()
             tapTag("tab_more")
             tapTag("open_rules")
-            waitForText("Amazon → Health")
+            try {
+                waitForText("Amazon → Health")
+            } catch (e: AssertionError) {
+                throw AssertionError(e.message + "\nOn screen:\n" + onAllNodes(isRoot()).printToString(), e)
+            }
             waitForText("sells many kinds of things")
             tapTag("rule_delete_amazon")
             waitForTag("rule_delete_dialog")
