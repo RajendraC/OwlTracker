@@ -89,10 +89,11 @@ fi
 
 echo "== Screenshots"
 adb logcat -c || true
-adb shell am instrument -w -r -e storeShots 1 -e class "$CLASS#capture" "$RUNNER" 2>&1 | tee logs/capture.log
+# Time limits: once, adb stayed stuck after the test had finished, until the job's own hour ran out
+timeout 1800 adb shell am instrument -w -r -e storeShots 1 -e class "$CLASS#capture" "$RUNNER" 2>&1 | tee logs/capture.log
 ran_ok logs/capture.log || { echo "::error::StoreScreenshots#capture did not pass"; status=1; }
-adb logcat -d -s OwlStoreShots:* TestRunner:* AndroidRuntime:E OwlScene:* chromium:W > logs/capture-logcat.txt 2>&1 || true
-adb pull /sdcard/Android/data/$PKG/files/store-screens/. "$OUT/" || echo "::warning::Could not pull screenshots"
+timeout 120 adb logcat -d -s OwlStoreShots:* TestRunner:* AndroidRuntime:E OwlScene:* chromium:W > logs/capture-logcat.txt 2>&1 || true
+timeout 300 adb pull /sdcard/Android/data/$PKG/files/store-screens/. "$OUT/" || echo "::warning::Could not pull screenshots"
 ls -la "$OUT"
 
 echo "== Tour, recorded"
@@ -102,13 +103,13 @@ adb shell settings put global animator_duration_scale 1
 adb shell screenrecord --size 720x1600 --bit-rate 8000000 --time-limit 170 /sdcard/tour.mp4 &
 REC=$!
 sleep 2
-adb shell am instrument -w -r -e storeShots 1 -e class "$CLASS#tour" "$RUNNER" 2>&1 | tee logs/tour.log
+timeout 900 adb shell am instrument -w -r -e storeShots 1 -e class "$CLASS#tour" "$RUNNER" 2>&1 | tee logs/tour.log
 ran_ok logs/tour.log || echo "::warning::StoreScreenshots#tour did not pass"
 sleep 1
 adb shell pkill -2 screenrecord || kill -INT "$REC" || true
 wait "$REC" 2>/dev/null || true
 sleep 3
-adb pull /sdcard/tour.mp4 "$OUT/tour.mp4" || echo "::warning::No screen recording"
+timeout 300 adb pull /sdcard/tour.mp4 "$OUT/tour.mp4" || echo "::warning::No screen recording"
 
 adb shell am broadcast -a com.android.systemui.demo -e command exit >/dev/null 2>&1 || true
 ls -la "$OUT"
