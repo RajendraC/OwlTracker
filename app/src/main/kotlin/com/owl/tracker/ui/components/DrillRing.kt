@@ -355,14 +355,20 @@ fun DrillRingCard(
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (tiles) 12.dp else 10.dp),
                 ) {
                     if (tiles) CategoryTile(catMap[c.id], 40.dp) else Box(Modifier.size(12.dp).clip(CircleShape).background(c.color))
-                    Column(Modifier.weight(1f)) {
-                        Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(
-                            c.note ?: "${(c.paise.toFloat() / total * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted,
-                        )
-                    }
-                    Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleSmall)
+                    // The amount beside the name when there's room, else under it
+                    SideOrStacked(
+                        Modifier.weight(1f),
+                        start = {
+                            Column {
+                                Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    c.note ?: "${(c.paise.toFloat() / total * 100).toInt()}%",
+                                    style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted,
+                                )
+                            }
+                        },
+                        end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleSmall) },
+                    )
                     Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
                 }
             }
