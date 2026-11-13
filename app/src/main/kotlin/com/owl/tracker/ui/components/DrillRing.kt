@@ -325,17 +325,20 @@ fun DrillRingCard(
             }
             // The centre answers the finger: the slice being touched, else the level's total
             val focus = active?.let { slices.getOrNull(it) }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(118.dp).testTag("ring_centre")) {
-                Text(focus?.name ?: pick?.name ?: "Total", style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(Money.formatInr(animatedPaise(focus?.paise ?: pick?.paise ?: categories.sumOf { it.paise }, 450)), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    when {
-                        focus != null -> "${(focus.share * 100).toInt()}%" + if (pick != null) " of ${pick.name}" else " of spending"
-                        pick != null -> "${(pickShare * 100).toInt()}% of spending"
-                        else -> "${slices.size} ${if (slices.size == 1) "category" else "categories"}"
-                    },
-                    style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.Center,
-                )
+            // The hole is a fixed size: with big text its words grow a little, then get smaller to fit
+            CapFontScale(1.25f) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(118.dp).testTag("ring_centre")) {
+                    FitText(focus?.name ?: pick?.name ?: "Total", style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2, minScale = 0.75f)
+                    FitText(Money.formatInr(animatedPaise(focus?.paise ?: pick?.paise ?: categories.sumOf { it.paise }, 450)), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, minScale = 0.6f)
+                    FitText(
+                        when {
+                            focus != null -> "${(focus.share * 100).toInt()}%" + if (pick != null) " of ${pick.name}" else " of spending"
+                            pick != null -> "${(pickShare * 100).toInt()}% of spending"
+                            else -> "${slices.size} ${if (slices.size == 1) "category" else "categories"}"
+                        },
+                        style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.Center, maxLines = 2, minScale = 0.75f,
+                    )
+                }
             }
         }
         Gap(8.dp)
@@ -353,7 +356,7 @@ fun DrillRingCard(
                 ) {
                     if (tiles) CategoryTile(catMap[c.id], 40.dp) else Box(Modifier.size(12.dp).clip(CircleShape).background(c.color))
                     Column(Modifier.weight(1f)) {
-                        Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(
                             c.note ?: "${(c.paise.toFloat() / total * 100).toInt()}%",
                             style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted,

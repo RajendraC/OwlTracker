@@ -97,3 +97,33 @@ private fun SemanticsNodeInteraction.performScrollToSafe(): SemanticsNodeInterac
 } catch (e: Throwable) {
     this
 }
+
+/**
+ * Text on screen that doesn't fit, as a list of findings: a word or an amount broken across lines ("Groce / ries",
+ * "₹6,00,7 / 99"), or an amount or a short label cut off with "…" ("₹1,14…", "Novem…"). Long tokens (SMS text, UPI
+ * IDs) may still break and long names may still end in "…": those are expected.
+ */
+fun ComposeTestRule.textProblems(): List<String> {
+    val found = mutableListOf<String>()
+    val nodes = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult), useUnmergedTree = true).fetchSemanticsNodes()
+    for (node in nodes) {
+        val results = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        runCatching { node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(results) }
+        val r = results.firstOrNull() ?: continue
+        val text = r.layoutInput.text.text
+        for (i in 0 until r.lineCount - 1) {
+            val end = r.getLineEnd(i)
+            if (end in 1 until text.length && text[end - 1].isLetterOrDigit() && text[end].isLetterOrDigit()) {
+                val from = text.lastIndexOfAny(charArrayOf(' ', '\n'), end - 1) + 1
+                val to = text.indexOfAny(charArrayOf(' ', '\n'), end).let { if (it < 0) text.length else it }
+                val word = text.substring(from, to)
+                if (word.length <= 16) found += "\"${text.substring(from, end)} / ${text.substring(end, to)}\" in \"${text.take(60)}\""
+            }
+        }
+        val last = r.lineCount - 1
+        if (last >= 0 && r.isLineEllipsized(last) && ('₹' in text || text.length <= 12)) found += "cut off: \"${text.take(60)}\""
+        if (!r.layoutInput.softWrap && r.didOverflowWidth && r.layoutInput.overflow == androidx.compose.ui.text.style.TextOverflow.Clip &&
+            ('₹' in text || text.length <= 12)) found += "clipped: \"${text.take(60)}\""
+    }
+    return found.distinct()
+}

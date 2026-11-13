@@ -452,6 +452,17 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         say("Saving tips hidden until next month. They're always in Reports.")
     }
 
+    /** Set by [openWaysToSave]: Reports scrolls to that card once, then clears it. */
+    val reportScrollTo = MutableStateFlow<String?>(null)
+
+    /** Reports for this month with nothing picked, scrolled to Ways to save (from Home's "Could save" and nudge). */
+    fun openWaysToSave() {
+        reportRange.value = ReportRange.ONE
+        reportFilter.value = ReportFilter()
+        reportScrollTo.value = "ways"
+        go(Screen.INSIGHTS)
+    }
+
     fun setReportRange(r: ReportRange) {
         reportRange.value = r
         reportFilter.update { it.copy(bucket = null, day = null) }

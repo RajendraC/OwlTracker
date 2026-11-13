@@ -151,6 +151,7 @@ private fun Fact(label: String, text: String) {
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun BudgetSetupScreen(vm: AppViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -178,7 +179,8 @@ fun BudgetSetupScreen(vm: AppViewModel) {
             Gap(6.dp)
             Text(if (rupees > 0) "${Money.formatInr(rupees * 100)} a month" else "Enter an amount", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Gap(10.dp)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Onto a second line with big text, rather than off the edge
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(50_000L, 75_000L, 1_00_000L).forEach { v ->
                     FilterChip(selected = rupees == v, onClick = { text = v.toString() }, label = { Text(Money.formatInr(v * 100)) })
                 }

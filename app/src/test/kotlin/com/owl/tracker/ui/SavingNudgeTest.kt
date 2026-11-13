@@ -60,6 +60,12 @@ class SavingNudgeTest {
             waitForText("Save about ₹119 a month")
             waitForText("2 subscriptions cost ₹768 a month")
 
+            // "Could save" under the budget opens the same list in Reports
+            tapTag("figure_save")
+            waitForText("You could save about ₹119 a month")
+            activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+            waitForTag("budget_hero")
+
             tapTag("saving_more")
             waitForTag("ways_to_save")
             waitForText("You could save about ₹119 a month")

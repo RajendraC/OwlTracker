@@ -417,7 +417,9 @@ private fun ThemeChoice(mode: ThemeMode, onPick: (ThemeMode) -> Unit) {
                         activeContentColor = c.onPrimaryContainer,
                     ),
                     modifier = Modifier.testTag("theme_${m.key}"),
-                    label = { Text(m.label) },
+                    // With big text the tick makes room and the word gets smaller, never "Syste / m"
+                    icon = { if (!com.owl.tracker.ui.components.textScaleAtLeast(1.3f)) SegmentedButtonDefaults.Icon(active = m == mode) },
+                    label = { com.owl.tracker.ui.components.FitText(m.label, minScale = 0.7f) },
                 )
             }
         }

@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -141,6 +144,7 @@ private fun TrialEndedBanner(price: String, onUnlock: () -> Unit) {
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(vm: AppViewModel) {
     val d by vm.dashboard.collectAsStateWithLifecycle()
@@ -278,7 +282,8 @@ fun HomeScreen(vm: AppViewModel) {
                         }
                     }
                     Gap(10.dp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // The buttons go onto a second line when they don't fit side by side
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { vm.showActivity(o.categoryId) }, colors = ButtonDefaults.buttonColors(containerColor = sc.overFg, contentColor = sc.overBg)) { Text("See where it went") }
                         OutlinedButton(onClick = { vm.openSheet(Sheet.BudgetEdit(o.budgetKey)) }) { Text("Adjust budget", color = sc.overFg) }
                     }
@@ -541,8 +546,8 @@ private fun HomeHeader(
                 }
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Text(greeting(), style = MaterialTheme.typography.labelLarge, color = brand.onHeaderSoft)
-                    Text(
-                        title, style = MaterialTheme.typography.headlineSmall, color = brand.onHeader, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    com.owl.tracker.ui.components.FitText(
+                        title, style = MaterialTheme.typography.headlineSmall, color = brand.onHeader, maxLines = 2, minScale = 0.75f,
                         modifier = Modifier.semantics { heading() },
                     )
                 }
@@ -555,30 +560,52 @@ private fun HomeHeader(
                 }
             }
             Gap(12.dp)
-            // A month or a week, and back to earlier ones and forward again
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PeriodSwitch(weekMode, onMonth = { vm.showMonth() }, onWeek = { vm.showWeek() })
-                val forward = if (weekMode) canForwardWeek else canForward
-                val unit = if (weekMode) "week" else "month"
-                Row(
-                    Modifier.weight(1f).clay(RoundedCornerShape(24.dp), brand.clay, elevation = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            // A month or a week, and back to earlier ones and forward again. With big text the two go one under the other.
+            val forward = if (weekMode) canForwardWeek else canForward
+            val unit = if (weekMode) "week" else "month"
+            val periodText = if (weekMode) week?.label ?: "" else dash.label
+            val options = shorterLabels(periodText)
+            val segStyle = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold)
+            val switchWidth = com.owl.tracker.ui.components.rememberTextWidth("Month", segStyle) +
+                com.owl.tracker.ui.components.rememberTextWidth("Week", segStyle) + 74.dp
+            val periodMin = com.owl.tracker.ui.components.rememberTextWidth(options.last(), MaterialTheme.typography.labelLarge) + 96.dp
+            val periodPill: @Composable (Modifier) -> Unit = { m ->
+                Row(m.clay(RoundedCornerShape(24.dp), brand.clay, elevation = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { if (weekMode) vm.previousWeek() else vm.previousMonth() }, modifier = Modifier.size(44.dp).testTag("period_prev")) {
                         Icon(Ic.chevL, contentDescription = "Previous $unit", tint = brand.onHeader, modifier = Modifier.size(20.dp))
                     }
-                    Text(
-                        if (weekMode) week?.label ?: "" else dash.label,
-                        style = MaterialTheme.typography.labelLarge, color = brand.onHeader, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.weight(1f).testTag("period_label"),
+                    com.owl.tracker.ui.components.FirstThatFits(
+                        options, style = MaterialTheme.typography.labelLarge, color = brand.onHeader,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.weight(1f).testTag("period_label"),
                     )
                     IconButton(onClick = { if (weekMode) vm.nextWeek() else vm.nextMonth() }, enabled = forward, modifier = Modifier.size(44.dp).testTag("period_next")) {
                         Icon(Ic.chevR, contentDescription = "Next $unit", tint = brand.onHeader.copy(alpha = if (forward) 1f else 0.3f), modifier = Modifier.size(20.dp))
                     }
                 }
             }
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+                if (switchWidth + 10.dp + periodMin <= maxWidth) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        PeriodSwitch(weekMode, onMonth = { vm.showMonth() }, onWeek = { vm.showWeek() })
+                        periodPill(Modifier.weight(1f))
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PeriodSwitch(weekMode, onMonth = { vm.showMonth() }, onWeek = { vm.showWeek() })
+                        periodPill(Modifier.fillMaxWidth())
+                    }
+                }
+            }
         }
     }
+}
+
+/** "November 2026" → also "Nov 2026" and "Nov", for when the full name doesn't fit. Other labels as they are. */
+internal fun shorterLabels(label: String): List<String> {
+    val m = Regex("""^([A-Za-z]{4,}) (\d{4})$""").find(label) ?: return listOf(label)
+    val (month, year) = m.destructured
+    return listOf(label, "${month.take(3)} $year", month.take(3))
 }
 
 /** Month or Week: two segments pressed into the header, the picked one raised. */
@@ -628,30 +655,43 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
                 Button(onClick = { vm.openSheet(Sheet.BudgetEdit(Schema.OVERALL)) }, modifier = Modifier.fillMaxWidth()) { Text("Set a monthly budget") }
                 return@Column
             }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                BudgetDrillRing(status.fraction, dash.spent, dash.overall, dash.byCategory, dash.period.start, onOpen)
-                Column(Modifier.weight(1f)) {
-                    val left = dash.overall - dash.spent
-                    Text(
-                        when { left < 0 -> "Over budget by"; dash.isCurrent -> "Left this month"; else -> "Left over" },
-                        style = MaterialTheme.typography.labelLarge, color = muted,
-                    )
-                    val amount = Money.formatInr(kotlin.math.abs(left))
-                    Text(
-                        amount, style = if (amount.length > 8) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
-                        maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
+            // The ring and what's left, side by side; with big text (or a narrow phone) one under the other
+            val left = dash.overall - dash.spent
+            val heading = when { left < 0 -> "Over budget by"; dash.isCurrent -> "Left this month"; else -> "Left over" }
+            val amount = Money.formatInr(kotlin.math.abs(left))
+            val ofText = "of ${Money.formatInr(dash.overall)}"
+            val info: @Composable (Modifier, Alignment.Horizontal) -> Unit = { m, align ->
+                Column(m, horizontalAlignment = align) {
+                    Text(heading, style = MaterialTheme.typography.labelLarge, color = muted)
+                    com.owl.tracker.ui.components.FitText(
+                        amount, style = MaterialTheme.typography.headlineMedium, minScale = 0.6f,
                         color = if (left < 0) sc.overFg else MaterialTheme.colorScheme.onSurface, modifier = Modifier.testTag("left_total"),
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("of ${Money.formatInr(dash.overall)}", style = MaterialTheme.typography.bodySmall, color = muted)
-                        Text(
-                            "Edit", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(10.dp))
-                                .clickable(onClickLabel = "Edit the monthly budget") { vm.openSheet(Sheet.BudgetEdit(Schema.OVERALL)) }
-                                .padding(horizontal = 6.dp, vertical = 6.dp),
-                        )
+                        Text(ofText, style = MaterialTheme.typography.bodySmall, color = muted)
+                        IconButton(onClick = { vm.openSheet(Sheet.BudgetEdit(Schema.OVERALL)) }, modifier = Modifier.size(40.dp).testTag("edit_budget")) {
+                            Icon(Ic.edit, contentDescription = "Edit the monthly budget", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        }
                     }
-                    StatusPill(status.state, Modifier.padding(top = 4.dp))
+                    StatusPill(status.state)
+                }
+            }
+            val need = maxOf(
+                com.owl.tracker.ui.components.rememberTextWidth(heading, MaterialTheme.typography.labelLarge),
+                com.owl.tracker.ui.components.rememberTextWidth(amount, MaterialTheme.typography.headlineMedium) * 0.7f,
+                com.owl.tracker.ui.components.rememberTextWidth(ofText, MaterialTheme.typography.bodySmall) + 40.dp,
+            )
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+                if (maxWidth - 140.dp - 16.dp >= need) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        BudgetDrillRing(status.fraction, dash.spent, dash.overall, dash.byCategory, dash.period.start, onOpen)
+                        info(Modifier.weight(1f), Alignment.Start)
+                    }
+                } else {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        BudgetDrillRing(status.fraction, dash.spent, dash.overall, dash.byCategory, dash.period.start, onOpen)
+                        info(Modifier.fillMaxWidth(), Alignment.CenterHorizontally)
+                    }
                 }
             }
             val line = when {
@@ -669,28 +709,111 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
                 Icon(if (status.state == BudgetState.ON_TRACK) Ic.check else Ic.alert, contentDescription = null, tint = sc.fg(status.state), modifier = Modifier.size(18.dp))
                 Text(line, color = sc.fg(status.state), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), modifier = Modifier.testTag("budget_line"))
             }
-            // Three small figures: spent, which budget is over, and what could be saved
+            // Three small figures, each opening what it's about: spent → this month's payments; a budget that's over →
+            // that category (or Budgets); the biggest category when the month is over but no category budget is;
+            // what could be saved → Ways to save in Reports
             val overRows = dash.categoryRows.filter { it.status.state == BudgetState.OVER }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatPill("Spent", Money.formatInr(dash.spent), brand.spentBg, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), valueTag = "spent_total", art = com.owl.tracker.R.drawable.glossy_coins)
-                StatPill(
-                    "Over",
-                    when (overRows.size) { 0 -> "None"; 1 -> overRows[0].category.name; else -> "${overRows.size} budgets" },
-                    if (overRows.isEmpty()) sc.okBg else sc.overBg, if (overRows.isEmpty()) sc.okFg else sc.overFg, Modifier.weight(1f),
-                    art = overRows.firstOrNull()?.let { com.owl.tracker.ui.components.glossyArt(it.category.icon) },
-                    onClick = overRows.firstOrNull()?.let { r -> { onOpen(r.category.id) } },
-                )
+            val biggest = dash.byCategory.firstOrNull()
+            val monthOver = status.state == BudgetState.OVER
+            val figures = buildList {
+                add(Figure("Spent", Money.formatInr(dash.spent), brand.spentBg, MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.glossy_coins,
+                    "figure_spent", "See this month's payments") { vm.showActivity(filter = com.owl.tracker.ui.ActivityFilter.SPENT) })
+                when {
+                    overRows.size == 1 -> add(Figure("Over budget", overRows[0].category.name, sc.overBg, sc.overFg,
+                        com.owl.tracker.ui.components.glossyArt(overRows[0].category.icon), "figure_over", "Open ${overRows[0].category.name}") { onOpen(overRows[0].category.id) })
+                    overRows.size > 1 -> add(Figure("Over budget", "${overRows.size} categories", sc.overBg, sc.overFg,
+                        com.owl.tracker.ui.components.glossyArt(overRows[0].category.icon), "figure_over", "See your budgets") { vm.go(Screen.BUDGETS) })
+                    monthOver && biggest != null -> add(Figure("Biggest", biggest.category.name, brand.spentBg, MaterialTheme.colorScheme.onSurface,
+                        com.owl.tracker.ui.components.glossyArt(biggest.category.icon), "figure_over", "Open ${biggest.category.name}") { onOpen(biggest.category.id) })
+                    else -> add(Figure("Over budget", "None", sc.okBg, sc.okFg, null, "figure_over", "See your budgets") { vm.go(Screen.BUDGETS) })
+                }
                 val save = plan?.monthlyPaise?.takeIf { it > 0 && dash.isCurrent }
                 if (save != null) {
-                    StatPill("Could save", Money.formatInr(save), sc.okBg, sc.okFg, Modifier.weight(1f), art = com.owl.tracker.R.drawable.glossy_piggy, onClick = { vm.go(Screen.INSIGHTS) })
+                    add(Figure("Could save", Money.formatInr(save), sc.okBg, sc.okFg, com.owl.tracker.R.drawable.glossy_piggy, "figure_save", "See the ways to save") { vm.openWaysToSave() })
                 } else {
-                    StatPill(
-                        if (dash.isCurrent) "Days left" else "Days", "${if (dash.isCurrent) daysLeft else dash.period.days}", brand.spentBg,
-                        MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), art = com.owl.tracker.R.drawable.glossy_emi,
-                    )
+                    add(Figure(if (dash.isCurrent) "Days left" else "Days", "${if (dash.isCurrent) daysLeft else dash.period.days}", brand.spentBg,
+                        MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.glossy_emi, "figure_days", null, null))
                 }
             }
+            Figures(figures)
         }
+    }
+}
+
+/** One figure under the budget: its label, value, colours, picture, and what a tap opens (null: nothing). */
+private class Figure(
+    val label: String, val value: String, val bg: Color, val fg: Color, val art: Int?, val tag: String,
+    val clickLabel: String?, val onClick: (() -> Unit)?,
+)
+
+/**
+ * The figures as three small tiles in a row when their words fit, else as full-width rows one under the other (big
+ * text, narrow phones, lakh-size amounts). The tiles never cut a label or an amount.
+ */
+@Composable
+private fun Figures(figures: List<Figure>) {
+    val labelStyle = MaterialTheme.typography.labelSmall
+    val valueStyle = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold)
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val d = androidx.compose.ui.platform.LocalDensity.current
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().testTag("figures")) {
+        val tileText = (maxWidth - 8.dp * (figures.size - 1)) / figures.size - 22.dp
+        fun width(t: String, st: androidx.compose.ui.text.TextStyle) = with(d) { measurer.measure(t, st, maxLines = 1, softWrap = false).size.width.toDp() }
+        val tiles = figures.all { f ->
+            width(f.label, labelStyle) * 0.85f <= tileText &&
+                f.value.split(' ').all { w -> width(w, valueStyle) * 0.72f <= tileText }
+        }
+        if (tiles) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Max)) {
+                figures.forEach { FigureTile(it, labelStyle, valueStyle, Modifier.weight(1f).fillMaxHeight()) }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { figures.forEach { FigureRow(it, labelStyle, valueStyle) } }
+        }
+    }
+}
+
+@Composable
+private fun Modifier.figureSurface(f: Figure, shape: RoundedCornerShape): Modifier {
+    val colors = LocalBrand.current.clay
+    return this.clay(shape, colors, f.bg.compositeOver(colors.surface), elevation = 4.dp)
+        .then(if (f.onClick != null) Modifier.clip(shape).clickable(onClickLabel = f.clickLabel, onClick = f.onClick) else Modifier)
+        .testTag(f.tag)
+}
+
+@Composable
+private fun FigureTile(f: Figure, labelStyle: androidx.compose.ui.text.TextStyle, valueStyle: androidx.compose.ui.text.TextStyle, modifier: Modifier) {
+    Column(modifier.figureSurface(f, RoundedCornerShape(20.dp)).padding(start = 10.dp, end = 8.dp, top = 8.dp, bottom = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (f.art != null) androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(f.art), contentDescription = null, modifier = Modifier.size(24.dp))
+            else Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.weight(1f))
+            if (f.onClick != null) Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+        }
+        Gap(2.dp)
+        com.owl.tracker.ui.components.FitText(f.label, style = labelStyle, color = MaterialTheme.colorScheme.onSurfaceVariant, minScale = 0.85f)
+        com.owl.tracker.ui.components.FitText(
+            f.value, style = valueStyle, color = f.fg, minScale = 0.72f, maxLines = if (' ' in f.value) 2 else 1,
+            modifier = if (f.tag == "figure_spent") Modifier.testTag("spent_total") else Modifier,
+        )
+    }
+}
+
+@Composable
+private fun FigureRow(f: Figure, labelStyle: androidx.compose.ui.text.TextStyle, valueStyle: androidx.compose.ui.text.TextStyle) {
+    Row(
+        Modifier.fillMaxWidth().figureSurface(f, RoundedCornerShape(18.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (f.art != null) androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(f.art), contentDescription = null, modifier = Modifier.size(28.dp))
+        com.owl.tracker.ui.components.SideOrStacked(
+            Modifier.weight(1f),
+            start = { Text(f.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            end = {
+                Text(f.value, style = valueStyle, color = f.fg, modifier = if (f.tag == "figure_spent") Modifier.testTag("spent_total") else Modifier)
+            },
+        )
+        if (f.onClick != null) Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
     }
 }
 
@@ -756,16 +879,19 @@ private fun WeekCard(vm: AppViewModel, week: com.owl.tracker.ui.WeekView, picked
             LevelLegend(week.share, Modifier.padding(horizontal = 2.dp))
             val passed = week.days.filter { !it.date.isAfter(today) }
             val biggest = passed.maxByOrNull { it.paise }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatPill("Daily average", Money.formatInr(week.spent / passed.size.coerceAtLeast(1)), brand.spentBg, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), art = com.owl.tracker.R.drawable.glossy_coins)
-                StatPill(
-                    "Biggest day",
-                    if (biggest == null || biggest.paise == 0L) "None yet"
-                    else biggest.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH) + " " + Money.formatShort(biggest.paise),
-                    brand.spentBg, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), art = com.owl.tracker.R.drawable.glossy_wallet,
-                    onClick = biggest?.takeIf { it.paise > 0 }?.let { b -> { onPick(b.date) } },
-                )
-            }
+            Figures(
+                listOf(
+                    Figure("Daily average", Money.formatInr(week.spent / passed.size.coerceAtLeast(1)), brand.spentBg, MaterialTheme.colorScheme.onSurface,
+                        com.owl.tracker.R.drawable.glossy_coins, "figure_week_average", null, null),
+                    Figure(
+                        "Biggest day",
+                        if (biggest == null || biggest.paise == 0L) "None yet"
+                        else biggest.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH) + " " + Money.formatShort(biggest.paise),
+                        brand.spentBg, MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.glossy_wallet, "figure_week_biggest", "Show that day",
+                        biggest?.takeIf { it.paise > 0 }?.let { b -> { onPick(b.date) } },
+                    ),
+                ),
+            )
             week.monthLeft?.let { left ->
                 Row(
                     Modifier.fillMaxWidth().clay(RoundedCornerShape(20.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true)
@@ -813,31 +939,6 @@ private fun scopeMoods(
     return com.owl.tracker.ui.components.RingMoods(
         com.owl.tracker.ui.components.OwlSay(com.owl.tracker.ui.components.OwlMood.of(spent, share.takeIf { it > 0 }), "$title · ${inr(spent)}", line), cats,
     )
-}
-
-/** One of the figures under the budget: a small clay pill with its glossy picture, its label and its value. */
-@Composable
-private fun StatPill(
-    label: String, value: String, bg: Color, fg: Color, modifier: Modifier = Modifier, valueTag: String? = null, art: Int? = null,
-    onClick: (() -> Unit)? = null,
-) {
-    val clay = LocalBrand.current.clay
-    Row(
-        modifier.clay(RoundedCornerShape(20.dp), clay, bg.compositeOver(clay.surface), elevation = 4.dp)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(start = 6.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        if (art != null) androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(art), contentDescription = null, modifier = Modifier.size(26.dp))
-        Column(Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                value, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = if (valueTag != null) Modifier.testTag(valueTag) else Modifier,
-            )
-        }
-    }
 }
 
 /**
@@ -1014,14 +1115,21 @@ private fun BudgetDrillRing(fraction: Double, spent: Long, budget: Long, byCateg
                 drawArc(over, -90f, innerSweep, false, androidx.compose.ui.geometry.Offset(inner, inner), innerSize, style = androidx.compose.ui.graphics.drawscope.Stroke(s2, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.size(84.dp), verticalArrangement = Arrangement.Center) {
-            if (focus == null) {
-                Text("${(fraction * 100).toInt()}%", style = MaterialTheme.typography.headlineSmall)
-                Text("spent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                Text(focus.category.name, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                Text(Money.formatShort(focus.paise), style = MaterialTheme.typography.titleMedium)
-                Text("${(focus.paise * 100 / budget.coerceAtLeast(1))}% of budget", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        // The hole is a fixed size: with big text its words grow a little, then get smaller to fit
+        com.owl.tracker.ui.components.CapFontScale(1.25f) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.size(84.dp), verticalArrangement = Arrangement.Center) {
+                val center = androidx.compose.ui.text.style.TextAlign.Center
+                if (focus == null) {
+                    com.owl.tracker.ui.components.FitText("${(fraction * 100).toInt()}%", style = MaterialTheme.typography.headlineSmall, textAlign = center, minScale = 0.6f)
+                    com.owl.tracker.ui.components.FitText("spent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = center)
+                } else {
+                    com.owl.tracker.ui.components.FitText(focus.category.name, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = center, minScale = 0.75f)
+                    com.owl.tracker.ui.components.FitText(Money.formatShort(focus.paise), style = MaterialTheme.typography.titleMedium, textAlign = center, minScale = 0.6f)
+                    com.owl.tracker.ui.components.FitText(
+                        "${(focus.paise * 100 / budget.coerceAtLeast(1))}% of budget", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = center, maxLines = 2, minScale = 0.75f,
+                    )
+                }
             }
         }
     }
@@ -1050,7 +1158,7 @@ private fun SavingNudge(vm: AppViewModel, plan: com.owl.tracker.ui.SavingPlan) {
         Text(tip.title, style = MaterialTheme.typography.titleSmall)
         Text(tip.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Gap(4.dp)
-        TextButton(onClick = { vm.go(Screen.INSIGHTS) }, modifier = Modifier.testTag("saving_more")) {
+        TextButton(onClick = { vm.openWaysToSave() }, modifier = Modifier.testTag("saving_more")) {
             Text(if (plan.tips.size > 1) "See all ${plan.tips.size} ways to save" else "See it in Reports")
         }
     }
@@ -1094,7 +1202,8 @@ fun TxnRow(vm: AppViewModel, t: Txn, category: Category?, showDay: Boolean) {
                     credit -> " · money in"
                     else -> ""
                 },
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                // Two lines at most, so big text still shows the day or time
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = if (com.owl.tracker.ui.components.textScaleAtLeast(1.3f)) 2 else 1, overflow = TextOverflow.Ellipsis,
             )
         }
         Text(
@@ -1218,14 +1327,20 @@ fun BudgetsScreen(vm: AppViewModel) {
                     dash.categoryRows.forEachIndexed { i, r ->
                         if (i > 0) Divider()
                         Column(Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.BudgetEdit(r.category.id)) }.padding(vertical = 10.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                CategoryTile(r.category, 36.dp)
-                                Column(Modifier.weight(1f)) {
-                                    Text(r.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text("${Money.formatInr(r.spent)} of ${Money.formatInr(r.limit)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                StatusPill(r.status.state)
-                            }
+                            // The status beside the name when there's room, else under it
+                            com.owl.tracker.ui.components.SideOrStacked(
+                                Modifier.fillMaxWidth(), stackedGap = 6.dp,
+                                start = {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        CategoryTile(r.category, 36.dp)
+                                        Column {
+                                            Text(r.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                            Text("${Money.formatInr(r.spent)} of ${Money.formatInr(r.limit)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                },
+                                end = { StatusPill(r.status.state) },
+                            )
                             Gap(8.dp)
                             PaceBar(r.status.fraction, pace, sc.ring(r.status.state, Color(r.category.color)), height = 8.dp)
                         }
@@ -1241,7 +1356,7 @@ fun BudgetsScreen(vm: AppViewModel) {
                     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CategoryTile(cs.category, 36.dp)
                         Column(Modifier.weight(1f)) {
-                            Text(cs.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(cs.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Text(if (cs.paise > 0) "${Money.formatInr(cs.paise)} spent this month" else "Nothing spent yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         TextButton(onClick = { vm.openSheet(Sheet.BudgetEdit(cs.category.id)) }) { Text("Set") }

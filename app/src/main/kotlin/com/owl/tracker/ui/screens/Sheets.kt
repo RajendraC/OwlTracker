@@ -147,9 +147,9 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         ) { Icon(Ic.edit, contentDescription = "Rename ${tx.merchantName}") }
     }
     Column {
-        Text(
+        com.owl.tracker.ui.components.FitText(
             (if (credit) "+" else "−") + Money.formatInr(tx.amountPaise, showPaise = tx.amountPaise % 100 != 0L),
-            style = MaterialTheme.typography.headlineLarge,
+            style = MaterialTheme.typography.headlineLarge, minScale = 0.6f,
             color = if (credit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.testTag("detail_amount"),
         )
@@ -195,23 +195,31 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                 }
                 tx.parts.forEach { p ->
                     val pc = cats.firstOrNull { it.id == p.categoryId }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        CategoryTile(pc, 28.dp)
-                        Text(pc?.name ?: "Others", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                        Text(Money.formatInr(p.paise, showPaise = p.paise % 100 != 0L), style = MaterialTheme.typography.titleSmall)
-                    }
+                    com.owl.tracker.ui.components.SideOrStacked(
+                        Modifier.fillMaxWidth(),
+                        start = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                CategoryTile(pc, 28.dp)
+                                Text(pc?.name ?: "Others", style = MaterialTheme.typography.titleSmall)
+                            }
+                        },
+                        end = { Text(Money.formatInr(p.paise, showPaise = p.paise % 100 != 0L), style = MaterialTheme.typography.titleSmall) },
+                    )
                 }
             }
         } else {
-            Row(
+            // Side by side when there's room; with big text the category goes under its label
+            com.owl.tracker.ui.components.SideOrStacked(
                 Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.CategoryPick(tx.id)) }.padding(vertical = 10.dp).testTag("change_category"),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text("Category", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                CategoryTile(cat, 28.dp)
-                Text(cat?.name ?: "Others", style = MaterialTheme.typography.titleSmall)
-                Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-            }
+                start = { Text("Category", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                end = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        CategoryTile(cat, 28.dp)
+                        Text(cat?.name ?: "Others", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f, fill = false))
+                        Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                    }
+                },
+            )
         }
         if (!credit && !tx.isSplit) {
             Divider()
@@ -225,22 +233,24 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             }
         }
         Divider()
-        Row(
+        com.owl.tracker.ui.components.SideOrStacked(
             Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.MerchantIcon(tx.id)) }.padding(vertical = 10.dp).testTag("change_icon"),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text("Icon", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cat, 28.dp)
-            Text(
-                when {
-                    tx.merchantPackage != null && vm.appIcons.get(tx.merchantPackage) != null -> "App icon"
-                    tx.merchantPackage != null -> "App not installed"
-                    else -> "Category icon"
-                },
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-        }
+            start = { Text("Icon", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            end = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cat, 28.dp)
+                    Text(
+                        when {
+                            tx.merchantPackage != null && vm.appIcons.get(tx.merchantPackage) != null -> "App icon"
+                            tx.merchantPackage != null -> "App not installed"
+                            else -> "Category icon"
+                        },
+                        style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                }
+            },
+        )
         tx.refNo?.let { Divider(); DetailRow("Reference", it) }
         tx.sender?.let { Divider(); DetailRow("From", it) }
         Divider()
@@ -305,10 +315,12 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
 
 @Composable
 private fun DetailRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.titleSmall)
-    }
+    // Side by side when they fit, else the value under its label (never "D / a / t / e")
+    com.owl.tracker.ui.components.SideOrStacked(
+        Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        start = { Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        end = { Text(value, style = MaterialTheme.typography.titleSmall) },
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -350,13 +362,16 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
         rememberRule, { chosen = it },
         modifier = Modifier.testTag("remember_rule"),
     )
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Money in can go to Income (listed first); money out never can.
-        val credit = tx.direction == com.owl.tracker.core.Direction.CREDIT
-        cats.filter { !it.archived && (credit || it.id != Cat.INCOME) }.sortedBy { if (credit && it.id == Cat.INCOME) 0 else 1 }.forEach { c ->
+    // Money in can go to Income (listed first); money out never can.
+    val credit = tx.direction == com.owl.tracker.core.Direction.CREDIT
+    val choices = cats.filter { !it.archived && (credit || it.id != Cat.INCOME) }.sortedBy { if (credit && it.id == Cat.INCOME) 0 else 1 }
+    val nameStyle = MaterialTheme.typography.labelMedium
+    com.owl.tracker.ui.components.CellGrid(choices.size, 100.dp, choices.map { it.name }, nameStyle, 8.dp, Modifier.fillMaxWidth()) { i, w ->
+        run {
+            val c = choices[i]
             val on = c.id == tx.categoryId
             Column(
-                Modifier.width(100.dp).heightIn(min = 92.dp).clip(RoundedCornerShape(16.dp))
+                Modifier.width(w).heightIn(min = 92.dp).clip(RoundedCornerShape(16.dp))
                     .border(if (on) 2.dp else 1.dp, if (on) Color(c.color) else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
                     .selectable(selected = on, role = Role.RadioButton) { vm.setCategory(txId, c.id, rememberRule) }
                     .padding(8.dp),
@@ -364,7 +379,7 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 CategoryTile(c)
-                Text(c.name, style = MaterialTheme.typography.labelMedium, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                com.owl.tracker.ui.components.FitText(c.name, style = nameStyle, maxLines = 3, minScale = 0.85f, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
     }
@@ -603,11 +618,12 @@ private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
             "None of the apps Owl Tracker recognises are installed. Use a picture instead.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        else -> FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            list.forEach { app ->
+        else -> com.owl.tracker.ui.components.CellGrid(list.size, 76.dp, list.map { it.label }, MaterialTheme.typography.labelSmall, 4.dp, Modifier.fillMaxWidth()) { i, w ->
+            run {
+                val app = list[i]
                 val on = app.packageName == tx.merchantPackage
                 Column(
-                    Modifier.width(76.dp).clip(RoundedCornerShape(14.dp))
+                    Modifier.width(w).clip(RoundedCornerShape(14.dp))
                         .border(if (on) 2.dp else 1.dp, if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
                         .selectable(selected = on, role = Role.RadioButton) { vm.setMerchantIcon(txId, app.packageName) }
                         .padding(vertical = 8.dp, horizontal = 4.dp)
@@ -757,7 +773,7 @@ private fun AddExpenseSheet(vm: AppViewModel) {
                 leadingIcon = { Icon(Ic.forCategory(c.icon), contentDescription = null, tint = Color(c.color), modifier = Modifier.size(18.dp)) })
         }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(0 to "Today", 1 to "Yesterday", 2 to "2 days ago").forEach { (d, label) ->
             FilterChip(selected = daysAgo == d, onClick = { daysAgo = d }, label = { Text(label) })
         }

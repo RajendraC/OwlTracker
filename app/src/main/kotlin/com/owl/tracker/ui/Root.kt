@@ -245,7 +245,13 @@ private fun MangoTabBar(vm: AppViewModel, current: Tab) {
                         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
                     ) {
                         Icon(icons.getValue(t), contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-                        Text(label, style = MaterialTheme.typography.labelMedium, color = tint, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Bold)
+                        // Big text: the labels grow a little, then get smaller to fit, never "Activi / y"
+                        com.owl.tracker.ui.components.CapFontScale(1.2f) {
+                            com.owl.tracker.ui.components.FitText(
+                                label, style = MaterialTheme.typography.labelMedium, color = tint, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Bold,
+                                minScale = 0.7f,
+                            )
+                        }
                     }
                 }
             }

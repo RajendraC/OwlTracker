@@ -138,15 +138,19 @@ fun DayCircle(date: LocalDate, level: DayLevel, fixed: Boolean, picked: Boolean,
             },
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            date.dayOfMonth.toString(),
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = if (diameter < 36.dp) 13.sp else 14.sp),
-            color = when {
-                fill != null -> levelInk(level)
-                level == DayLevel.FUTURE -> muted.copy(alpha = 0.8f)
-                else -> muted
-            },
-        )
+        // The circle is a fixed size, so its number grows only a little with big text
+        CapFontScale(1.2f) {
+            FitText(
+                date.dayOfMonth.toString(),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = if (diameter < 36.dp) 13.sp else 14.sp),
+                color = when {
+                    fill != null -> levelInk(level)
+                    level == DayLevel.FUTURE -> muted.copy(alpha = 0.8f)
+                    else -> muted
+                },
+                minScale = 0.7f,
+            )
+        }
     }
 }
 
@@ -181,23 +185,29 @@ fun WeekDaysRow(days: List<DayTotal>, picked: LocalDate?, today: LocalDate, budg
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    d.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
-                    color = if (on || d.date == today) MaterialTheme.colorScheme.primary else muted,
-                )
+                // Seven columns: names and amounts grow only a little with big text, then get smaller to fit
+                CapFontScale(1.25f) {
+                    FitText(
+                        d.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
+                        color = if (on || d.date == today) MaterialTheme.colorScheme.primary else muted, minScale = 0.7f,
+                    )
+                }
                 DayCircle(d.date, d.level, d.fixedPaise > 0, on, d.date == today, 36.dp)
-                Text(
-                    when (d.level) { DayLevel.FUTURE -> " "; else -> Money.formatShort(d.paise) },
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
-                    color = if (on) MaterialTheme.colorScheme.onSurface else muted, maxLines = 1,
-                )
+                CapFontScale(1.25f) {
+                    FitText(
+                        when (d.level) { DayLevel.FUTURE -> " "; else -> Money.formatShort(d.paise) },
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
+                        color = if (on) MaterialTheme.colorScheme.onSurface else muted, minScale = 0.6f,
+                    )
+                }
             }
         }
     }
 }
 
 /** What the colours mean, and what they're measured against. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun LevelLegend(share: DayShare, modifier: Modifier = Modifier) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -205,13 +215,12 @@ fun LevelLegend(share: DayShare, modifier: Modifier = Modifier) {
         // Two lines of swatches so they never squeeze
         val items = listOf(LIGHT to levelName(DayLevel.LIGHT, share.fromBudget), WITHIN to levelName(DayLevel.WITHIN, share.fromBudget),
             HEAVY to "Heavy", VERY_HEAVY to "Very heavy", FIXED_DOT to "EMI or rent")
-        items.chunked(3).forEach { line ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                line.forEach { (c, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Box(Modifier.size(if (c == FIXED_DOT) 9.dp else 12.dp).clip(CircleShape).background(c))
-                        Text(label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted)
-                    }
+        // As many to a line as fit (three on most phones), the rest on the next
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items.forEach { (c, label) ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Box(Modifier.size(if (c == FIXED_DOT) 9.dp else 12.dp).clip(CircleShape).background(c))
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted, maxLines = 1, softWrap = false)
                 }
             }
         }
@@ -245,11 +254,13 @@ fun MonthCalendarCard(
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
         )
         Gap(10.dp)
+        // A grid of fixed circles: with big text its numbers and totals grow only a little, then get smaller to fit
+        CapFontScale(1.2f) { Column {
         Row(Modifier.fillMaxWidth()) {
             listOf("S", "M", "T", "W", "T", "F", "S").forEach {
                 Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
             }
-            Text("Week", Modifier.width(WEEK_COL).padding(end = 6.dp), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
+            FitText("Week", Modifier.width(WEEK_COL).padding(end = 6.dp), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
         }
         rows.forEach { row ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -288,18 +299,19 @@ fun MonthCalendarCard(
                 ) {
                     if (open) {
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(Money.formatShort(row.paise), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp), maxLines = 1, softWrap = false)
+                            FitText(Money.formatShort(row.paise), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp), textAlign = TextAlign.End, minScale = 0.6f)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Week", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.primary)
+                                FitText("Week", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.primary, minScale = 0.7f)
                                 Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
                             }
                         }
                     } else {
-                        Text("to come", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted.copy(alpha = 0.7f), maxLines = 1, softWrap = false)
+                        FitText("to come", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted.copy(alpha = 0.7f), textAlign = TextAlign.End, minScale = 0.6f)
                     }
                 }
             }
         }
+        } }
         Gap(8.dp)
         LevelLegend(share, Modifier.padding(horizontal = 4.dp))
     }
@@ -313,9 +325,9 @@ fun DayFilterBar(day: DayTotal, payments: Int, budgeted: Boolean, today: LocalDa
         Row(Modifier.padding(start = 6.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             DayCircle(day.date, day.level, day.fixedPaise > 0, picked = false, today = day.date == today, size = 36.dp)
             Column(Modifier.weight(1f).padding(start = 6.dp)) {
-                Text(
+                FitText(
                     "${dayTitle(day.date)} · ${Money.formatInr(day.paise)}", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    maxLines = 2, minScale = 0.8f,
                 )
                 Text(
                     listOfNotNull(

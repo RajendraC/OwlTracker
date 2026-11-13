@@ -118,9 +118,21 @@ fun ReportsScreen(vm: AppViewModel) {
     val openedAt = remember { System.currentTimeMillis() }
     // The phone's Back goes up one level of whatever was opened (merchant, category, day, month) before leaving Reports
     androidx.activity.compose.BackHandler(enabled = report?.filter?.isEmpty == false) { vm.reportBack() }
+    // Opened from Home's "Could save": go to Ways to save once it's there
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scrollTo by vm.reportScrollTo.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(scrollTo, report, plan) {
+        val r = report ?: return@LaunchedEffect
+        if (scrollTo == "ways" && plan?.isEmpty == false && r.filter.isEmpty) {
+            // header, range chips, summary, income & expenses (when shown), then ways to save
+            listState.animateScrollToItem(3 + (if (r.incomeExpenses != null) 1 else 0))
+            vm.reportScrollTo.value = null
+        }
+    }
 
     LazyColumn(
         Modifier.fillMaxSize().testTag("reports"),
+        state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -225,13 +237,30 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
         Text("Income & expenses", style = MaterialTheme.typography.titleMedium)
         Text(pl.title, style = MaterialTheme.typography.bodySmall, color = muted)
         Gap(12.dp)
-        Row(Modifier.fillMaxWidth()) {
-            Stat("Income", "+" + Money.formatInr(animatedPaise(pl.moneyIn)), Modifier.weight(1f).testTag("pl_in"), gain)
-            Stat("Expenses", "−" + Money.formatInr(animatedPaise(pl.spent)), Modifier.weight(1f).testTag("pl_spent"))
-            Stat(
-                if (pl.net >= 0) "Saved" else "Overspent", Money.formatInr(kotlin.math.abs(animatedPaise(pl.net))),
-                Modifier.weight(1f).testTag("pl_net"), if (pl.net >= 0) gain else sc.overFg,
-            )
+        // Three figures side by side, or (big text, lakh amounts) one under the other
+        val stats = listOf(
+            StatItem("Income", "+" + Money.formatInr(animatedPaise(pl.moneyIn)), "pl_in", gain),
+            StatItem("Expenses", "−" + Money.formatInr(animatedPaise(pl.spent)), "pl_spent", Color.Unspecified),
+            StatItem(if (pl.net >= 0) "Saved" else "Overspent", Money.formatInr(kotlin.math.abs(animatedPaise(pl.net))), "pl_net", if (pl.net >= 0) gain else sc.overFg),
+        )
+        val valueWidth = stats.maxOf { com.owl.tracker.ui.components.rememberTextWidth(it.value, MaterialTheme.typography.titleMedium) }
+        val labelWidth = stats.maxOf { com.owl.tracker.ui.components.rememberTextWidth(it.label, MaterialTheme.typography.labelMedium) }
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+            if (maxOf(valueWidth * 0.8f, labelWidth) <= maxWidth / 3 - 4.dp) {
+                Row(Modifier.fillMaxWidth()) {
+                    stats.forEach { Stat(it.label, it.value, Modifier.weight(1f).testTag(it.tag), it.color) }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    stats.forEach { st ->
+                        com.owl.tracker.ui.components.SideOrStacked(
+                            Modifier.fillMaxWidth().testTag(st.tag),
+                            start = { Text(st.label, style = MaterialTheme.typography.labelLarge, color = muted) },
+                            end = { Text(st.value, style = MaterialTheme.typography.titleMedium, color = st.color) },
+                        )
+                    }
+                }
+            }
         }
         Gap(8.dp)
         Text(
@@ -280,25 +309,28 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
             Gap(6.dp)
             Text("Each month", style = MaterialTheme.typography.titleSmall)
             Gap(4.dp)
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text("Month", style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.weight(0.8f))
+            // A table of four narrow columns: with big text its words grow only a little, then get smaller to fit
+            com.owl.tracker.ui.components.CapFontScale(1.3f) { Column {
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                com.owl.tracker.ui.components.FitText("Month", style = MaterialTheme.typography.labelMedium, color = muted, minScale = 0.7f, modifier = Modifier.weight(0.8f))
                 listOf("Income", "Expenses", "Net").forEach {
-                    Text(it, style = MaterialTheme.typography.labelMedium, color = muted, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                    com.owl.tracker.ui.components.FitText(it, style = MaterialTheme.typography.labelMedium, color = muted, textAlign = TextAlign.End, minScale = 0.7f, modifier = Modifier.weight(1f))
                 }
             }
             pl.months.forEach { m ->
                 Divider()
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).semantics(mergeDescendants = true) {}.testTag("pl_month_${m.label}")) {
-                    Text(m.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(0.8f))
-                    Text(Money.formatShort(m.moneyIn), style = MaterialTheme.typography.bodyMedium, color = gain, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                    Text(Money.formatShort(m.spent), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                    Text(
+                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).semantics(mergeDescendants = true) {}.testTag("pl_month_${m.label}"), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    com.owl.tracker.ui.components.FitText(m.label, style = MaterialTheme.typography.bodyMedium, minScale = 0.7f, modifier = Modifier.weight(0.8f))
+                    com.owl.tracker.ui.components.FitText(Money.formatShort(m.moneyIn), style = MaterialTheme.typography.bodyMedium, color = gain, textAlign = TextAlign.End, minScale = 0.65f, modifier = Modifier.weight(1f))
+                    com.owl.tracker.ui.components.FitText(Money.formatShort(m.spent), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.End, minScale = 0.65f, modifier = Modifier.weight(1f))
+                    com.owl.tracker.ui.components.FitText(
                         (if (m.net >= 0) "+" else "−") + Money.formatShort(kotlin.math.abs(m.net)),
                         style = MaterialTheme.typography.bodyMedium, color = if (m.net >= 0) gain else sc.overFg,
-                        textAlign = TextAlign.End, modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.End, minScale = 0.65f, modifier = Modifier.weight(1f),
                     )
                 }
             }
+            } }
         }
 
         val apart = buildList {
@@ -420,11 +452,13 @@ private fun IeRow(line: IeLine, moneyIn: Boolean) {
 
 @Composable
 private fun Stat(label: String, value: String, modifier: Modifier, color: Color = Color.Unspecified) {
-    Column(modifier) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleMedium, color = color)
+    Column(modifier.padding(end = 4.dp)) {
+        com.owl.tracker.ui.components.FitText(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, minScale = 0.8f)
+        com.owl.tracker.ui.components.FitText(value, style = MaterialTheme.typography.titleMedium, color = color, minScale = 0.7f)
     }
 }
+
+private class StatItem(val label: String, val value: String, val tag: String, val color: Color)
 
 @Composable
 private fun TrendCard(r: Report, vm: AppViewModel) {
@@ -709,7 +743,7 @@ private fun WeekdayCard(r: Report, vm: AppViewModel) {
                         .testTag("weekday_${w.day.name.lowercase()}"),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom,
                 ) {
-                    if (isPicked) Text(Money.formatShort(w.paise), style = MaterialTheme.typography.labelSmall, color = primary, maxLines = 1)
+                    if (isPicked) com.owl.tracker.ui.components.CapFontScale(1.3f) { com.owl.tracker.ui.components.FitText(Money.formatShort(w.paise), style = MaterialTheme.typography.labelSmall, color = primary, minScale = 0.6f) }
                     val frac = (w.paise.toFloat() / maxV).coerceIn(0f, 1f)
                     val shown by animateFloatAsState(frac, tween(500, easing = SettleEasing), label = "weekday")
                     Box(
@@ -723,10 +757,13 @@ private fun WeekdayCard(r: Report, vm: AppViewModel) {
                             ),
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        w.day.getDisplayName(TextStyle.SHORT, Locale.ENGLISH).take(3), style = MaterialTheme.typography.labelSmall,
-                        color = if (isPicked) primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    // Seven narrow columns: "Wed" grows only a little with big text, then gets smaller to fit
+                    com.owl.tracker.ui.components.CapFontScale(1.3f) {
+                        com.owl.tracker.ui.components.FitText(
+                            w.day.getDisplayName(TextStyle.SHORT, Locale.ENGLISH).take(3), style = MaterialTheme.typography.labelSmall,
+                            color = if (isPicked) primary else MaterialTheme.colorScheme.onSurfaceVariant, minScale = 0.6f,
+                        )
+                    }
                 }
             }
         }

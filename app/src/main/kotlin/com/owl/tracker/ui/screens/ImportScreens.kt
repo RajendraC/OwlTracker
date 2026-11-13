@@ -100,7 +100,7 @@ fun ImportFiltersScreen(vm: AppViewModel) {
                         FilterChip(
                             selected = f.rangeMonths == m,
                             onClick = { vm.updateDraft { it.copy(rangeMonths = m) } },
-                            label = { Text("$m months") },
+                            label = { com.owl.tracker.ui.components.FitText("$m months", minScale = 0.7f, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
                             modifier = Modifier.weight(1f),
                         )
                     }

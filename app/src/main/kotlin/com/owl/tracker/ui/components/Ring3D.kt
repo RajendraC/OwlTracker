@@ -457,9 +457,9 @@ private fun OwlBubble(say: OwlSay, onOpen: (() -> Unit)?, tailX: androidx.compos
                 .testTag("owl_bubble"),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
+                FitText(
                     say.mood.says, color = say.mood.ink, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                    minScale = 0.75f, modifier = Modifier.weight(1f, fill = false),
                 )
                 if (onOpen != null) {
                     Row(
@@ -473,8 +473,9 @@ private fun OwlBubble(say: OwlSay, onOpen: (() -> Unit)?, tailX: androidx.compos
                     }
                 }
             }
-            Text(say.title, color = Color(0xFF2A1708), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(say.line, color = Color(0xFF5A4030), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            // With big text the title may take two lines, shrinking a little first
+            FitText(say.title, color = Color(0xFF2A1708), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, maxLines = 2, minScale = 0.8f)
+            Text(say.line, color = Color(0xFF5A4030), style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
     }
 }
