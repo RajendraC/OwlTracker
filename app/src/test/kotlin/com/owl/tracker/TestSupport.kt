@@ -11,7 +11,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 
-/** Saturday 18 Oct 2026, 1:14 PM in India: mid-month, so every sample lands in the current budget month. */
+/** Sunday 18 Oct 2026, 1:14 PM in India: mid-month, so every sample lands in the current budget month. */
 val TEST_CLOCK: Clock = Clock.fixed(Instant.parse("2026-10-18T07:44:00Z"), ZoneId.of("Asia/Kolkata"))
 
 fun sampleInbox(extra: List<SmsMessage> = emptyList()): MutableList<SmsMessage> =

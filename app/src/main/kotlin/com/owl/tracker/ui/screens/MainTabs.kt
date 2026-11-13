@@ -235,18 +235,6 @@ fun HomeScreen(vm: AppViewModel) {
                 }
             }
 
-            // The month as a calendar, a row a week: tap a day for its payments, a week's total for the week
-            if (calendar != null) item(key = "calendar") {
-                MonthCalendarCard(calendar.title, calendar.rows, calendar.share, picked, today, ::pick, { start -> vm.openWeek(start) }, side)
-            }
-
-            // One day picked: everything below is about that day
-            if (pickedTotal != null) item(key = "day_filter") {
-                DayFilterBar(
-                    pickedTotal, txns.size, (week?.share ?: calendar?.share)?.fromBudget == true, today, { pickedIso = null }, side,
-                )
-            }
-
             when (val a = access) {
                 is Access.Trial -> item { Box(side) { TrialBanner(a.daysLeft, store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }
                 Access.TrialEnded -> item { Box(side) { TrialEndedBanner(store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }
@@ -294,6 +282,18 @@ fun HomeScreen(vm: AppViewModel) {
                         OutlinedButton(onClick = { vm.openSheet(Sheet.BudgetEdit(o.budgetKey)) }) { Text("Adjust budget", color = sc.overFg) }
                     }
                 }
+            }
+
+            // After the alerts, the month as a calendar, a row a week: tap a day for its payments, a week's total for the week
+            if (calendar != null) item(key = "calendar") {
+                MonthCalendarCard(calendar.title, calendar.rows, calendar.share, picked, today, ::pick, { start -> vm.openWeek(start) }, side)
+            }
+
+            // One day picked: everything below is about that day
+            if (pickedTotal != null) item(key = "day_filter") {
+                DayFilterBar(
+                    pickedTotal, txns.size, (week?.share ?: calendar?.share)?.fromBudget == true, today, { pickedIso = null }, side,
+                )
             }
 
             // A picture for each category the money went to; tapping one opens it in "Where it went" below (the whole month only)

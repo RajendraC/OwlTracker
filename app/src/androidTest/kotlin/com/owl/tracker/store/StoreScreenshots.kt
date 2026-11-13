@@ -177,7 +177,8 @@ class StoreScreenshots {
                 Thread.sleep(2500)
                 shot("17_home_day")
                 tapTag("day_filter_clear")
-                withVm { it.showWeek() }
+                // The screenshots' clock is a Sunday morning: last week is the full one, with yesterday in it
+                withVm { it.showWeek(); it.previousWeek() }
                 runCatching { onAllNodes(hasTestTag("home"))[0].performScrollToIndex(0) }
                 Thread.sleep(1500)
                 shot("18_home_week")
