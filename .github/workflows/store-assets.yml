@@ -21,6 +21,12 @@ on:
         description: Dark theme (captures go to the store-screens-dark pre-release instead)
         type: boolean
         default: false
+      font_scale:
+        description: "Text size, as Android's font scale (1.0 normal, 1.3 large, 2.0 the most on Android 14+). Not 1.0: captures go to their own pre-release (store-screens-text1.3…) and the tour is skipped"
+        default: "1.0"
+      density:
+        description: "Display size as a screen density (empty: the profile's; 480 makes a Pixel 6 360 dp wide like many Realme and Redmi phones)"
+        default: ""
       what:
         description: "screenshots: Play screenshots and tour; sms-demo: the SMS permission walkthrough for the declaration video (sms-demo pre-release)"
         type: choice
@@ -31,12 +37,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: store-screens
+  group: store-screens-${{ inputs.what }}-${{ inputs.night }}-${{ inputs.font_scale }}-${{ inputs.density }}
   cancel-in-progress: true
 
 jobs:
   capture:
-    name: Capture on API ${{ inputs.api }} · ${{ inputs.profile }}
+    name: Capture on API ${{ inputs.api }} · ${{ inputs.profile }} · text ${{ inputs.font_scale }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -72,7 +78,7 @@ jobs:
           disk-size: 4096M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -timezone Asia/Kolkata
           disable-animations: true
-          script: bash ci/store-screens.sh "${{ inputs.date }}" "${{ inputs.night }}" "${{ inputs.what }}"
+          script: bash ci/store-screens.sh "${{ inputs.date }}" "${{ inputs.night }}" "${{ inputs.what }}" "${{ inputs.font_scale }}" "${{ inputs.density }}"
 
       - name: Upload captures
         if: always()
@@ -88,8 +94,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ inputs.what == 'sms-demo' && 'sms-demo' || (inputs.night && 'store-screens-dark' || 'store-screens') }}
+          WHAT: ${{ inputs.what }}
+          NIGHT: ${{ inputs.night }}
+          FONT_SCALE: ${{ inputs.font_scale }}
+          DENSITY: ${{ inputs.density }}
         run: |
+          # Normal size: store-screens(-dark). Other text or display sizes get their own pre-release, e.g.
+          # store-screens-text1.3-d480, so the Play captures are never replaced by them.
+          if [ "$WHAT" = "sms-demo" ]; then TAG=sms-demo
+          else
+            TAG=store-screens
+            if [ "$FONT_SCALE" != "1.0" ] || [ -n "$DENSITY" ]; then TAG="$TAG-text$FONT_SCALE${DENSITY:+-d$DENSITY}"; fi
+            if [ "$NIGHT" = "true" ]; then TAG="$TAG-dark"; fi
+          fi
           shopt -s nullglob
           files=(store-screens/* logs/*)
           [ ${#files[@]} -gt 0 ] || { echo "Nothing to publish"; exit 0; }

@@ -5,12 +5,16 @@
 # Everything lands in store-screens/.
 #   $1: emulator date as MMDDhhmmYYYY (empty keeps the real date)
 #   $2: "true" for the dark theme
+#   $4: font scale (1.0 normal); $5: screen density for the display size (empty keeps the profile's).
+#       Any other text or display size skips the tour.
 #   $3: "sms-demo" for the SMS permission walkthrough (StoreScreenshots#smsDemo) instead, saved in
 #       store-screens/ too, for tools/make_sms_demo_video.py
 set -uo pipefail
 DATE="${1:-}"
 NIGHT="${2:-false}"
 WHAT="${3:-screenshots}"
+FONT_SCALE="${4:-1.0}"
+DENSITY="${5:-}"
 OUT=store-screens
 mkdir -p "$OUT" logs
 PKG=com.owl.tracker
@@ -59,6 +63,10 @@ adb shell setprop persist.sys.timezone Asia/Kolkata || true
 adb shell date
 adb shell cmd overlay enable com.android.internal.systemui.navbar.gestural || true
 if [ "$NIGHT" = "true" ]; then adb shell cmd uimode night yes || true; else adb shell cmd uimode night no || true; fi
+# Text and display size, as a person with big text set on their phone would have them
+adb shell settings put system font_scale "$FONT_SCALE" || true
+[ -n "$DENSITY" ] && { adb shell wm density "$DENSITY" || true; }
+echo "font_scale=$(adb shell settings get system font_scale | tr -d '\r') density=$(adb shell wm density | tr -d '\r' | tr '\n' ' ')"
 # A slow emulator can show "<app> isn't responding" over every screenshot: hide such dialogs, and close any already up
 adb shell settings put global hide_error_dialogs 1 || true
 adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
@@ -95,6 +103,11 @@ ran_ok logs/capture.log || { echo "::error::StoreScreenshots#capture did not pas
 timeout 120 adb logcat -d -s OwlStoreShots:* TestRunner:* AndroidRuntime:E OwlScene:* chromium:W > logs/capture-logcat.txt 2>&1 || true
 timeout 300 adb pull /sdcard/Android/data/$PKG/files/store-screens/. "$OUT/" || echo "::warning::Could not pull screenshots"
 ls -la "$OUT"
+
+if [ "$FONT_SCALE" != "1.0" ] || [ -n "$DENSITY" ]; then
+  adb shell am broadcast -a com.android.systemui.demo -e command exit >/dev/null 2>&1 || true
+  exit $status
+fi
 
 echo "== Tour, recorded"
 adb shell settings put global window_animation_scale 1
