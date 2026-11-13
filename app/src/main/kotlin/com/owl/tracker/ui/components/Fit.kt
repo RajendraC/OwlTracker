@@ -212,9 +212,11 @@ fun CellGrid(
         }
     }
     BoxWithConstraints(modifier) {
-        val need = maxOf(minCell, widest + cellPadding * 2 + 4.dp)
+        // Names may shrink a little (FitText) to fit their cell, so the widest word needs 85% of its full width
+        val need = maxOf(minCell, widest * 0.85f + cellPadding * 2 + 4.dp)
         val cols = ((maxWidth + gap) / (need + gap)).toInt().coerceIn(1, count.coerceAtLeast(1))
-        val width = (maxWidth - gap * (cols - 1)) / cols
+        // Whole pixels, rounded down, so a full line of cells never comes to a pixel more than the line
+        val width = with(d) { (((maxWidth - gap * (cols - 1)).toPx() / cols).toInt() - 1).coerceAtLeast(0).toDp() }
         androidx.compose.foundation.layout.FlowRow(
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(gap),
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(gap),

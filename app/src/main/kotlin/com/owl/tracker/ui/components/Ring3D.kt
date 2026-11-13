@@ -456,23 +456,24 @@ private fun OwlBubble(say: OwlSay, onOpen: (() -> Unit)?, tailX: androidx.compos
                 .padding(start = 14.dp, end = 10.dp, top = 9.dp, bottom = 10.dp)
                 .testTag("owl_bubble"),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FitText(
-                    say.mood.says, color = say.mood.ink, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold,
-                    minScale = 0.75f, modifier = Modifier.weight(1f, fill = false),
-                )
-                if (onOpen != null) {
-                    Row(
-                        Modifier.padding(start = 8.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpen)
-                            .background(Color(0xFF4B2412).copy(alpha = 0.08f)).padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
-                            .testTag("owl_open"),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("Open", color = Color(0xFF4B2412), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold)
-                        Icon(Ic.chevR, contentDescription = null, tint = Color(0xFF4B2412), modifier = Modifier.size(16.dp))
+            // "Open" beside the mood when there's room, else under it
+            SideOrStacked(
+                Modifier.fillMaxWidth(), gap = 8.dp, stackedGap = 4.dp,
+                start = { Text(say.mood.says, color = say.mood.ink, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold) },
+                end = {
+                    if (onOpen != null) {
+                        Row(
+                            Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpen)
+                                .background(Color(0xFF4B2412).copy(alpha = 0.08f)).padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+                                .testTag("owl_open"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("Open", color = Color(0xFF4B2412), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold)
+                            Icon(Ic.chevR, contentDescription = null, tint = Color(0xFF4B2412), modifier = Modifier.size(16.dp))
+                        }
                     }
-                }
-            }
+                },
+            )
             // With big text the title may take two lines, shrinking a little first
             FitText(say.title, color = Color(0xFF2A1708), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, maxLines = 2, minScale = 0.8f)
             Text(say.line, color = Color(0xFF5A4030), style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
