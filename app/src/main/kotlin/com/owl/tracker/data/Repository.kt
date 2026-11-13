@@ -131,6 +131,16 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
     /** Archives a category; its transactions move to Others and its budget is removed. Returns how many moved. */
     suspend fun archiveCategory(id: String): Int = write { d ->
         val moved = d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to Cat.OTHERS), "category_id = ?", arrayOf<Any?>(id))
+        // Split payments with a part in it: that part moves to Others too (joined with an Others part already there)
+        d.query("SELECT id, parts, category_id FROM transactions WHERE parts LIKE ?", arrayOf<Any?>("%$id=%")).use { c ->
+            buildList { while (c.moveToNext()) add(Triple(c.getLong(0), c.getString(1), c.getString(2))) }
+        }.forEach { (txId, raw, main) ->
+            val merged = Parts.decode(raw).map { if (it.categoryId == id) it.copy(categoryId = Cat.OTHERS) else it }
+                .groupBy { it.categoryId }.map { (cat, l) -> TxnPart(cat, l.sumOf { it.paise }) }
+            val v = contentValuesOf("parts" to Parts.encode(merged))
+            if (merged.size < 2) v.put("category_id", merged.firstOrNull()?.categoryId ?: main)
+            d.update("transactions", CONFLICT_REPLACE, v, "id = ?", arrayOf<Any?>(txId))
+        }
         d.update("rules", CONFLICT_REPLACE, contentValuesOf("category_id" to Cat.OTHERS), "category_id = ?", arrayOf<Any?>(id))
         d.delete("budgets", "category_key = ?", arrayOf<Any?>(id))
         d.update("categories", CONFLICT_REPLACE, contentValuesOf("archived" to 1), "id = ?", arrayOf<Any?>(id))
@@ -214,9 +224,11 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
                 "rules", CONFLICT_REPLACE,
                 contentValuesOf("match_type" to RuleMatch.MERCHANT.name, "pattern" to key, "category_id" to categoryId, "created_at" to clock.millis())
             )
-            d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to categoryId, "needs_review" to 0), "merchant_key = ?", arrayOf<Any?>(key))
+            // This payment, if split, becomes one category; other split payments keep their parts
+            d.update("transactions", CONFLICT_REPLACE, contentValuesOf("parts" to null), "id = ?", arrayOf<Any?>(txId))
+            d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to categoryId, "needs_review" to 0), "merchant_key = ? AND parts IS NULL", arrayOf<Any?>(key))
         } else {
-            d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to categoryId, "needs_review" to 0), "id = ?", arrayOf<Any?>(txId))
+            d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to categoryId, "needs_review" to 0, "parts" to null), "id = ?", arrayOf<Any?>(txId))
         }
     }
 
@@ -406,7 +418,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
 
     /** Turns a payment into money in, with [categoryId] when the user hadn't picked one. */
     suspend fun setMoneyIn(txId: Long, categoryId: String?): Unit = write { d ->
-        val v = contentValuesOf("direction" to Direction.CREDIT.name)
+        val v = contentValuesOf("direction" to Direction.CREDIT.name, "parts" to null)
         if (categoryId != null) v.put("category_id", categoryId)
         d.update("transactions", CONFLICT_REPLACE, v, "id = ?", arrayOf<Any?>(txId))
         Unit
@@ -468,6 +480,82 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
     }
 
     fun observeRuleCount(): Flow<Int> = observe { d -> d.query("SELECT COUNT(*) FROM rules").use { c -> c.moveToFirst(); c.getInt(0) } }
+
+    /** Every rule, newest first, with the name to show and how many payments it covers. */
+    fun observeRules(): Flow<List<RuleInfo>> = observe { d ->
+        val rows = d.query("SELECT id, match_type, pattern, category_id, created_at FROM rules ORDER BY created_at DESC, id DESC").use { c ->
+            buildList { while (c.moveToNext()) add(StoredRule(c.getLong(0), c.getString(1), c.getString(2), c.getString(3)) to c.getLong(4)) }
+        }
+        rows.mapNotNull { (r, created) ->
+            val match = runCatching { RuleMatch.valueOf(r.matchType) }.getOrNull() ?: return@mapNotNull null
+            val (where, args) = ruleWhere(match, r.pattern)
+            val count = d.query("SELECT COUNT(*) FROM transactions WHERE $where", args).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+            val name = when (match) {
+                RuleMatch.MERCHANT -> d.query("SELECT name FROM merchants WHERE merchant_key = ? AND name IS NOT NULL", arrayOf<Any?>(r.pattern)).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                    ?: d.query("SELECT merchant_name FROM transactions WHERE merchant_key = ? ORDER BY occurred_at DESC LIMIT 1", arrayOf<Any?>(r.pattern)).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                    ?: MerchantRegistry.all.firstOrNull { it.key == r.pattern }?.name ?: r.pattern
+                RuleMatch.VPA -> r.pattern
+                RuleMatch.KEYWORD -> "“${r.pattern}”"
+            }
+            RuleInfo(r.id, match, r.pattern, r.categoryId, created, name, count)
+        }
+    }
+
+    private fun ruleWhere(match: RuleMatch, pattern: String): Pair<String, Array<Any?>> = when (match) {
+        RuleMatch.MERCHANT -> "merchant_key = ?" to arrayOf<Any?>(pattern)
+        RuleMatch.VPA -> "LOWER(vpa) = LOWER(?)" to arrayOf<Any?>(pattern)
+        RuleMatch.KEYWORD -> "(merchant_name LIKE ? OR vpa LIKE ?)" to arrayOf<Any?>("%$pattern%", "%$pattern%")
+    }
+
+    /** The payments a rule covers that are still in its category and not split: the ones deleting it could put back. */
+    suspend fun ruleCovered(rule: RuleInfo): List<Txn> = read { d ->
+        val (where, args) = ruleWhere(rule.match, rule.pattern)
+        d.query("SELECT $TX_COLS FROM transactions WHERE $where AND category_id = ? AND parts IS NULL", arrayOf<Any?>(*args, rule.categoryId)).use { c -> c.toTxns() }
+    }
+
+    /**
+     * Deletes a rule, and moves payments to new categories ([moves]: id to category) in the same write.
+     * Returns what was there before, for undo.
+     */
+    suspend fun deleteRule(rule: RuleInfo, moves: Map<Long, String>): Map<Long, String> = write { d ->
+        val before = HashMap<Long, String>()
+        moves.forEach { (id, cat) ->
+            d.query("SELECT category_id FROM transactions WHERE id = ? AND parts IS NULL", arrayOf<Any?>(id)).use { c -> if (c.moveToFirst()) before[id] = c.getString(0) }
+            if (before.containsKey(id)) d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to cat), "id = ?", arrayOf<Any?>(id))
+        }
+        d.delete("rules", "id = ?", arrayOf<Any?>(rule.id))
+        before
+    }
+
+    /** Undo for [deleteRule]: the rule as it was, and the payments back in their categories. */
+    suspend fun restoreRule(rule: RuleInfo, before: Map<Long, String>) = write { d ->
+        d.insert(
+            "rules", CONFLICT_REPLACE,
+            contentValuesOf("match_type" to rule.match.name, "pattern" to rule.pattern, "category_id" to rule.categoryId, "created_at" to rule.createdAt),
+        )
+        before.forEach { (id, cat) -> d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to cat), "id = ? AND parts IS NULL", arrayOf<Any?>(id)) }
+    }
+
+    /**
+     * Splits a payment across categories ([parts] adding up to its amount), or joins it back into one category
+     * (empty [parts]; [joinTo] picks the category, else the biggest part's). The payment's own category becomes
+     * the biggest part's, so lists that show one category show that one.
+     */
+    suspend fun setParts(txId: Long, parts: List<TxnPart>, joinTo: String? = null): Boolean = write { d ->
+        val t = d.query("SELECT $TX_COLS FROM transactions WHERE id = ?", arrayOf<Any?>(txId)).use { c -> c.toTxns().firstOrNull() } ?: return@write false
+        if (parts.isEmpty()) {
+            val cat = joinTo ?: t.parts.maxByOrNull { it.paise }?.categoryId ?: t.categoryId
+            d.update("transactions", CONFLICT_REPLACE, contentValuesOf("parts" to null, "category_id" to cat), "id = ?", arrayOf<Any?>(txId))
+            return@write true
+        }
+        if (t.isMoneyIn || !Parts.valid(parts, t.amountPaise)) return@write false
+        d.update(
+            "transactions", CONFLICT_REPLACE,
+            contentValuesOf("parts" to Parts.encode(parts), "category_id" to parts.maxBy { it.paise }.categoryId, "needs_review" to 0),
+            "id = ?", arrayOf<Any?>(txId),
+        )
+        true
+    }
 
     // ---------------- backup and restore ----------------
 
@@ -575,7 +663,9 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
                 skipped++
                 return@forEach
             }
-            val row = if (t.categoryId in ids) t else t.copy(categoryId = Cat.OTHERS)
+            // A split whose categories aren't all here is restored as one payment in its own category
+            val row = (if (t.categoryId in ids) t else t.copy(categoryId = Cat.OTHERS))
+                .let { r -> if (r.parts.all { it.categoryId in ids }) r else r.copy(parts = emptyList()) }
             if (d.insert("transactions", CONFLICT_IGNORE, row.toValues()) != -1L) added++
         }
 
@@ -599,7 +689,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         const val MAX_NAME = 60
 
         private const val TX_COLS = "id, amount_paise, direction, occurred_at, merchant_name, merchant_key, merchant_package, vpa, category_id, " +
-            "account_label, sender_group, sender, ref_no, source, sms_id, needs_review, excluded, note, kind, sms_body"
+            "account_label, sender_group, sender, ref_no, source, sms_id, needs_review, excluded, note, kind, sms_body, parts"
 
         private fun Cursor.str(i: Int): String? = if (isNull(i)) null else getString(i)
 
@@ -614,6 +704,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
                     source = runCatching { Source.valueOf(getString(13)) }.getOrDefault(Source.SMS),
                     smsId = if (isNull(14)) null else getLong(14), needsReview = getInt(15) == 1, excluded = getInt(16) == 1,
                     note = str(17), kind = runCatching { TxKind.valueOf(getString(18)) }.getOrDefault(TxKind.NORMAL), smsBody = str(19),
+                    parts = Parts.decode(str(20)),
                 )
             )
         }
@@ -624,12 +715,12 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             "vpa" to vpa, "category_id" to categoryId, "account_label" to accountLabel, "sender_group" to senderGroup,
             "sender" to sender, "ref_no" to refNo, "source" to source.name, "sms_id" to smsId,
             "needs_review" to if (needsReview) 1 else 0, "excluded" to if (excluded) 1 else 0, "note" to note,
-            "kind" to kind.name, "sms_body" to smsBody,
+            "kind" to kind.name, "sms_body" to smsBody, "parts" to Parts.encode(parts),
         )
 
         fun Txn.toNew() = NewTxn(
             amountPaise, direction, occurredAt, merchantName, merchantKey, merchantPackage, vpa, categoryId, accountLabel,
-            senderGroup, sender, refNo, source, smsId, needsReview, note, kind, smsBody, excluded,
+            senderGroup, sender, refNo, source, smsId, needsReview, note, kind, smsBody, excluded, parts,
         )
     }
 }

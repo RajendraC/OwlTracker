@@ -273,6 +273,20 @@ object MerchantRegistry {
             ?: "unknown"
 }
 
+/**
+ * Merchants whose payments can be for anything: stores that sell everything, and payment gateways whose name stands
+ * in for whichever shop was paid. Their SMS ("WWW AMAZON IN", "PAYU") never says what was bought, so changing one
+ * payment's category doesn't make a rule for all of them unless the user turns it on.
+ */
+object MixedStores {
+    val keys: Set<String> = setOf(
+        "amazon", "flipkart", "shopsy", "jiomart", "tataneu", "dmart", "meesho", "snapdeal",
+        "paytm", "payu", "razorpay", "billdesk", "ccavenue", "cashfree",
+    )
+
+    fun isMixed(merchantKey: String): Boolean = merchantKey.lowercase() in keys
+}
+
 /** Every Android app whose icon Owl Tracker may show: recognised merchants, banks, cards and wallets. */
 object KnownApps {
     val packageNames: List<String> = (MerchantRegistry.packageNames + Institutions.packageNames).distinct()

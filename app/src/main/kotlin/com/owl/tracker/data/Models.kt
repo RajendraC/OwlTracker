@@ -62,8 +62,21 @@ data class Txn(
     val note: String?,
     val kind: TxKind,
     val smsBody: String?,
+    /** Split across categories: two or more parts adding up to [amountPaise]. Empty when it isn't split. */
+    val parts: List<TxnPart> = emptyList(),
+    /** One part of a split payment, made by [portions]: same id, the part's category and amount. */
+    val isPortion: Boolean = false,
 ) {
     val isMoneyIn: Boolean get() = direction == Direction.CREDIT
+
+    val isSplit: Boolean get() = parts.size >= 2
+
+    /**
+     * What every total counts: the payment itself, or for a split payment each part as if it were a payment of its
+     * own (same id, the part's category and amount). Lists show the payment once; totals add up its portions.
+     */
+    fun portions(): List<Txn> =
+        if (isPortion || parts.size < 2) listOf(this) else parts.map { copy(categoryId = it.categoryId, amountPaise = it.paise, isPortion = true) }
 
     /**
      * Counts toward spending and budgets: money out, in an expense category, not left out by the user.
@@ -97,7 +110,29 @@ data class NewTxn(
     val kind: TxKind = TxKind.NORMAL,
     val smsBody: String? = null,
     val excluded: Boolean = false,
+    val parts: List<TxnPart> = emptyList(),
 )
+
+/** One part of a payment split across categories. */
+data class TxnPart(val categoryId: String, val paise: Long)
+
+/** How a split is kept in the transactions table: "shopping=1299900|groceries=153709". */
+object Parts {
+    fun encode(parts: List<TxnPart>): String? = if (parts.size < 2) null else parts.joinToString("|") { "${it.categoryId}=${it.paise}" }
+
+    fun decode(s: String?): List<TxnPart> {
+        if (s.isNullOrBlank()) return emptyList()
+        val parts = s.split('|').mapNotNull { p ->
+            val i = p.lastIndexOf('=')
+            if (i <= 0) null else p.substring(i + 1).toLongOrNull()?.takeIf { it > 0 }?.let { TxnPart(p.substring(0, i), it) }
+        }
+        return if (parts.size >= 2) parts else emptyList()
+    }
+
+    /** A split is kept only if it has two or more parts in different categories, each above zero, adding up exactly. */
+    fun valid(parts: List<TxnPart>, total: Long): Boolean =
+        parts.size >= 2 && parts.all { it.paise > 0 } && parts.map { it.categoryId }.toSet().size == parts.size && parts.sumOf { it.paise } == total
+}
 
 /**
  * A merchant the user renamed or chose an icon for, by merchant key. [name] null keeps the name from the
@@ -106,6 +141,17 @@ data class NewTxn(
 data class MerchantOverride(val key: String, val name: String?, val logo: String?)
 
 data class StoredRule(val id: Long, val matchType: String, val pattern: String, val categoryId: String)
+
+/** A rule as the Rules screen shows it: who it's for, where it puts them, when it was made and how many payments it covers. */
+data class RuleInfo(
+    val id: Long,
+    val match: com.owl.tracker.core.RuleMatch,
+    val pattern: String,
+    val categoryId: String,
+    val createdAt: Long,
+    val name: String,
+    val payments: Int,
+)
 
 /** Everything that is not a transaction. Lives inside the encrypted database, not in plain preferences. */
 data class AppSettings(

@@ -237,4 +237,29 @@ class ReportBuilderTest {
         assertEquals("7E", com.owl.tracker.ui.components.initials("7-Eleven"))
         assertEquals("?", com.owl.tracker.ui.components.initials("  "))
     }
+
+    @Test
+    fun aSplitPaymentCountsInEachOfItsCategoriesButShowsOnce() {
+        // The ₹2,000 Amazon order of 10 Oct, split: ₹1,500 Shopping and ₹500 Groceries
+        val split = txns.map {
+            if (it.merchantName == "Amazon" && it.amountPaise == 200_000L) it.copy(
+                parts = listOf(com.owl.tracker.data.TxnPart(Cat.SHOPPING, 150_000), com.owl.tracker.data.TxnPart(Cat.GROCERIES, 50_000)),
+            ) else it
+        }
+        val periods = listOf(period(0))
+        val r = ReportBuilder.build(split, cats, periods, listOf(period(1)), 0L, ReportRange.ONE, ReportFilter(), today, zone)
+        assertEquals("The total doesn't change", build().spent, r.spent)
+        assertEquals(150_000L, r.categories.first { it.category.id == Cat.SHOPPING }.paise)
+        assertEquals(50_000L, r.categories.first { it.category.id == Cat.GROCERIES }.paise)
+        // One payment to Amazon, not two
+        assertEquals(1, r.merchants.first { it.key == "amazon" }.count)
+        assertEquals(1, r.matches.count { it.merchantName == "Amazon" })
+        assertEquals("The biggest payments list shows it whole", 200_000L, r.matches.first { it.merchantName == "Amazon" }.amountPaise)
+
+        // Groceries picked: the payment shows as its ₹500 part
+        val g = ReportBuilder.build(split, cats, periods, listOf(period(1)), 0L, ReportRange.ONE, ReportFilter(categoryId = Cat.GROCERIES), today, zone)
+        assertEquals(50_000L, g.spent)
+        assertEquals(listOf(50_000L), g.matches.map { it.amountPaise })
+        assertEquals(1, g.payments)
+    }
 }

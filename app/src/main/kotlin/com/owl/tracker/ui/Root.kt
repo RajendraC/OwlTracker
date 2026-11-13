@@ -143,6 +143,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
                 Screen.DB_ERROR -> DbErrorScreen(vm)
                 Screen.UNLOCK -> UnlockScreen(vm, platform)
                 Screen.BACKUP -> BackupScreen(vm, platform)
+                Screen.RULES -> RulesScreen(vm)
             }
         }
         SheetHost(vm)

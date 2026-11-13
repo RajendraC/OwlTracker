@@ -81,6 +81,9 @@ object BackupCodec {
     private val ICON_KEY = Regex("[a-z_]{1,24}")
     private val ID_KEY = Regex("[A-Za-z0-9_\\-]{1,64}")
 
+    /** Most parts one payment can be split into. */
+    const val MAX_PARTS = 6
+
     // ---------------- building ----------------
 
     /** Turns what's stored into a backup, leaving out everything SMS-specific. */
@@ -94,7 +97,7 @@ object BackupCodec {
                 merchantPackage = t.merchantPackage?.takeIf(icon),
                 vpa = null, categoryId = t.categoryId, accountLabel = null, senderGroup = null, sender = null, refNo = null,
                 source = if (t.source == Source.MANUAL) Source.MANUAL else Source.BACKUP, smsId = null,
-                needsReview = t.needsReview, note = t.note, kind = t.kind, smsBody = null, excluded = t.excluded,
+                needsReview = t.needsReview, note = t.note, kind = t.kind, smsBody = null, excluded = t.excluded, parts = t.parts,
             )
         }
         val rules = s.rules.mapNotNull { r ->
@@ -187,6 +190,8 @@ object BackupCodec {
                         .put("origin", if (t.source == Source.MANUAL) "manual" else "sms")
                     t.merchantPackage?.let { o.put("app", it) }
                     t.note?.let { o.put("note", it) }
+                    // A split payment: its parts, each a category and an amount
+                    if (t.parts.size >= 2) o.put("parts", JSONArray().apply { t.parts.forEach { p -> put(JSONObject().put("category", p.categoryId).put("paise", p.paise)) } })
                     put(o)
                 }
             })
@@ -350,6 +355,13 @@ object BackupCodec {
                 kind = runCatching { TxKind.valueOf(o.optString("kind")) }.getOrDefault(TxKind.NORMAL),
                 smsBody = null,
                 excluded = o.optBoolean("excluded", false),
+                parts = o.optJSONArray("parts")?.let { a ->
+                    (0 until minOf(a.length(), MAX_PARTS)).mapNotNull { j ->
+                        val po = a.optJSONObject(j) ?: return@mapNotNull null
+                        val cat = po.optString("category").takeIf { ID_KEY.matches(it) } ?: return@mapNotNull null
+                        com.owl.tracker.data.TxnPart(cat, po.optLong("paise", 0L))
+                    }.takeIf { com.owl.tracker.data.Parts.valid(it, amount) && direction == Direction.DEBIT }
+                }.orEmpty(),
             )
         }
 

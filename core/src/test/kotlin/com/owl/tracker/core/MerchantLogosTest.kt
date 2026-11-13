@@ -1,6 +1,7 @@
 package com.owl.tracker.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -259,5 +260,20 @@ class MerchantLogosTest {
         assertEquals(KnownApps.packageNames.size, KnownApps.packageNames.toSet().size)
         assertTrue(KnownApps.packageNames.containsAll(MerchantRegistry.packageNames + Institutions.packageNames))
         assertEquals("keys are unique", MerchantRegistry.all.size, MerchantRegistry.all.map { it.key }.toSet().size)
+    }
+
+    @Test
+    fun storesThatSellEverythingAreKnownByTheirKey() {
+        // The tester's SMS: "Spent Rs.14536.09 On HDFC Bank Card 3643 At WWW AMAZON IN"
+        val amazon = MerchantRegistry.match("WWW AMAZON IN", null)
+        assertEquals("amazon", amazon?.key)
+        assertTrue(MixedStores.isMixed(MerchantRegistry.keyFor(amazon, "WWW AMAZON IN", null)))
+        assertTrue(MixedStores.isMixed(MerchantRegistry.keyFor(MerchantRegistry.match("FLIPKART INTERNET", null), "FLIPKART INTERNET", null)))
+        // A payment gateway's name stands in for any shop
+        assertTrue(MixedStores.isMixed(MerchantRegistry.keyFor(MerchantRegistry.match("Payu", null), "Payu", null)))
+        // Single-kind shops still make a rule for all their payments by default
+        assertFalse(MixedStores.isMixed(MerchantRegistry.keyFor(MerchantRegistry.match("SWIGGY", null), "SWIGGY", null)))
+        assertFalse(MixedStores.isMixed(MerchantRegistry.keyFor(MerchantRegistry.match("Amazon Music", null), "Amazon Music", null)))
+        assertFalse(MixedStores.isMixed(MerchantRegistry.keyFor(MerchantRegistry.match("BLINKIT", null), "BLINKIT", null)))
     }
 }

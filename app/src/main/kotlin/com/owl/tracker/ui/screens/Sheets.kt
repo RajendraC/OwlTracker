@@ -97,6 +97,7 @@ fun SheetHost(vm: AppViewModel) {
             when (current) {
                 is Sheet.TxnDetail -> TxnDetailSheet(vm, current.id)
                 is Sheet.CategoryPick -> CategoryPickSheet(vm, current.txId)
+                is Sheet.Split -> SplitSheet(vm, current.txId)
                 is Sheet.Rename -> RenameSheet(vm, current.txId)
                 is Sheet.MerchantIcon -> MerchantIconSheet(vm, current.txId)
                 is Sheet.BudgetEdit -> BudgetEditSheet(vm, current.key)
@@ -135,7 +136,10 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cat, 52.dp)
         Column(Modifier.weight(1f)) {
             Text(tx.merchantName, style = MaterialTheme.typography.titleLarge)
-            Text(cat?.name ?: "Others", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                if (tx.isSplit) "Split: " + tx.parts.joinToString(" + ") { vm.categoryName(it.categoryId) } else cat?.name ?: "Others",
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         androidx.compose.material3.IconButton(
             onClick = { vm.openSheet(Sheet.Rename(tx.id)) },
@@ -180,14 +184,45 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         DetailRow("Date", vm.dateOf(tx.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.ENGLISH)) + ", " +
             java.time.Instant.ofEpochMilli(tx.occurredAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)))
         Divider()
-        Row(
-            Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.CategoryPick(tx.id)) }.padding(vertical = 10.dp).testTag("change_category"),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text("Category", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            CategoryTile(cat, 28.dp)
-            Text(cat?.name ?: "Others", style = MaterialTheme.typography.titleSmall)
-            Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+        if (tx.isSplit) {
+            Column(
+                Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.Split(tx.id)) }.padding(vertical = 10.dp).testTag("split_parts"),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Split", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                }
+                tx.parts.forEach { p ->
+                    val pc = cats.firstOrNull { it.id == p.categoryId }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        CategoryTile(pc, 28.dp)
+                        Text(pc?.name ?: "Others", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        Text(Money.formatInr(p.paise, showPaise = p.paise % 100 != 0L), style = MaterialTheme.typography.titleSmall)
+                    }
+                }
+            }
+        } else {
+            Row(
+                Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.CategoryPick(tx.id)) }.padding(vertical = 10.dp).testTag("change_category"),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Category", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                CategoryTile(cat, 28.dp)
+                Text(cat?.name ?: "Others", style = MaterialTheme.typography.titleSmall)
+                Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+        if (!credit) {
+            Divider()
+            // One order, more than one kind of thing: split it across categories
+            Row(
+                Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.Split(tx.id)) }.padding(vertical = 10.dp).testTag("split_open"),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(if (tx.isSplit) "Split across ${tx.parts.size} categories" else "Split across categories", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                Text(if (tx.isSplit) "Change split" else "Split", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+            }
         }
         Divider()
         Row(
@@ -282,13 +317,39 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
     val txFlow = remember(txId) { vm.txnFlow(txId) }
     val t by txFlow.collectAsStateWithLifecycle(initialValue = null)
     val cats by vm.categories.collectAsStateWithLifecycle()
-    var rememberRule by rememberSaveable { mutableStateOf(true) }
+    val countFlow = remember(txId) { vm.sameMerchantCount(txId) }
+    val count by countFlow.collectAsStateWithLifecycle(initialValue = 1)
+    var chosen by rememberSaveable(txId) { mutableStateOf<Boolean?>(null) }
     val tx = t ?: return
+    // Stores that sell everything ("WWW AMAZON IN" says nothing about what was bought): one payment at a time unless asked
+    val mixed = com.owl.tracker.core.MixedStores.isMixed(tx.merchantKey)
+    val rememberRule = chosen ?: !mixed
     Row(verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
         SheetTitle("Choose category")
     }
-    SwitchRow("Always use for ${tx.merchantName}", "Creates a rule for past and future payments", rememberRule, { rememberRule = it })
+    if (tx.isSplit) {
+        InfoNote("This payment is split across ${tx.parts.size} categories. Picking one category joins it back together.", icon = Ic.info)
+    }
+    if (mixed) {
+        Box(Modifier.testTag("mixed_store_note")) {
+            InfoNote(
+                "${tx.merchantName} sells all kinds of things, and its SMS doesn't say what was bought. A change here moves this payment only.",
+                icon = Ic.info, container = MaterialTheme.colorScheme.primaryContainer, content = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+    val others = (count - 1).coerceAtLeast(0)
+    SwitchRow(
+        if (mixed) "Use for every ${tx.merchantName} payment" else "Always use for ${tx.merchantName}",
+        when {
+            !rememberRule -> "Off: only this payment changes"
+            others > 0 -> "This and $others other ${tx.merchantName} ${if (others == 1) "payment" else "payments"}, and every new one"
+            else -> "This payment and every new one from ${tx.merchantName}"
+        },
+        rememberRule, { chosen = it },
+        modifier = Modifier.testTag("remember_rule"),
+    )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Money in can go to Income (listed first); money out never can.
         val credit = tx.direction == com.owl.tracker.core.Direction.CREDIT
@@ -307,6 +368,138 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
             }
         }
     }
+}
+
+/**
+ * Splits one payment across categories: the first part takes whatever the others leave, so the parts always add up
+ * to the payment. Each part counts in its own category in budgets, "Where it went" and Reports.
+ */
+@Composable
+private fun SplitSheet(vm: AppViewModel, txId: Long) {
+    val txFlow = remember(txId) { vm.txnFlow(txId) }
+    val t by txFlow.collectAsStateWithLifecycle(initialValue = null)
+    val cats by vm.categories.collectAsStateWithLifecycle()
+    val tx = t ?: return
+    val choices = cats.filter { !it.archived && it.countsAsSpend }
+    // Rows: category id and the amount typed (the first row's amount is the rest, worked out)
+    val initial = remember(tx.id) {
+        if (tx.isSplit) tx.parts.mapIndexed { i, p -> p.categoryId to if (i == 0) "" else rupees(p.paise) }
+        else listOf(tx.categoryId to "", (choices.firstOrNull { it.id != tx.categoryId && it.id == Cat.GROCERIES } ?: choices.first { it.id != tx.categoryId }).id to "")
+    }
+    var rows by rememberSaveable(tx.id) { mutableStateOf(initial.joinToString("\u0002") { "${it.first}\u0001${it.second}" }) }
+    val list = rows.split('\u0002').map { it.split('\u0001').let { p -> p[0] to p.getOrElse(1) { "" } } }
+    fun save(next: List<Pair<String, String>>) { rows = next.joinToString("\u0002") { "${it.first}\u0001${it.second}" } }
+    val amounts = list.drop(1).map { paiseOf(it.second) }
+    val rest = tx.amountPaise - amounts.sumOf { it ?: 0L }
+    val parts = listOf(com.owl.tracker.data.TxnPart(list[0].first, rest)) + list.drop(1).mapIndexed { i, r -> com.owl.tracker.data.TxnPart(r.first, amounts[i] ?: 0L) }
+    val ok = amounts.all { (it ?: 0L) > 0 } && rest > 0 && com.owl.tracker.data.Parts.valid(parts, tx.amountPaise)
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
+        SheetTitle("Split this payment", "One order, more than one kind of thing")
+    }
+    Panel(padding = 12.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cats.firstOrNull { it.id == tx.categoryId }, 40.dp)
+            Column(Modifier.weight(1f)) {
+                Text(tx.merchantName, style = MaterialTheme.typography.titleSmall)
+                Text(vm.dateOf(tx.occurredAt).format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(Money.formatInr(tx.amountPaise, showPaise = tx.amountPaise % 100 != 0L), style = MaterialTheme.typography.titleMedium)
+        }
+    }
+    list.forEachIndexed { i, (catId, text) ->
+        val used = list.map { it.first }.toSet() - catId
+        Panel(padding = 10.dp) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                var open by remember { mutableStateOf(false) }
+                Box(Modifier.weight(1f)) {
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(14.dp)).clickable { open = true }.testTag("split_cat_$i"),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CategoryTile(cats.firstOrNull { it.id == catId }, 32.dp)
+                        Column {
+                            Text(vm.categoryName(catId), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(if (i == 0) "Gets the rest" else "Tap to change", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                        choices.filter { it.id !in used }.forEach { c ->
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(c.name) }, leadingIcon = { CategoryTile(c, 24.dp) },
+                                onClick = { open = false; save(list.mapIndexed { j, r -> if (j == i) c.id to r.second else r }) },
+                                modifier = Modifier.testTag("split_pick_${c.id}"),
+                            )
+                        }
+                    }
+                }
+                if (i == 0) {
+                    Text(
+                        if (rest > 0) Money.formatInr(rest, showPaise = rest % 100 != 0L) else "₹0",
+                        style = MaterialTheme.typography.titleMedium, color = if (rest > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(end = 8.dp).testTag("split_rest"),
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = text, onValueChange = { v -> save(list.mapIndexed { j, r -> if (j == i) r.first to v.filter { it.isDigit() || it == '.' }.take(10) else r }) },
+                        prefix = { Text("₹") }, singleLine = true, placeholder = { Text("0") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.width(132.dp).testTag("split_amount_$i"),
+                    )
+                    if (list.size > 2) {
+                        androidx.compose.material3.IconButton(onClick = { save(list.filterIndexed { j, _ -> j != i }) }) {
+                            Icon(Ic.close, contentDescription = "Remove this part")
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            when {
+                amounts.any { it == null || it <= 0 } -> "Type an amount for each part"
+                rest <= 0 -> "The parts come to more than ${Money.formatInr(tx.amountPaise, showPaise = tx.amountPaise % 100 != 0L)}"
+                !ok -> "Use a different category for each part"
+                else -> "Adds up to ${Money.formatInr(tx.amountPaise, showPaise = tx.amountPaise % 100 != 0L)}"
+            },
+            style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).testTag("split_check"),
+            color = if (ok) LocalStatusColors.current.okFg else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (list.size < com.owl.tracker.backup.BackupCodec.MAX_PARTS && choices.any { c -> list.none { it.first == c.id } }) {
+            TextButton(
+                onClick = { save(list + ((choices.first { c -> list.none { it.first == c.id } }).id to "")) },
+                modifier = Modifier.testTag("split_add"),
+            ) { Text("+ Add a part") }
+        }
+    }
+    Button(
+        onClick = { vm.saveSplit(txId, parts) }, enabled = ok,
+        modifier = Modifier.fillMaxWidth().height(52.dp).testTag("split_save"),
+    ) { Text("Save the split") }
+    if (tx.isSplit) {
+        OutlinedButton(onClick = { vm.joinSplit(txId) }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("split_join")) {
+            Text("Join back into one category")
+        }
+    }
+    Text(
+        "Each part counts in its own category in budgets, “Where it went” and Reports. The payment itself stays as one.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/** "1537.09" for 153709 paise, "1537" for 153700. */
+private fun rupees(paise: Long): String = if (paise % 100 == 0L) (paise / 100).toString() else "%d.%02d".format(paise / 100, paise % 100)
+
+/** Paise from what was typed: "1537.09", "1537.9", "1,537"; null when it isn't an amount. */
+private fun paiseOf(text: String): Long? {
+    val t = text.replace(",", "").trim()
+    if (t.isEmpty()) return null
+    val m = Regex("""^(\d{1,9})(?:\.(\d{0,2}))?$""").matchEntire(t) ?: return null
+    val whole = m.groupValues[1].toLong()
+    val frac = m.groupValues[2].padEnd(2, '0').ifEmpty { "00" }.toLong()
+    return whole * 100 + frac
 }
 
 @Composable

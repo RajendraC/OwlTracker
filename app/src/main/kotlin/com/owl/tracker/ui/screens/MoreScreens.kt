@@ -24,6 +24,8 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -86,6 +88,11 @@ fun MoreScreen(vm: AppViewModel) {
         Panel(padding = 8.dp) {
             NavRow(Ic.tag, "Categories", "${cats.count { !it.archived }} categories · add, edit, archive") { vm.go(Screen.CATEGORIES) }
             Divider()
+            val ruleCount by vm.ruleCount.collectAsStateWithLifecycle()
+            Box(Modifier.testTag("open_rules")) {
+                NavRow(Ic.sliders, "Rules", if (ruleCount == 0) "None yet · which category a merchant's payments go to" else "$ruleCount · see and delete them") { vm.go(Screen.RULES) }
+            }
+            Divider()
             NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more") { vm.go(Screen.INSIGHTS) }
             Divider()
             NavRow(Ic.share, "Backup & restore", "Save to a file or move to another phone") { vm.openBackup() }
@@ -103,6 +110,108 @@ fun MoreScreen(vm: AppViewModel) {
         )
         // Room for the raised Add button
         Gap(36.dp)
+    }
+}
+
+/**
+ * Every rule, newest first: who it's for, where it puts their payments, how many it covers and when it was made.
+ * A rule for a store that sells everything is flagged. Deleting one can put its payments back where they'd usually go.
+ */
+@Composable
+fun RulesScreen(vm: AppViewModel) {
+    val rules by vm.rules.collectAsStateWithLifecycle()
+    val cats by vm.categories.collectAsStateWithLifecycle()
+    val sc = LocalStatusColors.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var plan by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<AppViewModel.RuleDeletePlan?>(null) }
+    var putBack by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+    val made = DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
+    LazyColumn(
+        Modifier.fillMaxSize().testTag("rules_list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item { ScreenHeader("Rules", onBack = { vm.back() }) }
+        item {
+            Text(
+                "When a payment comes in, these decide its category. You make one with “Use for every …” when you change a payment's category.",
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp),
+            )
+        }
+        if (rules.isEmpty()) item {
+            Panel { Text("No rules yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("rules_empty")) }
+        }
+        rules.forEach { r ->
+            item(key = "rule_${r.id}") {
+                val cat = cats.firstOrNull { it.id == r.categoryId }
+                val mixed = r.match == com.owl.tracker.core.RuleMatch.MERCHANT && com.owl.tracker.core.MixedStores.isMixed(r.pattern)
+                Panel(modifier = Modifier.testTag("rule_${r.pattern}")) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        CategoryTile(cat)
+                        Column(Modifier.weight(1f)) {
+                            Text("${r.name} → ${cat?.name ?: "Others"}", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                listOfNotNull(
+                                    when (r.match) {
+                                        com.owl.tracker.core.RuleMatch.MERCHANT -> null
+                                        com.owl.tracker.core.RuleMatch.VPA -> "UPI ID"
+                                        com.owl.tracker.core.RuleMatch.KEYWORD -> "Names containing it"
+                                    },
+                                    "${r.payments} ${if (r.payments == 1) "payment" else "payments"}",
+                                    "made " + java.time.Instant.ofEpochMilli(r.createdAt).atZone(java.time.ZoneId.systemDefault()).format(made),
+                                ).joinToString(" · "),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (mixed) {
+                        Gap(8.dp)
+                        InfoNote(
+                            "${r.name} sells many kinds of things; this rule puts all of it in ${cat?.name ?: "one category"}.",
+                            icon = Ic.info, container = sc.warnBg, content = sc.warnFg,
+                        )
+                    }
+                    Gap(8.dp)
+                    OutlinedButton(
+                        onClick = { scope.launch { putBack = true; plan = vm.planRuleDelete(r) } },
+                        modifier = Modifier.fillMaxWidth().height(48.dp).testTag("rule_delete_${r.pattern}"),
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) {
+                        Icon(Ic.trash, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                        Text("Delete rule")
+                    }
+                }
+            }
+        }
+    }
+    plan?.let { p ->
+        val catName = vm.categoryName(p.rule.categoryId)
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { plan = null },
+            modifier = Modifier.testTag("rule_delete_dialog"),
+            title = { Text("Delete “${p.rule.name} → $catName”?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("New ${p.rule.name} payments will get their usual category again.")
+                    if (p.moves.isNotEmpty()) {
+                        val n = p.moves.size
+                        Box(Modifier.testTag("rule_put_back")) {
+                            SwitchRow(
+                                "Put $n ${if (n == 1) "payment" else "payments"} back in ${p.mainCategory ?: "their usual category"}",
+                                if (putBack) "You can still move any one of them, like a real grocery order" else "Off: they stay in $catName",
+                                putBack, { putBack = it },
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { vm.deleteRule(p, putBack); plan = null },
+                    modifier = Modifier.testTag("rule_delete_confirm"),
+                ) { Text("Delete rule", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { plan = null }) { Text("Keep it") } },
+        )
     }
 }
 

@@ -196,7 +196,8 @@ fun HomeScreen(vm: AppViewModel) {
         if (category != null) { openCat = category; openMerchant = null }
         scope.launch { listState.animateScrollToItem(whereIndex, -(topInset + with(density) { 8.dp.roundToPx() })) }
     }
-    val spending = remember(txns, catMap) { txns.filter { vm.counts(it, catMap) } }
+    // A split payment counts as its parts, each in its own category
+    val spending = remember(txns, catMap) { txns.flatMap { it.portions() }.filter { vm.counts(it, catMap) } }
     // Each category's merchants and their totals, biggest first
     val merchantsOf = remember(spending) {
         spending.groupBy { it.categoryId }.mapValues { (_, list) ->
@@ -207,7 +208,7 @@ fun HomeScreen(vm: AppViewModel) {
     }
     val ringMerchants = openCat?.let { merchantsOf[it] }.orEmpty()
     val ringPayments = if (openCat == null || openMerchant == null) emptyList() else
-        txns.filter { it.categoryId == openCat && it.merchantKey == openMerchant }.sortedByDescending { it.occurredAt }
+        txns.flatMap { it.portions() }.filter { it.categoryId == openCat && it.merchantKey == openMerchant }.sortedByDescending { it.occurredAt }
     val budgetOf = dash.categoryRows.associateBy { it.category.id }
     // "Where it went" for a week or a day: worked out from its own payments
     val scopeCategories = remember(txns, catMap, wholeMonth, dash) {
@@ -1081,8 +1082,14 @@ fun TxnRow(vm: AppViewModel, t: Txn, category: Category?, showDay: Boolean) {
                 Text(t.merchantName, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (t.needsReview) UnsureBadge()
             }
+            // A split payment names its parts; one part of it (in a category's list) says what it's part of
+            val what = when {
+                t.isSplit && t.isPortion -> "${category?.name ?: "Others"} · part of ${Money.formatInr(t.parts.sumOf { it.paise })}"
+                t.isSplit -> "Split: " + t.parts.joinToString(" + ") { vm.categoryName(it.categoryId) }
+                else -> category?.name ?: "Others"
+            }
             Text(
-                "${category?.name ?: "Others"} · $whenText" + when {
+                "$what · $whenText" + when {
                     t.excluded -> " · not counted"
                     credit -> " · money in"
                     else -> ""

@@ -213,6 +213,44 @@ class StoreScreenshots {
                 Thread.sleep(600)
                 runCatching { tapText("All") }
             }
+
+            // Amazon: the picker that moves one payment at a time, a split, then a rule on the Rules screen
+            section("split") {
+                tapTag("tab_activity")
+                waitForText("Amazon", timeoutMs = 20_000)
+                tapText("Amazon")
+                Thread.sleep(800)
+                tapTag("change_category")
+                Thread.sleep(1200)
+                shot("34_amazon_picker")
+                withVm { it.closeSheet() }
+                Thread.sleep(600)
+                tapText("Amazon")
+                Thread.sleep(800)
+                tapTag("split_open")
+                waitForTag("split_amount_1")
+                typeInto("split_amount_1", "499")
+                Thread.sleep(1200)
+                shot("35_split")
+                tapTag("split_save")
+                Thread.sleep(1500)
+                shot("36_split_saved")
+                withVm { it.closeSheet() }
+                Thread.sleep(600)
+                // A rule for Swiggy (one kind of shop: the switch starts on), then More → Rules
+                tapText("Swiggy")
+                Thread.sleep(800)
+                tapTag("change_category")
+                Thread.sleep(600)
+                tapText("Food & Dining")
+                Thread.sleep(1200)
+                withVm { it.closeSheet(); it.go(com.owl.tracker.ui.Screen.RULES) }
+                Thread.sleep(1500)
+                shot("37_rules")
+                runCatching { tapTag("rule_delete_swiggy"); Thread.sleep(1500); shot("38_rule_delete") }
+                withVm { it.back(); it.back() }
+                Thread.sleep(600)
+            }
             section("reports") {
                 nav(Screen.MORE)
                 shot("40_more")

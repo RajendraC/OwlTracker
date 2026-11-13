@@ -140,6 +140,10 @@ object ReportBuilder {
         zone: ZoneId,
     ): Report {
         val catMap = cats.associateBy { it.id }
+        // Totals count a split payment as its parts; lists show the payment once
+        val byId = txns.associateBy { it.id }
+        val all = txns.flatMap { it.portions() }
+        fun once(list: List<Txn>) = list.distinctBy { it.id }.map { byId[it.id] ?: it }
         val dates = HashMap<Long, LocalDate>()
         fun dateOf(t: Txn): LocalDate = dates.getOrPut(t.id) { Instant.ofEpochMilli(t.occurredAt).atZone(zone).toLocalDate() }
         // Only money out counts as spending; money in (even a refund) never lowers it.
@@ -149,10 +153,10 @@ object ReportBuilder {
 
         val from = periods.first().start
         val to = periods.last().endExclusive
-        val inRange = txns.filter { val d = dateOf(it); !d.isBefore(from) && d.isBefore(to) }
+        val inRange = all.filter { val d = dateOf(it); !d.isBefore(from) && d.isBefore(to) }
         val prevFrom = previous.firstOrNull()?.start
         val prevTo = previous.lastOrNull()?.endExclusive
-        val inPrevious = if (prevFrom == null || prevTo == null) emptyList() else txns.filter { val d = dateOf(it); !d.isBefore(prevFrom) && d.isBefore(prevTo) }
+        val inPrevious = if (prevFrom == null || prevTo == null) emptyList() else all.filter { val d = dateOf(it); !d.isBefore(prevFrom) && d.isBefore(prevTo) }
 
         // Buckets: days of the month for "This month", otherwise budget months.
         val daily = range == ReportRange.ONE
@@ -248,7 +252,7 @@ object ReportBuilder {
         val forMerchants = inRange.filter { inScope(it) && byCategory(it) && byWeekday(it) && counts(it) && it.direction == Direction.DEBIT }
         val merchants = forMerchants.groupBy { it.merchantKey }.map { (key, list) ->
             val latest = list.maxBy { it.occurredAt }
-            MerchantRow(key, latest.merchantName, list.firstNotNullOfOrNull { it.merchantPackage }, latest.categoryId, list.sumOf { it.amountPaise }, list.size)
+            MerchantRow(key, latest.merchantName, list.firstNotNullOfOrNull { it.merchantPackage }, latest.categoryId, list.sumOf { it.amountPaise }, list.distinctBy { it.id }.size)
         }.sortedByDescending { it.paise }
         val topMerchants = merchants.take(MAX_MERCHANTS).let { top ->
             // A picked merchant stays visible even if it isn't in the top few.
@@ -259,12 +263,14 @@ object ReportBuilder {
         // Weekdays: all filters except the weekday; spending only.
         val forWeek = inRange.filter { inScope(it) && byCategory(it) && byMerchant(it) && counts(it) && it.direction == Direction.DEBIT }
         val byDay = forWeek.groupBy { dateOf(it).dayOfWeek }
-        val weekdays = DayOfWeek.values().map { d -> WeekdayBar(d, byDay[d].orEmpty().sumOf { it.amountPaise }, byDay[d].orEmpty().size) }
+        val weekdays = DayOfWeek.values().map { d -> WeekdayBar(d, byDay[d].orEmpty().sumOf { it.amountPaise }, byDay[d].orEmpty().distinctBy { it.id }.size) }
 
+        // A category picked: a split payment shows as its part in that category. Otherwise each payment once, whole.
+        val matchList = if (f.categoryId != null) matching else once(matching)
         val matches = if (f.isEmpty) {
-            inRange.filter { counts(it) && it.direction == Direction.DEBIT }.sortedByDescending { it.amountPaise }.take(5)
+            once(inRange.filter { counts(it) && it.direction == Direction.DEBIT }).sortedByDescending { it.amountPaise }.take(5)
         } else {
-            matching.sortedWith(compareByDescending<Txn> { it.occurredAt }.thenByDescending { it.id }).take(MAX_MATCHES)
+            matchList.sortedWith(compareByDescending<Txn> { it.occurredAt }.thenByDescending { it.id }).take(MAX_MATCHES)
         }
 
         val chips = buildList {
@@ -275,7 +281,7 @@ object ReportBuilder {
             f.weekday?.let { add(FilterKind.WEEKDAY to plural(it)) }
         }
 
-        val highlights = if (f.isEmpty) highlights(range, spent, previousSpent, changePct, categories, merchants, weekdays, trend, daily, monthlyBudget, inRange.filter { counts(it) && it.direction == Direction.DEBIT }, ::dateOf, days, periods.first().days) else emptyList()
+        val highlights = if (f.isEmpty) highlights(range, spent, previousSpent, changePct, categories, merchants, weekdays, trend, daily, monthlyBudget, once(inRange.filter { counts(it) && it.direction == Direction.DEBIT }), ::dateOf, days, periods.first().days) else emptyList()
 
         return Report(
             range = range,
@@ -287,7 +293,7 @@ object ReportBuilder {
             previousSpent = previousSpent,
             changePct = changePct,
             perDay = spent / days,
-            payments = matching.count { counts(it) && it.direction == Direction.DEBIT },
+            payments = matching.filter { counts(it) && it.direction == Direction.DEBIT }.distinctBy { it.id }.size,
             daily = daily,
             trend = trend,
             budgetLine = budgetLine,
@@ -296,7 +302,7 @@ object ReportBuilder {
             weekdays = weekdays,
             highlights = highlights,
             matches = matches,
-            matchCount = if (f.isEmpty) matches.size else matching.size,
+            matchCount = if (f.isEmpty) matches.size else matchList.size,
             drill = drill,
             incomeExpenses = if (f.categoryId != null || f.merchantKey != null || f.weekday != null) null else incomeExpenses(
                 title = day?.let { drillDays[it].title } ?: bucket?.let { buckets[it].title } ?: if (daily) periodTitle(periods.first()) else
@@ -331,7 +337,7 @@ object ReportBuilder {
             savingsIn = kindSum(CategoryKind.SAVING, Direction.CREDIT),
             transfersOut = kindSum(CategoryKind.TRANSFER, Direction.DEBIT),
             transfersIn = kindSum(CategoryKind.TRANSFER, Direction.CREDIT),
-            leftOut = txns.count { it.excluded },
+            leftOut = txns.filter { it.excluded }.distinctBy { it.id }.size,
             months = months,
         )
     }

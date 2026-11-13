@@ -60,13 +60,15 @@ object SavingTips {
      * ignored). [txns] must cover them and [current].
      */
     fun build(
-        txns: List<Txn>,
+        payments: List<Txn>,
         cats: List<Category>,
         history: List<BudgetPeriod>,
         current: BudgetPeriod,
         today: LocalDate,
         zone: ZoneId,
     ): SavingPlan {
+        // A split payment counts as its parts, each in its own category
+        val txns = payments.flatMap { it.portions() }
         val catMap = cats.associateBy { it.id }
         val dates = HashMap<Long, LocalDate>()
         fun dateOf(t: Txn): LocalDate = dates.getOrPut(t.id) { Instant.ofEpochMilli(t.occurredAt).atZone(zone).toLocalDate() }

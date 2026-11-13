@@ -75,13 +75,17 @@ class Db(
         override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
             if (oldVersion < 2) Schema.upgradeTo2(db)
             if (oldVersion < 3) Schema.upgradeTo3(db)
+            if (oldVersion < 4) Schema.upgradeTo4(db)
         }
     }
 }
 
 object Schema {
-    /** 1: first release. 2: Sports & Fitness category, and the merchants table (names and icons the user chose). 3: pictures. */
-    const val VERSION = 3
+    /**
+     * 1: first release. 2: Sports & Fitness category, and the merchants table (names and icons the user chose).
+     * 3: pictures. 4: payments split across categories (transactions.parts).
+     */
+    const val VERSION = 4
     const val OVERALL = "__overall__"
 
     val CREATE = listOf(
@@ -114,7 +118,8 @@ object Schema {
             excluded INTEGER NOT NULL DEFAULT 0,
             note TEXT,
             kind TEXT NOT NULL DEFAULT 'NORMAL',
-            sms_body TEXT)""",
+            sms_body TEXT,
+            parts TEXT)""",
         "CREATE UNIQUE INDEX idx_tx_sms ON transactions(sms_id) WHERE sms_id IS NOT NULL",
         "CREATE INDEX idx_tx_time ON transactions(occurred_at)",
         "CREATE INDEX idx_tx_merchant ON transactions(merchant_key)",
@@ -151,6 +156,11 @@ object Schema {
     /** 3: pictures as merchant icons. */
     fun upgradeTo3(db: SupportSQLiteDatabase) {
         db.execSQL(PICTURES_TABLE)
+    }
+
+    /** 4: a payment can be split across categories ("shopping=1299900|groceries=153709"; NULL when it isn't). */
+    fun upgradeTo4(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE transactions ADD COLUMN parts TEXT")
     }
 
     data class SeedCategory(val id: String, val name: String, val icon: String, val color: Long, val kind: CategoryKind)

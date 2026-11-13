@@ -79,6 +79,12 @@ class SchemaMigrationTest {
         val id = MerchantPicture.idFor(png)
         assertEquals(id, repo.transactions(0, Long.MAX_VALUE).single().merchantPackage)
         assertTrue(repo.pictureBytes(id)!!.contentEquals(png))
+        // Version 4: a payment can be split across categories
+        val amount = repo.transactions(0, Long.MAX_VALUE).single().amountPaise
+        val parts = listOf(com.owl.tracker.data.TxnPart(Cat.GROCERIES, amount - 100), com.owl.tracker.data.TxnPart(Cat.SHOPPING, 100))
+        assertTrue(repo.setParts(tx.id, parts))
+        assertEquals(parts, repo.transactions(0, Long.MAX_VALUE).single().parts)
+        assertEquals(Cat.GROCERIES, repo.transactions(0, Long.MAX_VALUE).single().categoryId)
         assertTrue(context.deleteDatabase(name))
     }
 }

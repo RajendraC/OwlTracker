@@ -53,12 +53,13 @@ enum class Tab { HOME, ACTIVITY, BUDGETS, MORE }
 enum class Screen(val tab: Tab? = null) {
     WELCOME, DISCLOSURE, IMPORT_FILTERS, IMPORT_REVIEW, IMPORTING, BUDGET_SETUP,
     HOME(Tab.HOME), ACTIVITY(Tab.ACTIVITY), BUDGETS(Tab.BUDGETS), MORE(Tab.MORE),
-    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP,
+    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES,
 }
 
 sealed interface Sheet {
     data class TxnDetail(val id: Long) : Sheet
     data class CategoryPick(val txId: Long) : Sheet
+    data class Split(val txId: Long) : Sheet
     data class Rename(val txId: Long) : Sheet
     data class MerchantIcon(val txId: Long) : Sheet
     data class BudgetEdit(val key: String) : Sheet
@@ -310,7 +311,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         if (s == null || s != ws) null else buildWeekView(s, t, cats, b, st?.budgetStartDay ?: 1)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private fun spendsOf(txns: List<Txn>, catMap: Map<String, Category>) = txns.filter { counts(it, catMap) }
+    private fun spendsOf(txns: List<Txn>, catMap: Map<String, Category>) = txns.flatMap { it.portions() }.filter { counts(it, catMap) }
         .map { com.owl.tracker.core.DaySpend(dateOf(it.occurredAt), it.amountPaise, it.categoryId in FIXED_CATEGORIES) }
 
     private fun buildWeekView(start: LocalDate, window: List<Txn>, cats: List<Category>, budgets: Map<String, Long>, startDay: Int): WeekView {
@@ -326,7 +327,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val shareOf: (LocalDate) -> Long = if (overall > 0) { d -> w.dailyShare(overall, BudgetMath.periodFor(d, startDay).days) } else { _ -> usual }
         val days = w.totals(w.daysOf(start), spends, today, shareOf)
         val inWeek = window.filter { val d = dateOf(it.occurredAt); !d.isBefore(start) && d.isBefore(end) }
-        val counted = inWeek.filter { counts(it, catMap) }
+        val counted = inWeek.flatMap { it.portions() }.filter { counts(it, catMap) }
         val byCategory = counted.groupBy { it.categoryId }
             .mapNotNull { (id, l) -> catMap[id]?.let { CategorySpend(it, l.sumOf { t -> t.amountPaise }) } }
             .filter { it.paise > 0 }.sortedByDescending { it.paise }
@@ -395,8 +396,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             (f != ActivityFilter.SPENT || t.direction == Direction.DEBIT) &&
                 (f != ActivityFilter.RECEIVED || t.direction == Direction.CREDIT) &&
                 (f != ActivityFilter.REVIEW || t.needsReview) &&
-                (cf == null || t.categoryId == cf) &&
+                (cf == null || t.categoryId == cf || t.parts.any { it.categoryId == cf }) &&
                 (needle.isEmpty() || t.merchantName.lowercase().contains(needle) || (names[t.categoryId] ?: "").contains(needle) ||
+                    t.parts.any { (names[it.categoryId] ?: "").contains(needle) } ||
                     (t.note ?: "").lowercase().contains(needle))
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -913,6 +915,51 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     fun sameMerchantCount(txId: Long): Flow<Int> = repo.observeSameMerchantCount(txId)
 
+    fun categoryName(id: String): String = categories.value.firstOrNull { it.id == id }?.name ?: "Others"
+
+    // ---------------- splitting a payment ----------------
+
+    /** Splits a payment into [parts] (two or more, adding up to its amount). */
+    fun saveSplit(txId: Long, parts: List<com.owl.tracker.data.TxnPart>) = viewModelScope.launch {
+        if (!editable()) return@launch
+        if (!repo.setParts(txId, parts)) { say("The parts need to add up to the payment"); return@launch }
+        _sheet.value = Sheet.TxnDetail(txId)
+        say("Split: " + parts.joinToString(" and ") { categoryName(it.categoryId) })
+    }
+
+    /** Joins a split payment back into one category (its biggest part's). */
+    fun joinSplit(txId: Long) = viewModelScope.launch {
+        if (!editable()) return@launch
+        repo.setParts(txId, emptyList())
+        _sheet.value = Sheet.TxnDetail(txId)
+        val t = repo.transaction(txId)
+        say("Joined back into " + (t?.let { categoryName(it.categoryId) } ?: "one category"))
+    }
+
+    // ---------------- rules ----------------
+
+    val rules: StateFlow<List<com.owl.tracker.data.RuleInfo>> = repo.observeRules().catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /** What deleting a rule could put back: each covered payment and the category it would usually get. */
+    data class RuleDeletePlan(val rule: com.owl.tracker.data.RuleInfo, val moves: Map<Long, String>, val mainCategory: String?)
+
+    suspend fun planRuleDelete(rule: com.owl.tracker.data.RuleInfo): RuleDeletePlan {
+        val moves = engine.usualCategories(rule)
+        val main = moves.values.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+        return RuleDeletePlan(rule, moves, main?.let { categoryName(it) })
+    }
+
+    fun deleteRule(plan: RuleDeletePlan, putBack: Boolean) = viewModelScope.launch {
+        if (!editable()) return@launch
+        val before = repo.deleteRule(plan.rule, if (putBack) plan.moves else emptyMap())
+        val label = "${plan.rule.name} → ${categoryName(plan.rule.categoryId)}"
+        say(
+            if (before.isNotEmpty()) "Rule deleted · ${before.size} ${if (before.size == 1) "payment" else "payments"} put back" else "Deleted the rule $label",
+            "Undo",
+        ) { viewModelScope.launch { repo.restoreRule(plan.rule, before) } }
+    }
+
     /** Renames a payment, or every payment from its merchant (and new ones from it) when [all]. */
     fun renameTxn(txId: Long, name: String, all: Boolean) = viewModelScope.launch {
         if (!editable()) return@launch
@@ -1092,7 +1139,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val today = today()
         val isCurrent = p.contains(today)
         val dayNumber = if (isCurrent) p.dayNumber(today) else p.days
-        val counted = txns.filter { counts(it, catMap) }
+        // A split payment counts as its parts, each in its own category
+        val counted = txns.flatMap { it.portions() }.filter { counts(it, catMap) }
         val spent = counted.sumOf { it.amountPaise }
         val byCat = counted.groupBy { it.categoryId }.mapValues { e -> e.value.sumOf { it.amountPaise } }
         val overall = budgets[Schema.OVERALL] ?: 0L

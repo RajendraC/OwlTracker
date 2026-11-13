@@ -282,6 +282,19 @@ class ImportEngine(
         return dropped
     }
 
+    /**
+     * For the Rules screen: the payments a rule covers (still in its category, not split) and the category each
+     * would get without it, from the other rules and the usual defaults. Only those that would change.
+     */
+    suspend fun usualCategories(rule: com.owl.tracker.data.RuleInfo): Map<Long, String> {
+        val others = repo.rules().filterNot { it.match == rule.match && it.pattern.equals(rule.pattern, ignoreCase = true) }
+        val categorizer = Categorizer(others)
+        return repo.ruleCovered(rule).associate { t ->
+            val known = MerchantRegistry.all.firstOrNull { it.key == t.merchantKey } ?: MerchantRegistry.match(t.merchantName, t.vpa)
+            t.id to categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, known, t.smsBody ?: "")
+        }.filterValues { it != rule.categoryId }
+    }
+
     /** [chosen]: names and icons the user picked for merchants; they win over what the SMS says. */
     private fun Candidate.toNewTxn(categorizer: Categorizer, chosen: Map<String, MerchantOverride>): NewTxn {
         val t = tx
