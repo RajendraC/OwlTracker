@@ -246,6 +246,141 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     val dashboard: StateFlow<Dashboard?> = combine(periodTxns, categories, budgets, period) { t, cats, b, p -> buildDashboard(t, cats, b, p) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    // ---------------- Home: a month or a week ----------------
+
+    val homeMode = MutableStateFlow(HomeMode.MONTH)
+    private val weekStart = MutableStateFlow(com.owl.tracker.core.Weeks.startOf(today()))
+
+    val canGoForwardWeek: StateFlow<Boolean> = weekStart.map { it.isBefore(com.owl.tracker.core.Weeks.startOf(today())) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** Week view: this week if the month on screen is the current one, else that month's last week. */
+    fun showWeek() {
+        val p = period.value
+        val t = today()
+        weekStart.value = com.owl.tracker.core.Weeks.startOf(if (p.contains(t)) t else p.endExclusive.minusDays(1))
+        homeMode.value = HomeMode.WEEK
+    }
+
+    /** A week from the month's calendar. */
+    fun openWeek(start: LocalDate) {
+        val current = com.owl.tracker.core.Weeks.startOf(today())
+        weekStart.value = com.owl.tracker.core.Weeks.startOf(start).let { if (it.isAfter(current)) current else it }
+        homeMode.value = HomeMode.WEEK
+    }
+
+    /** Month view: the budget month the week on screen ends in (or today, for this week). */
+    fun showMonth() {
+        val t = today()
+        val day = weekStart.value.plusDays(6).let { if (it.isAfter(t)) t else it }
+        val startDay = settings.value?.budgetStartDay ?: 1
+        var p = BudgetMath.periodFor(t, startDay)
+        var off = 0
+        while (!p.contains(day) && off > -24) { p = p.previous(startDay); off-- }
+        monthOffset.value = off
+        homeMode.value = HomeMode.MONTH
+    }
+
+    private fun earlier(a: LocalDate, b: LocalDate): LocalDate = if (a.isBefore(b)) a else b
+
+    fun previousWeek() = weekStart.update { if (it.isAfter(today().minusYears(2))) it.minusDays(7) else it }
+    fun nextWeek() = weekStart.update { if (it.isBefore(com.owl.tracker.core.Weeks.startOf(today()))) it.plusDays(7) else it }
+
+    /**
+     * The week's transactions and the four weeks before (for the comparison, and a usual day when there's no budget),
+     * reaching back to the start of the week's budget month for what's left this month. Only read in week view.
+     */
+    private val weekWindow: StateFlow<Pair<LocalDate?, List<Txn>>> = combine(homeMode, weekStart, settings) { m, s, st ->
+        if (m == HomeMode.WEEK) s to (st?.budgetStartDay ?: 1) else null
+    }
+        .distinctUntilChanged()
+        .flatMapLatest { key ->
+            val window: Flow<Pair<LocalDate?, List<Txn>>> = if (key == null) kotlinx.coroutines.flow.flowOf(null to emptyList())
+            else {
+                val (s, startDay) = key
+                val from = earlier(s.minusDays(28), BudgetMath.periodFor(earlier(s.plusDays(6), today()), startDay).start)
+                repo.observeTransactions(startMs(from), startMs(s.plusDays(7))).map { s to it }
+            }
+            window
+        }
+        .catch { emit(null to emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null to emptyList())
+
+    val weekView: StateFlow<WeekView?> = combine(weekWindow, categories, budgets, settings, weekStart) { (s, t), cats, b, st, ws ->
+        if (s == null || s != ws) null else buildWeekView(s, t, cats, b, st?.budgetStartDay ?: 1)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private fun spendsOf(txns: List<Txn>, catMap: Map<String, Category>) = txns.filter { counts(it, catMap) }
+        .map { com.owl.tracker.core.DaySpend(dateOf(it.occurredAt), it.amountPaise, it.categoryId in FIXED_CATEGORIES) }
+
+    private fun buildWeekView(start: LocalDate, window: List<Txn>, cats: List<Category>, budgets: Map<String, Long>, startDay: Int): WeekView {
+        val w = com.owl.tracker.core.Weeks
+        val catMap = cats.associateBy { it.id }
+        val today = today()
+        val end = start.plusDays(7)
+        val spends = spendsOf(window, catMap)
+        val overall = budgets[Schema.OVERALL] ?: 0L
+        val usual = w.usualDay(spends, start.minusDays(28), start).takeIf { it > 0 }
+            ?: w.usualDay(spends, start, earlier(end, today.plusDays(1)))
+        val share = if (overall > 0) DayShare(w.dailyShare(overall, BudgetMath.periodFor(earlier(end.minusDays(1), today), startDay).days), true) else DayShare(usual, false)
+        val shareOf: (LocalDate) -> Long = if (overall > 0) { d -> w.dailyShare(overall, BudgetMath.periodFor(d, startDay).days) } else { _ -> usual }
+        val days = w.totals(w.daysOf(start), spends, today, shareOf)
+        val inWeek = window.filter { val d = dateOf(it.occurredAt); !d.isBefore(start) && d.isBefore(end) }
+        val counted = inWeek.filter { counts(it, catMap) }
+        val byCategory = counted.groupBy { it.categoryId }
+            .mapNotNull { (id, l) -> catMap[id]?.let { CategorySpend(it, l.sumOf { t -> t.amountPaise }) } }
+            .filter { it.paise > 0 }.sortedByDescending { it.paise }
+        val periodDays = BudgetMath.periodFor(earlier(end.minusDays(1), today), startDay).days
+        val isCurrent = !today.isBefore(start) && today.isBefore(end)
+        val mon = { d: LocalDate -> d.format(SHORT) }
+        val title = when {
+            isCurrent -> "This week so far"
+            start == w.startOf(today).minusDays(7) -> "Last week"
+            else -> "Week of ${mon(start)}"
+        }
+        // What's left this budget month, as the month card would say it
+        var monthLeft: Long? = null
+        var safe = 0L
+        var daysLeft = 0
+        val month = BudgetMath.periodFor(today, startDay)
+        if (isCurrent && overall > 0) {
+            val spentMonth = spends.filter { month.contains(it.date) }.sumOf { it.paise }
+            val status = BudgetMath.status(spentMonth, overall, month.dayNumber(today), month.days)
+            monthLeft = overall - spentMonth
+            safe = status.safePerDayPaise
+            daysLeft = month.days - month.dayNumber(today)
+        }
+        return WeekView(
+            start = start, label = w.label(start), title = title, isCurrent = isCurrent, days = days, txns = inWeek,
+            spent = counted.sumOf { it.amountPaise }, fixed = counted.filter { it.categoryId in FIXED_CATEGORIES }.sumOf { it.amountPaise },
+            compare = w.compare(start, spends, today), share = share, byCategory = byCategory,
+            weekShare = if (overall > 0) overall * 7 / periodDays else 0L,
+            categoryShares = budgets.filterKeys { it != Schema.OVERALL }.mapValues { it.value * 7 / periodDays },
+            monthLeft = monthLeft, safePerDay = safe, daysLeft = daysLeft,
+            monthName = if (month.start.dayOfMonth == 1) month.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)) else "this budget month",
+        )
+    }
+
+    /** The budget month on screen as a calendar, a row a week, each day coloured against its share of the budget. */
+    fun monthCalendar(dash: Dashboard, txns: List<Txn>, cats: List<Category>): MonthCalendar {
+        val w = com.owl.tracker.core.Weeks
+        val catMap = cats.associateBy { it.id }
+        val today = today()
+        val p = dash.period
+        val spends = spendsOf(txns, catMap)
+        val share = if (dash.overall > 0) DayShare(w.dailyShare(dash.overall, p.days), true)
+        else DayShare(w.usualDay(spends, p.start, earlier(p.endExclusive, today.plusDays(1))), false)
+        val title = if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)) else dash.label
+        return MonthCalendar(w.calendar(p.start, p.endExclusive, spends, today) { share.paise }, share, title)
+    }
+
+    /** A day's share of the month's budget and of each category's budget, for the owl when one day is picked. */
+    fun dayShares(day: LocalDate): Pair<Long, Map<String, Long>> {
+        val b = budgets.value
+        val days = BudgetMath.periodFor(day, settings.value?.budgetStartDay ?: 1).days
+        return (b[Schema.OVERALL] ?: 0L) / days to b.filterKeys { it != Schema.OVERALL }.mapValues { it.value / days }
+    }
+
     fun txnFlow(id: Long): Flow<Txn?> = repo.observeTransaction(id)
 
     // Activity tab
@@ -926,6 +1061,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         importUi.value = ImportUi()
         deleteUi.value = DeleteUi()
         monthOffset.value = 0
+        homeMode.value = HomeMode.MONTH
         locked.value = false
         history.clear()
         _screen.value = Screen.WELCOME

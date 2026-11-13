@@ -24,6 +24,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
@@ -163,6 +164,28 @@ class StoreScreenshots {
                 ring.performTouchInput { click(g.project(0f, -r, 0f, 0f, com.owl.tracker.ui.components.RING_TILT)) }
                 Thread.sleep(2600)
                 shot("15b_home_ring_pick")
+            }
+
+            // The month as a calendar, a day picked in it, then a week at a time and a day in it
+            section("week") {
+                val day = java.time.LocalDate.now().minusDays(1)
+                scrollTo(hasTestTag("month_calendar"), below = 40f)
+                Thread.sleep(800)
+                shot("16_home_calendar")
+                tapTag("cal_day_$day")
+                scrollTo(hasTestTag("day_filter"), below = 40f)
+                Thread.sleep(2500)
+                shot("17_home_day")
+                tapTag("day_filter_clear")
+                withVm { it.showWeek() }
+                runCatching { onAllNodes(hasTestTag("home"))[0].performScrollToIndex(0) }
+                Thread.sleep(1500)
+                shot("18_home_week")
+                tapTag("week_day_$day")
+                scrollTo(hasTestTag("day_filter"), below = 40f)
+                Thread.sleep(2500)
+                shot("19_home_week_day")
+                withVm { it.showMonth() }
             }
 
             section("budgets") {

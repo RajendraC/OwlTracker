@@ -52,6 +52,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,7 +72,11 @@ import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.Screen
 import com.owl.tracker.ui.Sheet
 import com.owl.tracker.ui.components.CategoryTile
+import com.owl.tracker.ui.components.DayFilterBar
 import com.owl.tracker.ui.components.Divider
+import com.owl.tracker.ui.components.LevelLegend
+import com.owl.tracker.ui.components.MonthCalendarCard
+import com.owl.tracker.ui.components.WeekDaysRow
 import com.owl.tracker.ui.components.Donut
 import com.owl.tracker.ui.components.DonutSlice
 import com.owl.tracker.ui.components.Dot
@@ -144,21 +150,41 @@ fun HomeScreen(vm: AppViewModel) {
     val access by vm.access.collectAsStateWithLifecycle()
     val store by vm.store.collectAsStateWithLifecycle()
     val plan by vm.savingPlan.collectAsStateWithLifecycle()
-    val txns by vm.periodTxns.collectAsStateWithLifecycle()
+    val monthTxns by vm.periodTxns.collectAsStateWithLifecycle()
+    val mode by vm.homeMode.collectAsStateWithLifecycle()
+    val weekView by vm.weekView.collectAsStateWithLifecycle()
+    val canForwardWeek by vm.canGoForwardWeek.collectAsStateWithLifecycle()
     val dash = d ?: return
     val catMap = cats.associateBy { it.id }
     val sc = LocalStatusColors.current
     val side = Modifier.padding(horizontal = 16.dp)
+    val today = vm.today()
+
+    // A week at a time, or the month with its calendar; either can be narrowed to one day
+    val week = weekView.takeIf { mode == com.owl.tracker.ui.HomeMode.WEEK }
+    val weekMode = mode == com.owl.tracker.ui.HomeMode.WEEK
+    val scopeKey = if (weekMode) "w" + (week?.start ?: "") else "m" + dash.period.start
+    var pickedIso by androidx.compose.runtime.saveable.rememberSaveable(scopeKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val picked = pickedIso?.let { LocalDate.parse(it) }
+    fun pick(day: LocalDate) { pickedIso = if (pickedIso == day.toString()) null else day.toString() }
+    val calendar = remember(dash, monthTxns, cats, weekMode) { if (weekMode) null else vm.monthCalendar(dash, monthTxns, cats) }
+    val pickedTotal = picked?.let { p -> (week?.days ?: calendar?.rows?.flatMap { it.days }?.filterNotNull()).orEmpty().firstOrNull { it.date == p } }
+    val baseTxns = if (weekMode) week?.txns.orEmpty() else monthTxns
+    val txns = remember(baseTxns, picked) { if (picked == null) baseTxns else baseTxns.filter { vm.dateOf(it.occurredAt) == picked } }
+    val wholeMonth = !weekMode && picked == null
+    val ringKey = scopeKey + (pickedIso ?: "")
 
     // Drilling down on Home: a category, then one of its merchants (back up with the arrow or the phone's Back)
-    var openCat by androidx.compose.runtime.saveable.rememberSaveable(dash.period.start.toString()) { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    var openMerchant by androidx.compose.runtime.saveable.rememberSaveable(dash.period.start.toString()) { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    var openCat by androidx.compose.runtime.saveable.rememberSaveable(ringKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    var openMerchant by androidx.compose.runtime.saveable.rememberSaveable(ringKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
     androidx.activity.compose.BackHandler(enabled = openCat != null) { if (openMerchant != null) openMerchant = null else openCat = null }
+    androidx.activity.compose.BackHandler(enabled = openCat == null && picked != null) { pickedIso = null }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val showPictures = dash.byCategory.isNotEmpty()
+    val showPictures = wholeMonth && dash.byCategory.isNotEmpty()
     // Where "Where it went" sits in the list, to scroll to it from the budget circle and the pictures
-    val whereIndex = 1 + (if (access is Access.Trial || access == Access.TrialEnded) 1 else 0) +
+    val whereIndex = 1 + (if (calendar != null) 1 else 0) + (if (pickedTotal != null) 1 else 0) +
+        (if (access is Access.Trial || access == Access.TrialEnded) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
         dash.over.size + (if (showPictures) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
@@ -183,6 +209,13 @@ fun HomeScreen(vm: AppViewModel) {
     val ringPayments = if (openCat == null || openMerchant == null) emptyList() else
         txns.filter { it.categoryId == openCat && it.merchantKey == openMerchant }.sortedByDescending { it.occurredAt }
     val budgetOf = dash.categoryRows.associateBy { it.category.id }
+    // "Where it went" for a week or a day: worked out from its own payments
+    val scopeCategories = remember(txns, catMap, wholeMonth, dash) {
+        if (wholeMonth) dash.byCategory
+        else spending.groupBy { it.categoryId }.mapNotNull { (id, l) -> catMap[id]?.let { com.owl.tracker.ui.CategorySpend(it, l.sumOf { t -> t.amountPaise }) } }
+            .filter { it.paise > 0 }.sortedByDescending { it.paise }
+    }
+    val scopeSpent = scopeCategories.sumOf { it.paise }
     fun sceneFor(cat: Category, spent: Long) = Scenes.forCategory(
         cat, spent, budgetOf[cat.id]?.limit, dash.overall, dash.spent, merchantsOf[cat.id].orEmpty().map { it.name to it.paise },
     )
@@ -192,9 +225,26 @@ fun HomeScreen(vm: AppViewModel) {
             // The mango header, with the budget card resting on its lower edge
             item(key = "top") {
                 Column {
-                    HomeHeader(vm, dash, canForward, Modifier.onSizeChanged { headerPx = it.height })
-                    BudgetCard(vm, dash, plan, ::openCategory, Modifier.padding(horizontal = 14.dp).pullUp(76.dp))
+                    HomeHeader(vm, dash, canForward, weekMode, week, canForwardWeek, Modifier.onSizeChanged { headerPx = it.height })
+                    when {
+                        !weekMode -> BudgetCard(vm, dash, plan, ::openCategory, Modifier.padding(horizontal = 14.dp).pullUp(76.dp))
+                        week != null -> WeekCard(vm, week, picked, ::pick, Modifier.padding(horizontal = 14.dp).pullUp(76.dp))
+                        // The week's payments are still being read
+                        else -> com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(36.dp), Modifier.padding(horizontal = 14.dp).pullUp(76.dp).fillMaxWidth().heightIn(min = 300.dp), elevation = 18.dp) {}
+                    }
                 }
+            }
+
+            // The month as a calendar, a row a week: tap a day for its payments, a week's total for the week
+            if (calendar != null) item(key = "calendar") {
+                MonthCalendarCard(calendar.title, calendar.rows, calendar.share, picked, today, ::pick, { start -> vm.openWeek(start) }, side)
+            }
+
+            // One day picked: everything below is about that day
+            if (pickedTotal != null) item(key = "day_filter") {
+                DayFilterBar(
+                    pickedTotal, txns.size, (week?.share ?: calendar?.share)?.fromBudget == true, today, { pickedIso = null }, side,
+                )
             }
 
             when (val a = access) {
@@ -246,7 +296,7 @@ fun HomeScreen(vm: AppViewModel) {
                 }
             }
 
-            // A picture for each category the money went to; tapping one opens it in "Where it went" below
+            // A picture for each category the money went to; tapping one opens it in "Where it went" below (the whole month only)
             if (showPictures) item(key = "pictures") {
                 val pictures = dash.byCategory.take(MAX_PICTURES).map { cs -> cs.category to sceneFor(cs.category, cs.paise) }
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -262,16 +312,28 @@ fun HomeScreen(vm: AppViewModel) {
             // "Where it went": touch the ring, open a category, then a merchant's payments
             item(key = "where") {
                 Box(side) {
-                    if (dash.byCategory.isEmpty()) {
+                    if (scopeCategories.isEmpty()) {
                         Panel {
                             Text("Where it went", style = MaterialTheme.typography.titleMedium)
-                            Text("Nothing spent yet this month.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                when {
+                                    picked != null -> "Nothing spent on ${com.owl.tracker.ui.components.dayTitle(picked)}."
+                                    weekMode -> "Nothing spent this week."
+                                    else -> "Nothing spent yet this month."
+                                },
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     } else {
                         com.owl.tracker.ui.components.DrillRingCard(
-                            categories = dash.byCategory.map { cs ->
-                                val row = budgetOf[cs.category.id]
-                                val pct = (cs.paise * 100 / dash.spent.coerceAtLeast(1)).toInt()
+                            title = when {
+                                picked != null -> "Where it went on ${com.owl.tracker.ui.components.dayTitle(picked)}"
+                                weekMode -> "Where it went this week".takeIf { week?.isCurrent == true } ?: "Where it went that week"
+                                else -> "Where it went"
+                            },
+                            categories = scopeCategories.map { cs ->
+                                val row = budgetOf[cs.category.id].takeIf { wholeMonth }
+                                val pct = (cs.paise * 100 / scopeSpent.coerceAtLeast(1)).toInt()
                                 com.owl.tracker.ui.components.RingCategory(
                                     cs.category.id, cs.category.name, Color(cs.category.color), cs.paise,
                                     note = "$pct%" + when {
@@ -287,7 +349,7 @@ fun HomeScreen(vm: AppViewModel) {
                             merchants = ringMerchants,
                             payments = ringPayments,
                             paymentCount = ringPayments.size,
-                            sweepKey = dash.period.start,
+                            sweepKey = ringKey,
                             appIcons = vm.appIcons,
                             catMap = catMap,
                             dayText = { t -> dayLabel(vm, vm.dateOf(t.occurredAt)) },
@@ -295,9 +357,21 @@ fun HomeScreen(vm: AppViewModel) {
                             onMerchant = { k -> openMerchant = if (openMerchant == k) null else k },
                             onPayment = { t -> vm.openSheet(Sheet.TxnDetail(t.id)) },
                             headerAction = { TextButton(onClick = { vm.showActivity() }) { Text("See all") } },
-                            moods = remember(dash, budgetOf) { ringMoods(dash, budgetOf) },
+                            moods = remember(dash, budgetOf, scopeCategories, picked, week) {
+                                when {
+                                    wholeMonth -> ringMoods(dash, budgetOf)
+                                    picked != null -> vm.dayShares(picked).let { (share, cats) ->
+                                        scopeMoods(com.owl.tracker.ui.components.dayTitle(picked), scopeSpent, scopeCategories, share, cats, "the day")
+                                    }
+                                    else -> scopeMoods(
+                                        if (week?.isCurrent == true) "This week" else week?.label ?: "", scopeSpent, scopeCategories,
+                                        week?.weekShare ?: 0L, week?.categoryShares.orEmpty(), "the week",
+                                    )
+                                }
+                            },
                             tiles = true,
-                            scene = { id ->
+                            // The month's pictures say "of your month's budget", so they only show for the whole month
+                            scene = if (!wholeMonth) null else { id ->
                                 val cat = catMap[id]
                                 val spent = dash.byCategory.firstOrNull { it.category.id == id }?.paise
                                 if (cat != null && spent != null) {
@@ -319,9 +393,9 @@ fun HomeScreen(vm: AppViewModel) {
                 }
             }
 
-            plan?.takeIf { dash.isCurrent && it.monthlyPaise > 0 && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { Box(side) { SavingNudge(vm, p) } } }
+            if (wholeMonth) plan?.takeIf { dash.isCurrent && it.monthlyPaise > 0 && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { Box(side) { SavingNudge(vm, p) } } }
 
-            item {
+            if (wholeMonth) item {
                 Column(side) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Recent", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() })
@@ -336,6 +410,39 @@ fun HomeScreen(vm: AppViewModel) {
                             com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(24.dp), Modifier.fillMaxWidth(), elevation = 6.dp) {
                                 Box(Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) { TxnRow(vm, t, catMap[t.categoryId], showDay = true) }
                             }
+                        }
+                    }
+                }
+            } else {
+                // A day: every payment that day. A week: day by day, newest first.
+                item(key = "payments_head") {
+                    Column(side.testTag("day_payments")) {
+                        Text(
+                            when {
+                                picked != null && txns.isEmpty() -> "Nothing on ${com.owl.tracker.ui.components.dayTitle(picked)}"
+                                picked != null -> "Payments on ${com.owl.tracker.ui.components.dayTitle(picked)}"
+                                else -> "Day by day"
+                            },
+                            style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 4.dp).semantics { heading() },
+                        )
+                        if (picked == null && txns.isEmpty()) {
+                            Gap(8.dp)
+                            Panel { Text("No transactions this week.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        }
+                    }
+                }
+                val byDay = txns.groupBy { vm.dateOf(it.occurredAt) }.toSortedMap(compareByDescending<LocalDate> { it })
+                byDay.forEach { (day, list) ->
+                    if (picked == null) item(key = "day_head_$day") {
+                        val spent = list.filter { vm.counts(it, catMap) }.sumOf { it.amountPaise }
+                        Row(side.padding(start = 6.dp, end = 6.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(dayLabel(vm, day), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                            Text(Money.formatInr(spent), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    items(list, key = { "pay_" + it.id }) { t ->
+                        com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(24.dp), side.fillMaxWidth(), elevation = 6.dp) {
+                            Box(Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) { TxnRow(vm, t, catMap[t.categoryId], showDay = false) }
                         }
                     }
                 }
@@ -378,11 +485,15 @@ private fun greeting(): String = when (java.time.LocalTime.now().hour) {
 
 /** Home's mango header: the owl, a greeting, the month, and the way to Reports. It runs up behind the status bar. */
 @Composable
-private fun HomeHeader(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, canForward: Boolean, modifier: Modifier = Modifier) {
+private fun HomeHeader(
+    vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, canForward: Boolean, weekMode: Boolean, week: com.owl.tracker.ui.WeekView?,
+    canForwardWeek: Boolean, modifier: Modifier = Modifier,
+) {
     val brand = LocalBrand.current
     val dark = com.owl.tracker.ui.theme.LocalDarkTheme.current
     val monthName = dash.period.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH))
     val title = when {
+        weekMode -> week?.title ?: "Week by week"
         !dash.isCurrent -> "Looking back"
         dash.period.start.dayOfMonth == 1 -> "$monthName so far"
         else -> "This month so far"
@@ -443,18 +554,55 @@ private fun HomeHeader(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, can
                 }
             }
             Gap(12.dp)
-            // The month: back to earlier ones, and forward again
-            Row(Modifier.clay(RoundedCornerShape(24.dp), brand.clay, elevation = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { vm.previousMonth() }, modifier = Modifier.size(40.dp)) {
-                    Icon(Ic.chevL, contentDescription = "Previous month", tint = brand.onHeader, modifier = Modifier.size(20.dp))
+            // A month or a week, and back to earlier ones and forward again
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PeriodSwitch(weekMode, onMonth = { vm.showMonth() }, onWeek = { vm.showWeek() })
+                val forward = if (weekMode) canForwardWeek else canForward
+                val unit = if (weekMode) "week" else "month"
+                Row(
+                    Modifier.weight(1f).clay(RoundedCornerShape(24.dp), brand.clay, elevation = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { if (weekMode) vm.previousWeek() else vm.previousMonth() }, modifier = Modifier.size(44.dp).testTag("period_prev")) {
+                        Icon(Ic.chevL, contentDescription = "Previous $unit", tint = brand.onHeader, modifier = Modifier.size(20.dp))
+                    }
+                    Text(
+                        if (weekMode) week?.label ?: "" else dash.label,
+                        style = MaterialTheme.typography.labelLarge, color = brand.onHeader, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.weight(1f).testTag("period_label"),
+                    )
+                    IconButton(onClick = { if (weekMode) vm.nextWeek() else vm.nextMonth() }, enabled = forward, modifier = Modifier.size(44.dp).testTag("period_next")) {
+                        Icon(Ic.chevR, contentDescription = "Next $unit", tint = brand.onHeader.copy(alpha = if (forward) 1f else 0.3f), modifier = Modifier.size(20.dp))
+                    }
                 }
+            }
+        }
+    }
+}
+
+/** Month or Week: two segments pressed into the header, the picked one raised. */
+@Composable
+private fun PeriodSwitch(isWeek: Boolean, onMonth: () -> Unit, onWeek: () -> Unit) {
+    val brand = LocalBrand.current
+    Row(
+        Modifier.clay(RoundedCornerShape(24.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true).padding(4.dp)
+            .semantics { contentDescription = "Show a month or a week" },
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        listOf("Month" to !isWeek, "Week" to isWeek).forEach { (label, on) ->
+            Box(
+                Modifier.heightIn(min = 40.dp)
+                    .then(if (on) Modifier.clay(RoundedCornerShape(20.dp), brand.clay, elevation = 3.dp) else Modifier.clip(RoundedCornerShape(20.dp)))
+                    .clickable(onClickLabel = "Show a $label".lowercase().replaceFirstChar { it.uppercase() }) { if (label == "Week") onWeek() else onMonth() }
+                    .semantics { selected = on; role = androidx.compose.ui.semantics.Role.Tab }
+                    .testTag("mode_${label.lowercase()}")
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
                 Text(
-                    if (dash.isCurrent) "${dash.label} · day ${dash.dayNumber} of ${dash.period.days}" else dash.label,
-                    style = MaterialTheme.typography.labelLarge, color = brand.onHeader,
+                    label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
+                    color = if (on) MaterialTheme.colorScheme.primary else brand.onHeaderSoft,
                 )
-                IconButton(onClick = { vm.nextMonth() }, enabled = canForward, modifier = Modifier.size(40.dp)) {
-                    Icon(Ic.chevR, contentDescription = "Next month", tint = brand.onHeader.copy(alpha = if (canForward) 1f else 0.3f), modifier = Modifier.size(20.dp))
-                }
             }
         }
     }
@@ -543,6 +691,127 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
             }
         }
     }
+}
+
+/**
+ * The week card: what went out this week, against the same days of the week before (EMIs and rent left out), the
+ * seven days as coloured circles to tap, and what's left of the month.
+ */
+@Composable
+private fun WeekCard(vm: AppViewModel, week: com.owl.tracker.ui.WeekView, picked: LocalDate?, onPick: (LocalDate) -> Unit, modifier: Modifier = Modifier) {
+    val sc = LocalStatusColors.current
+    val brand = LocalBrand.current
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val today = vm.today()
+    com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(36.dp), modifier.fillMaxWidth().testTag("week_card"), elevation = 18.dp) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            val c = week.compare
+            val pct = c?.percent
+            val cmpColor = when {
+                pct == null -> muted
+                pct < -1 -> sc.okFg
+                pct > 1 -> sc.overFg
+                else -> muted
+            }
+            Row(Modifier.padding(horizontal = 2.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(if (week.isCurrent) "Spent this week" else "Spent that week", style = MaterialTheme.typography.labelLarge, color = muted)
+                    Text(Money.formatInr(week.spent), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.testTag("week_total"))
+                    val count = week.txns.count { !it.isMoneyIn }
+                    Text(
+                        if (week.fixed > 0) "Everyday ${Money.formatInr(week.spent - week.fixed)} · EMIs and rent ${Money.formatInr(week.fixed)}"
+                        else "$count ${if (count == 1) "payment" else "payments"}",
+                        style = MaterialTheme.typography.bodySmall, color = muted,
+                    )
+                    if (c != null) {
+                        val than = if (c.days < 7) {
+                            val from = week.start.minusDays(7)
+                            val short = { d: LocalDate -> d.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH) }
+                            if (c.days == 1) "last ${short(from)}" else "${short(from)}–${short(from.plusDays(c.days - 1L))} last week"
+                        } else "the week before"
+                        val lead = if (week.fixed > 0) "Leaving out EMIs and rent, " else ""
+                        Text(
+                            when {
+                                pct == null -> "Nothing everyday spent $than"
+                                pct < -1 -> "$lead${-pct}% less than $than (${Money.formatInr(c.beforePaise)})"
+                                pct > 1 -> "$lead$pct% more than $than (${Money.formatInr(c.beforePaise)})"
+                                else -> "${lead}about the same as $than"
+                            }.replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = cmpColor,
+                            modifier = Modifier.testTag("week_compare"),
+                        )
+                    }
+                }
+                if (pct != null) {
+                    Text(
+                        when { pct < -1 -> "↓ ${-pct}%"; pct > 1 -> "↑ $pct%"; else -> "≈ same" },
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold), color = cmpColor,
+                        modifier = Modifier.clay(RoundedCornerShape(14.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
+            }
+            WeekDaysRow(week.days, picked, today, week.share.fromBudget, onPick)
+            LevelLegend(week.share, Modifier.padding(horizontal = 2.dp))
+            val passed = week.days.filter { !it.date.isAfter(today) }
+            val biggest = passed.maxByOrNull { it.paise }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatPill("Daily average", Money.formatInr(week.spent / passed.size.coerceAtLeast(1)), brand.spentBg, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), art = com.owl.tracker.R.drawable.glossy_coins)
+                StatPill(
+                    "Biggest day",
+                    if (biggest == null || biggest.paise == 0L) "None yet"
+                    else biggest.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH) + " " + Money.formatShort(biggest.paise),
+                    brand.spentBg, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), art = com.owl.tracker.R.drawable.glossy_wallet,
+                    onClick = biggest?.takeIf { it.paise > 0 }?.let { b -> { onPick(b.date) } },
+                )
+            }
+            week.monthLeft?.let { left ->
+                Row(
+                    Modifier.fillMaxWidth().clay(RoundedCornerShape(20.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.owl.tracker.R.drawable.glossy_piggy), contentDescription = null, modifier = Modifier.size(34.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            if (left >= 0) "${Money.formatInr(left)} left in ${week.monthName}" else "${Money.formatInr(-left)} over budget in ${week.monthName}",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold), color = if (left >= 0) MaterialTheme.colorScheme.onSurface else sc.overFg,
+                            modifier = Modifier.testTag("week_month_left"),
+                        )
+                        Text(
+                            if (left > 0 && week.daysLeft > 0) "About ${Money.formatInr(week.safePerDay)} a day for the next ${week.daysLeft} ${if (week.daysLeft == 1) "day" else "days"}"
+                            else if (left > 0) "The budget month ends today" else "Every rupee from here adds to it",
+                            style = MaterialTheme.typography.bodySmall, color = muted,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** What the owl says about a week or a day: against its share of the month's budget, and each category against its share. */
+private fun scopeMoods(
+    title: String, spent: Long, byCategory: List<com.owl.tracker.ui.CategorySpend>, share: Long, categoryShares: Map<String, Long>, span: String,
+): com.owl.tracker.ui.components.RingMoods {
+    val inr = { p: Long -> Money.formatInr(p) }
+    val line = when {
+        share <= 0 -> "Set a month budget and I'll keep watch"
+        spent <= share -> "${inr(share - spent)} left of $span's ${inr(share)} share"
+        else -> "${inr(spent - share)} over $span's ${inr(share)} share"
+    }
+    val cats = byCategory.associate { cs ->
+        val lim = categoryShares[cs.category.id]?.takeIf { it > 0 }
+        val l = when {
+            lim == null -> "Give it a budget in Budgets and I'll keep watch"
+            cs.paise <= lim -> "${inr(lim - cs.paise)} left of its ${inr(lim)} for $span"
+            else -> "${inr(cs.paise - lim)} over its ${inr(lim)} for $span"
+        }
+        cs.category.id to com.owl.tracker.ui.components.OwlSay(com.owl.tracker.ui.components.OwlMood.of(cs.paise, lim), "${cs.category.name} · ${inr(cs.paise)}", l)
+    }
+    return com.owl.tracker.ui.components.RingMoods(
+        com.owl.tracker.ui.components.OwlSay(com.owl.tracker.ui.components.OwlMood.of(spent, share.takeIf { it > 0 }), "$title · ${inr(spent)}", line), cats,
+    )
 }
 
 /** One of the figures under the budget: a small clay pill with its glossy picture, its label and its value. */
