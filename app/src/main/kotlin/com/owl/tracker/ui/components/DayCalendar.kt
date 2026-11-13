@@ -62,6 +62,8 @@ private val VERY_HEAVY = Color(0xFFD63B41)
 /** EMI or rent paid that day: the EMI category's brown, lifted to show on both themes. */
 val FIXED_DOT = Color(0xFF9C6B52)
 private val MANGO = Color(0xFFFFB21A)
+/** Wide enough for "₹19.2k" beside the seven days. */
+private val WEEK_COL = 62.dp
 
 fun levelFill(level: DayLevel): Color? = when (level) {
     DayLevel.LIGHT -> LIGHT
@@ -247,7 +249,7 @@ fun MonthCalendarCard(
             listOf("S", "M", "T", "W", "T", "F", "S").forEach {
                 Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
             }
-            Text("Week", Modifier.width(54.dp).padding(end = 6.dp), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
+            Text("Week", Modifier.width(WEEK_COL).padding(end = 6.dp), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
         }
         rows.forEach { row ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -273,7 +275,7 @@ fun MonthCalendarCard(
                 }
                 val open = !row.weekStart.isAfter(thisWeek)
                 Box(
-                    Modifier.width(54.dp).heightIn(min = 46.dp).padding(start = 2.dp)
+                    Modifier.width(WEEK_COL).heightIn(min = 46.dp).padding(start = 2.dp)
                         .then(
                             if (open) Modifier.clay(RoundedCornerShape(14.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true)
                                 .clickable(onClickLabel = "Open this week") { onWeek(row.weekStart) }
@@ -281,19 +283,19 @@ fun MonthCalendarCard(
                             else Modifier,
                         )
                         .testTag("cal_week_${row.weekStart}")
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 5.dp, vertical = 4.dp),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     if (open) {
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(Money.formatShort(row.paise), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold), maxLines = 1)
+                            Text(Money.formatShort(row.paise), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp), maxLines = 1, softWrap = false)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Week", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.primary)
                                 Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
                             }
                         }
                     } else {
-                        Text("to come", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted.copy(alpha = 0.7f))
+                        Text("to come", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted.copy(alpha = 0.7f), maxLines = 1, softWrap = false)
                     }
                 }
             }
