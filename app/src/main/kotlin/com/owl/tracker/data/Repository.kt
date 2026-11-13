@@ -493,7 +493,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             val name = when (match) {
                 RuleMatch.MERCHANT -> d.query("SELECT name FROM merchants WHERE merchant_key = ? AND name IS NOT NULL", arrayOf<Any?>(r.pattern)).use { c -> if (c.moveToFirst()) c.getString(0) else null }
                     ?: d.query("SELECT merchant_name FROM transactions WHERE merchant_key = ? ORDER BY occurred_at DESC LIMIT 1", arrayOf<Any?>(r.pattern)).use { c -> if (c.moveToFirst()) c.getString(0) else null }
-                    ?: MerchantRegistry.all.firstOrNull { it.key == r.pattern }?.name ?: r.pattern
+                    ?: MerchantRegistry.all.firstOrNull { it.key == r.pattern }?.displayName ?: r.pattern
                 RuleMatch.VPA -> r.pattern
                 RuleMatch.KEYWORD -> "“${r.pattern}”"
             }

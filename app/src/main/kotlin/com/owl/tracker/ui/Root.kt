@@ -59,6 +59,7 @@ import com.owl.tracker.ui.screens.ImportFiltersScreen
 import com.owl.tracker.ui.screens.ImportReviewScreen
 import com.owl.tracker.ui.screens.ImportingScreen
 import com.owl.tracker.ui.screens.ReportsScreen
+import com.owl.tracker.ui.screens.RulesScreen
 import com.owl.tracker.ui.screens.LockScreen
 import com.owl.tracker.ui.screens.MoreScreen
 import com.owl.tracker.ui.screens.PrivacyScreen
