@@ -2,8 +2,6 @@ package com.owl.tracker.ui
 
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertTextEquals
-import androidx.compose.ui.test.isRoot
-import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import com.owl.tracker.TestApp
@@ -66,11 +64,7 @@ class SplitAndRulesFlowTest {
             back()
             tapTag("tab_more")
             tapTag("open_rules")
-            try {
-                waitForText("Amazon → Health")
-            } catch (e: AssertionError) {
-                throw AssertionError(e.message + "\nOn screen:\n" + onAllNodes(isRoot()).printToString(), e)
-            }
+            waitForText("Amazon → Health")
             waitForText("sells many kinds of things")
             tapTag("rule_delete_amazon")
             waitForTag("rule_delete_dialog")
@@ -98,8 +92,8 @@ class SplitAndRulesFlowTest {
             waitForTag("split_parts")
             waitForText("Split: Shopping + Groceries")
 
-            // Too much in one part can't be saved
-            tapTag("split_open")
+            // Too much in one part can't be saved (a split payment opens its split from the Split heading)
+            tapTag("split_parts")
             typeInto("split_amount_1", "5000")
             waitForText("The parts come to more than ₹3,499")
             typeInto("split_amount_1", "499")

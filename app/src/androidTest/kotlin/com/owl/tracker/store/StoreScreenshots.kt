@@ -218,13 +218,36 @@ class StoreScreenshots {
             section("split") {
                 tapTag("tab_activity")
                 waitForText("Amazon", timeoutMs = 20_000)
+                // An everyday rule for Swiggy, to sit next to the Amazon one made below (this opens Swiggy's detail: close it)
+                withVm { vm -> vm.periodTxns.value.firstOrNull { it.merchantKey == "swiggy" }?.let { vm.setCategory(it.id, it.categoryId, true) } }
+                Thread.sleep(800)
+                withVm { it.closeSheet() }
+                Thread.sleep(400)
                 tapText("Amazon")
                 Thread.sleep(800)
                 tapTag("change_category")
                 Thread.sleep(1200)
                 shot("34_amazon_picker")
-                withVm { it.closeSheet() }
+                // A rule made on purpose: the switch turned on
+                tapTag("remember_rule")
+                Thread.sleep(400)
+                tapText("Groceries")
+                Thread.sleep(1200)
+                withVm { it.closeSheet(); it.go(com.owl.tracker.ui.Screen.RULES) }
+                waitForTag("rule_amazon")
+                // Let the "Rule saved" messages pass, so they don't cover the list
+                runCatching { compose.waitUntil(15_000) { compose.onAllNodes(hasText("Rule saved: Amazon", substring = true)).fetchSemanticsNodes().isNotEmpty() } }
+                runCatching { compose.waitUntil(15_000) { compose.onAllNodes(hasText("Rule saved", substring = true)).fetchSemanticsNodes().isEmpty() } }
+                shot("37_rules")
+                tapTag("rule_delete_amazon")
+                Thread.sleep(1500)
+                shot("38_rule_delete")
+                // Delete it with its payments put back in Shopping, then split one order
+                tapTag("rule_delete_confirm")
+                Thread.sleep(800)
+                withVm { it.back() }
                 Thread.sleep(600)
+                tapTag("tab_activity")
                 tapText("Amazon")
                 Thread.sleep(800)
                 tapTag("split_open")
@@ -236,19 +259,6 @@ class StoreScreenshots {
                 Thread.sleep(1500)
                 shot("36_split_saved")
                 withVm { it.closeSheet() }
-                Thread.sleep(600)
-                // A rule for Swiggy (one kind of shop: the switch starts on), then More → Rules
-                tapText("Swiggy")
-                Thread.sleep(800)
-                tapTag("change_category")
-                Thread.sleep(600)
-                tapText("Food & Dining")
-                Thread.sleep(1200)
-                withVm { it.closeSheet(); it.go(com.owl.tracker.ui.Screen.RULES) }
-                Thread.sleep(1500)
-                shot("37_rules")
-                runCatching { tapTag("rule_delete_swiggy"); Thread.sleep(1500); shot("38_rule_delete") }
-                withVm { it.back(); it.back() }
                 Thread.sleep(600)
             }
             section("reports") {

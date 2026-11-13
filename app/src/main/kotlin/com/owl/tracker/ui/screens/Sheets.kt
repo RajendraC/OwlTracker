@@ -213,15 +213,15 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                 Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
             }
         }
-        if (!credit) {
+        if (!credit && !tx.isSplit) {
             Divider()
-            // One order, more than one kind of thing: split it across categories
+            // One order, more than one kind of thing: split it across categories (a split one changes from its Split heading)
             Row(
                 Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.Split(tx.id)) }.padding(vertical = 10.dp).testTag("split_open"),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(if (tx.isSplit) "Split across ${tx.parts.size} categories" else "Split across categories", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                Text(if (tx.isSplit) "Change split" else "Split", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                Text("Split across categories", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                Text("Split", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
             }
         }
         Divider()
