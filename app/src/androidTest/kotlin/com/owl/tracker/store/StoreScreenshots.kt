@@ -214,6 +214,13 @@ class StoreScreenshots {
                 shot("22_adjust_budgets_shopping")
                 withVm { it.back() }
                 Thread.sleep(600)
+                // A category's own budget: the slider sheet
+                tapTag("budget_row_${Cat.SHOPPING}")
+                waitForTag("save_budget_sheet", 20_000)
+                Thread.sleep(900)
+                shot("23_category_budget")
+                withVm { it.closeSheet() }
+                Thread.sleep(600)
             }
             section("activity") {
                 tapTag("tab_activity")

@@ -1085,7 +1085,14 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         if (!editable()) return@launch
         repo.setBudget(key, paise)
         closeSheet()
-        say(if (paise == null || paise <= 0) "Budget removed" else "Budget set to ${Money.formatInr(paise)}")
+        val what = if (key == Schema.OVERALL) "Budget" else "${categoryName(key)} budget"
+        say(if (paise == null || paise <= 0) "$what removed" else if (key == Schema.OVERALL) "Budget set to ${Money.formatInr(paise)}" else "$what: ${Money.formatInr(paise)} a month")
+    }
+
+    /** From the month budget's sheet: every category with its slider. */
+    fun openAdjustBudgets() {
+        closeSheet()
+        go(Screen.ADJUST_BUDGETS)
     }
 
     fun saveCategory(id: String?, name: String, icon: String, color: Long, countsAsSpend: Boolean) = viewModelScope.launch {

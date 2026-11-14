@@ -160,6 +160,57 @@ class BudgetSlidersTest {
     }
 
     @Test
+    fun aCategoryOnBudgetsGetsTheSliderToo() {
+        importAll()
+        with(compose) {
+            setMonthlyTotal("20000")
+            tapTag("save_budget")
+            waitForTag("budget_hero")
+            tapTag("tab_budgets")
+
+            // No budget on Food yet: the row opens the slider, starting at the usual month
+            tapTag("set_budget_${Cat.FOOD}")
+            waitForTag("budget_slider_${Cat.FOOD}")
+            waitForText("Save · ₹5,000 a month")
+            waitForText("↑ Rising · Jul ₹4k, Aug ₹5k, Sep ₹6k")
+            hasTextAt("budget_sheet_now", "This month: ₹1,228 spent · ₹3,772 left")
+            hasTextAt("budget_sheet_enough", "Enough in 2 of the last 3 months")
+            // ₹100 a step: up to twice the usual month, ₹10,000, is 99 stops between the ends
+            assertEquals(99, sliderValue("budget_slider_${Cat.FOOD}").steps)
+
+            onNodeWithTag("budget_slider_${Cat.FOOD}").performSemanticsAction(SemanticsActions.SetProgress) { it(7_040f) }
+            waitForText("Save · ₹7,000 a month")
+            hasTextAt("budget_sheet_enough", "Enough in 3 of the last 3 months")
+
+            // Any amount can be typed; the slider stretches to fit
+            typeInto("budget_amount_${Cat.FOOD}", "25000")
+            hasTextAt("budget_slider_end", "₹32,000")
+            waitForText("Save · ₹25,000 a month")
+
+            // One tap back to the usual month, then save
+            tapTag("budget_quick_usual")
+            waitForText("Save · ₹5,000 a month")
+            tapTag("save_budget_sheet")
+            waitForText("Food & Dining budget: ₹5,000 a month")
+            assertEquals(5_000_00L, budgets()[Cat.FOOD])
+            assertEquals(20_000_00L, budgets()[Schema.OVERALL]) // the month's budget is left as it was
+
+            // Now under "By category": the same sheet, starting from the budget, with Remove
+            tapTag("budget_row_${Cat.FOOD}")
+            waitForText("Save · ₹5,000 a month")
+            tapTag("remove_budget")
+            waitForText("Food & Dining budget removed")
+            assertNull(budgets()[Cat.FOOD])
+
+            // The month's own budget keeps its box, and offers every category's slider
+            tapTag("edit_budget")
+            waitForTag("budget_amount")
+            tapTag("open_adjust")
+            waitForTag("slider_summary")
+        }
+    }
+
+    @Test
     fun reportsShowEachCategorysTrend() {
         importAll()
         with(compose) {
@@ -176,6 +227,43 @@ class BudgetSlidersTest {
             // Tapping one narrows Reports to it
             tapTag("trend_${Cat.FOOD}")
             waitForTag("filter_category")
+        }
+    }
+}
+
+/** Right after a first import with no month behind it: a category's budget still has its slider, without dots. */
+@RunWith(RobolectricTestRunner::class)
+@Config(application = TestApp::class, sdk = [36], qualifiers = "w393dp-h852dp-xxhdpi")
+class CategoryBudgetWithoutHistoryTest {
+
+    @get:Rule
+    val compose = createAndroidComposeRule<MainActivity>()
+    private val app get() = compose.activity.application as OwlTrackerApp
+
+    @Test
+    fun theSliderStartsFromThisMonthSoFar() {
+        with(compose) {
+            tapTag("get_started")
+            tapTag("allow_sms")
+            waitForTag("import_all")
+            tapTag("import_all")
+            tapTag("import_continue")
+            // Nothing before October: the single amount, and a word about the sliders
+            waitForTag("budget_input")
+            waitForText("In Budgets, tap any category")
+            setMonthlyTotal("20000")
+            tapTag("save_budget")
+            waitForTag("budget_hero")
+            tapTag("tab_budgets")
+
+            // Food: ₹1,228 so far in October, rounded up to ₹1,300
+            tapTag("set_budget_${Cat.FOOD}")
+            waitForTag("budget_slider_${Cat.FOOD}")
+            waitForText("This month so far: ₹1,228")
+            waitForText("Save · ₹1,300 a month")
+            tapTag("save_budget_sheet")
+            waitForText("Food & Dining budget: ₹1,300 a month")
+            assertEquals(1_300_00L, runBlocking { app.container.repo.observeBudgets().first() }[Cat.FOOD])
         }
     }
 }

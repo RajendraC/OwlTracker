@@ -647,6 +647,11 @@ private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
 
 @Composable
 private fun BudgetEditSheet(vm: AppViewModel, key: String) {
+    // A category's budget: the slider, with its months
+    if (key != Schema.OVERALL) {
+        CategoryBudgetSheet(vm, key)
+        return
+    }
     val budgets by vm.budgets.collectAsStateWithLifecycle()
     val cats by vm.categories.collectAsStateWithLifecycle()
     val d by vm.dashboard.collectAsStateWithLifecycle()
@@ -679,6 +684,12 @@ private fun BudgetEditSheet(vm: AppViewModel, key: String) {
     Button(onClick = { vm.saveBudget(key, rupees * 100) }, enabled = rupees > 0, modifier = Modifier.fillMaxWidth().height(52.dp).testTag("save_budget_sheet")) { Text("Save budget") }
     if (!overall && current != null) {
         TextButton(onClick = { vm.saveBudget(key, null) }, modifier = Modifier.fillMaxWidth()) { Text("Remove this budget", color = MaterialTheme.colorScheme.error) }
+    }
+    if (overall) {
+        // Or the month as the total of the categories, each with its slider
+        TextButton(onClick = { vm.openAdjustBudgets() }, modifier = Modifier.fillMaxWidth().testTag("open_adjust")) {
+            Text("Set it category by category, with sliders")
+        }
     }
 }
 

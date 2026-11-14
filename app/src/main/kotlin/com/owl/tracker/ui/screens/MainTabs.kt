@@ -1336,7 +1336,7 @@ fun BudgetsScreen(vm: AppViewModel) {
                 Panel(padding = 12.dp) {
                     dash.categoryRows.forEachIndexed { i, r ->
                         if (i > 0) Divider()
-                        Column(Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.BudgetEdit(r.category.id)) }.padding(vertical = 10.dp)) {
+                        Column(Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.BudgetEdit(r.category.id)) }.padding(vertical = 10.dp).testTag("budget_row_${r.category.id}")) {
                             // The status beside the name when there's room, else under it
                             com.owl.tracker.ui.components.SideOrStacked(
                                 Modifier.fillMaxWidth(), stackedGap = 6.dp,
@@ -1363,7 +1363,11 @@ fun BudgetsScreen(vm: AppViewModel) {
             Panel(padding = 12.dp) {
                 dash.unbudgeted.forEachIndexed { i, cs ->
                     if (i > 0) Divider()
-                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // The whole row opens the budget's slider, as "Set" does
+                    Row(
+                        Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.BudgetEdit(cs.category.id)) }.padding(vertical = 8.dp).testTag("set_budget_${cs.category.id}"),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         CategoryTile(cs.category, 36.dp)
                         Column(Modifier.weight(1f)) {
                             Text(cs.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
