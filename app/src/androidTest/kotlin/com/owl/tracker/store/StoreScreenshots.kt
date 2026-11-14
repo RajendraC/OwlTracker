@@ -144,6 +144,19 @@ class StoreScreenshots {
             waitForTag("budget_hero", 30_000)
             Thread.sleep(6000) // the pictures come in a moment later, then play (the first WebView takes longest)
             shot("10_home")
+            // What's changing, with its first row opened (then closed again for the shots after it)
+            runCatching {
+                scrollTo(hasTestTag("whats_changing"), below = 40f)
+                val row = SemanticsMatcher("a change") { n ->
+                    n.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)
+                        ?.let { t -> t.startsWith("change_") && !t.startsWith("change_bars_") && !t.startsWith("change_budget_") } == true
+                }
+                compose.onAllNodes(row)[0].performClick()
+                Thread.sleep(900)
+                shot("10c_home_changes")
+                compose.onAllNodes(row)[0].performClick()
+                Thread.sleep(500)
+            }.onFailure { Log.w(TAG, "What's changing: not shown", it) }
             // Home runs up behind the status bar: keep the heading clear of it
             runCatching { scrollTo(hasText("This month in pictures"), below = 40f) }
             Thread.sleep(4500)
@@ -219,6 +232,13 @@ class StoreScreenshots {
                 waitForTag("save_budget_sheet", 20_000)
                 Thread.sleep(900)
                 shot("23_category_budget")
+                withVm { it.closeSheet() }
+                Thread.sleep(600)
+                // The month's budget: on a slider too
+                tapTag("edit_month_budget")
+                waitForTag("month_slider_end", 20_000)
+                Thread.sleep(900)
+                shot("24_month_budget")
                 withVm { it.closeSheet() }
                 Thread.sleep(600)
             }

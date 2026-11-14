@@ -505,6 +505,14 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         go(Screen.INSIGHTS)
     }
 
+    /** Home's "What's changing" → All: Reports, scrolled to the trend by category. */
+    fun openCategoryTrends() {
+        reportRange.value = ReportRange.ONE
+        reportFilter.value = ReportFilter()
+        reportScrollTo.value = "trends"
+        go(Screen.INSIGHTS)
+    }
+
     fun setReportRange(r: ReportRange) {
         reportRange.value = r
         reportFilter.update { it.copy(bucket = null, day = null) }

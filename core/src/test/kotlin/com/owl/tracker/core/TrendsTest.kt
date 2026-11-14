@@ -51,4 +51,36 @@ class TrendsTest {
         assertEquals(16_000_00L, Trends.sliderMax(900_00, 12_500_00))
         assertEquals(5_000_00L, Trends.sliderMax(900_00, 4_000_00))
     }
+
+    @Test
+    fun whatChangedMostIsNewRisingOrFalling() {
+        val transport = r(12400, 13800, 15200, 16900, 17500, 21400)
+        assertEquals(Move(MoveKind.RISING, 3, 5, 4_500_00), Trends.move(transport))
+        assertEquals(Move(MoveKind.FALLING, 3, 5, -1_400_00), Trends.move(r(7800, 7100, 6400, 5900, 5200, 4500)))
+        // Nothing before October, then a trip: new
+        assertEquals(Move(MoveKind.NEW, 5, 5, 10_500_00), Trends.move(r(0, 0, 0, 0, 0, 10500)))
+        // Steady, up and down, too early, or too small: not news
+        assertEquals(null, Trends.move(r(40328, 40328, 40328, 40328, 40328, 40328)))
+        assertEquals(null, Trends.move(r(2100, 3900, 2600, 9800, 1900, 2100)))
+        assertEquals(null, Trends.move(r(null, null, null, null, null, 5000)))
+        assertEquals(null, Trends.move(r(null, null, null, 1000, 1100, 1400)))
+        assertEquals(null, Trends.move(r(null, null, null, null, 0, 300)))
+
+        val moves = Trends.biggestMoves(
+            mapOf(
+                "transport" to transport, "holiday" to r(0, 0, 0, 0, 0, 10500), "groceries" to r(7800, 7100, 6400, 5900, 5200, 4500),
+                "food" to r(3200, 3600, 4100, 3700, 3900, 4100), "health" to r(null, null, null, 1000, 1100, 1400),
+                "entertainment" to r(2400, 2900, 3100, 2800, 3300, 3500),
+            ),
+        )
+        assertEquals(listOf("holiday", "transport", "groceries"), moves.map { it.first })
+    }
+
+    @Test
+    fun theMonthsSliderGoesWellPastALakh() {
+        assertEquals(2_00_000_00L, Trends.monthSliderMax(90_000_00))
+        assertEquals(3_00_000_00L, Trends.monthSliderMax(1_50_000_00))
+        // ₹5,00,000 typed: 25% above it
+        assertEquals(6_25_000_00L, Trends.monthSliderMax(90_000_00, 5_00_000_00))
+    }
 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -169,10 +170,9 @@ fun BudgetSetupScreen(vm: AppViewModel) {
 /** The single monthly amount: the only choice before there's a month to go by, or when you'd rather not split it up. */
 @Composable
 private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.ui.MonthHistory?, onByCategory: () -> Unit) {
-    // With history, start from the usual month, rounded up to ₹1,000
-    val usual = h?.let { hh -> hh.byCategory.keys.sumOf { hh.usual(it) } } ?: 0L
-    var text by rememberSaveable { mutableStateOf(if (usual > 0) ((usual + 99_999) / 100_000 * 1_000).toString() else "75000") }
-    val rupees = text.filter { it.isDigit() }.take(8).toLongOrNull() ?: 0L
+    // With history, start from the usual month, rounded up to ₹1,000; else ₹75,000. Any amount, on a slider or typed
+    val usual = h?.let { com.owl.tracker.core.Trends.usualMonth(it.totals) } ?: 0L
+    var paise by rememberSaveable { mutableStateOf(if (usual > 0) (usual + 999_99) / 1_000_00 * 1_000_00 else 75_000_00L) }
     Column(
         Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -183,23 +183,8 @@ private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Panel {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { v -> text = v.filter { it.isDigit() }.take(8) },
-                label = { Text("Monthly budget (₹)") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth().testTag("budget_input"),
-                textStyle = MaterialTheme.typography.headlineSmall,
-            )
-            Gap(6.dp)
-            Text(if (rupees > 0) "${Money.formatInr(rupees * 100)} a month" else "Enter an amount", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Gap(10.dp)
-            // One line that scrolls sideways with big text: a second line would push "Save budget" under the keyboard
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(50_000L, 75_000L, 1_00_000L).forEach { v ->
-                    FilterChip(selected = rupees == v, onClick = { text = v.toString() }, label = { Text(Money.formatInr(v * 100)) })
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                MonthBudgetPicker(h, h?.now?.values?.sum() ?: 0L, paise, "budget_input") { paise = it }
             }
         }
         if (manual) {
@@ -209,10 +194,10 @@ private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.
         }
         Gap(8.dp)
         Button(
-            onClick = { if (rupees > 0) vm.finishOnboarding(rupees * 100) },
-            enabled = rupees > 0,
-            modifier = Modifier.fillMaxWidth().height(56.dp).testTag("save_budget"),
-        ) { Text("Save budget") }
+            onClick = { if (paise > 0) vm.finishOnboarding(paise) },
+            enabled = paise > 0,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("save_budget"),
+        ) { com.owl.tracker.ui.components.FitText("Save budget · ${Money.formatInr(paise)} a month", minScale = 0.8f, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
         if (h != null) {
             androidx.compose.material3.TextButton(onClick = onByCategory, modifier = Modifier.fillMaxWidth().testTag("by_category")) {
                 Text("Set a budget for each category instead")

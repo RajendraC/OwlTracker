@@ -3,6 +3,12 @@ package com.owl.tracker.core
 /** Which way a category's spending has gone over the last months. */
 enum class TrendKind { RISING, FALLING, STEADY, UP_AND_DOWN, TOO_EARLY, NONE }
 
+/** A change worth a line on Home: something new, or a rise or fall over the last three months. */
+enum class MoveKind { NEW, RISING, FALLING }
+
+/** [from] and [to] index the months; [change] is the latest month less the [from] month, in paise. */
+data class Move(val kind: MoveKind, val from: Int, val to: Int, val change: Long)
+
 /**
  * One category's spending month by month, for the budget sliders and the trend report. [months] are complete budget
  * months, oldest first, in paise; null for a month before the records begin (the SMS history doesn't reach it), so
@@ -66,4 +72,35 @@ object Trends {
         val base = maxOf(5_000_00L, up(usual * 2))
         return if (value > base) up(value * 5 / 4) else base
     }
+
+    /** Smaller changes aren't news. */
+    const val MIN_MOVE = 500_00L
+
+    /**
+     * How a category moved, for "What's changing": new (nothing in the earlier months, something in the latest),
+     * rising or falling (as [kind], the latest month against the first of the last three), by at least [MIN_MOVE].
+     * Null when it held steady, went up and down, or there isn't enough to go by.
+     */
+    fun move(months: List<Long?>): Move? {
+        val idx = months.indices.filter { months[it] != null }
+        if (idx.size < 2) return null
+        val last = idx.last()
+        val latest = months[last]!!
+        if (latest > 0 && idx.dropLast(1).all { months[it] == 0L }) {
+            return if (latest >= MIN_MOVE) Move(MoveKind.NEW, last, last, latest) else null
+        }
+        val k = kind(months)
+        if (k != TrendKind.RISING && k != TrendKind.FALLING) return null
+        val from = idx.takeLast(USUAL_OF).first()
+        val change = latest - months[from]!!
+        if (kotlin.math.abs(change) < MIN_MOVE) return null
+        return Move(if (change > 0) MoveKind.RISING else MoveKind.FALLING, from, last, change)
+    }
+
+    /** The biggest moves first, at most [count]. */
+    fun <K> biggestMoves(byKey: Map<K, List<Long?>>, count: Int = 3): List<Pair<K, Move>> =
+        byKey.mapNotNull { (k, m) -> move(m)?.let { k to it } }.sortedByDescending { kotlin.math.abs(it.second.change) }.take(count)
+
+    /** Where a slider for the month's whole budget ends: twice the usual month, at least ₹2,00,000, stretched for a typed amount. */
+    fun monthSliderMax(usual: Long, value: Long = 0): Long = maxOf(2_00_000_00L, sliderMax(usual, value))
 }

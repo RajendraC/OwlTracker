@@ -158,6 +158,8 @@ fun HomeScreen(vm: AppViewModel) {
     val mode by vm.homeMode.collectAsStateWithLifecycle()
     val weekView by vm.weekView.collectAsStateWithLifecycle()
     val canForwardWeek by vm.canGoForwardWeek.collectAsStateWithLifecycle()
+    val hist by vm.monthHistory.collectAsStateWithLifecycle()
+    val budgetMap by vm.budgets.collectAsStateWithLifecycle()
     val dash = d ?: return
     val catMap = cats.associateBy { it.id }
     val sc = LocalStatusColors.current
@@ -186,11 +188,17 @@ fun HomeScreen(vm: AppViewModel) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val showPictures = wholeMonth && dash.byCategory.isNotEmpty()
+    // What's changing: this month on Home, when the months behind it show something moving
+    val changes = hist?.takeIf { wholeMonth && dash.isCurrent && it.hasData }
+    val showChanges = remember(changes, cats) {
+        val ok = cats.filter { it.countsAsSpend && !it.archived }.map { it.id }.toSet()
+        changes != null && com.owl.tracker.core.Trends.biggestMoves(changes.byCategory.filterKeys { it in ok }).isNotEmpty()
+    }
     // Where "Where it went" sits in the list, to scroll to it from the budget circle and the pictures
     val whereIndex = 1 + (if (calendar != null) 1 else 0) + (if (pickedTotal != null) 1 else 0) +
         (if (access is Access.Trial || access == Access.TrialEnded) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
-        dash.over.size + (if (showPictures) 1 else 0)
+        dash.over.size + (if (showChanges) 1 else 0) + (if (showPictures) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
     // the status bar readable, and a card scrolled to stops just below it
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -288,6 +296,11 @@ fun HomeScreen(vm: AppViewModel) {
                         OutlinedButton(onClick = { vm.openSheet(Sheet.BudgetEdit(o.budgetKey)) }) { Text("Adjust budget", color = sc.overFg) }
                     }
                 }
+            }
+
+            // Under the budget and its alerts: the categories that moved most over the last months
+            if (showChanges && changes != null) item(key = "changes") {
+                WhatsChangingCard(changes, cats, budgetMap, vm, side)
             }
 
             // After the alerts, the month as a calendar, a row a week: tap a day for its payments, a week's total for the week

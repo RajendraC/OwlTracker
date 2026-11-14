@@ -122,11 +122,17 @@ fun ReportsScreen(vm: AppViewModel) {
     // Opened from Home's "Could save": go to Ways to save once it's there
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scrollTo by vm.reportScrollTo.collectAsStateWithLifecycle()
-    androidx.compose.runtime.LaunchedEffect(scrollTo, report, plan) {
+    androidx.compose.runtime.LaunchedEffect(scrollTo, report, plan, hist) {
         val r = report ?: return@LaunchedEffect
         if (scrollTo == "ways" && plan?.isEmpty == false && r.filter.isEmpty) {
             // header, range chips, summary, income & expenses (when shown), then ways to save
             listState.animateScrollToItem(3 + (if (r.incomeExpenses != null) 1 else 0))
+            vm.reportScrollTo.value = null
+        }
+        if (scrollTo == "trends" && hist?.hasData == true && r.filter.isEmpty) {
+            // … ways to save (when shown), the trend, where it went (when there's any), then trend by category
+            val ways = if (plan?.isEmpty == false) 1 else 0
+            listState.animateScrollToItem(3 + (if (r.incomeExpenses != null) 1 else 0) + ways + 1 + (if (r.categories.isNotEmpty()) 1 else 0))
             vm.reportScrollTo.value = null
         }
     }

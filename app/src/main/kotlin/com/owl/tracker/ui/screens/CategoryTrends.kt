@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,6 +38,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.owl.tracker.core.Money
+import com.owl.tracker.core.Move
+import com.owl.tracker.core.MoveKind
 import com.owl.tracker.core.TrendKind
 import com.owl.tracker.core.Trends
 import com.owl.tracker.data.Category
@@ -191,6 +194,134 @@ private fun MonthBars(months: List<Long?>, now: Long, color: Color, modifier: Mo
                 if (isNow) color.copy(alpha = 0.38f) else color.copy(alpha = 0.55f + 0.45f * i / (values.size - 1)),
                 Offset(x, base - hgt), Size(w, hgt), CornerRadius(3.dp.toPx(), 3.dp.toPx()),
             )
+        }
+    }
+}
+
+// ---------------- Home: What's changing ----------------
+
+/** "↑ Rising · 27% more than in Aug", "↓ Falling · 24% less than in Aug", "New · ₹10.5k in Oct". */
+fun movePhrase(m: Move, months: List<Long?>, labels: List<String>): String {
+    val from = months[m.from] ?: 0L
+    val pct = if (from > 0) kotlin.math.abs(m.change) * 100 / from else 0
+    return when (m.kind) {
+        MoveKind.NEW -> "New · ${Money.formatShort(m.change)} in ${labels.getOrElse(m.to) { "" }}"
+        MoveKind.RISING -> "↑ Rising · $pct% more than in ${labels.getOrElse(m.from) { "" }}"
+        MoveKind.FALLING -> "↓ Falling · $pct% less than in ${labels.getOrElse(m.from) { "" }}"
+    }
+}
+
+/**
+ * Home, under the budget: the categories that moved most over the last months (something new, a rise, a fall), each
+ * with its months as small bars. Tap one for its months with amounts, its budget as a line, and its budget's slider.
+ */
+@Composable
+fun WhatsChangingCard(h: MonthHistory, cats: List<Category>, budgets: Map<String, Long>, vm: AppViewModel, modifier: Modifier = Modifier) {
+    val catMap = remember(cats) { cats.associateBy { it.id } }
+    val moves = remember(h, catMap) {
+        Trends.biggestMoves(h.byCategory.filterKeys { id -> catMap[id]?.let { it.countsAsSpend && !it.archived } == true })
+    }
+    if (moves.isEmpty()) return
+    var open by rememberSaveable { mutableStateOf<String?>(null) }
+    val sc = LocalStatusColors.current
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val labels = h.labels + MonthHistory.label(h.current)
+    Panel(modifier.testTag("whats_changing"), padding = 12.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                Text("What's changing", style = MaterialTheme.typography.titleMedium)
+                Text("Biggest moves over the last ${h.knownCount} months · tap one", style = MaterialTheme.typography.bodySmall, color = muted)
+            }
+            TextButton(onClick = { vm.openCategoryTrends() }, modifier = Modifier.testTag("changes_all")) { Text("All ›") }
+        }
+        moves.forEachIndexed { i, (id, mv) ->
+            val c = catMap[id] ?: return@forEachIndexed
+            val months = h.of(id)
+            val now = h.now[id] ?: 0L
+            val budget = budgets[id]
+            val isOpen = open == id
+            if (i > 0) Divider()
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { open = if (isOpen) null else id }
+                    .padding(vertical = 8.dp, horizontal = 4.dp).testTag("change_$id"),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                CategoryTile(c, 40.dp)
+                Column(Modifier.weight(1f)) {
+                    Text(c.name, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold))
+                    Text(
+                        movePhrase(mv, months, h.labels),
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = when (mv.kind) { MoveKind.RISING -> sc.overFg; MoveKind.FALLING -> sc.okFg; MoveKind.NEW -> muted },
+                    )
+                }
+                MonthBars(months, now, Color(c.color), Modifier.size(width = 76.dp, height = 32.dp))
+            }
+            if (isOpen) {
+                Column(Modifier.fillMaxWidth().padding(start = 56.dp, end = 4.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    BarsWithAmounts(months, now, labels, Color(c.color), budget, Modifier.fillMaxWidth().testTag("change_bars_$id"))
+                    val known = Trends.known(months).size
+                    val note = when {
+                        mv.kind == MoveKind.NEW && budget == null -> "Nothing on it before ${labels.getOrElse(mv.to) { "" }}. No budget on it yet."
+                        mv.kind == MoveKind.NEW -> "Nothing on it before ${labels.getOrElse(mv.to) { "" }}. Its budget: ${Money.formatInr(budget!!)}."
+                        budget == null -> "Usual month now ${Money.formatInr(h.usual(id))}. No budget on it yet."
+                        else -> {
+                            val over = known - Trends.enoughIn(months, budget)
+                            "Over its ${Money.formatInr(budget)} budget in $over of the last $known ${if (known == 1) "month" else "months"}. Usual month now ${Money.formatInr(h.usual(id))}."
+                        }
+                    }
+                    Text(note, style = MaterialTheme.typography.bodySmall, color = muted)
+                    androidx.compose.material3.Button(
+                        onClick = { vm.openSheet(com.owl.tracker.ui.Sheet.BudgetEdit(id)) },
+                        modifier = Modifier.testTag("change_budget_$id"),
+                    ) { Text(if (budget != null) "Change the budget" else "Set a budget") }
+                }
+            }
+        }
+    }
+}
+
+/** A category's months with their amounts over the bars, month names under them, and its budget as a dashed line. */
+@Composable
+private fun BarsWithAmounts(months: List<Long?>, now: Long, labels: List<String>, color: Color, budget: Long?, modifier: Modifier) {
+    val values = months + now
+    val top = (values.maxOf { it ?: 0L }.coerceAtLeast(budget ?: 0L).coerceAtLeast(1L) * 11 / 10)
+    val barH = 64.dp
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val ink = MaterialTheme.colorScheme.onSurface
+    CapFontScale(1.3f) {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Box(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                    values.forEachIndexed { i, v ->
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                            FitText(if (v == null) "–" else Money.formatShort(v), style = MaterialTheme.typography.labelSmall, color = muted, minScale = 0.6f)
+                            val f = ((v ?: 0L).toFloat() / top).coerceIn(0f, 1f)
+                            Box(Modifier.height(barH), contentAlignment = Alignment.BottomCenter) {
+                                Box(
+                                    Modifier.fillMaxWidth(0.62f).height(if (v == null) 2.dp else barH * f.coerceAtLeast(0.03f))
+                                        .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
+                                        .background(if (v == null) MaterialTheme.colorScheme.outlineVariant else color.copy(alpha = if (i == values.lastIndex) 0.38f else 0.55f + 0.45f * i / values.lastIndex)),
+                                )
+                            }
+                        }
+                    }
+                }
+                // The budget, across the bars
+                if (budget != null && budget > 0) {
+                    Canvas(Modifier.matchParentSize()) {
+                        val y = size.height - barH.toPx() * (budget.toFloat() / top).coerceIn(0f, 1f)
+                        drawLine(ink, Offset(0f, y), Offset(size.width, y), 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth()) {
+                labels.forEachIndexed { i, l ->
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        FitText(l, style = MaterialTheme.typography.labelSmall, color = if (i == labels.lastIndex) MaterialTheme.colorScheme.primary else muted, minScale = 0.6f)
+                    }
+                }
+            }
         }
     }
 }

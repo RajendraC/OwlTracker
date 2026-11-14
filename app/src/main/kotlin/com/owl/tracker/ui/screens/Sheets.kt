@@ -647,50 +647,8 @@ private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
 
 @Composable
 private fun BudgetEditSheet(vm: AppViewModel, key: String) {
-    // A category's budget: the slider, with its months
-    if (key != Schema.OVERALL) {
-        CategoryBudgetSheet(vm, key)
-        return
-    }
-    val budgets by vm.budgets.collectAsStateWithLifecycle()
-    val cats by vm.categories.collectAsStateWithLifecycle()
-    val d by vm.dashboard.collectAsStateWithLifecycle()
-    val overall = key == Schema.OVERALL
-    val name = if (overall) "Monthly budget" else (cats.firstOrNull { it.id == key }?.name ?: "Category") + " budget"
-    val current = budgets[key]
-    var text by rememberSaveable(key) { mutableStateOf(current?.let { (it / 100).toString() } ?: "") }
-    val rupees = text.toLongOrNull() ?: 0L
-    val spent = if (overall) d?.spent ?: 0L else d?.byCategory?.firstOrNull { it.category.id == key }?.paise ?: 0L
-    val daysLeft = d?.let { (it.period.days - it.dayNumber).coerceAtLeast(1) } ?: 1
-
-    SheetTitle(name, "${Money.formatInr(spent)} spent so far this month")
-    OutlinedTextField(
-        value = text, onValueChange = { v -> text = v.filter { it.isDigit() }.take(8) },
-        label = { Text("Monthly limit (₹)") }, singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth().testTag("budget_amount"),
-        textStyle = MaterialTheme.typography.headlineSmall,
-    )
-    Text(
-        if (rupees > 0) "${Money.formatInr(rupees * 100)} a month · ${Money.formatInr(((rupees * 100 - spent).coerceAtLeast(0)) / daysLeft)} a day left to spend" else "Enter an amount",
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        (if (overall) listOf(50_000L, 75_000L, 1_00_000L) else listOf(2_000L, 5_000L, 8_000L)).forEach { v ->
-            FilterChip(selected = rupees == v, onClick = { text = v.toString() }, label = { Text(Money.formatInr(v * 100)) })
-        }
-    }
-    Text("Repeats every month until you change it.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Button(onClick = { vm.saveBudget(key, rupees * 100) }, enabled = rupees > 0, modifier = Modifier.fillMaxWidth().height(52.dp).testTag("save_budget_sheet")) { Text("Save budget") }
-    if (!overall && current != null) {
-        TextButton(onClick = { vm.saveBudget(key, null) }, modifier = Modifier.fillMaxWidth()) { Text("Remove this budget", color = MaterialTheme.colorScheme.error) }
-    }
-    if (overall) {
-        // Or the month as the total of the categories, each with its slider
-        TextButton(onClick = { vm.openAdjustBudgets() }, modifier = Modifier.fillMaxWidth().testTag("open_adjust")) {
-            Text("Set it category by category, with sliders")
-        }
-    }
+    // The month's budget, or a category's: each on its slider, with a box to type any amount
+    if (key == Schema.OVERALL) MonthBudgetSheet(vm) else CategoryBudgetSheet(vm, key)
 }
 
 @OptIn(ExperimentalLayoutApi::class)

@@ -212,9 +212,9 @@ internal fun MonthsSlider(
     )
 }
 
-/** The amount as a box you can type in: the number keypad, any amount up to ₹99,99,999; empty is ₹0. */
+/** The amount as a box you can type in: the number keypad, any amount up to ₹99,99,99,999; empty is ₹0. */
 @Composable
-internal fun AmountBox(id: String, name: String, paise: Long, onTyped: (Long) -> Unit) {
+internal fun AmountBox(id: String, name: String, paise: Long, tag: String = "budget_amount_$id", onTyped: (Long) -> Unit) {
     var text by remember(paise) { mutableStateOf(if (paise > 0) (paise / 100).toString() else "") }
     val focus = remember { MutableInteractionSource() }
     val focused by focus.collectIsFocusedAsState()
@@ -222,7 +222,7 @@ internal fun AmountBox(id: String, name: String, paise: Long, onTyped: (Long) ->
     BasicTextField(
         value = text,
         onValueChange = { v ->
-            val d = v.filter { it.isDigit() }.trimStart('0').take(7)
+            val d = v.filter { it.isDigit() }.trimStart('0').take(9)
             text = d
             onTyped((d.toLongOrNull() ?: 0L) * 100)
         },
@@ -232,7 +232,7 @@ internal fun AmountBox(id: String, name: String, paise: Long, onTyped: (Long) ->
         visualTransformation = IndianGrouping,
         interactionSource = focus,
         cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
-        modifier = Modifier.testTag("budget_amount_$id").semantics { contentDescription = "$name budget in rupees" },
+        modifier = Modifier.testTag(tag).semantics { contentDescription = "$name budget in rupees" },
         decorationBox = { inner ->
             Row(
                 Modifier.widthIn(min = 100.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface)
@@ -624,5 +624,131 @@ fun CategoryBudgetSheet(vm: AppViewModel, key: String) {
         TextButton(onClick = { vm.saveBudget(key, null) }, modifier = Modifier.fillMaxWidth().testTag("remove_budget")) {
             Text("Remove this budget", color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
+    }
+}
+
+/**
+ * The month's whole budget on a slider: the same ₹100 steps, the month totals as dots, at least ₹2,00,000 long and
+ * twice the usual month, stretched for any amount typed (up to ₹99 crore). Then this month so far and how often the
+ * amount would have been enough.
+ */
+@Composable
+internal fun MonthBudgetPicker(h: MonthHistory?, spent: Long, value: Long, boxTag: String, onValue: (Long) -> Unit) {
+    val sc = LocalStatusColors.current
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    var stretched by rememberSaveable { mutableStateOf(0L) }
+    val months = h?.totals ?: emptyList()
+    val labels = h?.labels ?: emptyList()
+    val usual = Trends.usualMonth(months)
+    val cap = maxOf(Trends.monthSliderMax(maxOf(usual, spent), value), stretched)
+    val lastIdx = months.indexOfLast { it != null }
+    val known = Trends.known(months).size
+    SideOrStacked(
+        Modifier.fillMaxWidth(), stackedGap = 6.dp,
+        start = { Text("Budget a month", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold)) },
+        end = {
+            AmountBox("month", "Monthly", value, tag = boxTag) { v ->
+                onValue(v)
+                if (v > cap) stretched = Trends.monthSliderMax(maxOf(usual, spent), v)
+            }
+        },
+    )
+    Column {
+        MonthsSlider("month", "Monthly", value, cap, months, labels.getOrElse(lastIdx) { "" }, MaterialTheme.colorScheme.primary) { onValue(it) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("₹0", style = MaterialTheme.typography.labelSmall, color = muted)
+            Text(Money.formatInr(cap), style = MaterialTheme.typography.labelSmall, color = muted, modifier = Modifier.testTag("month_slider_end"))
+        }
+    }
+    if (spent > 0 || known > 0) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            val left = value - spent
+            Text(
+                when {
+                    value <= 0 -> "This month: ${Money.formatInr(spent)} spent"
+                    left < 0 -> "This month: ${Money.formatInr(spent)} spent · ${Money.formatInr(-left)} over"
+                    else -> "This month: ${Money.formatInr(spent)} spent · ${Money.formatInr(left)} left"
+                },
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = if (value > 0 && left < 0) sc.overFg else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.testTag("month_sheet_now"),
+            )
+            if (known > 0 && value > 0) {
+                val ok = Trends.enoughIn(months, value)
+                Text(
+                    "Enough in $ok of the last $known ${if (known == 1) "month" else "months"}",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    color = when { ok * 10 >= known * 8 -> sc.okFg; ok * 2 >= known -> sc.warnFg; else -> sc.overFg },
+                    modifier = Modifier.testTag("month_sheet_enough"),
+                )
+            }
+        }
+    }
+}
+
+/** Budgets → the month's Edit (and Home's pencil): the month's budget on its slider, with one-tap amounts. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun MonthBudgetSheet(vm: AppViewModel) {
+    val hist by vm.monthHistory.collectAsStateWithLifecycle()
+    val budgets by vm.budgets.collectAsStateWithLifecycle()
+    val d by vm.dashboard.collectAsStateWithLifecycle()
+    val h = hist
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val sc = LocalStatusColors.current
+    val current = budgets[Schema.OVERALL]
+    val spent = h?.now?.values?.sum() ?: d?.spent ?: 0L
+    val months = h?.totals ?: emptyList()
+    val usual = Trends.usualMonth(months)
+    // Until moved: the budget set, else the usual month rounded up to ₹1,000, else ₹75,000
+    val start = current ?: usual.takeIf { it > 0 }?.let { (it + 999_99) / 1_000_00 * 1_000_00 } ?: 75_000_00L
+    var picked by rememberSaveable { mutableStateOf<Long?>(null) }
+    val value = picked ?: start
+    val lastIdx = months.indexOfLast { it != null }
+    val labels = h?.labels ?: emptyList()
+
+    Column {
+        Text("Monthly budget", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+        if (Trends.known(months).isNotEmpty()) {
+            val (trend, kind) = trendWords(months, labels)
+            Text(trend, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = trendColor(kind))
+        } else {
+            Text("All your spending in a budget month", style = MaterialTheme.typography.bodyMedium, color = muted)
+        }
+    }
+    MonthBudgetPicker(h, spent, value, "budget_amount") { picked = it }
+    val quick = buildList {
+        if (usual > 0) add(Triple("usual", "Usual · ${Money.formatShort(usual)}", usual))
+        months.getOrNull(lastIdx)?.takeIf { it > 0 && it != usual }?.let { add(Triple("last", "${labels.getOrElse(lastIdx) { "" }} · ${Money.formatShort(it)}", it)) }
+        h?.usualMoneyIn?.takeIf { it > 0 }?.let { add(Triple("in", "Money in · ${Money.formatShort(it)}", it)) }
+        current?.takeIf { it != usual }?.let { add(Triple("now", "As now · ${Money.formatShort(it)}", it)) }
+    }
+    if (quick.isNotEmpty()) {
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            quick.forEach { (tag, label, v) ->
+                androidx.compose.material3.FilterChip(selected = value == v, onClick = { picked = v }, label = { Text(label) }, modifier = Modifier.testTag("month_quick_$tag"))
+            }
+        }
+    }
+    // Against the categories' own budgets
+    val categories = budgets.filterKeys { it != Schema.OVERALL }.values.sum()
+    if (categories > 0) {
+        Text(
+            if (categories > value) "Your category budgets add up to ${Money.formatInr(categories)}, more than this."
+            else "Your category budgets add up to ${Money.formatInr(categories)} of it.",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+            color = if (categories > value) sc.warnFg else muted,
+        )
+    }
+    Text("Drag in steps of ₹100, or tap the amount and type any figure. Repeats every month until you change it.", style = MaterialTheme.typography.bodySmall, color = muted)
+    Button(
+        onClick = { vm.saveBudget(Schema.OVERALL, value) }, enabled = value > 0,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("save_budget_sheet"),
+    ) { FitText("Save · ${Money.formatInr(value)} a month", minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
+    TextButton(onClick = { vm.openAdjustBudgets() }, modifier = Modifier.fillMaxWidth().testTag("open_adjust")) {
+        Text("Set it category by category, with sliders", textAlign = TextAlign.Center)
     }
 }

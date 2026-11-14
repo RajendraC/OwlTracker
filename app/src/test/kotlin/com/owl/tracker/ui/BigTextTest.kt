@@ -73,6 +73,7 @@ class BigTextTest {
 
         screen("Home") { waitForTag("figures") }
         screen("Home, over budget") { waitForTag("budget_line") }
+        screen("Home, what's changing") { waitForTag("whats_changing"); tapTag("change_food"); waitForTag("change_bars_food") }
         screen("Home, calendar") { waitForTag("month_calendar") }
         screen("Home, where it went") { waitForText("Where it went") }
         screen("Home, a week") { tapTag("mode_week"); waitForTag("week_card") }
@@ -90,6 +91,8 @@ class BigTextTest {
         screen("A category's budget") { tapTag("set_budget_food"); waitForTag("save_budget_sheet") }
         // Saved, then opened again: with Remove
         screen("A category's budget, with Remove") { tapTag("save_budget_sheet"); tapTag("budget_row_food"); waitForTag("remove_budget") }
+        back()
+        screen("The month's budget") { tapTag("edit_month_budget"); waitForTag("month_slider_end") }
         back()
         screen("More") { tapTag("tab_more"); waitForTag("open_rules") }
         screen("Settings") { tapText("Settings"); waitForTag("theme_choice") }

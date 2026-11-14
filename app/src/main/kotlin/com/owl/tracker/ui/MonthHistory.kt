@@ -45,6 +45,9 @@ data class MonthHistory(
     /** Months with data. */
     val knownCount: Int get() = months.size - firstKnown
 
+    /** All spending, month by month (null before the records begin): what the month budget's slider shows as dots. */
+    val totals: List<Long?> get() = months.indices.map { i -> if (i < firstKnown) null else byCategory.values.sumOf { it[i] ?: 0L } }
+
     companion object {
         val EMPTY = MonthHistory(emptyList(), emptyList(), BudgetPeriod(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 2, 1)), emptyMap(), emptyMap(), emptyList(), 0)
 

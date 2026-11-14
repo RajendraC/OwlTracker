@@ -3,6 +3,7 @@ package com.owl.tracker.ui
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performSemanticsAction
@@ -202,11 +203,51 @@ class BudgetSlidersTest {
             waitForText("Food & Dining budget removed")
             assertNull(budgets()[Cat.FOOD])
 
-            // The month's own budget keeps its box, and offers every category's slider
+            // The month's own budget: a slider too, at least ₹2,00,000 long, and any amount typed
             tapTag("edit_month_budget")
             waitForTag("budget_amount")
+            hasTextAt("month_slider_end", "₹2,00,000")
+            waitForText("Save · ₹20,000 a month")
+            typeInto("budget_amount", "250000")
+            waitForText("Save · ₹2,50,000 a month")
+            hasTextAt("month_slider_end", "₹3,13,000")
+            tapTag("save_budget_sheet")
+            waitForText("Budget set to ₹2,50,000")
+            assertEquals(2_50_000_00L, budgets()[Schema.OVERALL])
+            // … and offers every category's slider
+            tapTag("edit_month_budget")
+            waitForText("Save · ₹2,50,000 a month")
             tapTag("open_adjust")
             waitForTag("slider_summary")
+        }
+    }
+
+    @Test
+    fun homeShowsWhatsChanging() {
+        importAll()
+        with(compose) {
+            setMonthlyTotal("20000")
+            tapTag("save_budget")
+            waitForTag("budget_hero")
+            // Food rose from ₹4,000 to ₹6,000; Shopping held steady and the stay was a one-off, so only Food
+            waitForTag("whats_changing")
+            waitForTag("change_${Cat.FOOD}")
+            waitForText("↑ Rising · 50% more than in Jul")
+            assertEquals(0, onAllNodes(hasTestTag("change_${Cat.SHOPPING}")).fetchSemanticsNodes().size)
+            assertEquals(0, onAllNodes(hasTestTag("change_${Cat.HOLIDAY}")).fetchSemanticsNodes().size)
+            // Tap it: its months with amounts, a note, and its budget's slider
+            tapTag("change_${Cat.FOOD}")
+            waitForTag("change_bars_${Cat.FOOD}")
+            waitForText("Usual month now ₹5,000. No budget on it yet.")
+            tapTag("change_budget_${Cat.FOOD}")
+            waitForTag("budget_slider_${Cat.FOOD}")
+            waitForText("Save · ₹5,000 a month")
+            tapTag("save_budget_sheet")
+            waitForText("Food & Dining budget: ₹5,000 a month")
+            waitForText("Over its ₹5,000 budget in 1 of the last 3 months. Usual month now ₹5,000.")
+            // All › opens Reports at the trend by category
+            tapTag("changes_all")
+            waitForTag("report_category_trends")
         }
     }
 
