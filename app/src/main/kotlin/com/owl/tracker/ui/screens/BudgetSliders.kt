@@ -174,8 +174,9 @@ internal fun MonthsSlider(
         value = (paise / 100).coerceIn(0, maxRupees).toFloat(),
         onValueChange = { v -> onChange(Math.round(v / 100f).toLong() * 100 * 100) },
         valueRange = 0f..maxRupees.toFloat(),
-        // The thumb stops every ₹100 (and TalkBack's volume keys move it by ₹100); past 2,000 stops it slides freely, still in ₹100s
-        steps = (maxRupees / 100 - 1).toInt().takeIf { it in 1..2000 } ?: 0,
+        // The thumb stops every ₹100, ₹5,00,000 included (and TalkBack's volume keys move it by ₹100); on a longer
+        // slider (an amount typed past it) it slides freely, still in ₹100s
+        steps = (maxRupees / 100 - 1).toInt().takeIf { it in 1..5000 } ?: 0,
         modifier = Modifier.fillMaxWidth().padding(top = if (months.any { (it ?: 0L) > 0 }) 18.dp else 0.dp).testTag("budget_slider_$id")
             .semantics { contentDescription = "$name budget"; stateDescription = Money.formatInr(paise) },
         thumb = {
@@ -630,8 +631,8 @@ fun CategoryBudgetSheet(vm: AppViewModel, key: String) {
 }
 
 /**
- * The month's whole budget on a slider: the same ₹100 steps, the month totals as dots, at least ₹2,00,000 long and
- * twice the usual month, stretched for any amount typed (up to ₹99 crore). Then this month so far and how often the
+ * The month's whole budget on a slider: the same ₹100 steps, the month totals as dots, up to ₹5,00,000 (or twice the
+ * usual month if that's more), stretched for any amount typed (up to ₹99 crore). Then this month so far and how often the
  * amount would have been enough.
  */
 @Composable

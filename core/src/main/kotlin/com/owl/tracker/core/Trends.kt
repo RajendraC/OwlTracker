@@ -113,6 +113,6 @@ object Trends {
     fun <K> biggestMoves(byKey: Map<K, List<Long?>>, count: Int = 3): List<Pair<K, Move>> =
         byKey.mapNotNull { (k, m) -> move(m)?.let { k to it } }.sortedByDescending { kotlin.math.abs(it.second.change) }.take(count)
 
-    /** Where a slider for the month's whole budget ends: twice the usual month, at least ₹2,00,000, stretched for a typed amount. */
-    fun monthSliderMax(usual: Long, value: Long = 0): Long = maxOf(2_00_000_00L, sliderMax(usual, value))
+    /** Where a slider for the month's whole budget ends: at least ₹5,00,000, or twice the usual month, stretched for a typed amount. */
+    fun monthSliderMax(usual: Long, value: Long = 0): Long = maxOf(5_00_000_00L, sliderMax(usual, value))
 }

@@ -203,20 +203,23 @@ class BudgetSlidersTest {
             waitForText("Food & Dining budget removed")
             assertNull(budgets()[Cat.FOOD])
 
-            // The month's own budget: a slider too, at least ₹2,00,000 long, and any amount typed
+            // The month's own budget: a slider too, up to ₹5,00,000 in ₹100 steps, and any amount typed past it
             tapTag("edit_month_budget")
             waitForTag("budget_amount")
-            hasTextAt("month_slider_end", "₹2,00,000")
+            hasTextAt("month_slider_end", "₹5,00,000")
+            assertEquals(4999, sliderValue("budget_slider_month").steps)
             waitForText("Save · ₹20,000 a month")
-            typeInto("budget_amount", "250000")
-            waitForText("Save · ₹2,50,000 a month")
-            hasTextAt("month_slider_end", "₹3,13,000")
+            onNodeWithTag("budget_slider_month").performSemanticsAction(SemanticsActions.SetProgress) { it(5_00_000f) }
+            waitForText("Save · ₹5,00,000 a month")
+            typeInto("budget_amount", "600000")
+            waitForText("Save · ₹6,00,000 a month")
+            hasTextAt("month_slider_end", "₹7,50,000")
             tapTag("save_budget_sheet")
-            waitForText("Budget set to ₹2,50,000")
-            assertEquals(2_50_000_00L, budgets()[Schema.OVERALL])
+            waitForText("Budget set to ₹6,00,000")
+            assertEquals(6_00_000_00L, budgets()[Schema.OVERALL])
             // … and offers every category's slider
             tapTag("edit_month_budget")
-            waitForText("Save · ₹2,50,000 a month")
+            waitForText("Save · ₹6,00,000 a month")
             tapTag("open_adjust")
             waitForTag("slider_summary")
         }

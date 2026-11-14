@@ -82,10 +82,12 @@ class TrendsTest {
     }
 
     @Test
-    fun theMonthsSliderGoesWellPastALakh() {
-        assertEquals(2_00_000_00L, Trends.monthSliderMax(90_000_00))
-        assertEquals(3_00_000_00L, Trends.monthSliderMax(1_50_000_00))
-        // ₹5,00,000 typed: 25% above it
-        assertEquals(6_25_000_00L, Trends.monthSliderMax(90_000_00, 5_00_000_00))
+    fun theMonthsSliderGoesToFiveLakhAndBeyond() {
+        assertEquals(5_00_000_00L, Trends.monthSliderMax(90_000_00))
+        assertEquals(5_00_000_00L, Trends.monthSliderMax(1_50_000_00))
+        // A usual month of ₹3,00,000: twice that
+        assertEquals(6_00_000_00L, Trends.monthSliderMax(3_00_000_00))
+        // ₹6,00,000 typed: 25% above it
+        assertEquals(7_50_000_00L, Trends.monthSliderMax(90_000_00, 6_00_000_00))
     }
 }
