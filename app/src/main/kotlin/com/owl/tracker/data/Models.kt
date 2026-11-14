@@ -174,6 +174,11 @@ data class AppSettings(
      * looks back over the import period once for messages of the kinds it has newly learned. Before 1.5.1: 1.
      */
     val parserVersion: Int = 1,
+    /**
+     * The built-in categories the payments were last sorted into. When the app adds one (2: Holiday, taken out of
+     * Travel), payments the usual rules now put there are moved once (see ImportEngine.sortIntoNewCategories).
+     */
+    val categoriesVersion: Int = 1,
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -188,6 +193,7 @@ data class AppSettings(
         "tips_hidden_until" to tipsHiddenUntil.toString(),
         "theme" to theme.key,
         "parser_version" to parserVersion.toString(),
+        "categories_version" to categoriesVersion.toString(),
     )
 
     companion object {
@@ -204,6 +210,7 @@ data class AppSettings(
             tipsHiddenUntil = m["tips_hidden_until"]?.toLongOrNull() ?: 0,
             theme = ThemeMode.from(m["theme"]),
             parserVersion = m["parser_version"]?.toIntOrNull() ?: 1,
+            categoriesVersion = m["categories_version"]?.toIntOrNull() ?: 1,
         )
 
         fun filtersToJson(f: ImportFilters): String = JSONObject()

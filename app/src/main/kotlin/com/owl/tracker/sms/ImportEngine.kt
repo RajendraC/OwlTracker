@@ -4,6 +4,7 @@ import com.owl.tracker.data.MerchantOverride
 import com.owl.tracker.data.NewTxn
 import com.owl.tracker.data.Repository
 import com.owl.tracker.data.Source
+import com.owl.tracker.core.Cat
 import com.owl.tracker.core.Categorizer
 import com.owl.tracker.core.Deduper
 import com.owl.tracker.core.Direction
@@ -184,7 +185,7 @@ class ImportEngine(
         repo.updateSettings { s ->
             if (sample) {
                 // Sample data never turns on inbox sync.
-                s.copy(filters = filters, smsEnabled = false, sampleData = true, parserVersion = SmsParser.VERSION)
+                s.copy(filters = filters, smsEnabled = false, sampleData = true, parserVersion = SmsParser.VERSION, categoriesVersion = CATEGORIES_VERSION)
             } else {
                 // A full import reads everything with today's parser: nothing to look back for later
                 s.copy(
@@ -193,6 +194,7 @@ class ImportEngine(
                     lastSyncAt = clock.millis(),
                     lastSmsTimestamp = maxOf(s.lastSmsTimestamp, latest, clock.millis() - 60_000),
                     parserVersion = SmsParser.VERSION,
+                    categoriesVersion = CATEGORIES_VERSION,
                 )
             }
         }
@@ -212,7 +214,7 @@ class ImportEngine(
      */
     suspend fun syncNew(): Int {
         val s = repo.settings()
-        if (s.onboarded) { fixMoneyIn(); dropReminders() }
+        if (s.onboarded) { fixMoneyIn(); dropReminders(); sortIntoNewCategories() }
         if (!s.onboarded || !s.smsEnabled || !sms.hasPermission()) return 0
         val rangeFrom = rangeStart(s.filters)
         val since = maxOf(rangeFrom, s.lastSmsTimestamp - OVERLAP_MS)
@@ -272,6 +274,24 @@ class ImportEngine(
      * ones the parser now skips as reminders, and remembers them as deleted so no later scan brings them back.
      * Returns how many were removed.
      */
+    /**
+     * Once per new built-in category: payments the usual rules (and the user's own) now put in it are moved there.
+     * Version 2, Holiday: stays and holiday packages leave Travel (Club Mahindra, Airbnb, OYO, resorts…). A payment
+     * the user moves back later stays where they put it: this runs once.
+     */
+    suspend fun sortIntoNewCategories(): Int {
+        val s = repo.settings()
+        if (s.categoriesVersion >= CATEGORIES_VERSION) return 0
+        val categorizer = Categorizer(repo.rules())
+        val ids = repo.unsplitMoneyOutIn(Cat.TRAVEL).filter { t ->
+            val known = MerchantRegistry.all.firstOrNull { it.key == t.merchantKey } ?: MerchantRegistry.match(t.merchantName, t.vpa)
+            categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, known, t.smsBody ?: "") == Cat.HOLIDAY
+        }.map { it.id }
+        val moved = if (ids.isEmpty()) 0 else repo.moveTo(ids, Cat.HOLIDAY)
+        repo.updateSettings { it.copy(categoriesVersion = CATEGORIES_VERSION) }
+        return moved
+    }
+
     suspend fun dropReminders(): Int {
         var dropped = 0
         for (t in repo.smsMaybeReminders()) {
@@ -330,6 +350,9 @@ class ImportEngine(
 
     companion object {
         const val MAX_MONTHS = 12
+
+        /** See [AppSettings.categoriesVersion]: 2 since Holiday. */
+        const val CATEGORIES_VERSION = 2
         private const val OVERLAP_MS = 24 * 60 * 60_000L
 
         /** A cash or other manual expense. */

@@ -3,6 +3,7 @@ as small PNGs, one per category icon, plus three for the figures under the budge
 
     python3 tools/make_glossy_icons.py            # writes app/src/main/res/drawable-nodpi/glossy_*.webp
     python3 tools/make_glossy_icons.py --preview  # also /tmp/glossy-preview.png
+    python3 tools/make_glossy_icons.py --only holiday  # just that one
 
 Needs Playwright's Chromium. Each icon is drawn large, cropped to what was drawn and centred in a square with a
 little room, 144 px (48 dp at the densest screens; smaller tiles scale it down), saved as WebP (lossy colour, exact
@@ -20,6 +21,8 @@ import bright as BR  # noqa: E402
 
 OUT = os.path.join(HERE, "..", "app", "src", "main", "res", "drawable-nodpi")
 SIZE = 144
+# --only holiday,travel: just those (the others are left as they are)
+ONLY = sys.argv[sys.argv.index("--only") + 1].split(",") if "--only" in sys.argv else None
 
 
 def g(x, y, s, art, rot=0):
@@ -45,6 +48,7 @@ ART = {
     "entertainment": lambda p: A.popcorn_bucket_back(p) + "".join(g(x, y, 1.25, A.kernel(p)) for x, y in BR.KERNELS[:11]) + A.popcorn_bucket(p),
     "health": lambda p: A.heart(p),
     "travel": lambda p: A.suitcase(p) + g(-12, -50, 1.0, A.sticker(p, "plane", "#8FD0FF", "#2F80ED")) + g(10, -26, 1.0, A.sticker(p, "palm", "#8EF0A8", "#1FA65A")),
+    "holiday": lambda p: B.beach(p),
     "education": lambda p: "".join(g(BR.BOOK_DX[i], -8.4 * i, 1.0, B.book(p, i, 44 - 2 * i), BR.BOOK_ROT[i]) for i in range(3)) + g(0, -8.4 * 3, 1.0, B.grad_cap(p)),
     "rent": lambda p: B.house(p),
     "emi": lambda p: B.calendar(p),
@@ -76,7 +80,7 @@ def render():
     with sync_playwright() as pw:
         b = pw.chromium.launch()
         pg = b.new_page(viewport={"width": 880, "height": 720})
-        for key in ART:
+        for key in [k for k in ART if not ONLY or k in ONLY]:
             pg.set_content(f'<!doctype html><html><body style="margin:0;background:transparent">{svg(key)}</body></html>')
             im = Image.open(io.BytesIO(pg.screenshot(omit_background=True))).convert("RGBA")
             box = im.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox()

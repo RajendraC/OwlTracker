@@ -108,6 +108,25 @@ class CategorizerTest {
         assertEquals(Cat.FOOD, cat("Gymkhana Club Canteen")) // "gym" only as a word
         assertEquals(Cat.SHOPPING, cat("Lifestyle Stores"))
     }
+
+    @Test fun holidayIsWhereYouStayAndTravelIsGettingThere() {
+        val c = Categorizer()
+        fun cat(name: String) = c.categorize(tx("", name), MerchantRegistry.keyFor(null, name, null), MerchantRegistry.match(name, null))
+        assertEquals(Cat.HOLIDAY, cat("CLUB MAHINDRA HOLIDAYS"))
+        assertEquals(Cat.HOLIDAY, cat("STERLING HOLIDAY RESORTS"))
+        assertEquals(Cat.HOLIDAY, cat("AIRBNB * HMXY2Q"))
+        assertEquals(Cat.HOLIDAY, cat("OYO ROOMS"))
+        assertEquals(Cat.HOLIDAY, cat("ORAVEL STAYS PVT LTD"))
+        assertEquals(Cat.HOLIDAY, cat("WWW.AGODA.COM"))
+        assertEquals(Cat.HOLIDAY, cat("Coorg Hills Homestay"))
+        assertEquals(Cat.HOLIDAY, cat("Hotel Sea View & Resort")) // a stay, not a restaurant
+        assertEquals(Cat.HOLIDAY, cat("Holiday Inn Express"))
+        assertEquals(Cat.TRAVEL, cat("INDIGO AIRLINES"))
+        assertEquals(Cat.TRAVEL, cat("IRCTC"))
+        assertEquals(Cat.TRAVEL, cat("SRS TRAVELS"))
+        assertEquals(Cat.FOOD, cat("Hotel Saravana Bhavan")) // in India a hotel is often a restaurant
+        assertEquals(Cat.OTHERS, cat("TOYOTA KIRLOSKAR")) // "oyo" only as a word
+    }
 }
 
 class DeduperTest {

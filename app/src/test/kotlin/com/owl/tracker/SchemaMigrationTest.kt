@@ -25,7 +25,7 @@ class SchemaMigrationTest {
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val name = "owl-migration-test.db"
-    private val v1Categories = Schema.DEFAULT_CATEGORIES.filterNot { it.id == Cat.SPORTS }
+    private val v1Categories = Schema.DEFAULT_CATEGORIES.filterNot { it.id == Cat.SPORTS || it.id == Cat.HOLIDAY }
 
     /** Builds a version 1 database exactly as the first release left it, with one custom category and one payment. */
     private fun createVersion1() {
@@ -68,7 +68,9 @@ class SchemaMigrationTest {
         val ids = repo.categories().map { it.id }
         val expected = v1Categories.map { it.id }.toMutableList()
         expected.add(expected.indexOf(Cat.ENTERTAINMENT) + 1, Cat.SPORTS)
-        assertEquals("Sports & Fitness sits after Entertainment; everything else keeps its order", expected + "c_1", ids)
+        expected.add(expected.indexOf(Cat.TRAVEL) + 1, Cat.HOLIDAY)
+        assertEquals("Sports & Fitness sits after Entertainment, Holiday after Travel; everything else keeps its order", expected + "c_1", ids)
+        assertTrue(repo.categories().first { it.id == Cat.HOLIDAY }.isSystem)
 
         val tx = repo.transactions(0, Long.MAX_VALUE).single()
         assertEquals("KAMAL STORES", tx.merchantName)

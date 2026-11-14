@@ -729,6 +729,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     private fun syncQuietly() = viewModelScope.launch {
         // Reminders older versions counted as spending are removed even when the app is read-only: it's a fix, not an edit
         val gone = runCatching { engine.dropReminders() }.getOrDefault(0)
+        // So is sorting stays and holiday packages out of Travel into the new Holiday category, once
+        val holiday = runCatching { engine.sortIntoNewCategories() }.getOrDefault(0)
+        if (holiday > 0) say(if (holiday == 1) "1 payment moved from Travel to the new Holiday category" else "$holiday payments moved from Travel to the new Holiday category")
         if (gone > 0) say(if (gone == 1) "Removed 1 payment reminder that was counted as spending" else "Removed $gone payment reminders that were counted as spending")
         if (c.licence.current().canEdit) runCatching { engine.syncNew() }
     }

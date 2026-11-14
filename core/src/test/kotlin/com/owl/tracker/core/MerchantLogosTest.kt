@@ -112,7 +112,7 @@ class MerchantLogosTest {
     @Test fun recognisesLiveStreamingAndClubMahindra() {
         assertEquals("clubmahindra", key("CLUB MAHINDRA HOLIDAYS"))
         assertEquals("clubmahindra", key("MAHINDRA HOLIDAYS AND RESORTS"))
-        assertEquals(Cat.TRAVEL, MerchantRegistry.match("CLUB MAHINDRA", null)?.category)
+        assertEquals(Cat.HOLIDAY, MerchantRegistry.match("CLUB MAHINDRA", null)?.category)
         assertEquals("fancode", key("FANCODE"))
         assertEquals("fancode", key("SPORTA TECHNOLOGIES PVT LTD"))
         assertEquals("cricbuzz", key("CRICBUZZ PLUS"))

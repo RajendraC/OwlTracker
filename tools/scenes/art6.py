@@ -1,6 +1,6 @@
 """Bright, glossy objects for the categories Round 5 didn't draw: fuel, recharge, education, rent, EMI,
 investments, cash, transfers, income and any other category. Same conventions as art5: base at y=0, centred."""
-from art5 import f1, gloss, shadow, star_path
+from art5 import f1, gloss, shadow, star_path, sticker
 
 
 def pump(p):
@@ -204,3 +204,22 @@ JAR_COINS = [(-10, -3), (10, -3), (0, -12), (-10, -21), (10, -22), (0, -31), (-9
 def drop(p, c0="#FFE08A", c1="#FFB21A", c2="#D98A0A"):
     return (f'<path d="M0,-9 C2.6,-5 4.4,-3 4.4,-0.6 A4.4,4.4 0 0 1 -4.4,-0.6 C-4.4,-3 -2.6,-5 0,-9 Z" fill="{p.rad(c0, c1, c2, 0.35, 0.4)}"></path>'
             + gloss(p, -1.4, -3, 0.9, 1.4, rot=0, op=0.7))
+
+
+def beach(p):
+    """Holiday: a beach umbrella on sand, a striped ball and the sun."""
+    clip = p._new(("clip", "canopy"), lambda i: (
+        f'<clipPath id="{i}"><path d="M-30,0 A30,21 0 0 1 30,0 Q22.5,-3.4 15,0 Q7.5,-3.4 0,0 Q-7.5,-3.4 -15,0 Q-22.5,-3.4 -30,0 Z"></path></clipPath>'))
+    canopy = (f'<g transform="translate(4,-60) rotate(-14)"><g clip-path="{clip}">'
+              f'<rect x="-31" y="-23" width="62" height="24" fill="{p.rad("#FF9E80", "#FF5A3C", "#C8321E", 0.35, 0.2, 0.95)}"></rect>'
+              + "".join(f'<path d="M0,-22 L{x0},2 L{x1},2 Z" fill="{p.rad("#FFFFFF", "#FFF4E6", "#EAD7C0", 0.4, 0.2)}"></path>'
+                        for x0, x1 in ((-23, -11), (0, 11), (23, 35)))
+              + '</g><circle cx="0" cy="-21.5" r="2.4" fill="#C8321E"></circle></g>')
+    sand = (f'<path d="M-36,0 Q-30,-15 -4,-16 Q24,-17 36,0 Z" fill="{p.rad("#FFF0C2", "#F7CF73", "#D9A23E", 0.4, 0.25, 0.95)}"></path>'
+            + gloss(p, -14, -11, 9, 1.8, rot=-6, op=0.45))
+    pole = '<path d="M-1,-13 L5.5,-60" stroke="#7A4A2A" stroke-width="2.8" stroke-linecap="round"></path>'
+    ball = (f'<g transform="translate(-20,-15)"><circle r="7.5" fill="{p.rad("#FFFFFF", "#F2F2F2", "#C9C9C9", 0.35, 0.3)}"></circle>'
+            '<path d="M0,-7.5 A7.5,7.5 0 0 1 7.5,0 L0,0 Z" fill="#2F80ED"></path><path d="M0,7.5 A7.5,7.5 0 0 1 -7.5,0 L0,0 Z" fill="#FFB21A"></path>'
+            '<path d="M-7.5,0 A7.5,7.5 0 0 1 0,-7.5 L0,0 Z" fill="#FF5A3C"></path>' + gloss(p, -2.6, -3.6, 1.6, 2.6, op=0.7) + "</g>")
+    sun = f'<g transform="translate(-22,-52)">{sticker(p, "sun", "#FFE58A", "#FFB21A", r=8)}</g>'
+    return shadow(p, 34, op=0.22) + sand + pole + canopy + ball + sun

@@ -13,6 +13,9 @@ object Cat {
     const val SPORTS = "sports"
     const val HEALTH = "health"
     const val TRAVEL = "travel"
+
+    /** Trips and vacations: where you stay and the packages you book. Flights, trains and buses stay in [TRAVEL]. */
+    const val HOLIDAY = "holiday"
     const val EDUCATION = "education"
     const val RENT = "rent"
     const val EMI = "emi"
@@ -115,7 +118,11 @@ object MerchantRegistry {
         m("cleartrip", "Cleartrip", "com.cleartrip.android", Cat.TRAVEL, "cleartrip"),
         m("indigo", "IndiGo", "in.goindigo.android", Cat.TRAVEL, "goindigo", "interglobe", "indigo air"),
         m("ixigo", "ixigo", "com.ixigo", Cat.TRAVEL, "ixigo", "le travenues"),
-        m("clubmahindra", "Club Mahindra", "co.clubmahindra.mahindraholidays", Cat.TRAVEL, "club mahindra", "clubmahindra", "mahindra holidays"),
+        m("clubmahindra", "Club Mahindra", "co.clubmahindra.mahindraholidays", Cat.HOLIDAY, "club mahindra", "clubmahindra", "mahindra holidays"),
+        // Holiday packages. No app icons until each package name is checked on Google Play.
+        m("sterlingholidays", "Sterling Holidays", null, Cat.HOLIDAY, "sterling holiday"),
+        m("thomascook", "Thomas Cook", null, Cat.HOLIDAY, "thomas cook"),
+        m("sotc", "SOTC", null, Cat.HOLIDAY, "sotc$"),
         // Cooking gas before the fuel brands: same companies and apps, but a bill, not fuel
         m("indane", "Indane Gas", "cx.indianoil.in", Cat.BILLS, "indane"),
         m("hpgas", "HP Gas", "com.drivetrackplusrefuel", Cat.BILLS, "hp gas", "hpgas"),
@@ -133,10 +140,11 @@ object MerchantRegistry {
         outlet("fastag", "FASTag", "com.fastaguser", Cat.TRANSPORT, "fastag", "toll plaza", "ihmcl", "netc$"),
         m("easemytrip", "EaseMyTrip", "com.easemytrip.android", Cat.TRAVEL, "easemytrip", "easy trip planners"),
         m("yatra", "Yatra", "com.yatra.base", Cat.TRAVEL, "yatra.com", "yatra online"),
-        m("agoda", "Agoda", "com.agoda.mobile.consumer", Cat.TRAVEL, "agoda"),
-        m("booking", "Booking.com", "com.booking", Cat.TRAVEL, "booking.com"),
-        m("airbnb", "Airbnb", "com.airbnb.android", Cat.TRAVEL, "airbnb"),
-        m("oyo", "OYO", "com.oyo.consumer", Cat.TRAVEL, "oyo", "oravel"),
+        // Stays: Holiday (getting there stays Travel)
+        m("agoda", "Agoda", "com.agoda.mobile.consumer", Cat.HOLIDAY, "agoda"),
+        m("booking", "Booking.com", "com.booking", Cat.HOLIDAY, "booking.com"),
+        m("airbnb", "Airbnb", "com.airbnb.android", Cat.HOLIDAY, "airbnb"),
+        m("oyo", "OYO", "com.oyo.consumer", Cat.HOLIDAY, "oyo", "oravel"),
         m("netflix", "Netflix", "com.netflix.mediaclient", Cat.RECHARGE, "netflix"),
         m("spotify", "Spotify", "com.spotify.music", Cat.RECHARGE, "spotify"),
         m("hotstar", "JioHotstar", "in.startv.hotstar", Cat.RECHARGE, "hotstar", "jiohotstar", "jiocinema", "jio cinema", "jiostar", "novi digital"),

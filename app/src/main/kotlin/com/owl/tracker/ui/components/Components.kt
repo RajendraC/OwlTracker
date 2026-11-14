@@ -130,7 +130,7 @@ private val GLOSSY = mapOf(
     "food" to R.drawable.glossy_food, "coffee" to R.drawable.glossy_coffee, "groceries" to R.drawable.glossy_groceries,
     "shopping" to R.drawable.glossy_shopping, "transport" to R.drawable.glossy_transport, "fuel" to R.drawable.glossy_fuel,
     "bills" to R.drawable.glossy_bills, "recharge" to R.drawable.glossy_recharge, "entertainment" to R.drawable.glossy_entertainment,
-    "health" to R.drawable.glossy_health, "travel" to R.drawable.glossy_travel, "education" to R.drawable.glossy_education,
+    "health" to R.drawable.glossy_health, "travel" to R.drawable.glossy_travel, "holiday" to R.drawable.glossy_holiday, "education" to R.drawable.glossy_education,
     "rent" to R.drawable.glossy_rent, "emi" to R.drawable.glossy_emi, "investments" to R.drawable.glossy_investments,
     "cash" to R.drawable.glossy_cash, "transfer" to R.drawable.glossy_transfer, "income" to R.drawable.glossy_income,
     "others" to R.drawable.glossy_others, "sports" to R.drawable.glossy_sports, "gift" to R.drawable.glossy_gift,

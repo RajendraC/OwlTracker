@@ -416,6 +416,18 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         ).use { c -> c.toTxns() }
     }
 
+    /** Money out in [categoryId], not split: candidates for a new built-in category to take over. */
+    suspend fun unsplitMoneyOutIn(categoryId: String): List<Txn> = read { d ->
+        d.query(
+            "SELECT $TX_COLS FROM transactions WHERE category_id = ? AND direction = 'DEBIT' AND parts IS NULL", arrayOf<Any?>(categoryId),
+        ).use { c -> c.toTxns() }
+    }
+
+    /** Moves these payments to [categoryId], as a fix: no rule is made. */
+    suspend fun moveTo(ids: List<Long>, categoryId: String): Int = write { d ->
+        ids.sumOf { id -> d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to categoryId), "id = ?", arrayOf<Any?>(id)) }
+    }
+
     /** Turns a payment into money in, with [categoryId] when the user hadn't picked one. */
     suspend fun setMoneyIn(txId: Long, categoryId: String?): Unit = write { d ->
         val v = contentValuesOf("direction" to Direction.CREDIT.name, "parts" to null)

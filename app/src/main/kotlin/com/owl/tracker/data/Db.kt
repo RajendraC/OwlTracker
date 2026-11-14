@@ -76,6 +76,7 @@ class Db(
             if (oldVersion < 2) Schema.upgradeTo2(db)
             if (oldVersion < 3) Schema.upgradeTo3(db)
             if (oldVersion < 4) Schema.upgradeTo4(db)
+            if (oldVersion < 5) Schema.upgradeTo5(db)
         }
     }
 }
@@ -85,7 +86,7 @@ object Schema {
      * 1: first release. 2: Sports & Fitness category, and the merchants table (names and icons the user chose).
      * 3: pictures. 4: payments split across categories (transactions.parts).
      */
-    const val VERSION = 4
+    const val VERSION = 5
     const val OVERALL = "__overall__"
 
     val CREATE = listOf(
@@ -183,6 +184,7 @@ object Schema {
         SeedCategory(Cat.SPORTS, "Sports & Fitness", "sports", 0xFFC8423B, CategoryKind.EXPENSE),
         SeedCategory(Cat.HEALTH, "Health", "health", 0xFF1F8F86, CategoryKind.EXPENSE),
         SeedCategory(Cat.TRAVEL, "Travel", "travel", 0xFF3A86C9, CategoryKind.EXPENSE),
+        SeedCategory(Cat.HOLIDAY, "Holiday", "holiday", 0xFF11A3B5, CategoryKind.EXPENSE),
         SeedCategory(Cat.EDUCATION, "Education", "education", 0xFF5866B8, CategoryKind.EXPENSE),
         SeedCategory(Cat.RENT, "Rent", "rent", 0xFF6B7D3A, CategoryKind.EXPENSE),
         SeedCategory(Cat.EMI, "EMI & Loans", "emi", 0xFF8A5A44, CategoryKind.EXPENSE),
@@ -201,14 +203,25 @@ object Schema {
         db.execSQL(MERCHANTS_TABLE)
         val exists = db.query("SELECT COUNT(*) FROM categories WHERE id = ?", arrayOf<Any?>(Cat.SPORTS)).use { c -> c.moveToFirst() && c.getInt(0) > 0 }
         if (exists) return
-        val after = db.query("SELECT sort_order FROM categories WHERE id = ?", arrayOf<Any?>(Cat.ENTERTAINMENT)).use { c -> if (c.moveToFirst()) c.getInt(0) else null }
+        insertAfter(db, Cat.SPORTS, Cat.ENTERTAINMENT)
+    }
+
+    /** Version 4 to 5: the Holiday category (trips and vacations), right after Travel. */
+    fun upgradeTo5(db: SupportSQLiteDatabase) {
+        val exists = db.query("SELECT COUNT(*) FROM categories WHERE id = ?", arrayOf<Any?>(Cat.HOLIDAY)).use { c -> c.moveToFirst() && c.getInt(0) > 0 }
+        if (!exists) insertAfter(db, Cat.HOLIDAY, Cat.TRAVEL)
+    }
+
+    /** Adds a built-in category just after [afterId] (at the end if that one is gone); every other keeps its order. */
+    private fun insertAfter(db: SupportSQLiteDatabase, id: String, afterId: String) {
+        val after = db.query("SELECT sort_order FROM categories WHERE id = ?", arrayOf<Any?>(afterId)).use { c -> if (c.moveToFirst()) c.getInt(0) else null }
         val order = if (after != null) {
             db.execSQL("UPDATE categories SET sort_order = sort_order + 1 WHERE sort_order > ?", arrayOf<Any?>(after))
             after + 1
         } else {
             db.query("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM categories").use { c -> c.moveToFirst(); c.getInt(0) }
         }
-        val s = DEFAULT_CATEGORIES.first { it.id == Cat.SPORTS }
+        val s = DEFAULT_CATEGORIES.first { it.id == id }
         db.execSQL(
             "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived) VALUES(?,?,?,?,?,?,1,0)",
             arrayOf<Any?>(s.id, s.name, s.icon, s.color, s.kind.name, order)

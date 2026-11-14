@@ -65,7 +65,7 @@ object Scenes {
     private val KIND_OF_ICON = mapOf(
         "food" to "food", "coffee" to "food", "groceries" to "groceries", "shopping" to "shopping", "transport" to "transport",
         "fuel" to "fuel", "bills" to "bills", "recharge" to "recharge", "entertainment" to "entertainment", "sports" to "sports",
-        "health" to "health", "travel" to "travel", "education" to "education", "rent" to "rent", "emi" to "emi",
+        "health" to "health", "travel" to "travel", "holiday" to "travel", "education" to "education", "rent" to "rent", "emi" to "emi",
         "investments" to "investments", "cash" to "cash", "transfer" to "transfers", "income" to "income",
     )
 
