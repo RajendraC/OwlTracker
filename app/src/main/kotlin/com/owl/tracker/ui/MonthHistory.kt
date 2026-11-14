@@ -46,7 +46,7 @@ data class MonthHistory(
     val knownCount: Int get() = months.size - firstKnown
 
     companion object {
-        val EMPTY = MonthHistory(emptyList(), emptyList(), BudgetPeriod(LocalDate.EPOCH, LocalDate.EPOCH.plusMonths(1)), emptyMap(), emptyMap(), emptyList(), 0)
+        val EMPTY = MonthHistory(emptyList(), emptyList(), BudgetPeriod(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 2, 1)), emptyMap(), emptyMap(), emptyList(), 0)
 
         fun label(p: BudgetPeriod): String = p.start.plusDays(14).month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
 
