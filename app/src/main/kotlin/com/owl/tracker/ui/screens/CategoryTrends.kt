@@ -102,7 +102,7 @@ fun CategoryTrendsCard(h: MonthHistory, cats: List<Category>, picked: String?, v
                 labels.forEachIndexed { i, l ->
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         FitText(
-                            if (i == labels.lastIndex) "$l…" else l, style = MaterialTheme.typography.labelSmall,
+                            l, style = MaterialTheme.typography.labelSmall,
                             color = if (i == labels.lastIndex) MaterialTheme.colorScheme.primary else muted, minScale = 0.6f,
                         )
                     }

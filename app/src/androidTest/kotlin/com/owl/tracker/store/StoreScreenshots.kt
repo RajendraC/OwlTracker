@@ -338,7 +338,7 @@ class StoreScreenshots {
             section("categories") {
                 nav(Screen.CATEGORIES)
                 shot("60_categories")
-                onAllNodes(hasContentDescription("Edit Food"))[0].performClick()
+                onAllNodes(hasContentDescription("Edit Food", substring = true))[0].performClick() // "Food & Dining"
                 Thread.sleep(1000)
                 shot("61_category_edit")
             }
