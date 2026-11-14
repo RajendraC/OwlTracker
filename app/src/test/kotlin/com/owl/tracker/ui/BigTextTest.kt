@@ -88,6 +88,8 @@ class BigTextTest {
         screen("Adjust budgets, a row") { waitForTag("slider_row_food") }
         back()
         screen("A category's budget") { tapTag("set_budget_food"); waitForTag("save_budget_sheet") }
+        // Saved, then opened again: with Remove
+        screen("A category's budget, with Remove") { tapTag("save_budget_sheet"); tapTag("budget_row_food"); waitForTag("remove_budget") }
         back()
         screen("More") { tapTag("tab_more"); waitForTag("open_rules") }
         screen("Settings") { tapText("Settings"); waitForTag("theme_choice") }

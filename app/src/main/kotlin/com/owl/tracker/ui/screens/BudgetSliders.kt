@@ -615,16 +615,14 @@ fun CategoryBudgetSheet(vm: AppViewModel, key: String) {
             (if (known > 0) " The dots are ${labels.getOrElse(h?.firstKnown ?: 0) { "" }} to ${labels.getOrElse(lastIdx) { "" }}, older ones fainter." else ""),
         style = MaterialTheme.typography.bodySmall, color = muted,
     )
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (current != null) {
-            androidx.compose.material3.OutlinedButton(
-                onClick = { vm.saveBudget(key, null) },
-                modifier = Modifier.weight(1f).heightIn(min = 52.dp).testTag("remove_budget"),
-            ) { FitText("Remove", minScale = 0.8f, color = MaterialTheme.colorScheme.error) }
+    // Full width, one under the other: side by side, big text cut "Remove" short
+    Button(
+        onClick = { vm.saveBudget(key, value) }, enabled = value > 0,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("save_budget_sheet"),
+    ) { FitText("Save · ${Money.formatInr(value)} a month", minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
+    if (current != null) {
+        TextButton(onClick = { vm.saveBudget(key, null) }, modifier = Modifier.fillMaxWidth().testTag("remove_budget")) {
+            Text("Remove this budget", color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
-        Button(
-            onClick = { vm.saveBudget(key, value) }, enabled = value > 0,
-            modifier = Modifier.weight(2f).heightIn(min = 52.dp).testTag("save_budget_sheet"),
-        ) { FitText("Save · ${Money.formatInr(value)} a month", minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
     }
 }
