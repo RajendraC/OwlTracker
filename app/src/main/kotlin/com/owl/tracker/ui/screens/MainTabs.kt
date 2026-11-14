@@ -1304,7 +1304,9 @@ fun BudgetsScreen(vm: AppViewModel) {
                             style = MaterialTheme.typography.titleLarge,
                         )
                     }
-                    OutlinedButton(onClick = { vm.openSheet(Sheet.BudgetEdit(Schema.OVERALL)) }) { Text(if (dash.overall > 0) "Edit" else "Set") }
+                    OutlinedButton(onClick = { vm.openSheet(Sheet.BudgetEdit(Schema.OVERALL)) }, modifier = Modifier.testTag("edit_month_budget")) {
+                        Text(if (dash.overall > 0) "Edit" else "Set")
+                    }
                 }
                 dash.status?.let { s ->
                     Gap(12.dp)

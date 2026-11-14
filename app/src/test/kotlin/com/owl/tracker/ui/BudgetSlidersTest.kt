@@ -203,7 +203,7 @@ class BudgetSlidersTest {
             assertNull(budgets()[Cat.FOOD])
 
             // The month's own budget keeps its box, and offers every category's slider
-            tapTag("edit_budget")
+            tapTag("edit_month_budget")
             waitForTag("budget_amount")
             tapTag("open_adjust")
             waitForTag("slider_summary")
