@@ -55,10 +55,15 @@ class TrendsTest {
     @Test
     fun whatChangedMostIsNewRisingOrFalling() {
         val transport = r(12400, 13800, 15200, 16900, 17500, 21400)
-        assertEquals(Move(MoveKind.RISING, 3, 5, 4_500_00), Trends.move(transport))
-        assertEquals(Move(MoveKind.FALLING, 3, 5, -1_400_00), Trends.move(r(7800, 7100, 6400, 5900, 5200, 4500)))
+        assertEquals(Move(MoveKind.RISING, 3, 5, 4_500_00, 16_900_00), Trends.move(transport))
+        assertEquals(Move(MoveKind.FALLING, 3, 5, -1_400_00, 5_900_00), Trends.move(r(7800, 7100, 6400, 5900, 5200, 4500)))
         // Nothing before October, then a trip: new
-        assertEquals(Move(MoveKind.NEW, 5, 5, 10_500_00), Trends.move(r(0, 0, 0, 0, 0, 10500)))
+        assertEquals(Move(MoveKind.NEW, 5, 5, 10_500_00, 0), Trends.move(r(0, 0, 0, 0, 0, 10500)))
+        // Up and down, but October far above (or below) the middle of the months before it
+        assertEquals(Move(MoveKind.ABOVE, 5, 5, 4_350_00, 3_050_00), Trends.move(r(null, 3000, 3200, 2900, 3100, 7400)))
+        assertEquals(Move(MoveKind.BELOW, 5, 5, -4_100_00, 6_100_00), Trends.move(r(6000, 6200, 5800, 6100, 6300, 2000)))
+        // A trip in August and nothing since: with only two months before it, not enough to call September "down"
+        assertEquals(null, Trends.move(r(null, null, null, 0, 12000, 0)))
         // Steady, up and down, too early, or too small: not news
         assertEquals(null, Trends.move(r(40328, 40328, 40328, 40328, 40328, 40328)))
         assertEquals(null, Trends.move(r(2100, 3900, 2600, 9800, 1900, 2100)))

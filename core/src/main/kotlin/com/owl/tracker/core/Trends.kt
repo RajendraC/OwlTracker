@@ -3,11 +3,14 @@ package com.owl.tracker.core
 /** Which way a category's spending has gone over the last months. */
 enum class TrendKind { RISING, FALLING, STEADY, UP_AND_DOWN, TOO_EARLY, NONE }
 
-/** A change worth a line on Home: something new, or a rise or fall over the last three months. */
-enum class MoveKind { NEW, RISING, FALLING }
+/**
+ * A change worth a line on Home: something new, a rise or fall over the last three months, or (for a category that
+ * goes up and down) the latest month well above or below its usual.
+ */
+enum class MoveKind { NEW, RISING, FALLING, ABOVE, BELOW }
 
-/** [from] and [to] index the months; [change] is the latest month less the [from] month, in paise. */
-data class Move(val kind: MoveKind, val from: Int, val to: Int, val change: Long)
+/** [from] and [to] index the months; [change] is the latest month less [base] (the month or usual it's compared with), in paise. */
+data class Move(val kind: MoveKind, val from: Int, val to: Int, val change: Long, val base: Long)
 
 /**
  * One category's spending month by month, for the budget sliders and the trend report. [months] are complete budget
@@ -87,14 +90,23 @@ object Trends {
         val last = idx.last()
         val latest = months[last]!!
         if (latest > 0 && idx.dropLast(1).all { months[it] == 0L }) {
-            return if (latest >= MIN_MOVE) Move(MoveKind.NEW, last, last, latest) else null
+            return if (latest >= MIN_MOVE) Move(MoveKind.NEW, last, last, latest, 0) else null
         }
         val k = kind(months)
-        if (k != TrendKind.RISING && k != TrendKind.FALLING) return null
-        val from = idx.takeLast(USUAL_OF).first()
-        val change = latest - months[from]!!
-        if (kotlin.math.abs(change) < MIN_MOVE) return null
-        return Move(if (change > 0) MoveKind.RISING else MoveKind.FALLING, from, last, change)
+        if (k == TrendKind.RISING || k == TrendKind.FALLING) {
+            val from = idx.takeLast(USUAL_OF).first()
+            val change = latest - months[from]!!
+            if (kotlin.math.abs(change) < MIN_MOVE) return null
+            return Move(if (change > 0) MoveKind.RISING else MoveKind.FALLING, from, last, change, months[from]!!)
+        }
+        // Up and down, or steady: the latest month against the middle of the months before it (three at least), so
+        // one big month earlier doesn't make an ordinary one look like a fall
+        val earlier = idx.dropLast(1).map { months[it]!! }.sorted()
+        if (earlier.size < USUAL_OF) return null
+        val usual = if (earlier.size % 2 == 1) earlier[earlier.size / 2] else (earlier[earlier.size / 2 - 1] + earlier[earlier.size / 2]) / 2
+        val change = latest - usual
+        if (kotlin.math.abs(change) < MIN_MOVE || kotlin.math.abs(change) * 10 < usual * 3) return null
+        return Move(if (change > 0) MoveKind.ABOVE else MoveKind.BELOW, last, last, change, usual)
     }
 
     /** The biggest moves first, at most [count]. */

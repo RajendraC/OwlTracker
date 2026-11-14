@@ -204,10 +204,13 @@ private fun MonthBars(months: List<Long?>, now: Long, color: Color, modifier: Mo
 fun movePhrase(m: Move, months: List<Long?>, labels: List<String>): String {
     val from = months[m.from] ?: 0L
     val pct = if (from > 0) kotlin.math.abs(m.change) * 100 / from else 0
+    val latest = months.getOrNull(m.to) ?: 0L
     return when (m.kind) {
         MoveKind.NEW -> "New · ${Money.formatShort(m.change)} in ${labels.getOrElse(m.to) { "" }}"
         MoveKind.RISING -> "↑ Rising · $pct% more than in ${labels.getOrElse(m.from) { "" }}"
         MoveKind.FALLING -> "↓ Falling · $pct% less than in ${labels.getOrElse(m.from) { "" }}"
+        MoveKind.ABOVE -> "↑ Up · ${Money.formatShort(latest)} in ${labels.getOrElse(m.to) { "" }}, usually ${Money.formatShort(m.base)}"
+        MoveKind.BELOW -> "↓ Down · ${Money.formatShort(latest)} in ${labels.getOrElse(m.to) { "" }}, usually ${Money.formatShort(m.base)}"
     }
 }
 
@@ -252,7 +255,7 @@ fun WhatsChangingCard(h: MonthHistory, cats: List<Category>, budgets: Map<String
                     Text(
                         movePhrase(mv, months, h.labels),
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                        color = when (mv.kind) { MoveKind.RISING -> sc.overFg; MoveKind.FALLING -> sc.okFg; MoveKind.NEW -> muted },
+                        color = when (mv.kind) { MoveKind.RISING, MoveKind.ABOVE -> sc.overFg; MoveKind.FALLING, MoveKind.BELOW -> sc.okFg; MoveKind.NEW -> muted },
                     )
                 }
                 MonthBars(months, now, Color(c.color), Modifier.size(width = 76.dp, height = 32.dp))
