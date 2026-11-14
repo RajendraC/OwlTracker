@@ -386,14 +386,15 @@ fun DrillRingCard(
                                     c.note ?: "${(c.paise.toFloat() / total * 100).toInt()}%",
                                     style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted,
                                 )
-                                // Its months, small, and which way it's going: tap for the amounts
-                                if (h != null) RowTrendStrip(h, c.id, c.name, c.color, openTrend == c.id) { openTrend = if (openTrend == c.id) null else c.id }
                             }
                         },
                         end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleSmall) },
                     )
                     Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
                 }
+                // Its months, small, and which way it's going, under the whole row (with big text, beside the amount
+                // squeezed the words one to a line): tap for the amounts
+                if (h != null) RowTrendStrip(h, c.id, c.name, c.color, openTrend == c.id) { openTrend = if (openTrend == c.id) null else c.id }
                 if (h != null && openTrend == c.id) RowTrendOpen(h, c.id, c.color, trends?.budgets?.get(c.id))
             }
             1 -> slices.forEachIndexed { i, s ->

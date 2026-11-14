@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -72,7 +73,7 @@ fun BarsWithAmounts(months: List<Long?>, now: Long, labels: List<String>, color:
             Box(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                     values.forEachIndexed { i, v ->
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(Modifier.weight(1f).padding(horizontal = 1.5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             FitText(if (v == null) "–" else Money.formatShort(v), style = MaterialTheme.typography.labelSmall, color = muted, minScale = 0.6f)
                             val f = ((v ?: 0L).toFloat() / top).coerceIn(0f, 1f)
                             Box(Modifier.height(barH), contentAlignment = Alignment.BottomCenter) {

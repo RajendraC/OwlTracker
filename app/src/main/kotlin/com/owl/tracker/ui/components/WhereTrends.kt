@@ -107,9 +107,9 @@ fun WhereSwitch(six: Boolean, onSix: (Boolean) -> Unit) {
 fun RowTrendStrip(h: MonthHistory, id: String, name: String, color: Color, open: Boolean, onToggle: () -> Unit) {
     val (phrase, kind) = h.trendOf(id)
     Row(
-        Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp))
+        Modifier.padding(start = 58.dp, end = 6.dp, bottom = 6.dp).clip(RoundedCornerShape(8.dp))
             .clickable(onClickLabel = if (open) "Hide the months" else "Show the months") { onToggle() }
-            .padding(vertical = 3.dp).padding(end = 6.dp)
+            .padding(vertical = 4.dp).padding(end = 6.dp)
             .semantics { contentDescription = "$name: $phrase"; stateDescription = if (open) "Months shown" else "Months hidden" }
             .testTag("where_bars_$id"),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -163,7 +163,8 @@ fun SixMonthsView(h: MonthHistory, order: List<Category>, monthBudget: Long?, pi
                     columns.forEachIndexed { i, col ->
                         val isNow = i == columns.lastIndex
                         val empty = i < h.firstKnown
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        // A little space each side, so shrunk amounts don't run together
+                        Column(Modifier.weight(1f).padding(horizontal = 1.5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             FitText(if (empty) "–" else Money.formatShort(totals[i]), style = MaterialTheme.typography.labelSmall, color = muted, minScale = 0.6f)
                             Box(Modifier.height(barH), contentAlignment = Alignment.BottomCenter) {
                                 Column(Modifier.fillMaxWidth(0.66f).clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp))) {
