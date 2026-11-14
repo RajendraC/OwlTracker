@@ -24,6 +24,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
@@ -303,11 +305,17 @@ class StoreScreenshots {
                 Thread.sleep(800)
                 scrollTo(hasTestTag("report_categories"))
                 shot("51_reports_categories")
+                // A card just below the screen can be composed but not placed yet: bring it in by its key first
+                runCatching { compose.onNodeWithTag("reports").performScrollToKey("category_trends") }
+                    .onFailure { Log.w(TAG, "Trend by category: no card", it) }
+                compose.waitForIdle()
                 runCatching { scrollTo(hasTestTag("report_category_trends")) }
-                Thread.sleep(900)
+                Thread.sleep(1200)
                 shot("51b_category_trends")
-                runCatching { scrollTo(hasTestTag("trends_all")) }
-                shot("51c_category_trends_lower")
+                runCatching { tapTag("trends_all") }
+                Thread.sleep(600)
+                shot("51c_category_trends_all")
+                runCatching { compose.onNodeWithTag("reports").performScrollToKey("categories") }
                 runCatching { scrollTo(hasTestTag("report_categories")) }
                 runCatching { tapTag("cat_${Cat.SHOPPING}") }
                 Thread.sleep(800)

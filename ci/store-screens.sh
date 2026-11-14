@@ -100,7 +100,9 @@ adb logcat -c || true
 # Time limits: once, adb stayed stuck after the test had finished, until the job's own hour ran out
 timeout 1800 adb shell am instrument -w -r -e storeShots 1 -e class "$CLASS#capture" "$RUNNER" 2>&1 | tee logs/capture.log
 ran_ok logs/capture.log || { echo "::error::StoreScreenshots#capture did not pass"; status=1; }
-timeout 120 adb logcat -d -s OwlStoreShots:* TestRunner:* AndroidRuntime:E OwlScene:* chromium:W > logs/capture-logcat.txt 2>&1 || true
+timeout 120 adb logcat -d -s OwlStoreShots:* TestRunner:* AndroidRuntime:E OwlScene:* OwlHistory:* chromium:W > logs/capture-logcat.txt 2>&1 || true
+# Steps that were skipped, here in the log rather than only in the artifact
+grep -E " [WE] (OwlStoreShots|OwlHistory)" logs/capture-logcat.txt | head -60 || true
 timeout 300 adb pull /sdcard/Android/data/$PKG/files/store-screens/. "$OUT/" || echo "::warning::Could not pull screenshots"
 ls -la "$OUT"
 

@@ -453,10 +453,13 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             val current = periodAt(startDay, 0)
             val months = (com.owl.tracker.core.Trends.MONTHS downTo 1).map { periodAt(startDay, -it) }
             combine(repo.observeTransactions(startMs(months.first().start), startMs(current.endExclusive)), categories) { txns, cats ->
-                MonthHistory.build(txns, cats, months, current, zone) as MonthHistory?
+                // One bad read shouldn't end the flow: the next change tries again
+                runCatching { MonthHistory.build(txns, cats, months, current, zone) }
+                    .onFailure { android.util.Log.w("OwlHistory", "Couldn't add up the months", it) }
+                    .getOrDefault(MonthHistory.EMPTY) as MonthHistory?
             }.flowOn(Dispatchers.Default)
         }
-        .catch { emit(MonthHistory.EMPTY) }
+        .catch { android.util.Log.w("OwlHistory", "Month history stopped", it); emit(MonthHistory.EMPTY) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** First-time setup with the sliders: the month budget is the total of the categories; ₹0 means no budget. */

@@ -174,7 +174,7 @@ private fun MonthsSlider(
         value = (paise / 100).coerceIn(0, maxRupees).toFloat(),
         onValueChange = { v -> onChange(Math.round(v / 100f).toLong() * 100 * 100) },
         valueRange = 0f..maxRupees.toFloat(),
-        modifier = Modifier.fillMaxWidth().padding(top = 14.dp).testTag("budget_slider_$id")
+        modifier = Modifier.fillMaxWidth().padding(top = if (months.any { (it ?: 0L) > 0 }) 18.dp else 0.dp).testTag("budget_slider_$id")
             .semantics { contentDescription = "$name budget"; stateDescription = Money.formatInr(paise) },
         thumb = {
             Box(Modifier.size(24.dp).shadow(3.dp, CircleShape).background(surface, CircleShape).border(3.dp, ink, CircleShape))
@@ -188,6 +188,8 @@ private fun MonthsSlider(
                 val r = CornerRadius(h / 2, h / 2)
                 drawRoundRect(trackBg, Offset(0f, y - h / 2), Size(size.width, h), r)
                 drawRoundRect(color, Offset(0f, y - h / 2), Size(size.width * fraction, h), r)
+                // Nothing spent in any month: no dots to show
+                if (months.none { (it ?: 0L) > 0 }) return@Canvas
                 val last = months.indexOfLast { it != null }
                 months.forEachIndexed { i, m ->
                     if (m == null) return@forEachIndexed
@@ -196,7 +198,8 @@ private fun MonthsSlider(
                         drawCircle(surface, 6.dp.toPx(), Offset(x, y))
                         drawCircle(ink, 6.dp.toPx(), Offset(x, y), style = Stroke(2.5.dp.toPx()))
                         val t = measurer.measure(latestLabel, labelStyle)
-                        drawText(t, topLeft = Offset((x - t.size.width / 2f).coerceIn(0f, size.width - t.size.width), y - 8.dp.toPx() - t.size.height))
+                        // Above the thumb, which often sits on the latest month
+                        drawText(t, topLeft = Offset((x - t.size.width / 2f).coerceIn(0f, size.width - t.size.width), y - 13.dp.toPx() - t.size.height))
                     } else {
                         drawCircle(ink.copy(alpha = 0.18f + i * 0.12f), 4.5.dp.toPx(), Offset(x, y))
                         drawCircle(surface, 4.5.dp.toPx(), Offset(x, y), style = Stroke(1.2.dp.toPx()))
@@ -388,8 +391,8 @@ private fun SliderList(
 }
 
 private fun note(h: MonthHistory): String =
-    "The dots are ${h.labels.getOrElse(h.firstKnown) { "" }} to ${h.labels.lastOrNull() ?: ""}, fainter the older they are. " +
-        "Drag a slider or tap an amount to type any figure; the slider stretches to fit. ₹0 means no budget."
+    "Dots: what you spent ${h.labels.getOrElse(h.firstKnown) { "" }} to ${h.labels.lastOrNull() ?: ""}, older ones fainter. " +
+        "Drag, or type any amount. ₹0 means no budget."
 
 /**
  * First-time setup with the sliders, once the SMS history has at least one month: every category starts at its usual
