@@ -255,6 +255,35 @@ class BudgetSlidersTest {
     }
 
     @Test
+    fun whereItWentShowsEachCategorysMonthsAndSixMonths() {
+        importAll()
+        with(compose) {
+            setMonthlyTotal("20000")
+            tapTag("save_budget")
+            waitForTag("budget_hero")
+            // This month: every row has its months as small bars and which way it's going
+            waitForTag("where_bars_${Cat.FOOD}")
+            waitForTag("where_bars_${Cat.SHOPPING}")
+            tapTag("where_bars_${Cat.FOOD}")
+            waitForTag("where_bars_open_${Cat.FOOD}")
+            waitForText("No budget on it. Oct so far is the lighter bar.")
+
+            // 6 months: a bar a month with the budget as a line, and each category's trend (the stay in August too)
+            tapTag("where_six_months")
+            waitForTag("six_months_bars")
+            hasTextAt("six_months_caption", "Within the ₹20,000 budget, the dashed line, in all 3 months. Tap a category to light it up.")
+            waitForTag("six_${Cat.HOLIDAY}")
+            tapTag("six_${Cat.FOOD}")
+            hasTextAt("six_months_caption", "Food & Dining: ↑ Rising · 50% more than in Jul. Its part of each bar is lit.")
+            // Kept for next time
+            waitUntil(5_000) { runBlocking { app.container.repo.settings().whereSixMonths } }
+            tapTag("where_this_month")
+            waitForTag("where_bars_${Cat.FOOD}")
+            waitUntil(5_000) { !runBlocking { app.container.repo.settings().whereSixMonths } }
+        }
+    }
+
+    @Test
     fun reportsShowEachCategorysTrend() {
         importAll()
         with(compose) {

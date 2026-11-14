@@ -505,6 +505,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         go(Screen.INSIGHTS)
     }
 
+    /** Home's Where it went: this month or six months, kept for next time. */
+    fun setWhereSixMonths(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(whereSixMonths = on) } }
+
     /** Home's "What's changing" → All: Reports, scrolled to the trend by category. */
     fun openCategoryTrends() {
         reportRange.value = ReportRange.ONE

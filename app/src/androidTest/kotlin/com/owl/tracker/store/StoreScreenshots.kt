@@ -193,6 +193,28 @@ class StoreScreenshots {
                 shot("15b_home_ring_pick")
             }
 
+            // Where it went with the months behind it: a row's bars opened, then the 6 months tab (and back)
+            section("where_trends") {
+                runCatching { scrollTo(hasTestTag("where_bars_${Cat.SHOPPING}"), below = 220f) }
+                Thread.sleep(600)
+                shot("15c_home_where_bars")
+                tapTag("where_bars_${Cat.SHOPPING}")
+                Thread.sleep(900)
+                shot("15d_home_where_bars_open")
+                tapTag("where_bars_${Cat.SHOPPING}")
+                scrollTo(hasTestTag("where_six_months"), below = 20f)
+                tapTag("where_six_months")
+                Thread.sleep(1000)
+                scrollTo(hasTestTag("where_six_months"), below = 20f)
+                shot("15e_home_six_months")
+                runCatching { tapTag("six_${Cat.SHOPPING}") }
+                Thread.sleep(700)
+                shot("15f_home_six_months_pick")
+                runCatching { tapTag("six_${Cat.SHOPPING}") }
+                tapTag("where_this_month")
+                Thread.sleep(600)
+            }
+
             // The month as a calendar, a day picked in it, then a week at a time and a day in it
             section("week") {
                 val day = java.time.LocalDate.now().minusDays(1)

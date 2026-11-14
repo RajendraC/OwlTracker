@@ -76,6 +76,9 @@ class BigTextTest {
         screen("Home, what's changing") { waitForTag("whats_changing"); tapTag("change_food"); waitForTag("change_bars_food") }
         screen("Home, calendar") { waitForTag("month_calendar") }
         screen("Home, where it went") { waitForText("Where it went") }
+        screen("Home, a row's months") { tapTag("where_bars_food"); waitForTag("where_bars_open_food") }
+        screen("Home, 6 months") { tapTag("where_six_months"); waitForTag("six_months_caption"); tapTag("six_food") }
+        screen("Home, back to this month") { tapTag("where_this_month"); waitForTag("where_bars_food") }
         screen("Home, a week") { tapTag("mode_week"); waitForTag("week_card") }
         screen("Home, a day") { waitForTag("week_card"); tapTag("week_day_2026-10-18"); waitForTag("day_filter") }
         screen("Activity") { tapTag("tab_activity"); waitForTag("search") }

@@ -389,6 +389,10 @@ fun HomeScreen(vm: AppViewModel) {
                                 }
                             },
                             tiles = true,
+                            // This month, with months behind it: small bars on every row and a 6 months tab
+                            trends = hist?.takeIf { wholeMonth && dash.isCurrent && it.hasData }?.let { h ->
+                                com.owl.tracker.ui.components.RingTrends(h, budgetMap, budgetMap[Schema.OVERALL], settings?.whereSixMonths == true) { vm.setWhereSixMonths(it) }
+                            },
                             // The month's pictures say "of your month's budget", so they only show for the whole month
                             scene = if (!wholeMonth) null else { id ->
                                 val cat = catMap[id]

@@ -179,6 +179,8 @@ data class AppSettings(
      * Travel), payments the usual rules now put there are moved once (see ImportEngine.sortIntoNewCategories).
      */
     val categoriesVersion: Int = 1,
+    /** Home's Where it went shows six months (else this month), as last left. */
+    val whereSixMonths: Boolean = false,
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -194,6 +196,7 @@ data class AppSettings(
         "theme" to theme.key,
         "parser_version" to parserVersion.toString(),
         "categories_version" to categoriesVersion.toString(),
+        "where_view" to if (whereSixMonths) "six" else "month",
     )
 
     companion object {
@@ -211,6 +214,7 @@ data class AppSettings(
             theme = ThemeMode.from(m["theme"]),
             parserVersion = m["parser_version"]?.toIntOrNull() ?: 1,
             categoriesVersion = m["categories_version"]?.toIntOrNull() ?: 1,
+            whereSixMonths = m["where_view"] == "six",
         )
 
         fun filtersToJson(f: ImportFilters): String = JSONObject()

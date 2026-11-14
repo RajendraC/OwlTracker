@@ -110,6 +110,8 @@ fun DrillRingCard(
     moods: RingMoods? = null,
     /** Show each category's glossy picture in the list instead of a dot. */
     tiles: Boolean = false,
+    /** Home, this month: the months behind it, as small bars on every row and a 6 months tab. */
+    trends: RingTrends? = null,
 ) {
     val sc = LocalStatusColors.current
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -138,6 +140,10 @@ fun DrillRingCard(
         }
     }
     val level = if (pick == null) 0 else if (merchantKey == null) 1 else 2
+    // The row whose months are open, and the category lit up in 6 months
+    var openTrend by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    var sixPick by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    val six = trends != null && trends.sixMonths && level == 0
     // The 3D ring's chosen slice (turned to the front, the owl talking about it), and a count to replay the owl's act
     var chosen by remember(sweepKey) { mutableStateOf<String?>(null) }
     var act by remember { mutableIntStateOf(0) }
@@ -207,6 +213,20 @@ fun DrillRingCard(
             }
         }
         Gap(12.dp)
+        if (trends != null && level == 0) {
+            WhereSwitch(trends.sixMonths, trends.onSixMonths)
+            Gap(12.dp)
+        }
+        if (six && trends != null) {
+            // This month's categories first, then any others the months behind it had
+            val order = remember(categories, catMap, trends.history) {
+                val now = categories.mapNotNull { catMap[it.id] }
+                now + catMap.values.filter { c -> c.countsAsSpend && !c.archived && now.none { it.id == c.id } }
+                    .sortedByDescending { trends.history.usual(it.id) }
+            }
+            SixMonthsView(trends.history, order, trends.monthBudget, sixPick) { sixPick = it }
+            return@Panel
+        }
         if (pick != null && scene != null) {
             scene(pick.id)
             Gap(12.dp)
@@ -346,6 +366,7 @@ fun DrillRingCard(
             0 -> categories.forEachIndexed { i, c ->
                 if (i > 0) Divider()
                 val on = moods != null && chosenHere == c.id
+                val h = trends?.history
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(if (tiles) 18.dp else 10.dp))
                         .then(if (on) Modifier.background(LocalBrand.current.clay.pressed) else Modifier)
@@ -365,12 +386,15 @@ fun DrillRingCard(
                                     c.note ?: "${(c.paise.toFloat() / total * 100).toInt()}%",
                                     style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted,
                                 )
+                                // Its months, small, and which way it's going: tap for the amounts
+                                if (h != null) RowTrendStrip(h, c.id, c.name, c.color, openTrend == c.id) { openTrend = if (openTrend == c.id) null else c.id }
                             }
                         },
                         end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleSmall) },
                     )
                     Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
                 }
+                if (h != null && openTrend == c.id) RowTrendOpen(h, c.id, c.color, trends?.budgets?.get(c.id))
             }
             1 -> slices.forEachIndexed { i, s ->
                 if (i > 0) Divider()
