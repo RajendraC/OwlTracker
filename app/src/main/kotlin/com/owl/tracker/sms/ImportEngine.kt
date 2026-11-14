@@ -283,7 +283,8 @@ class ImportEngine(
         val s = repo.settings()
         if (s.categoriesVersion >= CATEGORIES_VERSION) return 0
         val categorizer = Categorizer(repo.rules())
-        val ids = repo.unsplitMoneyOutIn(Cat.TRAVEL).filter { t ->
+        // Only what came from SMS: a payment typed in by hand is in Travel because the user put it there
+        val ids = repo.unsplitMoneyOutIn(Cat.TRAVEL).filter { it.source == Source.SMS }.filter { t ->
             val known = MerchantRegistry.all.firstOrNull { it.key == t.merchantKey } ?: MerchantRegistry.match(t.merchantName, t.vpa)
             categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, known, t.smsBody ?: "") == Cat.HOLIDAY
         }.map { it.id }

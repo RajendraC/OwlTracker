@@ -47,6 +47,7 @@ import com.owl.tracker.ui.typeInto
 import com.owl.tracker.ui.waitForNode
 import com.owl.tracker.ui.waitForTag
 import com.owl.tracker.ui.waitForText
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -123,8 +124,18 @@ class StoreScreenshots {
             tapTag("import_continue")
 
             val budgets = budgetsFromSpending()
+            // With months of history the setup opens on a slider per category
+            compose.waitForNode(hasTestTag("save_budgets") or hasTestTag("budget_input"), 30_000)
+            if (exists(hasTestTag("save_budgets"))) {
+                Thread.sleep(800)
+                shot("06_budget_setup")
+                runCatching { tapTag("more_categories") }
+                runCatching { scrollTo(hasTestTag("slider_row_${Cat.HOLIDAY}")) }
+                shot("06b_budget_setup_lower")
+                tapTag("one_total")
+            }
             typeInto("budget_input", (budgets.getValue(Schema.OVERALL) / 100).toString())
-            shot("06_budget_setup")
+            shot("06c_budget_one_total")
             tapTag("save_budget")
             runBlocking { budgets.filterKeys { it != Schema.OVERALL }.forEach { (k, v) -> app.container.repo.setBudget(k, v) } }
 
@@ -193,6 +204,14 @@ class StoreScreenshots {
                 tapTag("tab_budgets")
                 Thread.sleep(800)
                 shot("20_budgets")
+                tapTag("adjust_budgets")
+                waitForTag("slider_summary", 20_000)
+                Thread.sleep(800)
+                shot("21_adjust_budgets")
+                runCatching { scrollTo(hasTestTag("slider_row_${Cat.SHOPPING}")) }
+                shot("22_adjust_budgets_shopping")
+                withVm { it.back() }
+                Thread.sleep(600)
             }
             section("activity") {
                 tapTag("tab_activity")
@@ -284,6 +303,12 @@ class StoreScreenshots {
                 Thread.sleep(800)
                 scrollTo(hasTestTag("report_categories"))
                 shot("51_reports_categories")
+                runCatching { scrollTo(hasTestTag("report_category_trends")) }
+                Thread.sleep(900)
+                shot("51b_category_trends")
+                runCatching { scrollTo(hasTestTag("trends_all")) }
+                shot("51c_category_trends_lower")
+                runCatching { scrollTo(hasTestTag("report_categories")) }
                 runCatching { tapTag("cat_${Cat.SHOPPING}") }
                 Thread.sleep(800)
                 shot("52_reports_filtered")
@@ -381,9 +406,17 @@ class StoreScreenshots {
             tapTag("import_continue")
 
             val budgets = budgetsFromSpending()
-            typeInto("budget_input", (budgets.getValue(Schema.OVERALL) / 100).toString())
-            demoShot("d07_budget", hasTestTag("save_budget"))
-            tapTag("save_budget")
+            compose.waitForNode(hasTestTag("save_budgets") or hasTestTag("budget_input"), 30_000)
+            if (exists(hasTestTag("save_budgets"))) {
+                Thread.sleep(800)
+                demoShot("d07_budget", hasTestTag("save_budgets"))
+                tapTag("save_budgets")
+            } else {
+                typeInto("budget_input", (budgets.getValue(Schema.OVERALL) / 100).toString())
+                demoShot("d07_budget", hasTestTag("save_budget"))
+                tapTag("save_budget")
+            }
+            useBudgets(budgets)
 
             waitForTag("budget_hero", 30_000)
             demoShot("d08_home")
@@ -534,6 +567,15 @@ class StoreScreenshots {
 
     /** Straight to a screen, closing any sheet, the way the app's own navigation does. */
     private fun nav(s: Screen) = withVm { it.closeSheet(); it.dismissConfirm(); it.go(s) }
+
+    /** The capture's budgets, whatever the setup saved: the same story on every run. */
+    private fun useBudgets(b: Map<String, Long>) = runBlocking {
+        val repo = app.container.repo
+        repo.observeBudgets().first().keys.filter { it !in b }.forEach { repo.setBudget(it, null) }
+        b.forEach { (k, v) -> repo.setBudget(k, v) }
+    }
+
+    private fun exists(m: SemanticsMatcher) = compose.onAllNodes(m, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
 
     private fun shot(name: String, dir: File = out) {
         compose.waitForIdle()

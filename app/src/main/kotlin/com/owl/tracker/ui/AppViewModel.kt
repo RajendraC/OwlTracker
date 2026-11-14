@@ -53,7 +53,7 @@ enum class Tab { HOME, ACTIVITY, BUDGETS, MORE }
 enum class Screen(val tab: Tab? = null) {
     WELCOME, DISCLOSURE, IMPORT_FILTERS, IMPORT_REVIEW, IMPORTING, BUDGET_SETUP,
     HOME(Tab.HOME), ACTIVITY(Tab.ACTIVITY), BUDGETS(Tab.BUDGETS), MORE(Tab.MORE),
-    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES,
+    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES, ADJUST_BUDGETS,
 }
 
 sealed interface Sheet {
@@ -442,6 +442,45 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         }
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /**
+     * The last six complete budget months and this one, by category: what the budget sliders start from and Reports'
+     * trend by category draws. Null while loading; [MonthHistory.EMPTY] if it can't be read.
+     */
+    val monthHistory: StateFlow<MonthHistory?> = settings.map { it?.budgetStartDay ?: 1 }
+        .distinctUntilChanged()
+        .flatMapLatest { startDay ->
+            val current = periodAt(startDay, 0)
+            val months = (com.owl.tracker.core.Trends.MONTHS downTo 1).map { periodAt(startDay, -it) }
+            combine(repo.observeTransactions(startMs(months.first().start), startMs(current.endExclusive)), categories) { txns, cats ->
+                MonthHistory.build(txns, cats, months, current, zone) as MonthHistory?
+            }.flowOn(Dispatchers.Default)
+        }
+        .catch { emit(MonthHistory.EMPTY) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** First-time setup with the sliders: the month budget is the total of the categories; ₹0 means no budget. */
+    fun finishOnboardingWithBudgets(values: Map<String, Long>) = viewModelScope.launch {
+        writeBudgets(values)
+        repo.updateSettings { it.copy(onboarded = true) }
+        history.clear()
+        _screen.value = Screen.HOME
+    }
+
+    /** Budgets → Adjust budgets: the same, then back to Budgets. */
+    fun saveBudgets(values: Map<String, Long>) = viewModelScope.launch {
+        if (!editable()) return@launch
+        val total = writeBudgets(values)
+        back()
+        say("Budgets saved · ${Money.formatInr(total)} a month")
+    }
+
+    private suspend fun writeBudgets(values: Map<String, Long>): Long {
+        val total = values.values.filter { it > 0 }.sum()
+        values.forEach { (id, v) -> repo.setBudget(id, v.takeIf { it > 0 }) }
+        repo.setBudget(Schema.OVERALL, total.takeIf { it > 0 })
+        return total
+    }
 
     /** True while the user has hidden saving tips from Home for this budget month. */
     fun tipsHidden(s: AppSettings?): Boolean = (s?.tipsHiddenUntil ?: 0) > startMs(today())

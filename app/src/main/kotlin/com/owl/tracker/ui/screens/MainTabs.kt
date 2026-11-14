@@ -1312,6 +1312,16 @@ fun BudgetsScreen(vm: AppViewModel) {
                     Gap(8.dp)
                     StatusPill(s.state)
                 }
+                Gap(12.dp)
+                // Every category's budget at once, with the last six months on each slider
+                androidx.compose.material3.FilledTonalButton(
+                    onClick = { vm.go(Screen.ADJUST_BUDGETS) },
+                    modifier = Modifier.fillMaxWidth().testTag("adjust_budgets"),
+                ) {
+                    Icon(Ic.sliders, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    com.owl.tracker.ui.components.FitText("Adjust budgets with sliders", minScale = 0.85f, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
             }
         }
         item {

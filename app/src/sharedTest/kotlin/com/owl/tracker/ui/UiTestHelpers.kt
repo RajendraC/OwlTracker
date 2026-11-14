@@ -78,6 +78,16 @@ fun ComposeTestRule.typeInto(tag: String, value: String) {
     waitForIdle()
 }
 
+/**
+ * The first-time budget as one monthly total. With a month or more of payments the setup opens on a slider for each
+ * category, so this switches to the single amount first.
+ */
+fun ComposeTestRule.setMonthlyTotal(rupees: String) {
+    waitForNode(hasTestTag("one_total") or hasTestTag("budget_input"), 20_000)
+    if (exists(hasTestTag("one_total"))) tapTag("one_total")
+    typeInto("budget_input", rupees)
+}
+
 private fun ComposeTestRule.tap(node: SemanticsNodeInteraction) {
     // Just after typing, the keyboard (and a screen's ime padding with it) can still be moving: give the scroll a few tries
     val end = System.currentTimeMillis() + 3_000

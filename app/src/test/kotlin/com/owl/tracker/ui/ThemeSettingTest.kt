@@ -56,7 +56,7 @@ class ThemeSettingTest {
         waitForTag("import_all")
         tapTag("import_all")
         tapTag("import_continue")
-        typeInto("budget_input", "20000")
+        setMonthlyTotal("20000")
         tapTag("save_budget")
         waitForTag("budget_hero")
         tapTag("tab_more")

@@ -113,6 +113,7 @@ fun ReportsScreen(vm: AppViewModel) {
     val cats by vm.categories.collectAsStateWithLifecycle()
     val catMap = remember(cats) { cats.associateBy { it.id } }
     val plan by vm.savingPlan.collectAsStateWithLifecycle()
+    val hist by vm.monthHistory.collectAsStateWithLifecycle()
     // Cards rise into place once, the first time they appear
     val seen = remember { mutableSetOf<Any>() }
     val openedAt = remember { System.currentTimeMillis() }
@@ -154,6 +155,7 @@ fun ReportsScreen(vm: AppViewModel) {
         plan?.takeIf { r.filter.isEmpty && !it.isEmpty }?.let { p -> card("ways") { WaysToSaveCard(p, catMap, vm) } }
         card("trend") { TrendCard(r, vm) }
         if (r.categories.isNotEmpty()) card("categories") { CategoryCard(r, catMap, vm) }
+        hist?.takeIf { it.hasData }?.let { h -> card("category_trends") { CategoryTrendsCard(h, cats, r.filter.categoryId, vm) } }
         if (r.merchants.isNotEmpty()) card("merchants") { MerchantCard(r, catMap, vm) }
         if (r.weekdays.any { it.paise > 0 }) card("weekdays") { WeekdayCard(r, vm) }
         if (r.highlights.isNotEmpty()) card("highlights") { HighlightsCard(r) }

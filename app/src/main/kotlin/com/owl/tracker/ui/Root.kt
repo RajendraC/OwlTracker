@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.owl.tracker.ui.screens.ActivityScreen
+import com.owl.tracker.ui.screens.AdjustBudgetsScreen
 import com.owl.tracker.ui.screens.BudgetSetupScreen
 import com.owl.tracker.ui.screens.BudgetsScreen
 import com.owl.tracker.ui.screens.CategoriesScreen
@@ -145,6 +146,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
                 Screen.UNLOCK -> UnlockScreen(vm, platform)
                 Screen.BACKUP -> BackupScreen(vm, platform)
                 Screen.RULES -> RulesScreen(vm)
+                Screen.ADJUST_BUDGETS -> AdjustBudgetsScreen(vm)
             }
         }
         SheetHost(vm)

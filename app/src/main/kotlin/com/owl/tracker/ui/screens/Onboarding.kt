@@ -154,8 +154,24 @@ private fun Fact(label: String, text: String) {
 
 @Composable
 fun BudgetSetupScreen(vm: AppViewModel) {
+    val hist by vm.monthHistory.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    var text by rememberSaveable { mutableStateOf("75000") }
+    var oneTotal by rememberSaveable { mutableStateOf(false) }
+    val h = hist
+    when {
+        // A moment while the months are added up
+        h == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
+        h.hasData && !oneTotal -> BudgetSlidersSetup(vm, h, onOneTotal = { oneTotal = true })
+        else -> OneTotalSetup(vm, settings?.smsEnabled == false, h.takeIf { it.hasData }, onByCategory = { oneTotal = false })
+    }
+}
+
+/** The single monthly amount: the only choice before there's a month to go by, or when you'd rather not split it up. */
+@Composable
+private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.ui.MonthHistory?, onByCategory: () -> Unit) {
+    // With history, start from the usual month, rounded up to ₹1,000
+    val usual = h?.let { hh -> hh.byCategory.keys.sumOf { hh.usual(it) } } ?: 0L
+    var text by rememberSaveable { mutableStateOf(if (usual > 0) ((usual + 99_999) / 100_000 * 1_000).toString() else "75000") }
     val rupees = text.filter { it.isDigit() }.take(8).toLongOrNull() ?: 0L
     Column(
         Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 32.dp),
@@ -186,8 +202,10 @@ fun BudgetSetupScreen(vm: AppViewModel) {
                 }
             }
         }
-        if (settings?.smsEnabled == false) {
+        if (manual) {
             InfoNote("You're in manual mode: add expenses with + on the home screen. You can turn on SMS import later in Settings.")
+        } else if (h == null) {
+            SlidersComingNote()
         }
         Gap(8.dp)
         Button(
@@ -195,6 +213,11 @@ fun BudgetSetupScreen(vm: AppViewModel) {
             enabled = rupees > 0,
             modifier = Modifier.fillMaxWidth().height(56.dp).testTag("save_budget"),
         ) { Text("Save budget") }
+        if (h != null) {
+            androidx.compose.material3.TextButton(onClick = onByCategory, modifier = Modifier.fillMaxWidth().testTag("by_category")) {
+                Text("Set a budget for each category instead")
+            }
+        }
     }
 }
 

@@ -177,6 +177,32 @@ class ImportEngineTest {
     }
 
     @Test
+    fun staysMoveFromTravelToTheNewHolidayCategoryOnce() = runBlocking {
+        val inbox = sampleInbox()
+        inbox += SmsMessage(6101, "VM-HDFCBK-S", "Sent Rs.4200.00 From HDFC Bank A/C *4821 To OYO ROOMS On 12/10/26 Ref 629999996101", TEST_CLOCK.millis() - 6 * DAY_MS)
+        inbox += SmsMessage(6102, "VM-HDFCBK-S", "Sent Rs.5600.00 From HDFC Bank A/C *4821 To INDIGO AIRLINES On 11/10/26 Ref 629999996102", TEST_CLOCK.millis() - 7 * DAY_MS)
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        fun cat(sms: Long) = runBlocking { c.repo.smsTransactionsSince(0).first { it.smsId == sms }.categoryId }
+        assertEquals(Cat.HOLIDAY, cat(6101))
+        assertEquals(Cat.TRAVEL, cat(6102))
+
+        // As 1.6 left them: the stay in Travel
+        c.repo.moveTo(listOf(c.repo.smsTransactionsSince(0).first { it.smsId == 6101L }.id), Cat.TRAVEL)
+        c.repo.updateSettings { it.copy(categoriesVersion = 1) }
+        assertEquals(1, e.sortIntoNewCategories())
+        assertEquals(Cat.HOLIDAY, cat(6101))
+        assertEquals(Cat.TRAVEL, cat(6102))
+        assertEquals(ImportEngine.CATEGORIES_VERSION, c.repo.settings().categoriesVersion)
+
+        // Once only: moved back by hand, it stays
+        c.repo.setCategory(c.repo.smsTransactionsSince(0).first { it.smsId == 6101L }.id, Cat.TRAVEL, rememberForMerchant = false)
+        assertEquals(0, e.sortIntoNewCategories())
+        assertEquals(Cat.TRAVEL, cat(6101))
+    }
+
+    @Test
     fun chosenNamesAndIconsApplyToPastAndNewPayments() = runBlocking {
         val inbox = sampleInbox()
         val c = testContainer(context, inbox)

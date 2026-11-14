@@ -53,7 +53,7 @@ class AppFlowTest {
             tapTag("import_continue")
 
             // Budget ₹10,000 against ₹13,607 of spend -> over budget by ₹3,607
-            typeInto("budget_input", "10000")
+            setMonthlyTotal("10000")
             tapTag("save_budget")
             waitForText("₹3,607 over budget with")
             onNodeWithTag("budget_hero").assertIsDisplayed()
@@ -98,7 +98,7 @@ class AppFlowTest {
         with(compose) {
             tapTag("get_started")
             tapTag("not_now")
-            typeInto("budget_input", "1000")
+            setMonthlyTotal("1000")
             tapTag("save_budget")
             waitForText("SMS import is off")
 

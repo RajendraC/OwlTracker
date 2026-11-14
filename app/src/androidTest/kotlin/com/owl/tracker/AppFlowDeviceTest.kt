@@ -7,6 +7,7 @@ import com.owl.tracker.ui.MainActivity
 import com.owl.tracker.ui.tapTag
 import com.owl.tracker.ui.tapText
 import com.owl.tracker.ui.typeInto
+import com.owl.tracker.ui.setMonthlyTotal
 import com.owl.tracker.ui.waitForTag
 import com.owl.tracker.ui.waitForText
 import kotlinx.coroutines.runBlocking
@@ -41,7 +42,7 @@ class AppFlowDeviceTest {
         with(compose) {
             tapTag("get_started")
             tapTag("not_now")
-            typeInto("budget_input", "1000")
+            setMonthlyTotal("1000")
             tapTag("save_budget")
             waitForText("SMS import is off", timeoutMs = 20_000)
 

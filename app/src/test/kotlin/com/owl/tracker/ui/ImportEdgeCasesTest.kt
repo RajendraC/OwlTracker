@@ -93,7 +93,7 @@ class SampleDataTest : FirstImportTest(emptyList()) {
             waitForText("13 transactions from 5 of 5 senders")
             tapTag("import_all")
             tapTag("import_continue")
-            typeInto("budget_input", "10000")
+            setMonthlyTotal("10000")
             tapTag("save_budget")
             waitForTag("sample_banner")
             waitForText("over budget with")

@@ -21,7 +21,8 @@ import java.time.ZoneId
  * Big text, as many people set it on their phones: through every main screen, no word or amount may be broken across
  * lines ("Groce / ries", "₹6,00,7 / 99") and no amount or short label cut off ("₹1,14…", "Novem…"). A narrow phone
  * with large text (many Realme and Redmi phones), the largest text Android 14+ allows on a Pixel-size phone, and
- * normal text with lakh-size spending (a tester's ₹1,14,931 month). Real text measurement (native graphics).
+ * normal text with lakh-size spending (a tester's ₹1,14,931 month). Three months of history first, so the budget sliders
+ * and Reports' trend by category are on the way. Real text measurement (native graphics).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -40,7 +41,7 @@ class BigTextTest {
     @get:Rule
     val rules: TestRule = RuleChain
         .outerRule(object : ExternalResource() {
-            override fun before() { TestApp.inboxOverride = sampleInbox(big) }
+            override fun before() { TestApp.inboxOverride = sampleInbox(big + historyInbox()) }
             override fun after() { TestApp.inboxOverride = null }
         })
         .around(compose)
@@ -62,7 +63,11 @@ class BigTextTest {
         waitForTag("import_all")
         tapTag("import_all")
         tapTag("import_continue")
-        typeInto("budget_input", "20000")
+        screen("Budget setup, sliders") { waitForTag("save_budgets"); waitForTag("slider_row_food") }
+        screen("Budget setup, more categories") { tapTag("more_categories"); waitForTag("slider_row_education") }
+        screen("Budget setup, one total") { tapTag("one_total"); waitForTag("budget_input") }
+        tapTag("by_category")
+        setMonthlyTotal("20000")
         tapTag("save_budget")
         waitForTag("budget_hero")
 
@@ -79,11 +84,15 @@ class BigTextTest {
         screen("Split") { tapText("Amazon"); waitForTag("split_open"); tapTag("split_open"); waitForTag("split_save") }
         back()
         screen("Budgets") { tapTag("tab_budgets"); waitForText("Monthly budget") }
+        screen("Adjust budgets") { tapTag("adjust_budgets"); waitForTag("slider_summary") }
+        screen("Adjust budgets, a row") { waitForTag("slider_row_food") }
+        back()
         screen("More") { tapTag("tab_more"); waitForTag("open_rules") }
         screen("Settings") { tapText("Settings"); waitForTag("theme_choice") }
         back()
         screen("Reports") { waitForText("Reports"); tapText("Reports"); waitForTag("reports") }
         screen("Reports, income & expenses") { waitForTag("income_expenses") }
+        screen("Reports, trend by category") { waitForTag("report_category_trends"); waitForTag("trend_food") }
         screen("Reports, by day of the week") { waitForText("By day of the week") }
 
         assertTrue("Text that doesn't fit:\n" + found.joinToString("\n"), found.isEmpty())

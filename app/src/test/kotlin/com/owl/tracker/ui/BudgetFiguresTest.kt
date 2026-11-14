@@ -32,7 +32,7 @@ class BudgetFiguresTest {
             waitForTag("import_all")
             tapTag("import_all")
             tapTag("import_continue")
-            typeInto("budget_input", "10000")
+            setMonthlyTotal("10000")
             tapTag("save_budget")
             waitForTag("figures")
 
