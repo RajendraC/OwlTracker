@@ -67,7 +67,7 @@ class BigTextTest {
         waitForTag("budget_hero")
 
         screen("Home") { waitForTag("figures") }
-        screen("Home, over budget") { waitForTag("over_banner") }
+        screen("Home, over budget") { waitForTag("budget_line") }
         screen("Home, calendar") { waitForTag("month_calendar") }
         screen("Home, where it went") { waitForText("Where it went") }
         screen("Home, a week") { tapTag("mode_week"); waitForTag("week_card") }

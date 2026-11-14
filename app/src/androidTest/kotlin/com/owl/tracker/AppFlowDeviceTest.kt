@@ -49,7 +49,7 @@ class AppFlowDeviceTest {
             typeInto("add_amount", "1500")
             typeInto("add_merchant", "Tea stall")
             tapTag("save_expense")
-            waitForText("over your monthly budget", timeoutMs = 20_000)
+            waitForText("over budget with", timeoutMs = 20_000)
             waitForText("Tea stall", timeoutMs = 20_000)
 
             tapTag("tab_more")

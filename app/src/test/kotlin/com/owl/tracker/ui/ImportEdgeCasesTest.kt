@@ -96,7 +96,7 @@ class SampleDataTest : FirstImportTest(emptyList()) {
             typeInto("budget_input", "10000")
             tapTag("save_budget")
             waitForTag("sample_banner")
-            waitForText("over your monthly budget")
+            waitForText("over budget with")
         }
     }
 }

@@ -1164,8 +1164,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         }.sortedByDescending { it.spent.toDouble() / it.limit }
         val unbudgeted = cats.filter { it.countsAsSpend && !it.archived && budgets[it.id] == null }.map { CategorySpend(it, byCat[it.id] ?: 0L) }
         val daysLeftText = if (isCurrent) "${p.days - dayNumber} days left this month" else "This budget month has ended"
+        // Category budgets that are over. The month itself being over is said once, in the budget card's own line.
         val over = buildList {
-            if (status?.state == BudgetState.OVER) add(OverItem("${Money.formatInr(spent - overall)} over your monthly budget", daysLeftText, null, Schema.OVERALL))
             rows.filter { it.status.state == BudgetState.OVER }.forEach {
                 add(OverItem("${Money.formatInr(it.spent - it.limit)} over on ${it.category.name}", "${Money.formatInr(it.spent)} spent of ${Money.formatInr(it.limit)} · $daysLeftText", it.category.id, it.category.id))
             }

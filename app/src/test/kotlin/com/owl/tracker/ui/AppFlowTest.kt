@@ -55,7 +55,7 @@ class AppFlowTest {
             // Budget ₹10,000 against ₹13,607 of spend -> over budget by ₹3,607
             typeInto("budget_input", "10000")
             tapTag("save_budget")
-            waitForText("₹3,607 over your monthly budget")
+            waitForText("₹3,607 over budget with")
             onNodeWithTag("budget_hero").assertIsDisplayed()
             waitForText("Over budget")
 
@@ -107,7 +107,7 @@ class AppFlowTest {
             typeInto("add_merchant", "Tea stall")
             tapTag("save_expense")
             waitForText("Tea stall")
-            waitForText("₹500 over your monthly budget")
+            waitForText("₹500 over budget with")
         }
     }
 
