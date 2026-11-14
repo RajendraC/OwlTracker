@@ -80,7 +80,7 @@ class BudgetSlidersTest {
     /** The list scrolls, so find the node first. */
     private fun hasTextAt(tag: String, text: String) = compose.run {
         waitForTag(tag)
-        onNodeWithTag(tag).assertTextEquals(text)
+        onNodeWithTag(tag, useUnmergedTree = true).assertTextEquals(text)
     }
 
     @Test
