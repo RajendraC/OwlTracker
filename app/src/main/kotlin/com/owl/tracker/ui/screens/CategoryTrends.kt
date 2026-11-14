@@ -64,7 +64,7 @@ fun trendPhrase(months: List<Long?>, labels: List<String>): Pair<String, TrendKi
     val kind = Trends.kind(months)
     val known = months.mapIndexedNotNull { i, v -> v?.let { labels.getOrElse(i) { "" } to it } }
     val last3 = known.takeLast(Trends.USUAL_OF)
-    fun pct(a: Long, b: Long) = if (b <= 0) 0 else (Math.abs(a - b) * 100 / b).toInt()
+    fun pct(a: Long, b: Long) = if (b <= 0) 0 else Math.round(Math.abs(a - b) * 100.0 / b).toInt()
     val text = when (kind) {
         TrendKind.RISING -> "↑ Rising · ${pct(last3.last().second, last3.first().second)}% more than in ${last3.first().first}"
         TrendKind.FALLING -> "↓ Falling · ${pct(last3.last().second, last3.first().second)}% less than in ${last3.first().first}"
@@ -203,14 +203,15 @@ private fun MonthBars(months: List<Long?>, now: Long, color: Color, modifier: Mo
 /** "↑ Rising · 27% more than in Aug", "↓ Falling · 24% less than in Aug", "New · ₹10.5k in Oct". */
 fun movePhrase(m: Move, months: List<Long?>, labels: List<String>): String {
     val from = months[m.from] ?: 0L
-    val pct = if (from > 0) kotlin.math.abs(m.change) * 100 / from else 0
+    val pct = if (from > 0) Math.round(kotlin.math.abs(m.change) * 100.0 / from) else 0
     val latest = months.getOrNull(m.to) ?: 0L
+    fun amt(p: Long) = if (p == 0L) "nothing" else Money.formatShort(p)
     return when (m.kind) {
         MoveKind.NEW -> "New · ${Money.formatShort(m.change)} in ${labels.getOrElse(m.to) { "" }}"
         MoveKind.RISING -> "↑ Rising · $pct% more than in ${labels.getOrElse(m.from) { "" }}"
         MoveKind.FALLING -> "↓ Falling · $pct% less than in ${labels.getOrElse(m.from) { "" }}"
-        MoveKind.ABOVE -> "↑ Up · ${Money.formatShort(latest)} in ${labels.getOrElse(m.to) { "" }}, usually ${Money.formatShort(m.base)}"
-        MoveKind.BELOW -> "↓ Down · ${Money.formatShort(latest)} in ${labels.getOrElse(m.to) { "" }}, usually ${Money.formatShort(m.base)}"
+        MoveKind.ABOVE -> "↑ Up · ${amt(latest)} in ${labels.getOrElse(m.to) { "" }}, usually ${amt(m.base)}"
+        MoveKind.BELOW -> "↓ Down · ${amt(latest)} in ${labels.getOrElse(m.to) { "" }}, usually ${amt(m.base)}"
     }
 }
 

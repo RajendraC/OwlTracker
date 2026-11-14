@@ -113,4 +113,15 @@ class MonthHistoryTest {
         assertEquals("↕ Up and down · ₹0 to ₹12k" to TrendKind.UP_AND_DOWN, trendPhrase(listOf(null, null, null, 0L, 12_000_00L, 0L), labels))
         assertEquals("Only Sep so far" to TrendKind.TOO_EARLY, trendPhrase(listOf(null, null, null, null, null, 119_00L), labels))
     }
+
+    @Test
+    fun movesInWords() {
+        val labels = listOf("May", "Jun", "Jul", "Aug", "Sep", "Oct")
+        fun phrase(vararg r: Long?) = r.map { it?.times(100) }.let { m -> com.owl.tracker.ui.screens.movePhrase(com.owl.tracker.core.Trends.move(m)!!, m, labels) }
+        assertEquals("↑ Rising · 27% more than in Aug", phrase(12400, 13800, 15200, 16900, 17500, 21400))
+        assertEquals("↓ Falling · 24% less than in Aug", phrase(7800, 7100, 6400, 5900, 5200, 4500))
+        assertEquals("New · ₹10.5k in Oct", phrase(0, 0, 0, 0, 0, 10500))
+        assertEquals("↑ Up · ₹6.2k in Oct, usually nothing", phrase(null, 0, 0, 0, 1800, 6200))
+        assertEquals("↓ Down · nothing in Oct, usually ₹1.2k", phrase(400, 1200, 2800, 1200, 1100, 0))
+    }
 }

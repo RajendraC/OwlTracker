@@ -242,7 +242,9 @@ internal fun AmountBox(id: String, name: String, paise: Long, tag: String = "bud
             ) {
                 Text("₹", style = style.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
                 Spacer(Modifier.size(4.dp))
-                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                // As wide as the amount with its commas: measured without them, a lakh scrolled out of sight with big text
+                val wide = com.owl.tracker.ui.components.rememberTextWidth(IndianGrouping.group(text.ifEmpty { "0" }), style)
+                Box(Modifier.weight(1f).widthIn(min = wide + 2.dp), contentAlignment = Alignment.CenterEnd) {
                     if (text.isEmpty()) Text("0", style = style.copy(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)))
                     inner()
                 }
