@@ -430,16 +430,17 @@ fun DrillRingCard(
                                     c.note ?: "${(c.paise.toFloat() / total * 100).toInt()}%",
                                     style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted,
                                 )
-                                if (c.inside != null) Text(
-                                    c.inside, style = MaterialTheme.typography.bodySmall, color = muted, maxLines = 3, overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(top = 2.dp).testTag("ring_inside_${c.id}"),
-                                )
                             }
                         },
                         end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleSmall) },
                     )
                     Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
                 }
+                // A group: what it's made of, under the whole row so big text has the width
+                if (c.inside != null) Text(
+                    c.inside, style = MaterialTheme.typography.bodySmall, color = muted,
+                    modifier = Modifier.fillMaxWidth().padding(start = if (tiles) 58.dp else 28.dp, end = 6.dp, bottom = 4.dp).testTag("ring_inside_${c.id}"),
+                )
                 // Its months, small, and which way it's going, under the whole row (with big text, beside the amount
                 // squeezed the words one to a line): tap for the amounts
                 if (h != null) RowTrendStrip(h, c.id, c.name, c.color, openTrend == c.id) { openTrend = if (openTrend == c.id) null else c.id }
