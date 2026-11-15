@@ -139,7 +139,7 @@ class SchemaMigrationTest {
                     old.forEachIndexed { i, id ->
                         val c = Schema.DEFAULT_CATEGORIES.first { it.id == id }
                         val parent = if (id == Cat.SPORTS) sportsParent else c.parent
-                        val archived = healthArchived && (id == Cat.HEALTH || c.parent == Cat.HEALTH)
+                        val archived = healthArchived && (id == Cat.HEALTH || parent == Cat.HEALTH)
                         db.execSQL(
                             "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived, parent) VALUES(?,?,?,?,?,?,1,?,?)",
                             arrayOf<Any?>(c.id, c.name, c.icon, c.color, c.kind.name, i, if (archived) 1 else 0, parent),
