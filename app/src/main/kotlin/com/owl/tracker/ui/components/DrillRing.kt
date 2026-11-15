@@ -477,9 +477,17 @@ fun DrillRingCard(
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Box(Modifier.size(12.dp).clip(CircleShape).background(s.color))
-                    Text(s.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text("${(s.share * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = muted)
-                    Text(Money.formatInr(s.paise), style = MaterialTheme.typography.titleSmall)
+                    // The share and amount beside the name when there's room, else under it (big text, a lakh)
+                    SideOrStacked(
+                        Modifier.weight(1f),
+                        start = { Text(s.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                        end = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("${(s.share * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = muted)
+                                Text(Money.formatInr(s.paise), style = MaterialTheme.typography.titleSmall)
+                            }
+                        },
+                    )
                     if (s.key.isNotEmpty()) Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
                 }
             }

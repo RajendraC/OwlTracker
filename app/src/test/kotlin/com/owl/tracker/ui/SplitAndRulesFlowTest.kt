@@ -57,14 +57,14 @@ class SplitAndRulesFlowTest {
             tapTag("change_category")
             tapTag("remember_rule")
             waitForText("This and 1 other Amazon payment, and every new one")
-            tapText("Health")
-            waitForText("Rule saved: Amazon → Health")
+            tapText("Medicines")
+            waitForText("Rule saved: Amazon → Medicines")
 
             // More → Rules shows it, with the warning, and deleting it puts both payments back in Shopping
             back()
             tapTag("tab_more")
             tapTag("open_rules")
-            waitForText("Amazon → Health")
+            waitForText("Amazon → Medicines")
             waitForText("sells many kinds of things")
             tapTag("rule_delete_amazon")
             waitForTag("rule_delete_dialog")
