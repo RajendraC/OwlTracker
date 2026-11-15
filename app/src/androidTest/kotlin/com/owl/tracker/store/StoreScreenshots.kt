@@ -229,6 +229,10 @@ class StoreScreenshots {
                 runCatching { scrollTo(hasTestTag("group_cat_${Cat.SPORTS}"), below = 200f) }
                 Thread.sleep(600)
                 shot("13g_home_health_list")
+                // Under an opened group: Ways to save and Reports, no Recent
+                runCatching { scrollTo(hasText("Income & expenses, ways to save", substring = true), below = 700f) }
+                Thread.sleep(600)
+                shot("13h_home_group_below")
                 runCatching { activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() } }
                 Thread.sleep(800)
             }

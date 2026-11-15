@@ -8,6 +8,7 @@ import com.owl.tracker.core.Cat
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,6 +60,36 @@ class CategoryGroupsFlowTest {
             back()
             waitUntil(5_000) { onAllNodesWithTag("ring_up").fetchSemanticsNodes().isEmpty() }
             waitForTag("cat_food")
+        }
+    }
+
+    /** Recent lists every payment, so it isn't shown under an opened group or category; Ways to save and Reports stay. */
+    @Test
+    fun recentIsOnlyShownWithNothingOpened() {
+        setUpWithSms()
+        with(compose) {
+            fun noRecent() = assertTrue("Recent is still shown", runCatching { waitForTag("recent", 1_500) }.isFailure)
+            waitForTag("recent")
+            // A group opened: no Recent below it
+            tapTag("cat_food")
+            waitForTag("ring_up")
+            noRecent()
+            waitForText("Income & expenses, ways to save")
+            // One of its categories opened: still none
+            tapTag("group_cat_food_delivery")
+            waitForTag("ring_merchant_swiggy")
+            noRecent()
+            // Back to the group: none; back to all the groups: Recent again
+            back()
+            waitForTag("group_cat_groceries")
+            noRecent()
+            back()
+            waitUntil(5_000) { onAllNodesWithTag("ring_up").fetchSemanticsNodes().isEmpty() }
+            waitForTag("recent")
+            // A category on its own (Cash isn't in a group) hides it too
+            tapTag("cat_${Cat.CASH}")
+            waitForTag("ring_up")
+            noRecent()
         }
     }
 

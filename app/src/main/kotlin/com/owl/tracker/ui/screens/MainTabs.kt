@@ -469,8 +469,11 @@ fun HomeScreen(vm: AppViewModel) {
 
             if (wholeMonth) plan?.takeIf { dash.isCurrent && it.monthlyPaise > 0 && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { Box(side) { SavingNudge(vm, p) } } }
 
-            if (wholeMonth) item {
-                Column(side) {
+            // Recent lists every payment, so it's only for the whole month's view: with a group or a category opened in
+            // "Where it went" it read as that group's payments. Going back up brings it back.
+            if (wholeMonth) {
+                if (openGroup == null && openCat == null) item(key = "recent") {
+                Column(side.testTag("recent")) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Recent", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() })
                         TextButton(onClick = { vm.showActivity() }) { Text("See all") }
@@ -486,6 +489,7 @@ fun HomeScreen(vm: AppViewModel) {
                             }
                         }
                     }
+                }
                 }
             } else {
                 // A day: every payment that day. A week: day by day, newest first.
