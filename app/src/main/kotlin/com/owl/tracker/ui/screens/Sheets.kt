@@ -135,6 +135,7 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
     val credit = tx.direction == Direction.CREDIT
     // In a group but not sorted into one of its categories yet (an Amazon order)
     val waiting = cats.any { it.parent == tx.categoryId && !it.archived }
+    val settings by vm.settings.collectAsStateWithLifecycle()
 
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cat, 52.dp)
@@ -228,7 +229,7 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                 },
             )
             // An academy or classes could be for you or your children: one tap, remembered for the place
-            val either = if (credit || vm.settings.value?.kids == false) null else com.owl.tracker.core.CategoryGroups.forYouOrKids(tx.merchantName, tx.categoryId)
+            val either = if (credit || settings?.kids == false) null else com.owl.tracker.core.CategoryGroups.forYouOrKids(tx.merchantName, tx.categoryId)
             if (either != null) ForYouOrKids(vm, tx, either.first, either.second, cats)
         }
         if (!credit && !tx.isSplit) {
