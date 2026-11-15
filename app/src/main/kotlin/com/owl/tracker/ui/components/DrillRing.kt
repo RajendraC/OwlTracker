@@ -470,13 +470,15 @@ fun DrillRingCard(
                         },
                         end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleSmall) },
                     )
-                    if (unsorted && onSort != null) {
-                        androidx.compose.material3.FilledTonalButton(
-                            onClick = { onSort(c.id) },
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
-                            modifier = Modifier.testTag("sort_${c.id}"),
-                        ) { Text("Sort") }
-                    } else Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
+                    Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
+                }
+                // Sort: under the row, so the name and amount keep their width (big text)
+                if (unsorted && onSort != null) {
+                    androidx.compose.material3.FilledTonalButton(
+                        onClick = { onSort(c.id) },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                        modifier = Modifier.padding(start = 54.dp, bottom = 8.dp).testTag("sort_${c.id}"),
+                    ) { Text("Sort: pick what it was") }
                 }
             } else slices.forEachIndexed { i, s ->
                 if (i > 0) Divider()
