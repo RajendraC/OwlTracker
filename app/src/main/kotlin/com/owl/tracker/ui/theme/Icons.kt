@@ -88,6 +88,27 @@ object Ic {
         "sports" to icon("M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 4v16M4 12h16M7 6.3c2.2 3.2 2.2 8.2 0 11.4M17 6.3c-2.2 3.2-2.2 8.2 0 11.4"),
         "gift" to icon("M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-1.5-3-5-3-5-1s3 1 5 1zM12 7c1.5-3 5-3 5-1s-3 1-5 1z"),
         "pet" to icon("M12 13c-3 0-5 2.5-5 4.5S9 20 12 20s5-.5 5-2.5S15 13 12 13zM6 9.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM18 9.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM14.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"),
+        // The finer categories (1.8)
+        "commute" to icon("M7 3h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM5 10h14M8.5 13.5h.01M15.5 13.5h.01M8 17l-2.5 4M16 17l2.5 4"),
+        "car" to icon("M5 16v-5l2-5h10l2 5v5M5 16h14M5 16v2.5M19 16v2.5M5 11h14M8 13.5h.01M16 13.5h.01"),
+        "fashion" to icon("M8 3 3 6.5l2.5 4 2-1V21h9V9.5l2 1 2.5-4L16 3q-4 3.5-8 0z"),
+        "electronics" to icon("M7.5 3h9Q18 3 18 4.5v15q0 1.5-1.5 1.5h-9Q6 21 6 19.5v-15Q6 3 7.5 3zM10.5 18h3"),
+        "furniture" to icon("M5.5 11V8a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v3M3 13.5a2 2 0 0 1 4 0V15h10v-1.5a2 2 0 0 1 4 0V18H3zM5 18v2M19 18v2"),
+        "beauty" to icon("M9 21h6v-8H9zM10 13V8.5L14 5v8M9 16.5h6"),
+        "jewellery" to icon("M6 15a6 6 0 1 0 12 0a6 6 0 1 0-12 0M9 4.5 10.5 2.5h3L15 4.5 12 8z"),
+        "delivery" to icon("M4.2 17.5a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0-4.6 0M15.2 17.5a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0-4.6 0M8.8 17.5h6.4l-2-7.5H11M13.2 10H16l2 5.5M3 7h6v5H3z"),
+        "kids" to icon("M5.6 6a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0M14.6 8.5a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0M4.5 21v-6.5a3.5 3.5 0 0 1 7 0V21M13.5 21v-5a3 3 0 0 1 6 0v5"),
+        "school" to icon("M2.5 9 12 4.5 21.5 9 12 13.5zM6.5 11.2v4.3c1.5 1.4 3.5 2.1 5.5 2.1s4-.7 5.5-2.1v-4.3M21.5 9v5"),
+        "kids_sports" to icon("M3.5 12a8.5 8.5 0 1 0 17 0a8.5 8.5 0 1 0-17 0M12 8l3.3 2.4-1.3 3.9h-4l-1.3-3.9zM12 3.5V8M15.3 10.4l4.6-1.6M14 14.3l2.6 4M10 14.3l-2.6 4M8.7 10.4 4.1 8.8"),
+        "toys" to icon("M4.8 6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0M14.8 6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0M7 10a5 5 0 1 0 10 0a5 5 0 1 0-10 0M8.3 13.6C6.6 14.6 6 16 6 17.5 6 19.7 8.5 21 12 21s6-1.3 6-3.5c0-1.5-.6-2.9-2.3-3.9"),
+        "utilities" to icon("M12 3c-3 4-5 6.8-5 9.5a5 5 0 0 0 10 0C17 9.8 15 7 12 3zM12.8 10l-2.3 3.2h2.2l-1 3"),
+        "subscriptions" to icon("M2.5 4.5h19v13h-19zM8 21h8M10.2 8.3v5.4l4.6-2.7z"),
+        "home_help" to icon("M16 2.5l-3.6 8M8 11h8.5l1.8 10H6.2zM10 15v6M14 15v6"),
+        "insurance" to icon("M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6zM9 12l2 2 4-4"),
+        "medicines" to icon("M10.6 4.4a4 4 0 0 1 5.66 5.66l-6.86 6.86a4 4 0 0 1-5.66-5.66zM7.2 7.8l5.66 5.66"),
+        "doctor" to icon("M6 3.5V9a4 4 0 0 0 8 0V3.5M10 13v2.5a4 4 0 0 0 8 0V14M16 12a2 2 0 1 0 4 0a2 2 0 1 0-4 0"),
+        "fun" to icon("M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"),
+        "temple" to icon("M12 2.5v2M8 9l4-4.5L16 9M5.5 9h13M6.5 9v11M17.5 9v11M10 20v-5h4v5M4 20.5h16"),
         "tag" to tag,
         "bank" to bank,
         "card" to card,
@@ -95,8 +116,10 @@ object Ic {
     )
 
     val categoryChoices = listOf(
-        "tag", "food", "coffee", "groceries", "shopping", "transport", "fuel", "bills", "recharge", "entertainment",
-        "health", "sports", "travel", "holiday", "education", "rent", "emi", "investments", "cash", "gift", "pet", "others",
+        "tag", "food", "coffee", "delivery", "groceries", "shopping", "fashion", "electronics", "furniture", "beauty", "jewellery",
+        "transport", "commute", "car", "fuel", "kids", "school", "kids_sports", "toys", "bills", "utilities", "recharge",
+        "subscriptions", "home_help", "insurance", "health", "medicines", "doctor", "entertainment", "sports", "travel",
+        "holiday", "education", "fun", "rent", "emi", "investments", "cash", "gift", "temple", "pet", "others",
     )
 
     val colorChoices = listOf(

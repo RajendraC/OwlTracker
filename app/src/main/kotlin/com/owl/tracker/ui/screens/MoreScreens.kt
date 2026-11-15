@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -21,8 +23,10 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -219,7 +223,37 @@ fun CategoriesScreen(vm: AppViewModel) {
     val cats by vm.categories.collectAsStateWithLifecycle()
     val d by vm.dashboard.collectAsStateWithLifecycle()
     val rules by vm.ruleCount.collectAsStateWithLifecycle()
-    val spentBy = d?.byCategory?.associate { it.category.id to it.paise }.orEmpty()
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val kidsOn = settings?.kids != false
+    val tree = remember(cats) { com.owl.tracker.data.CategoryTree(cats) }
+    // This month: each group's total, and each category's inside it
+    val spentBy = remember(d) {
+        d?.byCategory?.associate { it.category.id to it.paise }.orEmpty() +
+            d?.children?.values?.flatten()?.filter { cs -> d?.children?.containsKey(cs.category.id) != true }?.associate { it.category.id to it.paise }.orEmpty()
+    }
+    val groups = cats.filter { it.parent == null && (tree.isGroup(it.id) || it.id == com.owl.tracker.core.Cat.KIDS) && (!it.archived || it.id == com.owl.tracker.core.Cat.KIDS) }
+    val alone = cats.filter { it.parent == null && !it.archived && !tree.isGroup(it.id) && it.id != com.owl.tracker.core.Cat.KIDS }
+
+    @Composable
+    fun CategoryLine(c: com.owl.tracker.data.Category, small: Boolean) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = if (small) 52.dp else 60.dp).padding(start = if (small) 8.dp else 0.dp, top = 2.dp, bottom = 2.dp).testTag("category_row_${c.id}"),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CategoryTile(c, if (small) 34.dp else 40.dp)
+            Column(Modifier.weight(1f)) {
+                Text(c.name, style = MaterialTheme.typography.titleSmall)
+                val kind = when (c.kind) {
+                    com.owl.tracker.data.CategoryKind.EXPENSE -> ""
+                    com.owl.tracker.data.CategoryKind.INCOME -> "Income · "
+                    else -> "Not counted in spend · "
+                }
+                Text(kind + (spentBy[c.id]?.let { "${Money.formatInr(it)} this month" } ?: "Nothing this month"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = { vm.openSheet(Sheet.CategoryEdit(c.id)) }) { Icon(Ic.edit, contentDescription = "Edit ${c.name}") }
+        }
+    }
+
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             ScreenHeader("Categories", onBack = { vm.back() }) {
@@ -228,32 +262,50 @@ fun CategoriesScreen(vm: AppViewModel) {
         }
         item {
             Text(
-                "Tap a category to rename it or change its icon and colour. When you recategorize a transaction, Owl Tracker can remember it as a rule" +
+                "Categories sit in groups: budgets and Home's ring are by group. Tap one to rename it, change its icon and colour " +
+                    "or move it to another group. When you recategorize a transaction, Owl Tracker can remember it as a rule" +
                     if (rules > 0) " (you have $rules)." else ".",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp),
             )
         }
-        item {
-            Panel(padding = 8.dp) {
-                cats.filter { !it.archived }.forEachIndexed { i, c ->
-                    if (i > 0) Divider()
+        items(groups, key = { it.id }) { g ->
+            val kids = g.id == com.owl.tracker.core.Cat.KIDS
+            Panel(padding = 8.dp, modifier = Modifier.testTag("category_group_${g.id}")) {
+                if (kids) {
                     Row(
                         Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        CategoryTile(c)
+                        CategoryTile(g)
                         Column(Modifier.weight(1f)) {
-                            Text(c.name, style = MaterialTheme.typography.titleSmall)
-                            val kind = when (c.kind) {
-                                com.owl.tracker.data.CategoryKind.EXPENSE -> ""
-                                com.owl.tracker.data.CategoryKind.INCOME -> "Income · "
-                                else -> "Not counted in spend · "
-                            }
-                            Text(kind + (spentBy[c.id]?.let { "${Money.formatInr(it)} this month" } ?: "Nothing this month"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(g.name, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                if (kidsOn) (spentBy[g.id]?.let { "${Money.formatInr(it)} this month" } ?: "On · nothing this month") else "Off · hidden everywhere",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
-                        IconButton(onClick = { vm.openSheet(Sheet.CategoryEdit(c.id)) }) { Icon(Ic.edit, contentDescription = "Edit ${c.name}") }
+                        androidx.compose.material3.Switch(checked = kidsOn, onCheckedChange = { vm.setKids(it) }, modifier = Modifier.testTag("kids_switch"))
+                    }
+                } else CategoryLine(g, small = false)
+                if (kids && !kidsOn) {
+                    Text(
+                        "Tuition and classes go to Courses & Books or Sports & Fitness instead. Turn on if you pay for children's school, classes or activities.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(6.dp),
+                    )
+                } else {
+                    tree.children(g.id).forEach { c -> Divider(); CategoryLine(c, small = true) }
+                    Divider()
+                    TextButton(onClick = { vm.openSheet(Sheet.CategoryEdit(null, g.id)) }, modifier = Modifier.testTag("add_to_${g.id}")) {
+                        Icon(Ic.plus, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text("  Add a category to ${g.name}")
                     }
                 }
+            }
+        }
+        item {
+            Panel(padding = 8.dp, modifier = Modifier.testTag("category_group_alone")) {
+                Text("On their own", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(6.dp))
+                alone.forEach { c -> Divider(); CategoryLine(c, small = false) }
             }
         }
         item {

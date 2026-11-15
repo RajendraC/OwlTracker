@@ -99,8 +99,8 @@ class MerchantLogosTest {
         assertEquals("starhealth", key("STAR HEALTH AND ALLIED INSURANCE"))
         assertEquals("nivabupa", key("NIVA BUPA HEALTH INSURANCE"))
         assertEquals("carehealth", key("CARE HEALTH INSURANCE LTD"))
-        assertEquals(Cat.HEALTH, MerchantRegistry.match("STAR HEALTH", null)?.category)
-        assertEquals(Cat.BILLS, MerchantRegistry.match("ACKO", null)?.category)
+        assertEquals(Cat.INSURANCE, MerchantRegistry.match("STAR HEALTH", null)?.category)
+        assertEquals(Cat.INSURANCE, MerchantRegistry.match("ACKO", null)?.category)
         // Look-alikes stay apart
         assertNull(key("DIGITAL STORE"))
         assertNull(key("LICIOUS")?.takeIf { it != "licious" })
@@ -154,14 +154,14 @@ class MerchantLogosTest {
         assertEquals("nayara", key("NAYARA ENERGY LTD"))
         // Cooking gas is a bill, with the same company's app
         assertEquals("indane", key("INDANE GAS AGENCY"))
-        assertEquals(Cat.BILLS, MerchantRegistry.match("HP GAS", null)!!.category)
+        assertEquals(Cat.UTILITIES, MerchantRegistry.match("HP GAS", null)!!.category)
         assertEquals("bharatgas", key("BHARATGAS"))
         assertEquals("com.cgt.bharatgas", MerchantRegistry.match("BHARAT GAS", null)!!.packageName)
         // Tolls
         assertEquals("fastag", key("ATTIBELE TOLL PLAZA"))
         assertEquals("fastag", key("NETC FASTAG RECHARGE"))
         assertEquals("rajmargyatra", key("RAJMARGYATRA ANNUAL PASS"))
-        assertEquals(Cat.TRANSPORT, MerchantRegistry.match("FASTAG", null)!!.category)
+        assertEquals(Cat.CAR_BIKE, MerchantRegistry.match("FASTAG", null)!!.category)
         // Look-alikes
         assertNull(key("SEA SHELL CAFE"))
         assertNull(key("NETCORE SOLUTIONS"))
@@ -225,7 +225,7 @@ class MerchantLogosTest {
         assertEquals("googleplay", key("GOOGLE PLAY"))
         assertEquals("storytel", key("STORYTEL"))
         assertEquals("pratilipi", key("NASADIYA TECHNOLOGIES"))
-        assertEquals(Cat.SHOPPING, MerchantRegistry.match("TANISHQ", null)?.category)
+        assertEquals(Cat.JEWELLERY, MerchantRegistry.match("TANISHQ", null)?.category)
         assertEquals(Cat.EDUCATION, MerchantRegistry.match("PLAY BOOKS", null)?.category)
         // Look-alikes and people's names stay apart
         assertNull(key("ZARA KHAN"))

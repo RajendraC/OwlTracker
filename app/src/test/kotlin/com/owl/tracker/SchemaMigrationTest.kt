@@ -11,6 +11,7 @@ import com.owl.tracker.core.MerchantPicture
 import com.owl.tracker.data.Db
 import com.owl.tracker.data.Repository
 import com.owl.tracker.data.Schema
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -25,7 +26,22 @@ class SchemaMigrationTest {
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val name = "owl-migration-test.db"
-    private val v1Categories = Schema.DEFAULT_CATEGORIES.filterNot { it.id == Cat.SPORTS || it.id == Cat.HOLIDAY }
+    /** The first release's built-in categories, as it listed them. */
+    private val v1Categories = listOf(
+        Triple(Cat.FOOD, "Food & Dining", "food"), Triple(Cat.GROCERIES, "Groceries", "groceries"), Triple(Cat.SHOPPING, "Shopping", "shopping"),
+        Triple(Cat.TRANSPORT, "Transport", "transport"), Triple(Cat.FUEL, "Fuel", "fuel"), Triple(Cat.BILLS, "Bills & Utilities", "bills"),
+        Triple(Cat.RECHARGE, "Recharge & Subscriptions", "recharge"), Triple(Cat.ENTERTAINMENT, "Entertainment", "entertainment"),
+        Triple(Cat.HEALTH, "Health", "health"), Triple(Cat.TRAVEL, "Travel", "travel"), Triple(Cat.EDUCATION, "Education", "education"),
+        Triple(Cat.RENT, "Rent", "rent"), Triple(Cat.EMI, "EMI & Loans", "emi"), Triple(Cat.INVESTMENTS, "Investments", "investments"),
+        Triple(Cat.CASH, "Cash", "cash"), Triple(Cat.TRANSFERS, "Transfers", "transfer"), Triple(Cat.OTHERS, "Others", "others"),
+        Triple(Cat.INCOME, "Income", "income"),
+    )
+    private fun kindOf(id: String) = when (id) {
+        Cat.INVESTMENTS -> "SAVING"
+        Cat.TRANSFERS -> "TRANSFER"
+        Cat.INCOME -> "INCOME"
+        else -> "EXPENSE"
+    }
 
     /** Builds a version 1 database exactly as the first release left it, with one custom category and one payment. */
     private fun createVersion1() {
@@ -33,16 +49,18 @@ class SchemaMigrationTest {
         val helper = FrameworkSQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(context).name(name).callback(object : SupportSQLiteOpenHelper.Callback(1) {
                 override fun onCreate(db: SupportSQLiteDatabase) {
-                    // Version 1 had no merchants or pictures tables, and payments had no parts column
+                    // Version 1 had no merchants or pictures tables, payments had no parts column, categories no groups
                     Schema.CREATE.filterNot { it.contains(" merchants(") || it.contains(" pictures(") }
-                        .map { it.replace(Regex(""",\s*parts TEXT\)"""), ")") }
+                        .map { it.replace(Regex(""",\s*parts TEXT\)"""), ")").replace(Regex(""",\s*parent TEXT\)"""), ")") }
                         .forEach { db.execSQL(it) }
-                    v1Categories.forEachIndexed { i, c ->
+                    v1Categories.forEachIndexed { i, (id, label, icon) ->
                         db.execSQL(
                             "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived) VALUES(?,?,?,?,?,?,1,0)",
-                            arrayOf<Any?>(c.id, c.name, c.icon, c.color, c.kind.name, i),
+                            arrayOf<Any?>(id, label, icon, 4280000000L, kindOf(id), i),
                         )
                     }
+                    // Budgets on Food & Dining and on Groceries: both end up on the Food group
+                    db.execSQL("INSERT INTO budgets(category_key, limit_paise) VALUES('food', 200000), ('groceries', 500000), ('transport', 300000)")
                     db.execSQL(
                         "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived) VALUES('c_1','Pets','pet',4280000000,'EXPENSE',18,0,0)",
                     )
@@ -61,16 +79,29 @@ class SchemaMigrationTest {
     }
 
     @Test
-    fun version1GainsSportsMerchantNamesAndPicturesAndKeepsEverythingElse() = runBlocking {
+    fun version1GainsGroupsSportsMerchantNamesAndPicturesAndKeepsEverythingElse() = runBlocking {
         createVersion1()
         val repo = Repository(Db(context, { FrameworkSQLiteOpenHelperFactory() }, name), TEST_CLOCK)
 
-        val ids = repo.categories().map { it.id }
-        val expected = v1Categories.map { it.id }.toMutableList()
-        expected.add(expected.indexOf(Cat.ENTERTAINMENT) + 1, Cat.SPORTS)
-        expected.add(expected.indexOf(Cat.TRAVEL) + 1, Cat.HOLIDAY)
-        assertEquals("Sports & Fitness sits after Entertainment, Holiday after Travel; everything else keeps its order", expected + "c_1", ids)
-        assertTrue(repo.categories().first { it.id == Cat.HOLIDAY }.isSystem)
+        // Every built-in category, in groups, in the built-in order; the user's own after them
+        val cats = repo.categories()
+        assertEquals(Schema.DEFAULT_CATEGORIES.map { it.id } + "c_1", cats.map { it.id })
+        assertEquals(Schema.DEFAULT_CATEGORIES.map { it.parent } + null, cats.map { it.parent })
+        assertTrue(cats.first { it.id == Cat.HOLIDAY }.isSystem)
+        assertTrue(cats.first { it.id == Cat.FASHION }.isSystem)
+        // The old categories that became groups or narrower ones are renamed; the rest keep their names
+        val names = cats.associate { it.id to it.name }
+        assertEquals("Food", names[Cat.FOOD])
+        assertEquals("Getting around", names[Cat.TRANSPORT])
+        assertEquals("Home & Bills", names[Cat.BILLS])
+        assertEquals("Mobile & Internet", names[Cat.RECHARGE])
+        assertEquals("Movies & Events", names[Cat.ENTERTAINMENT])
+        assertEquals("Courses & Books", names[Cat.EDUCATION])
+        assertEquals("Groceries", names[Cat.GROCERIES])
+        assertEquals("Pets", names["c_1"])
+        // Budgets are per group: Groceries' moved onto Food, added to Food & Dining's
+        val budgets = repo.observeBudgets().first()
+        assertEquals(mapOf(Cat.FOOD to 7_000_00L, Cat.TRANSPORT to 3_000_00L), budgets)
 
         val tx = repo.transactions(0, Long.MAX_VALUE).single()
         assertEquals("KAMAL STORES", tx.merchantName)

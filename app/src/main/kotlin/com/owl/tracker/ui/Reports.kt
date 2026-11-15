@@ -185,7 +185,9 @@ object ReportBuilder {
         fun inDay(t: Txn, i: Int) = dateOf(t).let { d -> !d.isBefore(drillDays[i].start) && d.isBefore(drillDays[i].end) }
         /** The picked month (or day, or nothing): what every section but the trend is about. */
         fun inScope(t: Txn) = if (day != null) inDay(t, day) else inBucket(t, bucket)
-        fun byCategory(t: Txn) = f.categoryId == null || t.categoryId == f.categoryId
+        // A group picked (from the trend by category, which is by group): everything in it
+        val tree = com.owl.tracker.data.CategoryTree(cats)
+        fun byCategory(t: Txn) = f.categoryId == null || t.categoryId == f.categoryId || tree.top(t.categoryId) == f.categoryId
         fun byMerchant(t: Txn) = f.merchantKey == null || t.merchantKey == f.merchantKey
         fun byWeekday(t: Txn) = f.weekday == null || dateOf(t).dayOfWeek == f.weekday
 

@@ -25,7 +25,7 @@ class MonthHistoryTest {
 
     private val zone = ZoneId.of("Asia/Kolkata")
     private val today = LocalDate.of(2026, 10, 18)
-    private val cats = Schema.DEFAULT_CATEGORIES.mapIndexed { i, s -> Category(s.id, s.name, s.icon, s.color, s.kind, i, true, false) }
+    private val cats = Schema.DEFAULT_CATEGORIES.mapIndexed { i, s -> Category(s.id, s.name, s.icon, s.color, s.kind, i, true, false, s.parent) }
     private var nextId = 1L
 
     private fun tx(day: LocalDate, rupees: Long, cat: String, dir: Direction = Direction.DEBIT, excluded: Boolean = false) = Txn(
@@ -55,12 +55,13 @@ class MonthHistoryTest {
         assertEquals(listOf("Apr", "May", "Jun", "Jul", "Aug", "Sep"), h.labels)
         assertEquals(3, h.firstKnown)
         assertEquals(listOf(null, null, null, 4_000_00L, 5_000_00L, 6_000_00L), h.of(Cat.FOOD))
-        assertEquals(listOf(null, null, null, 0L, 12_000_00L, 0L), h.of(Cat.HOLIDAY))
+        assertEquals("By group: Holiday is in Fun & Travel", listOf(null, null, null, 0L, 12_000_00L, 0L), h.of(Cat.FUN))
+        assertNull(h.byCategory[Cat.HOLIDAY])
         // A category with nothing is ₹0 in the months that have data
         assertEquals(listOf(null, null, null, 0L, 0L, 0L), h.of(Cat.SHOPPING))
         assertEquals(1_500_00L, h.now[Cat.FOOD])
         assertEquals(5_000_00L, h.usual(Cat.FOOD))
-        assertEquals(4_000_00L, h.usual(Cat.HOLIDAY))
+        assertEquals(4_000_00L, h.usual(Cat.FUN))
         assertEquals(3, h.knownCount)
         assertTrue(h.hasData)
     }
@@ -70,7 +71,7 @@ class MonthHistoryTest {
         // The first payment on 20 Aug: August is only partly known, so it doesn't count
         val h = build(listOf(tx(d(8, 20), 119, Cat.ENTERTAINMENT), tx(d(9, 20), 119, Cat.ENTERTAINMENT)))
         assertEquals(5, h.firstKnown)
-        assertEquals(listOf(null, null, null, null, null, 119_00L), h.of(Cat.ENTERTAINMENT))
+        assertEquals(listOf(null, null, null, null, null, 119_00L), h.of(Cat.FUN))
     }
 
     @Test
@@ -91,7 +92,7 @@ class MonthHistoryTest {
         assertNull(h.byCategory[Cat.TRANSFERS])
         assertEquals(listOf(null, null, null, null, null, 0L), h.of(Cat.TRANSPORT))
         assertEquals(1_20_000_00L, h.usualMoneyIn)
-        assertEquals(900_00L, h.usual(Cat.GROCERIES))
+        assertEquals("Groceries count in Food", 900_00L, h.usual(Cat.FOOD))
     }
 
     @Test

@@ -37,8 +37,38 @@ data class Category(
     val sortOrder: Int,
     val isSystem: Boolean,
     val archived: Boolean,
+    /** The group this category sits in; null for a group, or a category on its own. */
+    val parent: String? = null,
 ) {
     val countsAsSpend: Boolean get() = kind == CategoryKind.EXPENSE
+}
+
+/**
+ * Categories as groups: Shopping holds Fashion & Clothing, Phones & Electronics…; EMI & Loans sits on its own. Budgets,
+ * Home's ring and the months behind it are by group ("tops"); a payment always has one category, which may be a group
+ * itself when it isn't sorted yet (an Amazon order).
+ */
+class CategoryTree(val all: List<Category>) {
+    val byId: Map<String, Category> = all.associateBy { it.id }
+
+    /** The group [id] sits in, or [id] itself. */
+    fun top(id: String): String = byId[id]?.parent?.takeIf { byId.containsKey(it) } ?: id
+
+    /** The categories in group [id], archived ones left out, in their order. */
+    fun children(id: String): List<Category> = all.filter { it.parent == id && !it.archived }
+
+    fun isGroup(id: String): Boolean = all.any { it.parent == id && !it.archived }
+
+    /** Groups and categories on their own that count as spending: what budgets, Home's ring and trends are by. */
+    val spendTops: List<Category> get() = all.filter { it.parent == null && it.countsAsSpend && !it.archived }
+
+    /**
+     * What a payment can be put in, in order: each group's categories under its name, then the ones on their own.
+     * A group itself is listed only when [withGroups] (as "not sorted yet").
+     */
+    fun pickable(withGroups: Boolean = false): List<Category> = all.filter { c ->
+        !c.archived && (c.parent == null || byId[c.parent]?.archived != true) && (withGroups || !isGroup(c.id))
+    }
 }
 
 data class Txn(
@@ -181,6 +211,8 @@ data class AppSettings(
     val categoriesVersion: Int = 1,
     /** Home's Where it went shows six months (else this month), as last left. */
     val whereSixMonths: Boolean = false,
+    /** Pays for children: the Kids categories are shown and payments are sorted into them. Asked once at setup. */
+    val kids: Boolean = true,
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -197,6 +229,7 @@ data class AppSettings(
         "parser_version" to parserVersion.toString(),
         "categories_version" to categoriesVersion.toString(),
         "where_view" to if (whereSixMonths) "six" else "month",
+        "kids" to if (kids) "on" else "off",
     )
 
     companion object {
@@ -215,6 +248,7 @@ data class AppSettings(
             parserVersion = m["parser_version"]?.toIntOrNull() ?: 1,
             categoriesVersion = m["categories_version"]?.toIntOrNull() ?: 1,
             whereSixMonths = m["where_view"] == "six",
+            kids = m["kids"] != "off",
         )
 
         fun filtersToJson(f: ImportFilters): String = JSONObject()

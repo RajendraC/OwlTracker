@@ -133,7 +133,7 @@ class StoreScreenshots {
                 Thread.sleep(800)
                 shot("06_budget_setup")
                 runCatching { tapTag("more_categories") }
-                runCatching { scrollTo(hasTestTag("slider_row_${Cat.HOLIDAY}")) }
+                runCatching { scrollTo(hasTestTag("slider_row_${Cat.FUN}")) }
                 shot("06b_budget_setup_lower")
                 tapTag("one_total")
             }
@@ -191,6 +191,30 @@ class StoreScreenshots {
                 ring.performTouchInput { click(g.project(0f, -r, 0f, 0f, com.owl.tracker.ui.components.RING_TILT)) }
                 Thread.sleep(2600)
                 shot("15b_home_ring_pick")
+            }
+
+            // A group opened on Home: Shopping's categories, with the Amazon orders not sorted yet; then sorting one
+            section("groups") {
+                runCatching { scrollTo(hasTestTag("cat_${Cat.SHOPPING}"), below = 220f) }
+                tapTag("cat_${Cat.SHOPPING}")
+                Thread.sleep(1800)
+                runCatching { scrollTo(hasTestTag("ring_up"), below = 40f) }
+                shot("13b_home_group")
+                runCatching { scrollTo(hasTestTag("group_unsorted_${Cat.SHOPPING}"), below = 260f) }
+                Thread.sleep(600)
+                shot("13c_home_group_list")
+                runCatching { tapTag("group_cat_${Cat.FASHION}") }
+                Thread.sleep(1500)
+                shot("13d_home_group_category")
+                runCatching { activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() } }
+                Thread.sleep(900)
+                runCatching { tapTag("sort_${Cat.SHOPPING}") }
+                Thread.sleep(1200)
+                shot("34b_sort_amazon")
+                withVm { it.closeSheet() }
+                Thread.sleep(500)
+                runCatching { activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() } }
+                Thread.sleep(800)
             }
 
             // Where it went with the months behind it: a row's bars opened, then the 6 months tab (and back)
@@ -272,6 +296,12 @@ class StoreScreenshots {
                 tapText("Swiggy")
                 Thread.sleep(1200)
                 shot("31_txn_detail")
+                withVm { it.closeSheet() }
+                Thread.sleep(600)
+                // A swimming academy could be for you or your children: one tap, remembered
+                runCatching { tapText("Aqua Swim Academy", substring = true) }
+                Thread.sleep(1200)
+                shot("31b_for_you_or_kids")
                 withVm { it.closeSheet() }
                 Thread.sleep(600)
                 runCatching { tapText("Received") }
@@ -388,6 +418,10 @@ class StoreScreenshots {
             section("categories") {
                 nav(Screen.CATEGORIES)
                 shot("60_categories")
+                runCatching { scrollTo(hasTestTag("category_group_${Cat.KIDS}"), below = 40f) }
+                Thread.sleep(600)
+                shot("60b_categories_kids")
+                runCatching { scrollTo(hasTestTag("category_group_${Cat.SHOPPING}"), below = 40f) }
                 onAllNodes(hasContentDescription("Edit Food", substring = true))[0].performClick() // "Food & Dining"
                 Thread.sleep(1000)
                 shot("61_category_edit")
@@ -592,9 +626,11 @@ class StoreScreenshots {
         val today = LocalDate.now(zone)
         val start = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val cats = repo.categories().associateBy { it.id }
+        // By group, as budgets are
+        val tree = com.owl.tracker.data.CategoryTree(cats.values.toList())
         val spent = repo.transactions(start, System.currentTimeMillis())
             .filter { it.isSpending(cats[it.categoryId]) }
-            .groupBy { it.categoryId }.mapValues { (_, l) -> l.sumOf { it.amountPaise } / 100.0 }
+            .groupBy { tree.top(it.categoryId) }.mapValues { (_, l) -> l.sumOf { it.amountPaise } / 100.0 }
         val total = spent.values.sum()
         val elapsed = today.dayOfMonth.toDouble() / YearMonth.from(today).lengthOfMonth()
         fun up(x: Double, step: Int) = (ceil(x / step) * step).toLong().coerceAtLeast(step.toLong()) * 100
@@ -602,7 +638,6 @@ class StoreScreenshots {
         val b = linkedMapOf(Schema.OVERALL to up(total / elapsed * 1.12, 5000))
         spent[Cat.SHOPPING]?.let { b[Cat.SHOPPING] = down(it * 0.8, 500) }
         spent[Cat.FOOD]?.let { b[Cat.FOOD] = up(it / 0.82, 500) }
-        spent[Cat.GROCERIES]?.let { b[Cat.GROCERIES] = up(it / 0.55, 500) }
         spent[Cat.TRANSPORT]?.let { b[Cat.TRANSPORT] = up(it / 0.5, 500) }
         Log.i(TAG, "Month so far ${spent.mapValues { it.value.toLong() }}; budgets ${b.mapValues { it.value / 100 }}")
         b

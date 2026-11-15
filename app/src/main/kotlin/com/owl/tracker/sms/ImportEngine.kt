@@ -6,6 +6,8 @@ import com.owl.tracker.data.Repository
 import com.owl.tracker.data.Source
 import com.owl.tracker.core.Cat
 import com.owl.tracker.core.Categorizer
+import com.owl.tracker.core.CategoryGroups
+import com.owl.tracker.core.RuleMatch
 import com.owl.tracker.core.Deduper
 import com.owl.tracker.core.Direction
 import com.owl.tracker.core.ImportFilters
@@ -162,7 +164,7 @@ class ImportEngine(
         val known = repo.existingSmsIds()
         val existing = repo.smsTransactionsSince(from - Deduper.WINDOW_MS)
         val deduper = Deduper(existing.map { Deduper.DedupeEntry(it.amountPaise, it.direction, it.occurredAt, it.accountLabel?.filter { ch -> ch.isDigit() }?.takeLast(4), it.refNo) })
-        val categorizer = Categorizer(repo.rules())
+        val categorizer = Categorizer(repo.rules(), repo.settings().kids)
         val chosenNames = repo.merchantOverrides()
 
         var duplicates = 0
@@ -233,7 +235,7 @@ class ImportEngine(
             val oldest = minOf(since, fresh.minOf { it.tx.timestamp })
             val existing = repo.smsTransactionsSince(oldest - Deduper.WINDOW_MS)
             val deduper = Deduper(existing.map { Deduper.DedupeEntry(it.amountPaise, it.direction, it.occurredAt, it.accountLabel?.filter { ch -> ch.isDigit() }?.takeLast(4), it.refNo) })
-            val categorizer = Categorizer(repo.rules())
+            val categorizer = Categorizer(repo.rules(), repo.settings().kids)
             val chosenNames = repo.merchantOverrides()
             val rows = fresh.sortedBy { it.tx.timestamp }.filter { deduper.offer(Deduper.entryOf(it.tx)) }.map { it.toNewTxn(categorizer, chosenNames) }
             added = repo.insertAll(rows)
@@ -253,7 +255,7 @@ class ImportEngine(
     suspend fun fixMoneyIn(): Int {
         val rows = repo.smsMoneyOutMentioningYou()
         if (rows.isEmpty()) return 0
-        val categorizer = Categorizer(repo.rules())
+        val categorizer = Categorizer(repo.rules(), repo.settings().kids)
         var fixed = 0
         for (t in rows) {
             val parsed = (SmsParser.parse(com.owl.tracker.core.SmsMessage(t.smsId ?: 0L, t.sender ?: continue, t.smsBody ?: continue, t.occurredAt)) as? ParseResult.Accepted)?.tx
@@ -275,23 +277,54 @@ class ImportEngine(
      * Returns how many were removed.
      */
     /**
-     * Once per new built-in category: payments the usual rules (and the user's own) now put in it are moved there.
-     * Version 2, Holiday: stays and holiday packages leave Travel (Club Mahindra, Airbnb, OYO, resorts…). A payment
-     * the user moves back later stays where they put it: this runs once.
+     * Once per change to the built-in categories: payments the usual rules (and the user's own) now put in a new
+     * category are moved there. A payment the user moves back later stays where they put it: this runs once.
+     *
+     * 2, Holiday: stays and holiday packages leave Travel (Club Mahindra, Airbnb, OYO, resorts…).
+     * 3, groups: what the old categories were split into ([CategoryGroups.SPLIT_FROM]): Myntra from Shopping to Fashion &
+     * Clothing, Uber from Transport to Daily Commute, Netflix from Recharge to OTT & Subscriptions. First the user's
+     * rules that point at a category that became a group are pointed at the group's category those payments belong in
+     * ("Swiggy → Food & Dining" becomes "Swiggy → Food Delivery"), so payments they cover move too.
      */
     suspend fun sortIntoNewCategories(): Int {
         val s = repo.settings()
         if (s.categoriesVersion >= CATEGORIES_VERSION) return 0
-        val categorizer = Categorizer(repo.rules())
-        // Only what came from SMS: a payment typed in by hand is in Travel because the user put it there
-        val ids = repo.unsplitMoneyOutIn(Cat.TRAVEL).filter { it.source == Source.SMS }.filter { t ->
-            val known = MerchantRegistry.all.firstOrNull { it.key == t.merchantKey } ?: MerchantRegistry.match(t.merchantName, t.vpa)
-            categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, known, t.smsBody ?: "") == Cat.HOLIDAY
-        }.map { it.id }
-        val moved = if (ids.isEmpty()) 0 else repo.moveTo(ids, Cat.HOLIDAY)
+        var moved = 0
+        if (s.categoriesVersion < 2) {
+            val categorizer = Categorizer(repo.rules(), s.kids)
+            // Only what came from SMS: a payment typed in by hand is in Travel because the user put it there
+            val ids = repo.unsplitMoneyOutIn(Cat.TRAVEL).filter { it.source == Source.SMS }.filter { t ->
+                categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, knownOf(t), t.smsBody ?: "") == Cat.HOLIDAY
+            }.map { it.id }
+            if (ids.isNotEmpty()) moved += repo.moveTo(ids, Cat.HOLIDAY)
+        }
+        if (s.categoriesVersion < 3) {
+            val usual = Categorizer(emptyList(), s.kids)
+            // Rules pointing at an old category that's now a group: at the category in it the rule's payments belong in
+            for (r in repo.ruleRows()) {
+                if (r.categoryId !in CategoryGroups.GROUPS) continue
+                val sample = repo.latestFor(r.match, r.pattern)
+                val name = sample?.merchantName ?: r.pattern.takeIf { r.match != RuleMatch.MERCHANT }
+                val vpa = sample?.vpa ?: r.pattern.takeIf { r.match == RuleMatch.VPA }
+                val known = sample?.let(::knownOf) ?: MerchantRegistry.all.firstOrNull { it.key == r.pattern } ?: MerchantRegistry.match(name, vpa)
+                val to = usual.categorize(r.pattern, name, vpa, Direction.DEBIT, TxKind.NORMAL, known)
+                if (to != r.categoryId && CategoryGroups.top(to) == r.categoryId) repo.repointRule(r.id, to)
+            }
+            val categorizer = Categorizer(repo.rules(), s.kids)
+            for ((from, into) in CategoryGroups.SPLIT_FROM) {
+                val moves = repo.unsplitMoneyOutIn(from).mapNotNull { t ->
+                    val to = categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, knownOf(t), t.smsBody ?: "")
+                    if (to != from && to in into) t.id to to else null
+                }
+                moves.groupBy({ it.second }, { it.first }).forEach { (to, ids) -> moved += repo.moveTo(ids, to) }
+            }
+        }
         repo.updateSettings { it.copy(categoriesVersion = CATEGORIES_VERSION) }
         return moved
     }
+
+    private fun knownOf(t: com.owl.tracker.data.Txn): KnownMerchant? =
+        MerchantRegistry.all.firstOrNull { it.key == t.merchantKey } ?: MerchantRegistry.match(t.merchantName, t.vpa)
 
     suspend fun dropReminders(): Int {
         var dropped = 0
@@ -309,7 +342,7 @@ class ImportEngine(
      */
     suspend fun usualCategories(rule: com.owl.tracker.data.RuleInfo): Map<Long, String> {
         val others = repo.rules().filterNot { it.match == rule.match && it.pattern.equals(rule.pattern, ignoreCase = true) }
-        val categorizer = Categorizer(others)
+        val categorizer = Categorizer(others, repo.settings().kids)
         return repo.ruleCovered(rule).associate { t ->
             val known = MerchantRegistry.all.firstOrNull { it.key == t.merchantKey } ?: MerchantRegistry.match(t.merchantName, t.vpa)
             t.id to categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, known, t.smsBody ?: "")
@@ -352,8 +385,8 @@ class ImportEngine(
     companion object {
         const val MAX_MONTHS = 12
 
-        /** See [AppSettings.categoriesVersion]: 2 since Holiday. */
-        const val CATEGORIES_VERSION = 2
+        /** See [AppSettings.categoriesVersion]: 2 since Holiday, 3 since groups (1.8). */
+        const val CATEGORIES_VERSION = 3
         private const val OVERLAP_MS = 24 * 60 * 60_000L
 
         /** A cash or other manual expense. */

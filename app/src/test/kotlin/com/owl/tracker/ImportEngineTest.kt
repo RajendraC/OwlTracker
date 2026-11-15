@@ -66,8 +66,10 @@ class ImportEngineTest {
         assertEquals(13, r.saved)
         val txns = month(c)
         assertEquals(13, txns.size)
-        assertEquals(Cat.FOOD, txns.first { it.merchantName == "Swiggy" }.categoryId)
+        assertEquals(Cat.FOOD_DELIVERY, txns.first { it.merchantName == "Swiggy" }.categoryId)
         assertEquals("in.swiggy.android", txns.first { it.merchantName == "Swiggy" }.merchantPackage)
+        // Amazon's SMS never says what was bought: it waits in Shopping, the group, to be sorted
+        assertEquals(Cat.SHOPPING, txns.first { it.merchantName == "Amazon" && !it.isMoneyIn }.categoryId)
         assertEquals(Cat.CASH, txns.first { it.amountPaise == 500000L }.categoryId)
         assertEquals(Cat.TRANSFERS, txns.first { it.amountPaise == 1840000L }.categoryId)
         // Running the same import again adds nothing.
@@ -203,6 +205,74 @@ class ImportEngineTest {
     }
 
     @Test
+    fun paymentsAndRulesMoveIntoTheGroupsCategoriesOnce() = runBlocking {
+        val inbox = sampleInbox()
+        inbox += SmsMessage(6201, "VM-HDFCBK-S", "Sent Rs.1999.00 From HDFC Bank A/C *4821 To MYNTRA DESIGNS On 12/10/26 Ref 629999996201", TEST_CLOCK.millis() - 6 * DAY_MS)
+        inbox += SmsMessage(6202, "VM-HDFCBK-S", "Sent Rs.640.00 From HDFC Bank A/C *4821 To PHARMEASY On 11/10/26 Ref 629999996202", TEST_CLOCK.millis() - 7 * DAY_MS)
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        c.repo.updateSettings { it.copy(onboarded = true) }
+        fun byName(name: String) = runBlocking { month(c).first { it.merchantName == name && !it.isMoneyIn } }
+
+        // As 1.7 left them: Swiggy and Zomato in Food & Dining, Uber and Rapido in Transport, Netflix in Recharge,
+        // Myntra in Shopping, PharmEasy in Health; and the Rapido ride moved to Shopping by hand
+        c.repo.moveTo(listOf(byName("Swiggy").id, byName("Zomato").id), Cat.FOOD)
+        c.repo.moveTo(listOf(byName("Uber").id), Cat.TRANSPORT)
+        c.repo.moveTo(listOf(byName("Netflix").id), Cat.RECHARGE)
+        c.repo.moveTo(listOf(byName("Myntra").id), Cat.SHOPPING)
+        c.repo.moveTo(listOf(byName("PharmEasy").id), Cat.HEALTH)
+        c.repo.moveTo(listOf(byName("Rapido").id), Cat.SHOPPING)
+        // A rule from then: every Zomato payment to Food & Dining
+        c.repo.setCategory(byName("Zomato").id, Cat.FOOD, rememberForMerchant = true)
+        c.repo.updateSettings { it.copy(categoriesVersion = 2) }
+
+        assertEquals(6, e.sortIntoNewCategories())
+        assertEquals(Cat.FOOD_DELIVERY, byName("Swiggy").categoryId)
+        assertEquals(Cat.FOOD_DELIVERY, byName("Zomato").categoryId)
+        assertEquals(Cat.COMMUTE, byName("Uber").categoryId)
+        assertEquals(Cat.SUBSCRIPTIONS, byName("Netflix").categoryId)
+        assertEquals(Cat.FASHION, byName("Myntra").categoryId)
+        assertEquals(Cat.MEDICINES, byName("PharmEasy").categoryId)
+        assertEquals("Put in Shopping by hand: not a commute, so it stays", Cat.SHOPPING, byName("Rapido").categoryId)
+        assertEquals("Amazon waits in Shopping to be sorted", Cat.SHOPPING, byName("Amazon").categoryId)
+        // The rule now points at Food Delivery, so the next Zomato payment goes there too
+        assertEquals(Cat.FOOD_DELIVERY, c.repo.rules().single { it.pattern == "zomato" }.categoryKey)
+        // Once only
+        assertEquals(0, e.sortIntoNewCategories())
+    }
+
+    @Test
+    fun kidsOffMovesTheirPaymentsAndHidesThem() = runBlocking {
+        val inbox = sampleInbox()
+        inbox += SmsMessage(6301, "VM-HDFCBK-S", "Sent Rs.12000.00 From HDFC Bank A/C *4821 To DELHI PUBLIC SCHOOL On 12/10/26 Ref 629999996301", TEST_CLOCK.millis() - 6 * DAY_MS)
+        inbox += SmsMessage(6302, "VM-HDFCBK-S", "Sent Rs.899.00 From HDFC Bank A/C *4821 To FIRSTCRY On 11/10/26 Ref 629999996302", TEST_CLOCK.millis() - 7 * DAY_MS)
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        fun cat(sms: Long) = runBlocking { c.repo.smsTransactionsSince(0).first { it.smsId == sms }.categoryId }
+        assertEquals(Cat.KIDS_EDUCATION, cat(6301))
+        assertEquals(Cat.KIDS_CARE, cat(6302))
+        c.repo.setBudget(Cat.KIDS, 15_000_00L)
+
+        assertEquals(2, c.repo.setKids(false))
+        assertEquals(Cat.EDUCATION, cat(6301))
+        assertEquals(Cat.SHOPPING, cat(6302))
+        assertTrue(c.repo.categories().filter { it.id in com.owl.tracker.core.CategoryGroups.KIDS }.all { it.archived })
+        assertEquals(null, c.repo.observeBudgets().first()[Cat.KIDS])
+        assertEquals(false, c.repo.settings().kids)
+
+        // New payments don't go to Kids either
+        inbox += SmsMessage(6303, "VM-HDFCBK-S", "Sent Rs.3000.00 From HDFC Bank A/C *4821 To KENDRIYA VIDYALAYA On 18/10/26 Ref 629999996303", TEST_CLOCK.millis() - 60_000)
+        c.repo.updateSettings { it.copy(onboarded = true) }
+        assertEquals(1, e.syncNew())
+        assertEquals(Cat.EDUCATION, cat(6303))
+
+        c.repo.setKids(true)
+        assertTrue(c.repo.categories().filter { it.id in com.owl.tracker.core.CategoryGroups.KIDS }.none { it.archived })
+    }
+
+    @Test
     fun chosenNamesAndIconsApplyToPastAndNewPayments() = runBlocking {
         val inbox = sampleInbox()
         val c = testContainer(context, inbox)
@@ -230,7 +300,7 @@ class ImportEngineTest {
         val fresh = month(c).first { it.smsId == 5100L }
         assertEquals("Food delivery", fresh.merchantName)
         assertEquals("com.application.zomato", fresh.merchantPackage)
-        assertEquals(Cat.FOOD, fresh.categoryId) // renaming never changes how it's categorised
+        assertEquals(Cat.FOOD_DELIVERY, fresh.categoryId) // renaming never changes how it's categorised
 
         // No app icon, then back to automatic (Swiggy's own app).
         c.repo.setMerchantLogo(swiggy.id, "")

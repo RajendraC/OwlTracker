@@ -42,6 +42,11 @@ data class BackupContent(
     val merchants: List<MerchantOverride> = emptyList(),
     /** Pictures chosen as merchant icons, by id ("pic:…"). Absent in backups from before version 0.7. */
     val pictures: Map<String, ByteArray> = emptyMap(),
+    /**
+     * The built-in categories its payments were sorted into (AppSettings.categoriesVersion). Backups from before 1.8
+     * say nothing (2): their payments are sorted into the groups' categories once they're restored.
+     */
+    val categoriesVersion: Int = 2,
 ) {
     val firstAt: Long? get() = transactions.minOfOrNull { it.occurredAt }
     val lastAt: Long? get() = transactions.maxOfOrNull { it.occurredAt }
@@ -112,7 +117,7 @@ object BackupCodec {
         val used = (merchants.mapNotNull { it.logo } + txns.mapNotNull { it.merchantPackage }).toSet()
         return BackupContent(
             now, appVersion, s.settings.budgetStartDay, s.categories, s.budgets, rules, txns, merchants,
-            pictures.filterKeys { it in used },
+            pictures.filterKeys { it in used }, s.settings.categoriesVersion,
         )
     }
 
@@ -163,13 +168,14 @@ object BackupCodec {
     private fun payloadJson(c: BackupContent, zone: ZoneId): JSONObject {
         val stamp = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(zone)
         return JSONObject()
-            .put("settings", JSONObject().put("budgetStartDay", c.budgetStartDay))
+            .put("settings", JSONObject().put("budgetStartDay", c.budgetStartDay).put("categoriesVersion", c.categoriesVersion))
             .put("categories", JSONArray().apply {
                 c.categories.forEach { cat ->
                     put(
                         JSONObject().put("id", cat.id).put("name", cat.name).put("icon", cat.icon)
                             .put("color", String.format("#%08X", cat.color and 0xFFFFFFFFL)).put("kind", cat.kind.name)
-                            .put("order", cat.sortOrder).put("system", cat.isSystem).put("archived", cat.archived),
+                            .put("order", cat.sortOrder).put("system", cat.isSystem).put("archived", cat.archived)
+                            .apply { if (cat.parent != null) put("parent", cat.parent) },
                     )
                 }
             })
@@ -277,6 +283,7 @@ object BackupCodec {
     /** Checks every field; anything out of range is fixed to a safe value or the whole file is refused. */
     private fun parsePayload(p: JSONObject, createdAt: Long, app: String?, now: Long): BackupContent {
         val startDay = p.optJSONObject("settings")?.optInt("budgetStartDay", 1)?.coerceIn(1, 28) ?: 1
+        val categoriesVersion = p.optJSONObject("settings")?.optInt("categoriesVersion", 2)?.coerceIn(1, 1000) ?: 2
 
         val catsJson = p.optJSONArray("categories") ?: JSONArray()
         if (catsJson.length() > MAX_CATEGORIES) throw BackupException(BackupException.Problem.TOO_LARGE)
@@ -292,6 +299,7 @@ object BackupCodec {
                 sortOrder = o.optInt("order", 100).coerceIn(0, 10_000),
                 isSystem = o.optBoolean("system", false),
                 archived = o.optBoolean("archived", false),
+                parent = o.optString("parent").takeIf { ID_KEY.matches(it) && it != id && it != Schema.OVERALL },
             )
         }.distinctBy { it.id }
 
@@ -387,6 +395,7 @@ object BackupCodec {
             transactions = txns,
             merchants = merchants,
             pictures = pictures,
+            categoriesVersion = categoriesVersion,
         )
     }
 

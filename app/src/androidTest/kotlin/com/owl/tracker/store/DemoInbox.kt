@@ -155,6 +155,18 @@ object DemoInbox {
             if (d.monthValue == 10 && dom == 4) iciciCard(at(d, 22, 23), 6240, "INDIGO AIRLINES")
             if (d.monthValue == 11 && dom == 2) hdfcUpi(at(d, 21, 23), 2140, "IRCTC")
             if (d.monthValue == 10 && dom == 26) add("VM-HDFCBK-T", at(d, 12, 14), "Refund of Rs.799.00 from AMAZON credited to your HDFC Bank Credit Card ending 9012 on ${f(at(d, 12, 13), "dd-MM-yy")}")
+
+            // Kids: school fees and swimming every month, baby things now and then
+            if (dom == 10) hdfcUpi(at(d, 10, 12), 4500, "DELHI PUBLIC SCHOOL")
+            if (dom == 4) hdfcUpi(at(d, 17, 19), 2000, "AQUA SWIM ACADEMY")
+            if (chance(0.03)) iciciCard(at(d, 19, 22), amt(499, 1599), "FIRSTCRY")
+
+            // Home: help, insurance; a salon; the temple; a phone for Diwali
+            if (dom == 25) hdfcUpi(at(d, 10, 12), 799, "URBAN COMPANY")
+            if (dom == 28 && d.monthValue % 3 == 0) sbiUpi(at(d, 10, 12), 6800, "LIC OF INDIA")
+            if (chance(0.03)) hdfcUpi(at(d, 11, 18), amt(350, 900), "NATURALS SALON")
+            if (chance(0.02)) hdfcUpi(at(d, 7, 9), amt(101, 501), "KAPALEESWARAR TEMPLE")
+            if (d.monthValue == 11 && dom == 5) iciciCard(at(d, 18, 20), 18990, "CROMA")
         }
     }
 }

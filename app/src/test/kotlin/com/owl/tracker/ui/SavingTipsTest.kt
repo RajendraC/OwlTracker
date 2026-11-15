@@ -21,7 +21,7 @@ class SavingTipsTest {
 
     private val zone = ZoneId.of("Asia/Kolkata")
     private val today = LocalDate.of(2026, 10, 18)   // day 18 of 31
-    private val cats = Schema.DEFAULT_CATEGORIES.mapIndexed { i, s -> Category(s.id, s.name, s.icon, s.color, s.kind, i, true, false) }
+    private val cats = Schema.DEFAULT_CATEGORIES.mapIndexed { i, s -> Category(s.id, s.name, s.icon, s.color, s.kind, i, true, false, s.parent) }
     private var nextId = 1L
 
     private fun tx(day: LocalDate, rupees: Int, merchant: String, cat: String, dir: Direction = Direction.DEBIT, excluded: Boolean = false) = Txn(
@@ -39,42 +39,42 @@ class SavingTipsTest {
     /** Jul–Sep: ₹5,000 food over 10 orders, ₹4,000 shopping over 5, ₹3,000 transport over 10, Jio, Netflix, Spotify. */
     private fun usualMonths(salary: Int): List<Txn> = (7..9).flatMap { m ->
         val d = month(m)
-        List(10) { tx(d.plusDays(it.toLong()), 500, "Swiggy", Cat.FOOD) } +
-            List(5) { tx(d.plusDays(it * 3L), 800, "Myntra", Cat.SHOPPING) } +
-            List(10) { tx(d.plusDays(it * 2L), 300, "Uber", Cat.TRANSPORT) } +
+        List(10) { tx(d.plusDays(it.toLong()), 500, "Swiggy", Cat.FOOD_DELIVERY) } +
+            List(5) { tx(d.plusDays(it * 3L), 800, "Myntra", Cat.FASHION) } +
+            List(10) { tx(d.plusDays(it * 2L), 300, "Uber", Cat.COMMUTE) } +
             tx(d.plusDays(2), 299, "Jio", Cat.RECHARGE) +
-            (if (m >= 8) listOf(tx(d.plusDays(4), 649, "Netflix", Cat.RECHARGE)) else emptyList()) +
-            (if (m >= 9) listOf(tx(d.plusDays(5), 119, "Spotify", Cat.RECHARGE)) else emptyList()) +
+            (if (m >= 8) listOf(tx(d.plusDays(4), 649, "Netflix", Cat.SUBSCRIPTIONS)) else emptyList()) +
+            (if (m >= 9) listOf(tx(d.plusDays(5), 119, "Spotify", Cat.SUBSCRIPTIONS)) else emptyList()) +
             tx(d, salary, "Acme", Cat.INCOME, Direction.CREDIT)
     }
 
-    private val october = List(6) { tx(month(10).plusDays(it.toLong()), 1_000, "Swiggy", Cat.FOOD) } +   // ₹6,000: over the usual ₹5,000
-        List(10) { tx(month(10).plusDays(it.toLong()), 250, "Uber", Cat.TRANSPORT) } +                       // ₹2,500 by day 18: heading for ₹4,300
-        tx(month(10).plusDays(3), 500, "Myntra", Cat.SHOPPING) +
-        tx(month(10).plusDays(4), 649, "Netflix", Cat.RECHARGE) +
-        tx(month(10).plusDays(5), 119, "Spotify", Cat.RECHARGE) +
-        tx(month(10).plusDays(6), 299, "Hotstar", Cat.RECHARGE) +                                            // once only: not a subscription
-        tx(month(10).plusDays(7), 5_000, "Swiggy", Cat.FOOD, Direction.CREDIT) +                             // a refund never lowers spending
-        tx(month(10).plusDays(8), 10_000, "Myntra", Cat.SHOPPING, excluded = true)                           // left out by the user
+    private val october = List(6) { tx(month(10).plusDays(it.toLong()), 1_000, "Swiggy", Cat.FOOD_DELIVERY) } +   // ₹6,000: over the usual ₹5,000
+        List(10) { tx(month(10).plusDays(it.toLong()), 250, "Uber", Cat.COMMUTE) } +                       // ₹2,500 by day 18: heading for ₹4,300
+        tx(month(10).plusDays(3), 500, "Myntra", Cat.FASHION) +
+        tx(month(10).plusDays(4), 649, "Netflix", Cat.SUBSCRIPTIONS) +
+        tx(month(10).plusDays(5), 119, "Spotify", Cat.SUBSCRIPTIONS) +
+        tx(month(10).plusDays(6), 299, "Hotstar", Cat.SUBSCRIPTIONS) +                                            // once only: not a subscription
+        tx(month(10).plusDays(7), 5_000, "Swiggy", Cat.FOOD_DELIVERY, Direction.CREDIT) +                             // a refund never lowers spending
+        tx(month(10).plusDays(8), 10_000, "Myntra", Cat.FASHION, excluded = true)                           // left out by the user
 
     private fun plan(txns: List<Txn>) = SavingTips.build(txns, cats, history, current, today, zone)
 
     @Test fun findsEachKindOfSavingAndAddsThemUp() {
         val p = plan(usualMonths(salary = 50_000) + october)
         assertEquals(3, p.basedOnMonths)
-        assertEquals(listOf("above:transport", "above:food", "trim:shopping", "subs"), p.tips.map { it.id })
+        assertEquals(listOf("above:commute", "above:food_delivery", "trim:fashion", "subs"), p.tips.map { it.id })
 
         val transport = p.tips[0]
-        assertEquals("Transport is heading ₹1,300 over your usual", transport.title)
+        assertEquals("Daily Commute is heading ₹1,300 over your usual", transport.title)
         assertEquals(130_000L, transport.monthlyPaise)
         assertTrue(transport.detail.startsWith("₹2,500 so far, on course for about ₹4,300 against your usual ₹3,000"))
 
         val food = p.tips[1]
-        assertEquals("Food & Dining is ₹1,000 over your usual month", food.title)
+        assertEquals("Food Delivery is ₹1,000 over your usual month", food.title)
         assertEquals(100_000L, food.monthlyPaise)
 
         val shopping = p.tips[2]
-        assertEquals("Shopping: one in five fewer saves ₹800 a month", shopping.title)
+        assertEquals("Fashion & Clothing: one in five fewer saves ₹800 a month", shopping.title)
         assertTrue(shopping.detail.contains("over 5 payments") && shopping.detail.contains("₹9,600 a year"))
 
         val subs = p.tips[3]
@@ -107,19 +107,19 @@ class SavingTipsTest {
     @Test fun commitmentsAndOneOffPaymentsAreNotWaysToSave() {
         val before = (7..9).flatMap { m ->
             val d = month(m)
-            listOf(tx(d.plusDays(4), 25_000, "HDFC Loan", Cat.EMI)) + List(4) { tx(d.plusDays(it * 5L), 250, "Uber", Cat.TRANSPORT) }
+            listOf(tx(d.plusDays(4), 25_000, "HDFC Loan", Cat.EMI)) + List(4) { tx(d.plusDays(it * 5L), 250, "Uber", Cat.COMMUTE) }
         }
         val oct = listOf(
             tx(month(10).plusDays(3), 40_000, "HDFC Loan", Cat.EMI),        // an EMI going up isn't something to cut back
-            tx(month(10).plusDays(4), 20_000, "Indigo", Cat.TRANSPORT),     // one flight
-            tx(month(10).plusDays(5), 300, "Uber", Cat.TRANSPORT),
+            tx(month(10).plusDays(4), 20_000, "Indigo", Cat.COMMUTE),     // one flight
+            tx(month(10).plusDays(5), 300, "Uber", Cat.COMMUTE),
         )
         val p = plan(before + oct)
         assertTrue(p.tips.none { it.categoryId == Cat.EMI })
-        val flight = p.tips.single { it.categoryId == Cat.TRANSPORT }
+        val flight = p.tips.single { it.categoryId == Cat.COMMUTE }
         assertEquals(TipKind.ONE_OFF, flight.kind)
-        assertEquals("Transport: one big payment this month", flight.title)
-        assertTrue(flight.detail.startsWith("₹20,000 to Indigo on 5 Oct made Transport ₹19,300 more than usual."))
+        assertEquals("Daily Commute: one big payment this month", flight.title)
+        assertTrue(flight.detail.startsWith("₹20,000 to Indigo on 5 Oct made Daily Commute ₹19,300 more than usual."))
         assertEquals("Not counted as a saving", 0L, p.monthlyPaise)
     }
 

@@ -359,9 +359,10 @@ private fun SliderSummary(rows: List<SliderCategory>, values: Map<String, Long>,
     }
 }
 
-/** The categories to show: expense categories, by their starting amount; those with nothing at all wait behind "More". */
+/** The categories to show: groups and expense categories on their own, by their starting amount; those with nothing at all wait behind "More". */
 private fun sliderRows(h: MonthHistory, cats: List<Category>, start: Map<String, Long>, withNow: Boolean): Pair<List<SliderCategory>, List<SliderCategory>> {
-    val all = cats.filter { it.countsAsSpend && !it.archived && it.id != Cat.TRANSFERS }
+    // Budgets are per group (and per category on its own)
+    val all = cats.filter { it.countsAsSpend && !it.archived && it.parent == null && it.id != Cat.TRANSFERS }
         .map { SliderCategory(it, h.of(it.id), h.usual(it.id), if (withNow) h.now[it.id] ?: 0L else null) }
         .sortedByDescending { start[it.category.id] ?: 0L }
     return all.partition { (start[it.category.id] ?: 0L) > 0 || Trends.known(it.months).any { m -> m > 0 } }
@@ -372,9 +373,11 @@ private fun sliderRows(h: MonthHistory, cats: List<Category>, start: Map<String,
 private fun SliderList(
     h: MonthHistory, shown: List<SliderCategory>, more: List<SliderCategory>, values: Map<String, Long>, maxes: Map<String, Long>,
     onValue: (String, Long, Boolean) -> Unit, now: Long?, daysLeft: Int?, before: Long?, note: String, modifier: Modifier,
+    header: (@Composable () -> Unit)? = null,
 ) {
     var showMore by rememberSaveable { mutableStateOf(false) }
     LazyColumn(modifier.testTag("slider_list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (header != null) item(key = "header") { header() }
         item(key = "summary") { SliderSummary(shown + more, values, h.usualMoneyIn, now, daysLeft, before) }
         item(key = "note") {
             Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp))
@@ -428,6 +431,7 @@ fun BudgetSlidersSetup(vm: AppViewModel, h: MonthHistory, onOneTotal: () -> Unit
                 if (typed && v > (maxes[id] ?: Trends.sliderMax(usual))) maxes = maxes + (id to Trends.sliderMax(usual, v))
             },
             now = null, daysLeft = null, before = null, note = note(h), modifier = Modifier.weight(1f),
+            header = { KidsQuestion(vm) },
         )
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Button(

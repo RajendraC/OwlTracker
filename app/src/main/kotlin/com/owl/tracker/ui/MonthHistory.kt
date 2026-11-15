@@ -11,7 +11,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /**
- * Spending by category over the last [Trends.MONTHS] complete budget months, and this one so far: what the budget
+ * Spending by group (or category on its own) over the last [Trends.MONTHS] complete budget months, and this one so far: what the budget
  * sliders start from and show as dots, and what Reports' trend by category draws.
  *
  * A month before the records begin (the SMS history doesn't reach it) is null, never ₹0: "no data" is not "spent
@@ -53,8 +53,10 @@ data class MonthHistory(
 
         fun label(p: BudgetPeriod): String = p.start.plusDays(14).month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
 
+        /** By group (and categories on their own), like budgets and Home's ring. */
         fun build(txns: List<Txn>, cats: List<Category>, months: List<BudgetPeriod>, current: BudgetPeriod, zone: ZoneId): MonthHistory {
             val catMap = cats.associateBy { it.id }
+            val tree = com.owl.tracker.data.CategoryTree(cats)
             fun day(t: Txn) = Instant.ofEpochMilli(t.occurredAt).atZone(zone).toLocalDate()
             val first = txns.minOfOrNull { it.occurredAt }?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
             val firstKnown = if (first == null) months.size else months.indexOfFirst { !first.isAfter(it.start.plusDays(3)) }.let { if (it < 0) months.size else it }
@@ -70,8 +72,9 @@ data class MonthHistory(
                 if (t.isIncome(catMap[t.categoryId]) && i >= 0) moneyIn[i] += t.amountPaise
                 for (p in t.portions()) {
                     if (!p.isSpending(catMap[p.categoryId])) continue
-                    if (isNow) now[p.categoryId] = (now[p.categoryId] ?: 0L) + p.amountPaise
-                    else spent.getOrPut(p.categoryId) { LongArray(months.size) }[i] += p.amountPaise
+                    val top = tree.top(p.categoryId)
+                    if (isNow) now[top] = (now[top] ?: 0L) + p.amountPaise
+                    else spent.getOrPut(top) { LongArray(months.size) }[i] += p.amountPaise
                 }
             }
             fun known(a: LongArray): List<Long?> = a.mapIndexed { i, v -> if (i >= firstKnown) v else null }

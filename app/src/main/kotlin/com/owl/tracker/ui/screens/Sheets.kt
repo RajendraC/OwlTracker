@@ -53,6 +53,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -101,7 +103,7 @@ fun SheetHost(vm: AppViewModel) {
                 is Sheet.Rename -> RenameSheet(vm, current.txId)
                 is Sheet.MerchantIcon -> MerchantIconSheet(vm, current.txId)
                 is Sheet.BudgetEdit -> BudgetEditSheet(vm, current.key)
-                is Sheet.CategoryEdit -> CategoryEditSheet(vm, current.id)
+                is Sheet.CategoryEdit -> CategoryEditSheet(vm, current.id, current.inGroup)
                 Sheet.AddExpense -> AddExpenseSheet(vm)
                 Sheet.DeleteData -> DeleteSheet(vm)
                 Sheet.Skipped -> SkippedSheet(vm)
@@ -131,6 +133,8 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
     var showSms by rememberSaveable(id) { mutableStateOf(false) }
     var note by rememberSaveable(id) { mutableStateOf(tx.note ?: "") }
     val credit = tx.direction == Direction.CREDIT
+    // In a group but not sorted into one of its categories yet (an Amazon order)
+    val waiting = cats.any { it.parent == tx.categoryId && !it.archived }
 
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cat, 52.dp)
@@ -215,11 +219,17 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                 end = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         CategoryTile(cat, 28.dp)
-                        Text(cat?.name ?: "Others", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f, fill = false))
-                        Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            (cat?.name ?: "Others") + if (waiting) " · not sorted" else "",
+                            style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Text(if (waiting) "Sort" else "Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                     }
                 },
             )
+            // An academy or classes could be for you or your children: one tap, remembered for the place
+            val either = if (credit || vm.settings.value?.kids == false) null else com.owl.tracker.core.CategoryGroups.forYouOrKids(tx.merchantName, tx.categoryId)
+            if (either != null) ForYouOrKids(vm, tx, either.first, either.second, cats)
         }
         if (!credit && !tx.isSplit) {
             Divider()
@@ -313,6 +323,32 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
     )
 }
 
+/** "Who was this for?": [mine] if it was for you, [kids] if for your children. The answer goes for the place from now on. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ForYouOrKids(vm: AppViewModel, tx: com.owl.tracker.data.Txn, mine: String, kids: String, cats: List<com.owl.tracker.data.Category>) {
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+            .padding(12.dp).testTag("for_you_or_kids"),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Who was this for?", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "${tx.merchantName} could be for you or your children. Your answer goes for every payment to it.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(Triple(mine, "For me", "for_me"), Triple(kids, "For my kids", "for_kids")).forEach { (id, label, tag) ->
+                FilterChip(
+                    selected = tx.categoryId == id, onClick = { if (tx.categoryId != id) vm.setCategory(tx.id, id, true) },
+                    label = { Text("$label · ${cats.firstOrNull { it.id == id }?.name ?: ""}") },
+                    modifier = Modifier.testTag(tag),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun DetailRow(label: String, value: String) {
     // Side by side when they fit, else the value under its label (never "D / a / t / e")
@@ -364,24 +400,55 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
     )
     // Money in can go to Income (listed first); money out never can.
     val credit = tx.direction == com.owl.tracker.core.Direction.CREDIT
-    val choices = cats.filter { !it.archived && (credit || it.id != Cat.INCOME) }.sortedBy { if (credit && it.id == Cat.INCOME) 0 else 1 }
+    val tree = remember(cats) { com.owl.tracker.data.CategoryTree(cats) }
+    // In a group but not sorted into one of its categories yet (an Amazon order): that group's categories come first
+    val waiting = tree.isGroup(tx.categoryId)
+    val sections = remember(tree, credit, tx.categoryId) { pickSections(tree, credit, tx.categoryId) }
     val nameStyle = MaterialTheme.typography.labelMedium
-    com.owl.tracker.ui.components.CellGrid(choices.size, 100.dp, choices.map { it.name }, nameStyle, 8.dp, Modifier.fillMaxWidth()) { i, w ->
-        run {
-            val c = choices[i]
-            val on = c.id == tx.categoryId
-            Column(
-                Modifier.width(w).heightIn(min = 92.dp).clip(RoundedCornerShape(16.dp))
-                    .border(if (on) 2.dp else 1.dp, if (on) Color(c.color) else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-                    .selectable(selected = on, role = Role.RadioButton) { vm.setCategory(txId, c.id, rememberRule) }
-                    .padding(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                CategoryTile(c)
-                com.owl.tracker.ui.components.FitText(c.name, style = nameStyle, maxLines = 3, minScale = 0.85f, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    sections.forEach { (title, choices) ->
+        if (title != null) {
+            Text(
+                title, style = MaterialTheme.typography.titleSmall,
+                color = if (waiting && choices === sections.first().second) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 6.dp).semantics { heading() },
+            )
+        }
+        com.owl.tracker.ui.components.CellGrid(choices.size, 100.dp, choices.map { it.name }, nameStyle, 8.dp, Modifier.fillMaxWidth()) { i, w ->
+            run {
+                val c = choices[i]
+                val on = c.id == tx.categoryId
+                Column(
+                    Modifier.width(w).heightIn(min = 92.dp).clip(RoundedCornerShape(16.dp))
+                        .border(if (on) 2.dp else 1.dp, if (on) Color(c.color) else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                        .selectable(selected = on, role = Role.RadioButton) { vm.setCategory(txId, c.id, rememberRule) }
+                        .padding(8.dp)
+                        .testTag("pick_${c.id}"),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    CategoryTile(c)
+                    com.owl.tracker.ui.components.FitText(c.name, style = nameStyle, maxLines = 3, minScale = 0.85f, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
             }
         }
+    }
+}
+
+/**
+ * The categories a payment can be put in, a section a group: for a payment waiting in a group, that group's first
+ * ("Shopping: what was it?"); then the others group by group, and last the ones on their own (Income first for money in).
+ */
+private fun pickSections(tree: com.owl.tracker.data.CategoryTree, credit: Boolean, current: String): List<Pair<String?, List<com.owl.tracker.data.Category>>> {
+    val ok = tree.pickable().filter { credit || it.id != Cat.INCOME }.map { it.id }.toSet()
+    val tops = tree.all.filter { it.parent == null && !it.archived }
+    val waitingIn = current.takeIf { tree.isGroup(it) }
+    return buildList {
+        if (credit) tops.firstOrNull { it.id == Cat.INCOME }?.let { add(null to listOf(it)) }
+        waitingIn?.let { g -> add("${tree.byId[g]?.name}: what was it?" to tree.children(g).filter { it.id in ok }) }
+        tops.filter { tree.isGroup(it.id) && it.id != waitingIn }.forEach { g ->
+            tree.children(g.id).filter { it.id in ok }.takeIf { it.isNotEmpty() }?.let { add(g.name to it) }
+        }
+        tops.filter { !tree.isGroup(it.id) && it.id in ok && !(credit && it.id == Cat.INCOME) }.takeIf { it.isNotEmpty() }?.let { add("On their own" to it) }
     }
 }
 
@@ -395,7 +462,8 @@ private fun SplitSheet(vm: AppViewModel, txId: Long) {
     val t by txFlow.collectAsStateWithLifecycle(initialValue = null)
     val cats by vm.categories.collectAsStateWithLifecycle()
     val tx = t ?: return
-    val choices = cats.filter { !it.archived && it.countsAsSpend }
+    // Parts go into categories, not groups (a group itself is a payment not sorted yet)
+    val choices = com.owl.tracker.data.CategoryTree(cats).pickable().filter { it.countsAsSpend }
     // Rows: category id and the amount typed (the first row's amount is the rest, worked out)
     val initial = remember(tx.id) {
         if (tx.isSplit) tx.parts.mapIndexed { i, p -> p.categoryId to if (i == 0) "" else rupees(p.paise) }
@@ -653,9 +721,12 @@ private fun BudgetEditSheet(vm: AppViewModel, key: String) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CategoryEditSheet(vm: AppViewModel, id: String?) {
+private fun CategoryEditSheet(vm: AppViewModel, id: String?, inGroup: String? = null) {
     val cats by vm.categories.collectAsStateWithLifecycle()
     val existing = cats.firstOrNull { it.id == id }
+    val tree = remember(cats) { com.owl.tracker.data.CategoryTree(cats) }
+    val isGroup = id != null && tree.isGroup(id)
+    var parent by rememberSaveable(id) { mutableStateOf(existing?.parent ?: inGroup) }
     var name by rememberSaveable(id) { mutableStateOf(existing?.name ?: "") }
     var icon by rememberSaveable(id) { mutableStateOf(existing?.icon ?: "tag") }
     var color by rememberSaveable(id) { mutableLongStateOf(existing?.color ?: Ic.colorChoices[3]) }
@@ -695,17 +766,33 @@ private fun CategoryEditSheet(vm: AppViewModel, id: String?) {
             ) { Box(Modifier.size(30.dp).clip(CircleShape).background(Color(col))) }
         }
     }
-    if (existing?.kind != com.owl.tracker.data.CategoryKind.INCOME) {
+    // Which group it sits in (a group itself stays where it is)
+    if (!isGroup && existing?.kind != com.owl.tracker.data.CategoryKind.INCOME) {
+        Text("Group", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("category_group")) {
+            FilterChip(selected = parent == null, onClick = { parent = null }, label = { Text("On its own") })
+            cats.filter { it.parent == null && !it.archived && tree.isGroup(it.id) }.forEach { g ->
+                FilterChip(
+                    selected = parent == g.id, onClick = { parent = g.id; counts = true }, label = { Text(g.name) },
+                    modifier = Modifier.testTag("group_${g.id}"),
+                )
+            }
+        }
+    }
+    if (existing?.kind != com.owl.tracker.data.CategoryKind.INCOME && parent == null) {
         SwitchRow("Count as spending", "Turn off for transfers and savings", counts, { counts = it })
     }
     Button(
-        onClick = { vm.saveCategory(id, name, icon, color, counts) },
+        onClick = { vm.saveCategory(id, name, icon, color, counts, parent.takeIf { !isGroup }) },
         enabled = name.isNotBlank(),
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("save_category"),
     ) { Text(if (existing == null) "Add category" else "Save changes") }
     if (existing != null && existing.id != Cat.OTHERS && existing.id != Cat.INCOME) {
         TextButton(onClick = { vm.archiveCategory(existing.id) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Archive category (its transactions move to Others)", color = MaterialTheme.colorScheme.error)
+            Text(
+                if (isGroup) "Archive the group and its categories (their transactions move to Others)" else "Archive category (its transactions move to Others)",
+                color = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }
@@ -718,7 +805,7 @@ private fun AddExpenseSheet(vm: AppViewModel) {
     val cats by vm.categories.collectAsStateWithLifecycle()
     var amount by rememberSaveable { mutableStateOf("") }
     var merchant by rememberSaveable { mutableStateOf("") }
-    var cat by rememberSaveable { mutableStateOf(Cat.FOOD) }
+    var cat by rememberSaveable { mutableStateOf(Cat.DINING) }
     var daysAgo by rememberSaveable { mutableIntStateOf(0) }
     val rupees = amount.toLongOrNull() ?: 0L
 
@@ -737,7 +824,7 @@ private fun AddExpenseSheet(vm: AppViewModel) {
     )
     Text("Category", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        cats.filter { !it.archived && it.countsAsSpend }.forEach { c ->
+        com.owl.tracker.data.CategoryTree(cats).pickable().filter { it.countsAsSpend }.forEach { c ->
             FilterChip(selected = cat == c.id, onClick = { cat = c.id }, label = { Text(c.name) },
                 leadingIcon = { Icon(Ic.forCategory(c.icon), contentDescription = null, tint = Color(c.color), modifier = Modifier.size(18.dp)) })
         }

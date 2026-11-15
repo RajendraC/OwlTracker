@@ -106,7 +106,7 @@ class ReportBuilderTest {
         assertEquals(2, r.categories.size)                // the donut stays whole, with Food picked
         assertEquals(2, r.matchCount)
         assertTrue(r.matches.first().occurredAt > r.matches.last().occurredAt)
-        assertEquals(listOf(FilterKind.CATEGORY to "Food & Dining"), r.chips)
+        assertEquals(listOf(FilterKind.CATEGORY to "Food"), r.chips)
         assertEquals(0L, r.budgetLine)
     }
 

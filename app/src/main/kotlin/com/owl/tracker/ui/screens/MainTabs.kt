@@ -180,18 +180,22 @@ fun HomeScreen(vm: AppViewModel) {
     val wholeMonth = !weekMode && picked == null
     val ringKey = scopeKey + (pickedIso ?: "")
 
-    // Drilling down on Home: a category, then one of its merchants (back up with the arrow or the phone's Back)
+    // Drilling down on Home: a group, then one of its categories (or a category on its own), then one of its merchants
+    // (back up with the arrow or the phone's Back)
+    val tree = remember(cats) { com.owl.tracker.data.CategoryTree(cats) }
+    var openGroup by androidx.compose.runtime.saveable.rememberSaveable(ringKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
     var openCat by androidx.compose.runtime.saveable.rememberSaveable(ringKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
     var openMerchant by androidx.compose.runtime.saveable.rememberSaveable(ringKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    androidx.activity.compose.BackHandler(enabled = openCat != null) { if (openMerchant != null) openMerchant = null else openCat = null }
-    androidx.activity.compose.BackHandler(enabled = openCat == null && picked != null) { pickedIso = null }
+    fun ringUp() { if (openMerchant != null) openMerchant = null else if (openCat != null) openCat = null else openGroup = null }
+    androidx.activity.compose.BackHandler(enabled = openCat != null || openGroup != null) { ringUp() }
+    androidx.activity.compose.BackHandler(enabled = openCat == null && openGroup == null && picked != null) { pickedIso = null }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val showPictures = wholeMonth && dash.byCategory.isNotEmpty()
     // What's changing: this month on Home, when the months behind it show something moving
     val changes = hist?.takeIf { wholeMonth && dash.isCurrent && it.hasData }
     val showChanges = remember(changes, cats) {
-        val ok = cats.filter { it.countsAsSpend && !it.archived }.map { it.id }.toSet()
+        val ok = cats.filter { it.countsAsSpend && !it.archived && it.parent == null }.map { it.id }.toSet()
         changes != null && com.owl.tracker.core.Trends.biggestMoves(changes.byCategory.filterKeys { it in ok }).isNotEmpty()
     }
     // Where "Where it went" sits in the list, to scroll to it from the budget circle and the pictures
@@ -205,7 +209,15 @@ fun HomeScreen(vm: AppViewModel) {
     val topInset = androidx.compose.foundation.layout.WindowInsets.statusBars.getTop(density)
     var headerPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     fun openCategory(category: String?) {
-        if (category != null) { openCat = category; openMerchant = null }
+        if (category != null) {
+            val top = tree.top(category)
+            when {
+                top != category -> { openGroup = top; openCat = category }
+                tree.isGroup(category) -> { openGroup = category; openCat = null }
+                else -> { openGroup = null; openCat = category }
+            }
+            openMerchant = null
+        }
         scope.launch { listState.animateScrollToItem(whereIndex, -(topInset + with(density) { 8.dp.roundToPx() })) }
     }
     // A split payment counts as its parts, each in its own category
@@ -222,15 +234,22 @@ fun HomeScreen(vm: AppViewModel) {
     val ringPayments = if (openCat == null || openMerchant == null) emptyList() else
         txns.flatMap { it.portions() }.filter { it.categoryId == openCat && it.merchantKey == openMerchant }.sortedByDescending { it.occurredAt }
     val budgetOf = dash.categoryRows.associateBy { it.category.id }
-    // "Where it went" for a week or a day: worked out from its own payments
-    val scopeCategories = remember(txns, catMap, wholeMonth, dash) {
-        if (wholeMonth) dash.byCategory
-        else spending.groupBy { it.categoryId }.mapNotNull { (id, l) -> catMap[id]?.let { com.owl.tracker.ui.CategorySpend(it, l.sumOf { t -> t.amountPaise }) } }
-            .filter { it.paise > 0 }.sortedByDescending { it.paise }
+    // "Where it went" for a week or a day: worked out from its own payments. By group, with what's inside each.
+    val scopeRolled = remember(txns, cats, wholeMonth, dash) {
+        if (wholeMonth) dash.byCategory to dash.children else com.owl.tracker.ui.rollUp(spending, cats)
     }
+    val scopeCategories = scopeRolled.first
+    val scopeChildren = scopeRolled.second
     val scopeSpent = scopeCategories.sumOf { it.paise }
+    // A group's picture is drawn from the merchants of all its categories
+    val merchantsOfGroup = remember(spending, tree) {
+        spending.groupBy { tree.top(it.categoryId) }.mapValues { (_, list) ->
+            list.groupBy { it.merchantKey }.map { (_, l) -> l.maxBy { it.occurredAt }.merchantName to l.sumOf { it.amountPaise } }.sortedByDescending { it.second }
+        }
+    }
     fun sceneFor(cat: Category, spent: Long) = Scenes.forCategory(
-        cat, spent, budgetOf[cat.id]?.limit, dash.overall, dash.spent, merchantsOf[cat.id].orEmpty().map { it.name to it.paise },
+        cat, spent, budgetOf[cat.id]?.limit, dash.overall, dash.spent,
+        if (tree.isGroup(cat.id)) merchantsOfGroup[cat.id].orEmpty() else merchantsOf[cat.id].orEmpty().map { it.name to it.paise },
     )
 
     Box(Modifier.fillMaxSize()) {
@@ -365,6 +384,21 @@ fun HomeScreen(vm: AppViewModel) {
                             },
                             pickedCategory = openCat,
                             pickedMerchant = openMerchant,
+                            pickedGroup = openGroup,
+                            groups = scopeChildren.mapValues { (groupId, list) ->
+                                list.map { cs ->
+                                    val names = merchantsOf[cs.category.id].orEmpty().take(3).joinToString { it.name }
+                                    if (cs.category.id == groupId) com.owl.tracker.ui.components.RingCategory(
+                                        groupId, "Not sorted yet", Color(0xFFB9A58F), cs.paise,
+                                        note = names.ifEmpty { "Pick what these were" },
+                                    ) else com.owl.tracker.ui.components.RingCategory(cs.category.id, cs.category.name, Color(cs.category.color), cs.paise, note = names.ifEmpty { null })
+                                }
+                            },
+                            onUp = ::ringUp,
+                            onSort = { groupId ->
+                                txns.filter { it.categoryId == groupId && !it.isMoneyIn }.maxByOrNull { it.occurredAt }
+                                    ?.let { vm.openSheet(Sheet.CategoryPick(it.id)) }
+                            },
                             merchants = ringMerchants,
                             payments = ringPayments,
                             paymentCount = ringPayments.size,
@@ -372,7 +406,16 @@ fun HomeScreen(vm: AppViewModel) {
                             appIcons = vm.appIcons,
                             catMap = catMap,
                             dayText = { t -> dayLabel(vm, vm.dateOf(t.occurredAt)) },
-                            onCategory = { id -> openCat = if (openCat == id) null else id; openMerchant = null },
+                            onCategory = { id ->
+                                when {
+                                    // A group: open it into its categories
+                                    openGroup == null && openCat == null && scopeChildren.containsKey(id) -> openGroup = id
+                                    // In an open group: one of its categories (or the payments not sorted yet)
+                                    openGroup != null && openCat == null -> openCat = id
+                                    else -> openCat = if (openCat == id) null else id
+                                }
+                                openMerchant = null
+                            },
                             onMerchant = { k -> openMerchant = if (openMerchant == k) null else k },
                             onPayment = { t -> vm.openSheet(Sheet.TxnDetail(t.id)) },
                             headerAction = { TextButton(onClick = { vm.showActivity() }) { Text("See all") } },
@@ -396,8 +439,10 @@ fun HomeScreen(vm: AppViewModel) {
                             // The month's pictures say "of your month's budget", so they only show for the whole month
                             scene = if (!wholeMonth) null else { id ->
                                 val cat = catMap[id]
+                                // A group, a category on its own, or a category inside a group (not the payments not sorted yet)
                                 val spent = dash.byCategory.firstOrNull { it.category.id == id }?.paise
-                                if (cat != null && spent != null) {
+                                    ?: dash.children.values.flatten().firstOrNull { it.category.id == id && id != openGroup }?.paise
+                                if (cat != null && spent != null && !(openCat != null && openCat == openGroup)) {
                                     val spec = remember(cat, spent, budgetOf[id]?.limit, dash.overall, dash.spent, ringMerchants) { sceneFor(cat, spent) }
                                     CategoryScene(spec, cat.name)
                                 }
@@ -1350,7 +1395,7 @@ fun BudgetsScreen(vm: AppViewModel) {
             }
         }
         if (dash.categoryRows.isNotEmpty()) {
-            item { SectionLabel("By category") }
+            item { SectionLabel("By group") }
             item {
                 Panel(padding = 12.dp) {
                     dash.categoryRows.forEachIndexed { i, r ->
@@ -1372,12 +1417,22 @@ fun BudgetsScreen(vm: AppViewModel) {
                             )
                             Gap(8.dp)
                             PaceBar(r.status.fraction, pace, sc.ring(r.status.state, Color(r.category.color)), height = 8.dp)
+                            insideLine(dash, r.category.id)?.let {
+                                Gap(6.dp)
+                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("inside_${r.category.id}"))
+                            }
                         }
                     }
                 }
             }
         }
         item { SectionLabel("No budget yet") }
+        item {
+            Text(
+                "Budgets are for a whole group: Shopping covers Fashion & Clothing, Phones & Electronics and the rest, so a phone bought once a year doesn't need one of its own.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp),
+            )
+        }
         item {
             Panel(padding = 12.dp) {
                 dash.unbudgeted.forEachIndexed { i, cs ->
@@ -1391,6 +1446,9 @@ fun BudgetsScreen(vm: AppViewModel) {
                         Column(Modifier.weight(1f)) {
                             Text(cs.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Text(if (cs.paise > 0) "${Money.formatInr(cs.paise)} spent this month" else "Nothing spent yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            insideLine(dash, cs.category.id)?.let {
+                                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("inside_${cs.category.id}"))
+                            }
                         }
                         TextButton(onClick = { vm.openSheet(Sheet.BudgetEdit(cs.category.id)) }) { Text("Set") }
                     }
@@ -1406,6 +1464,14 @@ fun BudgetsScreen(vm: AppViewModel) {
             }
         }
     }
+}
+
+/** What a group's spending is made of this month: "Daily Commute ₹38,906 · Car & Bike ₹2,600", biggest first. */
+private fun insideLine(dash: com.owl.tracker.ui.Dashboard, groupId: String): String? {
+    val list = dash.children[groupId]?.takeIf { it.isNotEmpty() } ?: return null
+    return list.take(3).joinToString(" · ") { cs ->
+        (if (cs.category.id == groupId) "Not sorted" else cs.category.name) + " " + Money.formatInr(cs.paise)
+    } + if (list.size > 3) " · +${list.size - 3} more" else ""
 }
 
 fun ordinal(n: Int): String = n.toString() + when {

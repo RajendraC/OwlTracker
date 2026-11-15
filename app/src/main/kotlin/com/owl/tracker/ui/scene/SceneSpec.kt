@@ -67,6 +67,11 @@ object Scenes {
         "fuel" to "fuel", "bills" to "bills", "recharge" to "recharge", "entertainment" to "entertainment", "sports" to "sports",
         "health" to "health", "travel" to "travel", "holiday" to "travel", "education" to "education", "rent" to "rent", "emi" to "emi",
         "investments" to "investments", "cash" to "cash", "transfer" to "transfers", "income" to "income",
+        // The finer categories (1.8) borrow their group's picture
+        "commute" to "transport", "car" to "transport", "delivery" to "food", "fashion" to "shopping", "electronics" to "shopping",
+        "furniture" to "shopping", "beauty" to "shopping", "jewellery" to "shopping", "toys" to "shopping", "school" to "education",
+        "kids_sports" to "sports", "utilities" to "bills", "subscriptions" to "recharge", "home_help" to "bills", "insurance" to "bills",
+        "medicines" to "health", "doctor" to "health", "fun" to "travel",
     )
 
     fun kindOf(category: Category): String = KIND_OF_ICON[category.icon] ?: "others"

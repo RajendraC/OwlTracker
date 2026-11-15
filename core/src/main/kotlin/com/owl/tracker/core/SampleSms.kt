@@ -24,19 +24,19 @@ object SampleSms {
 
     val all: List<Sample> = listOf(
         Sample("VM-HDFCBK-S", "Sent Rs.486.00\nFrom HDFC Bank A/C *4821\nTo SWIGGY\nOn 18/10/26\nRef 629112345678\nNot You?\nCall 18002586161/SMS BLOCK UPI to 7308080808",
-            minutesAgo = 2 * H, expectAmountPaise = 48600, expectDirection = Direction.DEBIT, expectLast4 = "4821", expectMerchant = "Swiggy", expectCategory = Cat.FOOD),
+            minutesAgo = 2 * H, expectAmountPaise = 48600, expectDirection = Direction.DEBIT, expectLast4 = "4821", expectMerchant = "Swiggy", expectCategory = Cat.FOOD_DELIVERY),
         Sample("VM-HDFCBK-T", "Spent Rs.312 On HDFC Bank Card 9012 At UBER INDIA On 2026-10-18:09:40:12 Bal Rs.142310 Not You? Call 18002586161/SMS BLOCK DC 9012 to 7308080808",
-            minutesAgo = 5 * H, expectAmountPaise = 31200, expectDirection = Direction.DEBIT, expectLast4 = "9012", expectMerchant = "Uber", expectCategory = Cat.TRANSPORT),
+            minutesAgo = 5 * H, expectAmountPaise = 31200, expectDirection = Direction.DEBIT, expectLast4 = "9012", expectMerchant = "Uber", expectCategory = Cat.COMMUTE),
         Sample("JD-ICICIT-S", "ICICI Bank Acct XX710 debited for Rs 1,240.00 on 17-Oct-26; ZEPTO credited. UPI:629812345678. Call 18002662 for dispute. SMS BLOCK 710 to 9215676766.",
             minutesAgo = 1 * D, expectAmountPaise = 124000, expectDirection = Direction.DEBIT, expectLast4 = "710", expectMerchant = "Zepto", expectCategory = Cat.GROCERIES),
         Sample("AD-SBIUPI-S", "Dear UPI user A/C X3307 debited by 2180.0 on date 17Oct26 trf to TNEB Refno 629712345678. If not u? call 1800111109. -SBI",
-            minutesAgo = 1 * D + 2 * H, expectAmountPaise = 218000, expectDirection = Direction.DEBIT, expectLast4 = "3307", expectCategory = Cat.BILLS),
+            minutesAgo = 1 * D + 2 * H, expectAmountPaise = 218000, expectDirection = Direction.DEBIT, expectLast4 = "3307", expectCategory = Cat.UTILITIES),
         Sample("VM-ICICIT-T", "INR 3,499.00 spent using ICICI Bank Card XX1234 on 15-Oct-26 on AMAZON. Avl Limit: INR 1,42,310.00. If not you, call 1800 2662/SMS BLOCK 1234 to 9215676766",
             minutesAgo = 3 * D, expectAmountPaise = 349900, expectDirection = Direction.DEBIT, expectLast4 = "1234", expectMerchant = "Amazon", expectCategory = Cat.SHOPPING),
         Sample("AX-AXISBK-S", "INR 649.00 debited\nA/c no. XX5521\n17-10-26, 20:14:03\nUPI/P2M/629212345678/NETFLIX\nNot you? SMS BLOCKUPI Cust ID to 919951860002\nAxis Bank",
-            minutesAgo = 1 * D + 5 * H, expectAmountPaise = 64900, expectDirection = Direction.DEBIT, expectLast4 = "5521", expectMerchant = "Netflix", expectCategory = Cat.RECHARGE),
+            minutesAgo = 1 * D + 5 * H, expectAmountPaise = 64900, expectDirection = Direction.DEBIT, expectLast4 = "5521", expectMerchant = "Netflix", expectCategory = Cat.SUBSCRIPTIONS),
         Sample("VK-KOTAKB-S", "Sent Rs.148.00 from Kotak Bank AC X8899 to rapido@ybl on 12-10-26.UPI Ref 629312345678. Not you, call 18602662666",
-            minutesAgo = 6 * D, expectAmountPaise = 14800, expectDirection = Direction.DEBIT, expectLast4 = "8899", expectMerchant = "Rapido", expectCategory = Cat.TRANSPORT),
+            minutesAgo = 6 * D, expectAmountPaise = 14800, expectDirection = Direction.DEBIT, expectLast4 = "8899", expectMerchant = "Rapido", expectCategory = Cat.COMMUTE),
         Sample("VM-HDFCBK-S", "Rs.5000.00 withdrawn at ATM ANNA NAGAR CHENNAI from A/c XX4821 on 07-10-26. Avl Bal Rs.41,250.00. Not you? Call 18002586161",
             minutesAgo = 11 * D, expectAmountPaise = 500000, expectDirection = Direction.DEBIT, expectLast4 = "4821", expectCategory = Cat.CASH),
         Sample("VM-HDFCBK-T", "Refund of Rs.799.00 from AMAZON credited to your HDFC Bank Credit Card ending 9012 on 02-10-26",
@@ -48,7 +48,7 @@ object SampleSms {
         Sample("VM-HDFCBK-S", "Rs.10000.00 debited from A/c XX4821 on 01-10-26 towards SIP NACH mandate ICCL. Avl Bal Rs.1,36,250.00",
             minutesAgo = 17 * D - 30, expectAmountPaise = 1000000, expectDirection = Direction.DEBIT, expectLast4 = "4821", expectCategory = Cat.INVESTMENTS),
         Sample("BP-HDFCBK-S", "Sent Rs.742.00 From HDFC Bank A/C *4821 To zomato@hdfcbank On 14/10/26 Ref 629412345678 Not You? Call 18002586161",
-            minutesAgo = 4 * D, expectAmountPaise = 74200, expectDirection = Direction.DEBIT, expectLast4 = "4821", expectMerchant = "Zomato", expectCategory = Cat.FOOD),
+            minutesAgo = 4 * D, expectAmountPaise = 74200, expectDirection = Direction.DEBIT, expectLast4 = "4821", expectMerchant = "Zomato", expectCategory = Cat.FOOD_DELIVERY),
 
         // Messages that must be skipped
         Sample("VM-HDFCBK-T", "123456 is OTP for txn of INR 2,000.00 at AMAZON on HDFC Bank card ending 9012. Valid till 10:42. Do not share OTP for security reasons",

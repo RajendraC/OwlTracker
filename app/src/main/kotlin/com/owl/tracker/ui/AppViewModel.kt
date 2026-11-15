@@ -63,7 +63,8 @@ sealed interface Sheet {
     data class Rename(val txId: Long) : Sheet
     data class MerchantIcon(val txId: Long) : Sheet
     data class BudgetEdit(val key: String) : Sheet
-    data class CategoryEdit(val id: String?) : Sheet
+    /** [inGroup]: a new category starts in this group. */
+    data class CategoryEdit(val id: String?, val inGroup: String? = null) : Sheet
     data object AddExpense : Sheet
     data object DeleteData : Sheet
     data object Skipped : Sheet
@@ -95,7 +96,26 @@ data class Dashboard(
     val over: List<OverItem>,
     val categoryRows: List<CategoryBudgetRow>,
     val unbudgeted: List<CategorySpend>,
+    /**
+     * What's inside each group in [byCategory], biggest first: its categories, and the group itself for payments not
+     * sorted yet (an Amazon order). Groups only; categories on their own aren't here.
+     */
+    val children: Map<String, List<CategorySpend>> = emptyMap(),
 )
+
+/**
+ * Spending by group (and categories on their own), and what's inside each group: Home's ring, budgets and the week
+ * are by group. [spends]: payments that count as spending, split ones as their parts.
+ */
+fun rollUp(spends: List<Txn>, cats: List<Category>): Pair<List<CategorySpend>, Map<String, List<CategorySpend>>> {
+    val tree = com.owl.tracker.data.CategoryTree(cats)
+    val byLeaf = spends.groupBy { it.categoryId }.mapValues { (_, l) -> l.sumOf { it.amountPaise } }.filterValues { it > 0 }
+    val tops = byLeaf.entries.groupBy({ tree.top(it.key) }, { it.value }).mapValues { it.value.sum() }
+    val byTop = tops.mapNotNull { (id, v) -> tree.byId[id]?.let { CategorySpend(it, v) } }.sortedByDescending { it.paise }
+    val children = byLeaf.entries.groupBy { tree.top(it.key) }.filterKeys { tree.isGroup(it) }
+        .mapValues { (_, l) -> l.mapNotNull { (id, v) -> tree.byId[id]?.let { CategorySpend(it, v) } }.sortedByDescending { it.paise } }
+    return byTop to children
+}
 
 
 data class ImportUi(
@@ -328,9 +348,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val days = w.totals(w.daysOf(start), spends, today, shareOf)
         val inWeek = window.filter { val d = dateOf(it.occurredAt); !d.isBefore(start) && d.isBefore(end) }
         val counted = inWeek.flatMap { it.portions() }.filter { counts(it, catMap) }
-        val byCategory = counted.groupBy { it.categoryId }
-            .mapNotNull { (id, l) -> catMap[id]?.let { CategorySpend(it, l.sumOf { t -> t.amountPaise }) } }
-            .filter { it.paise > 0 }.sortedByDescending { it.paise }
+        val byCategory = rollUp(counted, cats).first
         val periodDays = BudgetMath.periodFor(earlier(end.minusDays(1), today), startDay).days
         val isCurrent = !today.isBefore(start) && today.isBefore(end)
         val mon = { d: LocalDate -> d.format(SHORT) }
@@ -391,12 +409,14 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     val activity: StateFlow<List<Txn>> = combine(periodTxns, query, activityFilter, categoryFilter, categories) { txns, q, f, cf, cats ->
         val names = cats.associate { it.id to it.name.lowercase() }
+        val tree = com.owl.tracker.data.CategoryTree(cats)
+        // A group picked: everything in it
         val needle = q.trim().lowercase()
         txns.filter { t ->
             (f != ActivityFilter.SPENT || t.direction == Direction.DEBIT) &&
                 (f != ActivityFilter.RECEIVED || t.direction == Direction.CREDIT) &&
                 (f != ActivityFilter.REVIEW || t.needsReview) &&
-                (cf == null || t.categoryId == cf || t.parts.any { it.categoryId == cf }) &&
+                (cf == null || tree.top(t.categoryId) == cf || t.categoryId == cf || t.parts.any { it.categoryId == cf || tree.top(it.categoryId) == cf }) &&
                 (needle.isEmpty() || t.merchantName.lowercase().contains(needle) || (names[t.categoryId] ?: "").contains(needle) ||
                     t.parts.any { (names[it.categoryId] ?: "").contains(needle) } ||
                     (t.note ?: "").lowercase().contains(needle))
@@ -782,9 +802,16 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     private fun syncQuietly() = viewModelScope.launch {
         // Reminders older versions counted as spending are removed even when the app is read-only: it's a fix, not an edit
         val gone = runCatching { engine.dropReminders() }.getOrDefault(0)
-        // So is sorting stays and holiday packages out of Travel into the new Holiday category, once
-        val holiday = runCatching { engine.sortIntoNewCategories() }.getOrDefault(0)
-        if (holiday > 0) say(if (holiday == 1) "1 payment moved from Travel to the new Holiday category" else "$holiday payments moved from Travel to the new Holiday category")
+        // So is sorting payments into new categories, once: stays into Holiday, then into each group's finer categories
+        val before = settings.value?.categoriesVersion ?: runCatching { repo.settings().categoriesVersion }.getOrDefault(ImportEngine.CATEGORIES_VERSION)
+        val sorted = runCatching { engine.sortIntoNewCategories() }.getOrDefault(0)
+        if (sorted > 0) say(
+            when {
+                before >= 2 -> "$sorted ${if (sorted == 1) "payment" else "payments"} sorted into the new categories: Fashion & Clothing, Daily Commute and more"
+                sorted == 1 -> "1 payment moved to the new categories, like Holiday"
+                else -> "$sorted payments moved to the new categories, like Holiday"
+            },
+        )
         if (gone > 0) say(if (gone == 1) "Removed 1 payment reminder that was counted as spending" else "Removed $gone payment reminders that were counted as spending")
         if (c.licence.current().canEdit) runCatching { engine.syncNew() }
     }
@@ -1106,12 +1133,23 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         go(Screen.ADJUST_BUDGETS)
     }
 
-    fun saveCategory(id: String?, name: String, icon: String, color: Long, countsAsSpend: Boolean) = viewModelScope.launch {
+    /** [parent]: the group to put it in, or null for a category on its own. */
+    fun saveCategory(id: String?, name: String, icon: String, color: Long, countsAsSpend: Boolean, parent: String? = null) = viewModelScope.launch {
         if (!editable()) return@launch
         if (name.isBlank()) { say("Give the category a name"); return@launch }
-        repo.saveCategory(id, name.trim(), icon, color, countsAsSpend)
+        repo.saveCategory(id, name.trim(), icon, color, countsAsSpend, parent)
         closeSheet()
         say(if (id == null) "${name.trim()} added" else "Category updated")
+    }
+
+    /** Kids categories on or off (More › Categories, and the question at setup). */
+    fun setKids(on: Boolean) = viewModelScope.launch {
+        if (!editable()) return@launch
+        val moved = repo.setKids(on)
+        say(
+            if (on) "Kids categories are on"
+            else "Kids categories are off" + if (moved > 0) " · $moved ${if (moved == 1) "payment" else "payments"} moved" else "",
+        )
     }
 
     fun archiveCategory(id: String) = viewModelScope.launch {
@@ -1216,16 +1254,17 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         // A split payment counts as its parts, each in its own category
         val counted = txns.flatMap { it.portions() }.filter { counts(it, catMap) }
         val spent = counted.sumOf { it.amountPaise }
-        val byCat = counted.groupBy { it.categoryId }.mapValues { e -> e.value.sumOf { it.amountPaise } }
+        // By group: a budget, a slice of the ring and a row are a group (or a category on its own)
+        val (byCategory, children) = rollUp(counted, cats)
+        val byCat = byCategory.associate { it.category.id to it.paise }
         val overall = budgets[Schema.OVERALL] ?: 0L
         val status = if (overall > 0) BudgetMath.status(spent, overall, dayNumber, p.days) else null
-        val byCategory = byCat.filter { it.value > 0 }.mapNotNull { (id, v) -> catMap[id]?.let { CategorySpend(it, v) } }.sortedByDescending { it.paise }
         val rows = budgets.filterKeys { it != Schema.OVERALL }.mapNotNull { (id, lim) ->
-            val cat = catMap[id]?.takeIf { !it.archived } ?: return@mapNotNull null
+            val cat = catMap[id]?.takeIf { !it.archived && it.parent == null } ?: return@mapNotNull null
             val sp = byCat[id] ?: 0L
             CategoryBudgetRow(cat, sp, lim, BudgetMath.status(sp, lim, dayNumber, p.days))
         }.sortedByDescending { it.spent.toDouble() / it.limit }
-        val unbudgeted = cats.filter { it.countsAsSpend && !it.archived && budgets[it.id] == null }.map { CategorySpend(it, byCat[it.id] ?: 0L) }
+        val unbudgeted = com.owl.tracker.data.CategoryTree(cats).spendTops.filter { budgets[it.id] == null }.map { CategorySpend(it, byCat[it.id] ?: 0L) }
         val daysLeftText = if (isCurrent) "${p.days - dayNumber} days left this month" else "This budget month has ended"
         // Category budgets that are over. The month itself being over is said once, in the budget card's own line.
         val over = buildList {
@@ -1236,7 +1275,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         return Dashboard(
             period = p, label = periodLabel(p), isCurrent = isCurrent, dayNumber = dayNumber, spent = spent, overall = overall, status = status,
             byCategory = byCategory, recent = txns.take(5), reviewCount = txns.count { it.needsReview }, over = over,
-            categoryRows = rows, unbudgeted = unbudgeted,
+            categoryRows = rows, unbudgeted = unbudgeted, children = children,
         )
     }
 

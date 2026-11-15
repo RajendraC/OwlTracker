@@ -89,7 +89,7 @@ class CategorizerTest {
     @Test fun keywordDefaults() {
         val c = Categorizer()
         assertEquals(Cat.FUEL, c.categorize(tx("", "HP Petrol Pump"), "hp_petrol_pump", null))
-        assertEquals(Cat.FOOD, c.categorize(tx("", "Saravana Bhavan"), "saravana_bhavan", null))
+        assertEquals(Cat.DINING, c.categorize(tx("", "Saravana Bhavan"), "saravana_bhavan", null))
         assertEquals(Cat.OTHERS, c.categorize(tx("", "R Kumar"), "r_kumar", null))
         assertEquals(Cat.INCOME, c.categorize(tx("", "R Kumar", Direction.CREDIT), "r_kumar", null))
         assertEquals(Cat.CASH, c.categorize(tx("", null, kind = TxKind.CASH_WITHDRAWAL), "atm", null))
@@ -105,8 +105,8 @@ class CategorizerTest {
         assertEquals(Cat.SPORTS, cat("Anytime Fitness"))
         assertEquals(Cat.SPORTS, cat("Decathlon Sports India")) // not Shopping
         assertEquals(Cat.SPORTS, cat("CUREFIT HEALTHCARE")) // cult.fit
-        assertEquals(Cat.FOOD, cat("Gymkhana Club Canteen")) // "gym" only as a word
-        assertEquals(Cat.SHOPPING, cat("Lifestyle Stores"))
+        assertEquals(Cat.DINING, cat("Gymkhana Club Canteen")) // "gym" only as a word
+        assertEquals(Cat.FASHION, cat("Lifestyle Stores"))
     }
 
     @Test fun holidayIsWhereYouStayAndTravelIsGettingThere() {
@@ -124,8 +124,99 @@ class CategorizerTest {
         assertEquals(Cat.TRAVEL, cat("INDIGO AIRLINES"))
         assertEquals(Cat.TRAVEL, cat("IRCTC"))
         assertEquals(Cat.TRAVEL, cat("SRS TRAVELS"))
-        assertEquals(Cat.FOOD, cat("Hotel Saravana Bhavan")) // in India a hotel is often a restaurant
+        assertEquals(Cat.DINING, cat("Hotel Saravana Bhavan")) // in India a hotel is often a restaurant
         assertEquals(Cat.OTHERS, cat("TOYOTA KIRLOSKAR")) // "oyo" only as a word
+    }
+
+    private fun cat(name: String, kids: Boolean = true) =
+        Categorizer(kids = kids).categorize(tx("", name), MerchantRegistry.keyFor(null, name, null), MerchantRegistry.match(name, null))
+
+    @Test fun shoppingIsSortedByWhatTheShopSells() {
+        assertEquals(Cat.FASHION, cat("MYNTRA DESIGNS"))
+        assertEquals(Cat.FASHION, cat("Sri Krishna Silks"))
+        assertEquals(Cat.FASHION, cat("Ramesh Tailors"))
+        assertEquals(Cat.FASHION, cat("Vision Opticals"))
+        assertEquals(Cat.ELECTRONICS, cat("CROMA INFINITI RETAIL"))
+        assertEquals(Cat.ELECTRONICS, cat("Sri Ram Mobiles"))
+        assertEquals(Cat.FURNITURE, cat("PEPPERFRY"))
+        assertEquals(Cat.FURNITURE, cat("Balaji Hardwares"))
+        assertEquals(Cat.BEAUTY, cat("NYKAA E RETAIL"))
+        assertEquals(Cat.BEAUTY, cat("Diamond Hair Salon"))
+        assertEquals(Cat.JEWELLERY, cat("TANISHQ"))
+        assertEquals(Cat.JEWELLERY, cat("Sri Lakshmi Jewellers"))
+        assertEquals(Cat.EDUCATION, cat("Higginbothams Book House"))
+        // Stores that sell everything: their SMS never says what, so they wait in Shopping to be sorted
+        assertEquals(Cat.SHOPPING, cat("WWW AMAZON IN"))
+        assertEquals(Cat.SHOPPING, cat("FLIPKART INTERNET"))
+        assertEquals(Cat.SHOPPING, cat("Sri Ganesh Stores"))
+    }
+
+    @Test fun gettingAroundFoodBillsAndHealthAreSplitToo() {
+        assertEquals(Cat.COMMUTE, cat("UBER INDIA"))
+        assertEquals(Cat.COMMUTE, cat("BMRCL Metro"))
+        assertEquals(Cat.CAR_BIKE, cat("FASTAG RECHARGE NETC"))
+        assertEquals(Cat.CAR_BIKE, cat("Forum Mall Parking"))
+        assertEquals(Cat.FUEL, cat("Murugan Service Station"))
+        assertEquals(Cat.FOOD_DELIVERY, cat("SWIGGY"))
+        assertEquals(Cat.FOOD_DELIVERY, cat("ZOMATO LTD"))
+        assertEquals(Cat.DINING, cat("Meghana Biryani"))
+        assertEquals(Cat.GROCERIES, cat("BLINKIT"))
+        assertEquals(Cat.UTILITIES, cat("BESCOM"))
+        assertEquals(Cat.UTILITIES, cat("INDANE GAS"))
+        assertEquals(Cat.RECHARGE, cat("AIRTEL PREPAID"))
+        assertEquals(Cat.RECHARGE, cat("ACT FIBERNET"))
+        assertEquals(Cat.SUBSCRIPTIONS, cat("NETFLIX.COM"))
+        assertEquals(Cat.SUBSCRIPTIONS, cat("APPLE MEDIA SERVICES"))
+        assertEquals(Cat.INSURANCE, cat("LIC OF INDIA"))
+        assertEquals(Cat.INSURANCE, cat("STAR HEALTH"))
+        assertEquals(Cat.INSURANCE, cat("New India Assurance"))
+        assertEquals(Cat.HOME_HELP, cat("URBAN COMPANY"))
+        assertEquals(Cat.HOME_HELP, cat("Quick Dry Cleaners"))
+        assertEquals(Cat.MEDICINES, cat("PHARMEASY"))
+        assertEquals(Cat.MEDICINES, cat("Sri Sai Medicals"))
+        assertEquals(Cat.DOCTOR, cat("Manipal Hospital"))
+        assertEquals(Cat.DOCTOR, cat("PRACTO"))
+        assertEquals(Cat.ENTERTAINMENT, cat("PVR CINEMAS"))
+        assertEquals(Cat.TEMPLE, cat("Sri Venkateswara Temple"))
+        assertEquals(Cat.TEMPLE, cat("TIRUMALA TIRUPATI DEVASTHANAMS"))
+        assertEquals(Cat.PETS, cat("SUPERTAILS"))
+        assertEquals(Cat.GIFTS, cat("FERNS N PETALS"))
+        assertEquals(Cat.EMI, cat("Muthoot Gold Loan")) // a loan, not a jeweller
+    }
+
+    @Test fun kidsCategoriesOnlyForThoseWhoPayForChildren() {
+        assertEquals(Cat.KIDS_EDUCATION, cat("Delhi Public School"))
+        assertEquals(Cat.KIDS_EDUCATION, cat("Kendriya Vidyalaya"))
+        assertEquals(Cat.KIDS_EDUCATION, cat("BYJUS THINK AND LEARN"))
+        assertEquals(Cat.KIDS_ACTIVITIES, cat("UCMAS Abacus"))
+        assertEquals(Cat.KIDS_CARE, cat("FIRSTCRY BRAINBEES"))
+        assertEquals(Cat.KIDS_CARE, cat("Hamleys"))
+        // Academies and classes could be anyone's
+        assertEquals(Cat.SPORTS, cat("Aqua Swim Academy"))
+        assertEquals(Cat.EDUCATION, cat("Vidya Coaching Academy"))
+        // Without kids
+        assertEquals(Cat.EDUCATION, cat("Delhi Public School", kids = false))
+        assertEquals(Cat.SPORTS, cat("UCMAS Abacus", kids = false))
+        assertEquals(Cat.SHOPPING, cat("FIRSTCRY BRAINBEES", kids = false))
+    }
+
+    @Test fun academiesAndClassesAskWhoTheyWereFor() {
+        assertEquals(Cat.SPORTS to Cat.KIDS_ACTIVITIES, CategoryGroups.forYouOrKids("Aqua Swim Academy", Cat.SPORTS))
+        assertEquals(Cat.SPORTS to Cat.KIDS_ACTIVITIES, CategoryGroups.forYouOrKids("Nritya Dance Classes", Cat.KIDS_ACTIVITIES))
+        assertEquals(Cat.EDUCATION to Cat.KIDS_EDUCATION, CategoryGroups.forYouOrKids("Vidya Coaching Academy", Cat.EDUCATION))
+        assertNull(CategoryGroups.forYouOrKids("Playo", Cat.SPORTS))            // a court you book: yours
+        assertNull(CategoryGroups.forYouOrKids("Aqua Swim Academy", Cat.OTHERS)) // put somewhere else by the user
+    }
+
+    @Test fun everyBuiltInCategoryHasOneGroupAtMost() {
+        val all = CategoryGroups.CHILDREN.values.flatten()
+        assertEquals(all.size, all.toSet().size)
+        assertTrue(CategoryGroups.GROUPS.none { it in all })
+        assertEquals(Cat.SHOPPING, CategoryGroups.top(Cat.FASHION))
+        assertEquals(Cat.TRANSPORT, CategoryGroups.top(Cat.FUEL))
+        assertEquals(Cat.EMI, CategoryGroups.top(Cat.EMI))
+        // Every category the old ones were split into is in a group or on its own, never another old one's group
+        CategoryGroups.SPLIT_FROM.values.flatten().forEach { assertTrue(it !in CategoryGroups.GROUPS) }
     }
 }
 

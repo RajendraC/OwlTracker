@@ -45,13 +45,16 @@ object SavingTips {
     private const val MIN_TRIM = 100_000L
     private const val MIN_TRIM_COUNT = 4.0
 
-    /** Commitments and needs: an EMI, rent, school fees or a hospital bill aren't "ways to save". */
-    private val FIXED = setOf(Cat.EMI, Cat.RENT, Cat.EDUCATION, Cat.HEALTH, Cat.INVESTMENTS)
+    /** Commitments and needs: an EMI, rent, school fees, insurance or a hospital bill aren't "ways to save". */
+    private val FIXED = setOf(
+        Cat.EMI, Cat.RENT, Cat.EDUCATION, Cat.KIDS_EDUCATION, Cat.HEALTH, Cat.MEDICINES, Cat.DOCTOR, Cat.INSURANCE,
+        Cat.UTILITIES, Cat.INVESTMENTS,
+    )
 
     /** Everyday spending that is easy to cut back a little. */
-    private val DISCRETIONARY = listOf(Cat.FOOD, Cat.SHOPPING, Cat.ENTERTAINMENT)
-    /** Streaming and app subscriptions are filed here; Entertainment is cinema tickets and the like. */
-    private val SUBSCRIPTION_CATS = setOf(Cat.RECHARGE)
+    private val DISCRETIONARY = listOf(Cat.FOOD_DELIVERY, Cat.DINING, Cat.FASHION, Cat.SHOPPING, Cat.ENTERTAINMENT)
+    /** Streaming and app subscriptions (and, before 1.8, everything in Recharge); Movies & Events is cinema tickets and the like. */
+    private val SUBSCRIPTION_CATS = setOf(Cat.SUBSCRIPTIONS, Cat.RECHARGE)
     /** Phone plans repeat every month but aren't something to cancel. */
     private val PHONE_PLANS = setOf("jio", "airtel", "vi", "bsnl")
 

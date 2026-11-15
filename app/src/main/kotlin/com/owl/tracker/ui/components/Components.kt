@@ -135,6 +135,8 @@ private val GLOSSY = mapOf(
     "cash" to R.drawable.glossy_cash, "transfer" to R.drawable.glossy_transfer, "income" to R.drawable.glossy_income,
     "others" to R.drawable.glossy_others, "sports" to R.drawable.glossy_sports, "gift" to R.drawable.glossy_gift,
     "wallet" to R.drawable.glossy_wallet,
+    // Fun & Travel: the beach umbrella
+    "fun" to R.drawable.glossy_holiday,
 )
 
 /** The glossy picture for a category icon, if one was drawn. */

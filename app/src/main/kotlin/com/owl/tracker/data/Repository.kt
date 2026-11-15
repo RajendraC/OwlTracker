@@ -87,20 +87,28 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
     suspend fun categories(): List<Category> = read { readCategories(it) }
 
     private fun readCategories(d: SupportSQLiteDatabase): List<Category> =
-        d.query("SELECT id, name, icon, color, kind, sort_order, is_system, archived FROM categories ORDER BY sort_order, name").use { c ->
+        d.query("SELECT id, name, icon, color, kind, sort_order, is_system, archived, parent FROM categories ORDER BY sort_order, name").use { c ->
             buildList {
                 while (c.moveToNext()) add(
                     Category(
                         id = c.getString(0), name = c.getString(1), icon = c.getString(2), color = c.getLong(3),
                         kind = runCatching { CategoryKind.valueOf(c.getString(4)) }.getOrDefault(CategoryKind.EXPENSE),
                         sortOrder = c.getInt(5), isSystem = c.getInt(6) == 1, archived = c.getInt(7) == 1,
+                        parent = c.str(8),
                     )
                 )
             }
         }
 
-    /** Adds a new category (id null) or saves changes to an existing one. Returns its id. */
-    suspend fun saveCategory(id: String?, name: String, icon: String, color: Long, countsAsSpend: Boolean): String = write { d ->
+    /**
+     * Adds a new category (id null) or saves changes to an existing one. Returns its id. [parent]: the group to put it
+     * in, or null for one on its own. A group keeps its place (it can't go inside another group), and so does a
+     * category whose group is a built-in one being moved by hand into a group of the user's.
+     */
+    suspend fun saveCategory(id: String?, name: String, icon: String, color: Long, countsAsSpend: Boolean, parent: String? = null): String = write { d ->
+        val groups = d.query("SELECT DISTINCT parent FROM categories WHERE parent IS NOT NULL AND archived = 0").use { c -> buildSet { while (c.moveToNext()) add(c.getString(0)) } }
+        // Only a group can hold categories, and a group doesn't go inside another
+        val home = parent?.takeIf { it in groups && it != id && id !in groups }
         if (id == null) {
             val newId = "c_" + clock.millis()
             val order = d.query("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM categories").use { c -> c.moveToFirst(); c.getInt(0) }
@@ -109,7 +117,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
                 contentValuesOf(
                     "id" to newId, "name" to name, "icon" to icon, "color" to color,
                     "kind" to (if (countsAsSpend) CategoryKind.EXPENSE else CategoryKind.TRANSFER).name,
-                    "sort_order" to order, "is_system" to 0, "archived" to 0,
+                    "sort_order" to order, "is_system" to 0, "archived" to 0, "parent" to home,
                 )
             )
             newId
@@ -119,17 +127,68 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             }
             val kind = when {
                 currentKind == CategoryKind.INCOME -> CategoryKind.INCOME
+                home != null -> CategoryKind.EXPENSE
                 countsAsSpend -> CategoryKind.EXPENSE
                 currentKind == CategoryKind.EXPENSE -> CategoryKind.TRANSFER
                 else -> currentKind
             }
-            d.update("categories", CONFLICT_REPLACE, contentValuesOf("name" to name, "icon" to icon, "color" to color, "kind" to kind.name), "id = ?", arrayOf<Any?>(id))
+            val v = contentValuesOf("name" to name, "icon" to icon, "color" to color, "kind" to kind.name)
+            if (id !in groups) v.put("parent", home)
+            d.update("categories", CONFLICT_REPLACE, v, "id = ?", arrayOf<Any?>(id))
+            // A budget is per group: one on a category that just went into a group moves onto the group
+            if (home != null) {
+                val mine = d.query("SELECT limit_paise FROM budgets WHERE category_key = ?", arrayOf<Any?>(id)).use { c -> if (c.moveToFirst()) c.getLong(0) else null }
+                if (mine != null) {
+                    val theirs = d.query("SELECT limit_paise FROM budgets WHERE category_key = ?", arrayOf<Any?>(home)).use { c -> if (c.moveToFirst()) c.getLong(0) else 0L }
+                    d.insert("budgets", CONFLICT_REPLACE, contentValuesOf("category_key" to home, "limit_paise" to theirs + mine))
+                    d.delete("budgets", "category_key = ?", arrayOf<Any?>(id))
+                }
+            }
             id
         }
     }
 
-    /** Archives a category; its transactions move to Others and its budget is removed. Returns how many moved. */
+    /**
+     * Kids on or off. Off: the Kids categories are hidden and their payments go where they would for someone without
+     * children (school fees to Courses & Books, classes to Sports & Fitness, toys to Shopping), rules too, and a budget on
+     * Kids is removed. On: they show again; payments already moved stay where they are. Returns how many payments moved.
+     */
+    suspend fun setKids(on: Boolean): Int = write { d ->
+        val ids = com.owl.tracker.core.CategoryGroups.KIDS.toList()
+        var moved = 0
+        if (!on) {
+            ids.forEach { id ->
+                val to = com.owl.tracker.core.CategoryGroups.withoutKids(id)
+                moved += d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to to), "category_id = ? AND parts IS NULL", arrayOf<Any?>(id))
+                d.update("rules", CONFLICT_REPLACE, contentValuesOf("category_id" to to), "category_id = ?", arrayOf<Any?>(id))
+                d.query("SELECT id, parts FROM transactions WHERE parts LIKE ?", arrayOf<Any?>("%$id=%")).use { c ->
+                    buildList { while (c.moveToNext()) add(c.getLong(0) to c.getString(1)) }
+                }.forEach { (txId, raw) ->
+                    val merged = Parts.decode(raw).map { if (it.categoryId == id) it.copy(categoryId = to) else it }
+                        .groupBy { it.categoryId }.map { (cat, l) -> TxnPart(cat, l.sumOf { it.paise }) }
+                    val v = contentValuesOf("parts" to Parts.encode(merged), "category_id" to merged.maxBy { it.paise }.categoryId)
+                    d.update("transactions", CONFLICT_REPLACE, v, "id = ?", arrayOf<Any?>(txId))
+                    moved++
+                }
+                d.delete("budgets", "category_key = ?", arrayOf<Any?>(id))
+            }
+        }
+        ids.forEach { d.update("categories", CONFLICT_REPLACE, contentValuesOf("archived" to if (on) 0 else 1), "id = ?", arrayOf<Any?>(it)) }
+        val s = readSettings(d).copy(kids = on)
+        s.toMap().forEach { (k, v) -> d.insert("settings", CONFLICT_REPLACE, contentValuesOf("key" to k, "value" to v)) }
+        moved
+    }
+
+    /**
+     * Archives a category; its transactions move to Others and its budget is removed. Archiving a group archives its
+     * categories too. Returns how many moved.
+     */
     suspend fun archiveCategory(id: String): Int = write { d ->
+        val inside = d.query("SELECT id FROM categories WHERE parent = ?", arrayOf<Any?>(id)).use { c -> buildList { while (c.moveToNext()) add(c.getString(0)) } }
+        (inside + id).sumOf { archiveOne(d, it) }
+    }
+
+    private fun archiveOne(d: SupportSQLiteDatabase, id: String): Int {
         val moved = d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to Cat.OTHERS), "category_id = ?", arrayOf<Any?>(id))
         // Split payments with a part in it: that part moves to Others too (joined with an Others part already there)
         d.query("SELECT id, parts, category_id FROM transactions WHERE parts LIKE ?", arrayOf<Any?>("%$id=%")).use { c ->
@@ -144,7 +203,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         d.update("rules", CONFLICT_REPLACE, contentValuesOf("category_id" to Cat.OTHERS), "category_id = ?", arrayOf<Any?>(id))
         d.delete("budgets", "category_key = ?", arrayOf<Any?>(id))
         d.update("categories", CONFLICT_REPLACE, contentValuesOf("archived" to 1), "id = ?", arrayOf<Any?>(id))
-        moved
+        return moved
     }
 
     // ---------------- budgets ----------------
@@ -423,6 +482,30 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         ).use { c -> c.toTxns() }
     }
 
+    /** Every rule with its id, newest first. */
+    suspend fun ruleRows(): List<StoredRuleRow> = read { d ->
+        d.query("SELECT id, match_type, pattern, category_id FROM rules ORDER BY created_at DESC").use { c ->
+            buildList {
+                while (c.moveToNext()) {
+                    val m = runCatching { RuleMatch.valueOf(c.getString(1)) }.getOrNull() ?: continue
+                    add(StoredRuleRow(c.getLong(0), m, c.getString(2), c.getString(3)))
+                }
+            }
+        }
+    }
+
+    data class StoredRuleRow(val id: Long, val match: RuleMatch, val pattern: String, val categoryId: String)
+
+    /** The newest payment a rule would cover, to tell what it's for. */
+    suspend fun latestFor(match: RuleMatch, pattern: String): Txn? = read { d ->
+        val (where, args) = ruleWhere(match, pattern)
+        d.query("SELECT $TX_COLS FROM transactions WHERE $where ORDER BY occurred_at DESC LIMIT 1", args).use { c -> c.toTxns().firstOrNull() }
+    }
+
+    suspend fun repointRule(id: Long, categoryId: String) = write { d ->
+        d.update("rules", CONFLICT_REPLACE, contentValuesOf("category_id" to categoryId), "id = ?", arrayOf<Any?>(id))
+    }
+
     /** Moves these payments to [categoryId], as a fix: no rule is made. */
     suspend fun moveTo(ids: List<Long>, categoryId: String): Int = write { d ->
         ids.sumOf { id -> d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to categoryId), "id = ?", arrayOf<Any?>(id)) }
@@ -624,6 +707,7 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             val row = contentValuesOf(
                 "id" to cat.id, "name" to cat.name, "icon" to cat.icon, "color" to cat.color, "kind" to cat.kind.name,
                 "sort_order" to cat.sortOrder, "is_system" to if (cat.isSystem) 1 else 0, "archived" to if (cat.archived) 1 else 0,
+                "parent" to cat.parent,
             )
             if (d.insert("categories", CONFLICT_IGNORE, row) != -1L) categoriesAdded++
         }
@@ -631,9 +715,15 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         Schema.DEFAULT_CATEGORIES.forEachIndexed { i, s ->
             d.insert(
                 "categories", CONFLICT_IGNORE,
-                contentValuesOf("id" to s.id, "name" to s.name, "icon" to s.icon, "color" to s.color, "kind" to s.kind.name, "sort_order" to i, "is_system" to 1, "archived" to 0),
+                contentValuesOf(
+                    "id" to s.id, "name" to s.name, "icon" to s.icon, "color" to s.color, "kind" to s.kind.name, "sort_order" to i,
+                    "is_system" to 1, "archived" to 0, "parent" to s.parent,
+                ),
             )
         }
+        // A group only holds categories: a parent that isn't here (or is itself inside a group) is dropped
+        val tops = d.query("SELECT id FROM categories WHERE parent IS NULL").use { c -> buildSet { while (c.moveToNext()) add(c.getString(0)) } }
+        d.update("categories", CONFLICT_REPLACE, contentValuesOf("parent" to null), "parent IS NOT NULL AND parent NOT IN (${tops.joinToString { "?" }.ifEmpty { "''" }})", tops.toTypedArray<Any?>())
         val ids = categoryIds()
 
         var budgetsSet = 0
@@ -681,11 +771,16 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             if (d.insert("transactions", CONFLICT_IGNORE, row.toValues()) != -1L) added++
         }
 
+        // A backup from before groups: built-in categories into their groups, and budgets onto the groups
+        Schema.placeBuiltIns(d)
         val s = readSettings(d)
+        if (!s.kids) com.owl.tracker.core.CategoryGroups.KIDS.forEach { d.update("categories", CONFLICT_REPLACE, contentValuesOf("archived" to 1), "id = ?", arrayOf<Any?>(it)) }
         val next = s.copy(
             budgetStartDay = if (replace || finishOnboarding) b.budgetStartDay else s.budgetStartDay,
             onboarded = s.onboarded || finishOnboarding,
             sampleData = if (replace) false else s.sampleData,
+            // Payments from before groups are sorted into the groups' categories on the next start
+            categoriesVersion = if (replace) b.categoriesVersion else minOf(s.categoriesVersion, b.categoriesVersion),
         )
         next.toMap().forEach { (k, v) -> d.insert("settings", CONFLICT_REPLACE, contentValuesOf("key" to k, "value" to v)) }
         prunePictures(d)

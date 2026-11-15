@@ -1,29 +1,182 @@
 package com.owl.tracker.core
 
-/** Default category keys. The app seeds these; users can rename, recolor or add their own. */
+/**
+ * Default category keys. The app seeds these; users can rename, recolor or add their own.
+ *
+ * Since 1.8 most categories sit in a group (see [CategoryGroups]). A group is a category too: budgets are set on
+ * groups, and a payment put in the group itself (an Amazon order, whose SMS never says what was bought) waits there,
+ * not sorted yet, until the user picks one of the group's categories.
+ */
 object Cat {
-    const val FOOD = "food"
-    const val GROCERIES = "groceries"
+    // Groups. FOOD, SHOPPING, TRANSPORT, BILLS and HEALTH were categories before 1.8 and keep their keys.
     const val SHOPPING = "shopping"
+
+    /** Getting around. */
     const val TRANSPORT = "transport"
-    const val FUEL = "fuel"
+    const val KIDS = "kids"
+
+    /** Food: delivery, eating out and groceries. */
+    const val FOOD = "food"
+
+    /** Home & Bills. */
     const val BILLS = "bills"
+    const val HEALTH = "health"
+
+    /** Fun & Travel. */
+    const val FUN = "fun"
+
+    /** Gifts & Giving. */
+    const val GIVING = "giving"
+
+    // Shopping
+    const val FASHION = "fashion"
+    const val ELECTRONICS = "electronics"
+    const val FURNITURE = "furniture"
+    const val BEAUTY = "beauty"
+    const val JEWELLERY = "jewellery"
+
+    // Getting around
+    /** Daily Commute: cabs, autos, metro and buses. */
+    const val COMMUTE = "commute"
+    const val FUEL = "fuel"
+
+    /** Car & Bike: tolls, FASTag, parking, service. */
+    const val CAR_BIKE = "car_bike"
+
+    // Kids
+    const val KIDS_EDUCATION = "kids_education"
+
+    /** Kids' Sports & Extracurricular. */
+    const val KIDS_ACTIVITIES = "kids_activities"
+
+    /** Kids' Shopping & Care. */
+    const val KIDS_CARE = "kids_care"
+
+    // Food
+    const val FOOD_DELIVERY = "food_delivery"
+
+    /** Eating Out. */
+    const val DINING = "dining"
+    const val GROCERIES = "groceries"
+
+    // Home & Bills
+    const val RENT = "rent"
+
+    /** Electricity, Water & Gas. */
+    const val UTILITIES = "utilities"
+
+    /** Mobile & Internet (was Recharge & Subscriptions). */
     const val RECHARGE = "recharge"
+
+    /** OTT & Subscriptions. */
+    const val SUBSCRIPTIONS = "subscriptions"
+    const val HOME_HELP = "home_help"
+    const val INSURANCE = "insurance"
+
+    // Health
+    const val MEDICINES = "medicines"
+
+    /** Doctor & Tests. */
+    const val DOCTOR = "doctor"
+
+    // Fun & Travel
+    /** Movies & Events (was Entertainment). */
     const val ENTERTAINMENT = "entertainment"
     const val SPORTS = "sports"
-    const val HEALTH = "health"
     const val TRAVEL = "travel"
 
     /** Trips and vacations: where you stay and the packages you book. Flights, trains and buses stay in [TRAVEL]. */
     const val HOLIDAY = "holiday"
+
+    /** Courses & Books: your own learning (was Education; children's school is [KIDS_EDUCATION]). */
     const val EDUCATION = "education"
-    const val RENT = "rent"
+
+    // Gifts & Giving
+    const val TEMPLE = "temple"
+    const val GIFTS = "gifts"
+
+    // On their own
     const val EMI = "emi"
-    const val INVESTMENTS = "investments"
     const val CASH = "cash"
-    const val TRANSFERS = "transfers"
+    const val PETS = "pets"
     const val OTHERS = "others"
+    const val INVESTMENTS = "investments"
+    const val TRANSFERS = "transfers"
     const val INCOME = "income"
+}
+
+/** Which built-in group each built-in category sits in, and what the Kids categories become when Kids is off. */
+object CategoryGroups {
+    val GROUPS: List<String> = listOf(Cat.TRANSPORT, Cat.SHOPPING, Cat.FOOD, Cat.KIDS, Cat.BILLS, Cat.HEALTH, Cat.FUN, Cat.GIVING)
+
+    val CHILDREN: Map<String, List<String>> = mapOf(
+        Cat.TRANSPORT to listOf(Cat.COMMUTE, Cat.FUEL, Cat.CAR_BIKE),
+        Cat.SHOPPING to listOf(Cat.FASHION, Cat.ELECTRONICS, Cat.FURNITURE, Cat.BEAUTY, Cat.JEWELLERY),
+        Cat.FOOD to listOf(Cat.FOOD_DELIVERY, Cat.DINING, Cat.GROCERIES),
+        Cat.KIDS to listOf(Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_CARE),
+        Cat.BILLS to listOf(Cat.RENT, Cat.UTILITIES, Cat.RECHARGE, Cat.SUBSCRIPTIONS, Cat.HOME_HELP, Cat.INSURANCE),
+        Cat.HEALTH to listOf(Cat.MEDICINES, Cat.DOCTOR),
+        Cat.FUN to listOf(Cat.ENTERTAINMENT, Cat.SPORTS, Cat.TRAVEL, Cat.HOLIDAY, Cat.EDUCATION),
+        Cat.GIVING to listOf(Cat.TEMPLE, Cat.GIFTS),
+    )
+
+    val PARENT: Map<String, String> = CHILDREN.flatMap { (g, kids) -> kids.map { it to g } }.toMap()
+
+    val KIDS: Set<String> = setOf(Cat.KIDS, Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_CARE)
+
+    /** Where a Kids category's payments go for someone who doesn't pay for children. */
+    fun withoutKids(id: String): String = when (id) {
+        Cat.KIDS_EDUCATION -> Cat.EDUCATION
+        Cat.KIDS_ACTIVITIES -> Cat.SPORTS
+        Cat.KIDS_CARE, Cat.KIDS -> Cat.SHOPPING
+        else -> id
+    }
+
+    // Places whose payments could be for you or for your children: an academy, coaching, classes, a swimming pool
+    private val EITHER = Regex(
+        """academy|coaching|classes|\bclass\b|institute|tuition|tution|\bswim|dance|music|chess|karate|taekwondo|skating|abacus|\bcamp\b|drawing""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /**
+     * For a payment to [merchantName] in [category] that could be anyone's ("Aqua Swim Academy" in Sports & Fitness):
+     * the category if it was for you, and the Kids one if it was for your children. Null when there's nothing to ask.
+     */
+    fun forYouOrKids(merchantName: String?, category: String): Pair<String, String>? {
+        if (merchantName == null || !EITHER.containsMatchIn(merchantName)) return null
+        return when (category) {
+            Cat.SPORTS, Cat.KIDS_ACTIVITIES -> Cat.SPORTS to Cat.KIDS_ACTIVITIES
+            Cat.EDUCATION, Cat.KIDS_EDUCATION -> Cat.EDUCATION to Cat.KIDS_EDUCATION
+            else -> null
+        }
+    }
+
+    /** The group a built-in category sits in, or the category itself when it sits on its own. */
+    fun top(id: String): String = PARENT[id] ?: id
+
+    /**
+     * Before 1.8, what each old category was split into: a payment there that today's rules put in one of these is
+     * moved once (Myntra from Shopping to Fashion & Clothing, Uber from Transport to Daily Commute). Payments in Others
+     * may move into any of the new categories. Anything else stays where it is: the user may have put it there.
+     */
+    val SPLIT_FROM: Map<String, Set<String>> by lazy {
+        val new = setOf(
+            Cat.FASHION, Cat.ELECTRONICS, Cat.FURNITURE, Cat.BEAUTY, Cat.JEWELLERY, Cat.COMMUTE, Cat.CAR_BIKE,
+            Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_CARE, Cat.FOOD_DELIVERY, Cat.DINING, Cat.UTILITIES,
+            Cat.SUBSCRIPTIONS, Cat.HOME_HELP, Cat.INSURANCE, Cat.MEDICINES, Cat.DOCTOR, Cat.TEMPLE, Cat.GIFTS, Cat.PETS,
+        )
+        mapOf(
+            Cat.SHOPPING to setOf(Cat.FASHION, Cat.ELECTRONICS, Cat.FURNITURE, Cat.BEAUTY, Cat.JEWELLERY, Cat.KIDS_CARE, Cat.SPORTS, Cat.EDUCATION, Cat.GIFTS, Cat.PETS),
+            Cat.TRANSPORT to setOf(Cat.COMMUTE, Cat.CAR_BIKE),
+            Cat.FOOD to setOf(Cat.FOOD_DELIVERY, Cat.DINING),
+            Cat.BILLS to setOf(Cat.UTILITIES, Cat.RECHARGE, Cat.INSURANCE, Cat.HOME_HELP),
+            Cat.RECHARGE to setOf(Cat.SUBSCRIPTIONS),
+            Cat.HEALTH to setOf(Cat.MEDICINES, Cat.DOCTOR, Cat.INSURANCE, Cat.SUBSCRIPTIONS, Cat.SPORTS),
+            Cat.ENTERTAINMENT to setOf(Cat.SUBSCRIPTIONS),
+            Cat.EDUCATION to setOf(Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES),
+            Cat.OTHERS to new,
+        )
+    }
 }
 
 /**
@@ -60,57 +213,84 @@ object MerchantRegistry {
      */
     val all: List<KnownMerchant> = listOf(
         m("swiggy_instamart", "Swiggy Instamart", "in.swiggy.android", Cat.GROCERIES, "swiggyinstamart", "instamart"),
-        m("swiggy", "Swiggy", "in.swiggy.android", Cat.FOOD, "swiggy", "bundl"),
-        m("zomato", "Zomato", "com.application.zomato", Cat.FOOD, "zomato"),
+        m("swiggy", "Swiggy", "in.swiggy.android", Cat.FOOD_DELIVERY, "swiggy", "bundl"),
+        m("zomato", "Zomato", "com.application.zomato", Cat.FOOD_DELIVERY, "zomato"),
         m("blinkit", "Blinkit", "com.grofers.customerapp", Cat.GROCERIES, "blinkit", "grofers"),
         m("zepto", "Zepto", "com.zeptoconsumerapp", Cat.GROCERIES, "zepto", "kiranakart"),
         m("bigbasket", "BigBasket", "com.bigbasket.mobileapp", Cat.GROCERIES, "bigbasket", "bb now", "bbnow", "supermarket grocery supplies"),
         m("jiomart", "JioMart", "com.jpl.jiomart", Cat.GROCERIES, "jiomart"),
         m("dmart", "DMart Ready", "in.dmart", Cat.GROCERIES, "dmart", "avenue supermarts", "avenue e-commerce"),
         m("licious", "Licious", "com.licious", Cat.GROCERIES, "licious", "delightful gourmet"),
-        m("primevideo", "Prime Video", "com.amazon.avod.thirdpartyclient", Cat.ENTERTAINMENT, "primevideo", "prime video"),
+        m("primevideo", "Prime Video", "com.amazon.avod.thirdpartyclient", Cat.SUBSCRIPTIONS, "primevideo", "prime video"),
         m("kindle", "Kindle", "com.amazon.kindle", Cat.EDUCATION, "kindle"),
-        m("audible", "Audible", "com.audible.application", Cat.RECHARGE, "audible"),
-        m("amazonmusic", "Amazon Music", "com.amazon.mp3", Cat.RECHARGE, "amazon music", "amazonmusic"),
+        m("audible", "Audible", "com.audible.application", Cat.SUBSCRIPTIONS, "audible"),
+        m("amazonmusic", "Amazon Music", "com.amazon.mp3", Cat.SUBSCRIPTIONS, "amazon music", "amazonmusic"),
         m("amazon", "Amazon", "in.amazon.mShop.android.shopping", Cat.SHOPPING, "amazon", "amzn"),
         m("shopsy", "Shopsy", "com.flipkart.shopsy", Cat.SHOPPING, "shopsy"),
         m("flipkart", "Flipkart", "com.flipkart.android", Cat.SHOPPING, "flipkart", "fkrt"),
-        m("myntra", "Myntra", "com.myntra.android", Cat.SHOPPING, "myntra"),
-        m("ajio", "AJIO", "com.ril.ajio", Cat.SHOPPING, "ajio"),
-        m("nykaa", "Nykaa", "com.fsn.nykaa", Cat.SHOPPING, "nykaa"),
+        m("myntra", "Myntra", "com.myntra.android", Cat.FASHION, "myntra"),
+        m("ajio", "AJIO", "com.ril.ajio", Cat.FASHION, "ajio"),
+        m("nykaa", "Nykaa", "com.fsn.nykaa", Cat.BEAUTY, "nykaa"),
         m("meesho", "Meesho", "com.meesho.supply", Cat.SHOPPING, "meesho"),
         m("tatacliq", "Tata CLiQ", "com.tul.tatacliq", Cat.SHOPPING, "tatacliq", "tata cliq"),
-        m("lenskart", "Lenskart", "com.lenskart.app", Cat.SHOPPING, "lenskart"),
+        m("lenskart", "Lenskart", "com.lenskart.app", Cat.FASHION, "lenskart"),
         m("snapdeal", "Snapdeal", "com.snapdeal.main", Cat.SHOPPING, "snapdeal"),
-        m("firstcry", "FirstCry", "fc.admin.fcexpressadmin", Cat.SHOPPING, "firstcry", "brainbees"),
-        m("ikea", "IKEA", "com.ingka.ikea.app", Cat.SHOPPING, "ikea"),
+        m("firstcry", "FirstCry", "fc.admin.fcexpressadmin", Cat.KIDS_CARE, "firstcry", "brainbees"),
+        m("ikea", "IKEA", "com.ingka.ikea.app", Cat.FURNITURE, "ikea"),
         m("tataneu", "Tata Neu", "com.tatadigital.tcp", Cat.SHOPPING, "tata neu", "tataneu", "tata digital"),
         // Jewellers. Short or common words ("gold", "malabar", "giva") only match with the brand's own words.
-        m("tanishq", "Tanishq", "com.titancompany.tanishqapp", Cat.SHOPPING, "tanishq"),
-        m("titaneye", "Titan Eye+", "com.titan.eyecare", Cat.SHOPPING, "titan eye", "titaneye"),
-        m("caratlane", "CaratLane", "com.caratlane.android", Cat.SHOPPING, "caratlane", "carat lane"),
-        m("malabargold", "Malabar Gold & Diamonds", "malabargold.qburst.com.malabargold", Cat.SHOPPING, "malabar gold", "malabargold", "malabar diamond"),
-        m("joyalukkas", "Joyalukkas", "com.joyalukkas.mcstaging.twa", Cat.SHOPPING, "joyalukkas", "joy alukkas", "joyalukas"),
-        m("bluestone", "BlueStone", "com.bluestone.android", Cat.SHOPPING, "bluestone"),
-        m("giva", "GIVA", "co.giva.jewellery", Cat.SHOPPING, "giva$", "indiejewel"),
-        m("senco", "Senco Gold & Diamonds", "com.india.senco", Cat.SHOPPING, "senco gold", "sencogold", "senco$"),
+        m("tanishq", "Tanishq", "com.titancompany.tanishqapp", Cat.JEWELLERY, "tanishq"),
+        m("titaneye", "Titan Eye+", "com.titan.eyecare", Cat.FASHION, "titan eye", "titaneye"),
+        m("caratlane", "CaratLane", "com.caratlane.android", Cat.JEWELLERY, "caratlane", "carat lane"),
+        m("malabargold", "Malabar Gold & Diamonds", "malabargold.qburst.com.malabargold", Cat.JEWELLERY, "malabar gold", "malabargold", "malabar diamond"),
+        m("joyalukkas", "Joyalukkas", "com.joyalukkas.mcstaging.twa", Cat.JEWELLERY, "joyalukkas", "joy alukkas", "joyalukas"),
+        m("bluestone", "BlueStone", "com.bluestone.android", Cat.JEWELLERY, "bluestone"),
+        m("giva", "GIVA", "co.giva.jewellery", Cat.JEWELLERY, "giva$", "indiejewel"),
+        m("senco", "Senco Gold & Diamonds", "com.india.senco", Cat.JEWELLERY, "senco gold", "sencogold", "senco$"),
         // Clothing. Zara only by its company or site (Zara is also a name), Westside not by Trent (Zudio is Trent too).
-        m("westside", "Westside", "com.westside", Cat.SHOPPING, "westside"),
-        m("maxfashion", "Max Fashion", "com.applications.max", Cat.SHOPPING, "max fashion", "maxfashion"),
-        m("lifestyle", "Lifestyle", "com.applications.lifestyle", Cat.SHOPPING, "lifestyle international", "lifestyle stores", "lifestylestores"),
-        m("pantaloons", "Pantaloons", "com.pantaloons", Cat.SHOPPING, "pantaloons"),
-        m("shoppersstop", "Shoppers Stop", "shoppersstop.shoppersstop", Cat.SHOPPING, "shoppers stop", "shoppersstop", "shopper's stop", "shoppers' stop"),
-        m("hm", "H&M", "com.hm.goe", Cat.SHOPPING, "h&m$", "h & m$", "hennes"),
-        m("zara", "Zara", "com.inditex.zara", Cat.SHOPPING, "inditex", "zara india", "zara.com"),
-        m("uniqlo", "UNIQLO", "com.uniqlo.in.catalogue", Cat.SHOPPING, "uniqlo"),
-        m("fabindia", "Fabindia", "com.fabindia.shopping", Cat.SHOPPING, "fabindia", "fab india"),
-        m("souledstore", "The Souled Store", "com.thesouledstore", Cat.SHOPPING, "souled store", "souledstore", "thesouledstore"),
-        m("snitch", "SNITCH", "co.shopney.snitch", Cat.SHOPPING, "snitch"),
-        m("bewakoof", "Bewakoof", "com.bewakoof.bewakoof", Cat.SHOPPING, "bewakoof"),
-        m("uber", "Uber", "com.ubercab", Cat.TRANSPORT, "uber"),
-        m("ola", "Ola", "com.olacabs.customer", Cat.TRANSPORT, "olacabs", "ola cabs", "ani technologies", "ola money"),
-        m("rapido", "Rapido", "com.rapido.passenger", Cat.TRANSPORT, "rapido", "roppen"),
-        m("nammayatri", "Namma Yatri", "in.juspay.nammayatri", Cat.TRANSPORT, "namma yatri", "nammayatri"),
+        m("westside", "Westside", "com.westside", Cat.FASHION, "westside"),
+        m("maxfashion", "Max Fashion", "com.applications.max", Cat.FASHION, "max fashion", "maxfashion"),
+        m("lifestyle", "Lifestyle", "com.applications.lifestyle", Cat.FASHION, "lifestyle international", "lifestyle stores", "lifestylestores"),
+        m("pantaloons", "Pantaloons", "com.pantaloons", Cat.FASHION, "pantaloons"),
+        m("shoppersstop", "Shoppers Stop", "shoppersstop.shoppersstop", Cat.FASHION, "shoppers stop", "shoppersstop", "shopper's stop", "shoppers' stop"),
+        m("hm", "H&M", "com.hm.goe", Cat.FASHION, "h&m$", "h & m$", "hennes"),
+        m("zara", "Zara", "com.inditex.zara", Cat.FASHION, "inditex", "zara india", "zara.com"),
+        m("uniqlo", "UNIQLO", "com.uniqlo.in.catalogue", Cat.FASHION, "uniqlo"),
+        m("fabindia", "Fabindia", "com.fabindia.shopping", Cat.FASHION, "fabindia", "fab india"),
+        m("souledstore", "The Souled Store", "com.thesouledstore", Cat.FASHION, "souled store", "souledstore", "thesouledstore"),
+        m("snitch", "SNITCH", "co.shopney.snitch", Cat.FASHION, "snitch"),
+        m("bewakoof", "Bewakoof", "com.bewakoof.bewakoof", Cat.FASHION, "bewakoof"),
+        // Shops for the finer Shopping categories. No app icons until each package name is checked on Google Play.
+        m("manyavar", "Manyavar", null, Cat.FASHION, "manyavar", "vedant fashions"),
+        m("abfrl", "Aditya Birla Fashion", null, Cat.FASHION, "aditya birla fashion", "abfrl"),
+        m("reliancetrends", "Trends", null, Cat.FASHION, "reliance trends"),
+        m("bata", "Bata", null, Cat.FASHION, "bata india", "bata store", "bata shoe"),
+        m("metroshoes", "Metro Shoes", null, Cat.FASHION, "metro brands", "metro shoes"),
+        m("croma", "Croma", null, Cat.ELECTRONICS, "croma", "infiniti retail"),
+        m("reliancedigital", "Reliance Digital", null, Cat.ELECTRONICS, "reliance digital", "reliancedigital"),
+        m("applestore", "Apple Store", null, Cat.ELECTRONICS, "apple store", "apple india", "apple retail"),
+        m("samsung", "Samsung", null, Cat.ELECTRONICS, "samsung"),
+        m("oneplus", "OnePlus", null, Cat.ELECTRONICS, "oneplus"),
+        m("xiaomi", "Xiaomi", null, Cat.ELECTRONICS, "xiaomi"),
+        m("pepperfry", "Pepperfry", null, Cat.FURNITURE, "pepperfry"),
+        m("urbanladder", "Urban Ladder", null, Cat.FURNITURE, "urban ladder", "urbanladder"),
+        m("homecentre", "Home Centre", null, Cat.FURNITURE, "home centre", "homecentre"),
+        m("wakefit", "Wakefit", null, Cat.FURNITURE, "wakefit"),
+        m("purplle", "Purplle", null, Cat.BEAUTY, "purplle"),
+        m("mamaearth", "Mamaearth", null, Cat.BEAUTY, "mamaearth", "honasa"),
+        m("sugarcosmetics", "SUGAR Cosmetics", null, Cat.BEAUTY, "sugar cosmetics"),
+        m("hamleys", "Hamleys", null, Cat.KIDS_CARE, "hamleys"),
+        m("hopscotch", "Hopscotch", null, Cat.KIDS_CARE, "hopscotch"),
+        m("mothercare", "Mothercare", null, Cat.KIDS_CARE, "mothercare"),
+        m("decathlon", "Decathlon", null, Cat.SPORTS, "decathlon"),
+        m("supertails", "Supertails", null, Cat.PETS, "supertails"),
+        m("huft", "Heads Up For Tails", null, Cat.PETS, "heads up for tails"),
+        m("fnp", "Ferns N Petals", null, Cat.GIFTS, "ferns n petals", "fernsnpetals", "fnp$"),
+        m("igp", "IGP", null, Cat.GIFTS, "igp.com", "indian gifts portal"),
+        m("uber", "Uber", "com.ubercab", Cat.COMMUTE, "uber"),
+        m("ola", "Ola", "com.olacabs.customer", Cat.COMMUTE, "olacabs", "ola cabs", "ani technologies", "ola money"),
+        m("rapido", "Rapido", "com.rapido.passenger", Cat.COMMUTE, "rapido", "roppen"),
+        m("nammayatri", "Namma Yatri", "in.juspay.nammayatri", Cat.COMMUTE, "namma yatri", "nammayatri"),
         m("irctc", "IRCTC", "cris.org.in.prs.ima", Cat.TRAVEL, "irctc"),
         m("redbus", "redBus", "in.redbus.android", Cat.TRAVEL, "redbus"),
         m("makemytrip", "MakeMyTrip", "com.makemytrip", Cat.TRAVEL, "makemytrip", "mmt"),
@@ -124,9 +304,9 @@ object MerchantRegistry {
         m("thomascook", "Thomas Cook", null, Cat.HOLIDAY, "thomas cook"),
         m("sotc", "SOTC", null, Cat.HOLIDAY, "sotc$"),
         // Cooking gas before the fuel brands: same companies and apps, but a bill, not fuel
-        m("indane", "Indane Gas", "cx.indianoil.in", Cat.BILLS, "indane"),
-        m("hpgas", "HP Gas", "com.drivetrackplusrefuel", Cat.BILLS, "hp gas", "hpgas"),
-        m("bharatgas", "Bharatgas", "com.cgt.bharatgas", Cat.BILLS, "bharatgas", "bharat gas"),
+        m("indane", "Indane Gas", "cx.indianoil.in", Cat.UTILITIES, "indane"),
+        m("hpgas", "HP Gas", "com.drivetrackplusrefuel", Cat.UTILITIES, "hp gas", "hpgas"),
+        m("bharatgas", "Bharatgas", "com.cgt.bharatgas", Cat.UTILITIES, "bharatgas", "bharat gas"),
         // Petrol pumps keep their own name (which pump) and get the brand's icon
         outlet("hpcl", "HPCL", "com.drivetrackplusrefuel", Cat.FUEL, "hpcl", "hindustan petroleum", "hp petrol", "hp pay", "hppay", "hp fuel"),
         outlet("bpcl", "Bharat Petroleum", "com.cgt.bharatgas", Cat.FUEL, "bpcl", "bharat petroleum", "bharatpetroleum", "hellobpcl", "ufill"),
@@ -136,8 +316,8 @@ object MerchantRegistry {
         outlet("jiobp", "Jio-bp", null, Cat.FUEL, "jio-bp", "jio bp", "jiobp", "reliance bp"),
         outlet("nayara", "Nayara", null, Cat.FUEL, "nayara", "essar petrol", "essar oil"),
         // Tolls: the NHAI annual pass, then any FASTag payment or toll plaza (which plaza is kept)
-        m("rajmargyatra", "Rajmargyatra", "com.nhai.rajmargyatra", Cat.TRANSPORT, "rajmargyatra"),
-        outlet("fastag", "FASTag", "com.fastaguser", Cat.TRANSPORT, "fastag", "toll plaza", "ihmcl", "netc$"),
+        m("rajmargyatra", "Rajmargyatra", "com.nhai.rajmargyatra", Cat.CAR_BIKE, "rajmargyatra"),
+        outlet("fastag", "FASTag", "com.fastaguser", Cat.CAR_BIKE, "fastag", "toll plaza", "ihmcl", "netc$"),
         m("easemytrip", "EaseMyTrip", "com.easemytrip.android", Cat.TRAVEL, "easemytrip", "easy trip planners"),
         m("yatra", "Yatra", "com.yatra.base", Cat.TRAVEL, "yatra.com", "yatra online"),
         // Stays: Holiday (getting there stays Travel)
@@ -145,58 +325,60 @@ object MerchantRegistry {
         m("booking", "Booking.com", "com.booking", Cat.HOLIDAY, "booking.com"),
         m("airbnb", "Airbnb", "com.airbnb.android", Cat.HOLIDAY, "airbnb"),
         m("oyo", "OYO", "com.oyo.consumer", Cat.HOLIDAY, "oyo", "oravel"),
-        m("netflix", "Netflix", "com.netflix.mediaclient", Cat.RECHARGE, "netflix"),
-        m("spotify", "Spotify", "com.spotify.music", Cat.RECHARGE, "spotify"),
-        m("hotstar", "JioHotstar", "in.startv.hotstar", Cat.RECHARGE, "hotstar", "jiohotstar", "jiocinema", "jio cinema", "jiostar", "novi digital"),
-        m("sunnxt", "Sun NXT", "com.suntv.sunnxt", Cat.RECHARGE, "sunnxt", "sun nxt"),
-        m("altt", "ALTT", "com.balaji.alt", Cat.RECHARGE, "altt$", "altbalaji", "alt balaji"),
-        m("hoichoi", "hoichoi", "com.viewlift.hoichoi", Cat.RECHARGE, "hoichoi"),
-        m("aha", "aha", "ahaflix.tv", Cat.RECHARGE, "ahaflix", "aha video", "arha media"),
-        m("mxplayer", "MX Player", "com.mxtech.videoplayer.ad", Cat.RECHARGE, "mx player", "mxplayer"),
+        m("netflix", "Netflix", "com.netflix.mediaclient", Cat.SUBSCRIPTIONS, "netflix"),
+        m("spotify", "Spotify", "com.spotify.music", Cat.SUBSCRIPTIONS, "spotify"),
+        m("hotstar", "JioHotstar", "in.startv.hotstar", Cat.SUBSCRIPTIONS, "hotstar", "jiohotstar", "jiocinema", "jio cinema", "jiostar", "novi digital"),
+        m("sunnxt", "Sun NXT", "com.suntv.sunnxt", Cat.SUBSCRIPTIONS, "sunnxt", "sun nxt"),
+        m("altt", "ALTT", "com.balaji.alt", Cat.SUBSCRIPTIONS, "altt$", "altbalaji", "alt balaji"),
+        m("hoichoi", "hoichoi", "com.viewlift.hoichoi", Cat.SUBSCRIPTIONS, "hoichoi"),
+        m("aha", "aha", "ahaflix.tv", Cat.SUBSCRIPTIONS, "ahaflix", "aha video", "arha media"),
+        m("mxplayer", "MX Player", "com.mxtech.videoplayer.ad", Cat.SUBSCRIPTIONS, "mx player", "mxplayer"),
         m("tataplay", "Tata Play", "com.ryzmedia.tatasky", Cat.RECHARGE, "tata play", "tataplay", "tata sky", "tatasky"),
-        m("airtelxstream", "Airtel Xstream", "tv.accedo.airtel.wynk", Cat.RECHARGE, "xstream"),
-        m("applemusic", "Apple Music", "com.apple.android.music", Cat.RECHARGE, "apple music", "applemusic"),
-        m("pocketfm", "Pocket FM", "com.radio.pocketfm", Cat.RECHARGE, "pocket fm", "pocketfm"),
-        m("kukufm", "Kuku FM", "com.vlv.aravali", Cat.RECHARGE, "kuku fm", "kukufm", "kuku tv", "mebigo"),
+        m("airtelxstream", "Airtel Xstream", "tv.accedo.airtel.wynk", Cat.SUBSCRIPTIONS, "xstream"),
+        m("applemusic", "Apple Music", "com.apple.android.music", Cat.SUBSCRIPTIONS, "apple music", "applemusic"),
+        // iCloud, App Store and Apple TV+ charges ("APPLE MEDIA SERVICES"); a phone from an Apple shop is Apple Store
+        m("applemedia", "Apple", null, Cat.SUBSCRIPTIONS, "apple media", "apple.com/bill", "itunes"),
+        m("pocketfm", "Pocket FM", "com.radio.pocketfm", Cat.SUBSCRIPTIONS, "pocket fm", "pocketfm"),
+        m("kukufm", "Kuku FM", "com.vlv.aravali", Cat.SUBSCRIPTIONS, "kuku fm", "kukufm", "kuku tv", "mebigo"),
         // Live sport and regional streaming. Common words (stage, waves, chaupal) only match with the company name.
-        m("fancode", "FanCode", "com.dream11sportsguru", Cat.RECHARGE, "fancode", "sporta technologies"),
-        m("cricbuzz", "Cricbuzz", "com.cricbuzz.android", Cat.RECHARGE, "cricbuzz"),
-        m("waves", "WAVES", "com.prasarbharati.android", Cat.RECHARGE, "wavespb", "waves pb", "waves ott", "prasar bharati"),
-        m("shemaroome", "ShemarooMe", "com.saranyu.shemarooworld", Cat.RECHARGE, "shemaroo"),
-        m("stage", "STAGE", "in.stage", Cat.RECHARGE, "stage technologies", "stage ott", "stage.in"),
-        m("chaupal", "Chaupal", "tv.chaupal.android", Cat.RECHARGE, "chaupal ott", "chaupal tv", "chaupal.tv", "bosna digital"),
-        m("manoramamax", "manoramaMAX", "com.mmtv.manoramamax.android", Cat.RECHARGE, "manoramamax", "manorama max"),
-        m("lionsgate", "Lionsgate Play", "com.lionsgateplay.videoapp", Cat.RECHARGE, "lionsgate"),
-        m("ottplay", "OTTplay", "com.ht.ottplay", Cat.RECHARGE, "ottplay"),
-        m("sonyliv", "SonyLIV", "com.sonyliv", Cat.RECHARGE, "sonyliv", "sony liv", "culver max"),
-        m("zee5", "ZEE5", "com.graymatrix.did", Cat.RECHARGE, "zee5", "zee entertainment"),
-        m("jiosaavn", "JioSaavn", "com.jio.media.jiobeats", Cat.RECHARGE, "jiosaavn", "saavn"),
-        m("gaana", "Gaana", "com.gaana", Cat.RECHARGE, "gaana"),
-        m("youtubemusic", "YouTube Music", "com.google.android.apps.youtube.music", Cat.RECHARGE, "youtube music", "youtubemusic"),
-        m("youtube", "YouTube", "com.google.android.youtube", Cat.RECHARGE, "youtube", "google youtube"),
-        m("googleone", "Google One", "com.google.android.apps.subscriptions.red", Cat.RECHARGE, "google one", "googleone"),
+        m("fancode", "FanCode", "com.dream11sportsguru", Cat.SUBSCRIPTIONS, "fancode", "sporta technologies"),
+        m("cricbuzz", "Cricbuzz", "com.cricbuzz.android", Cat.SUBSCRIPTIONS, "cricbuzz"),
+        m("waves", "WAVES", "com.prasarbharati.android", Cat.SUBSCRIPTIONS, "wavespb", "waves pb", "waves ott", "prasar bharati"),
+        m("shemaroome", "ShemarooMe", "com.saranyu.shemarooworld", Cat.SUBSCRIPTIONS, "shemaroo"),
+        m("stage", "STAGE", "in.stage", Cat.SUBSCRIPTIONS, "stage technologies", "stage ott", "stage.in"),
+        m("chaupal", "Chaupal", "tv.chaupal.android", Cat.SUBSCRIPTIONS, "chaupal ott", "chaupal tv", "chaupal.tv", "bosna digital"),
+        m("manoramamax", "manoramaMAX", "com.mmtv.manoramamax.android", Cat.SUBSCRIPTIONS, "manoramamax", "manorama max"),
+        m("lionsgate", "Lionsgate Play", "com.lionsgateplay.videoapp", Cat.SUBSCRIPTIONS, "lionsgate"),
+        m("ottplay", "OTTplay", "com.ht.ottplay", Cat.SUBSCRIPTIONS, "ottplay"),
+        m("sonyliv", "SonyLIV", "com.sonyliv", Cat.SUBSCRIPTIONS, "sonyliv", "sony liv", "culver max"),
+        m("zee5", "ZEE5", "com.graymatrix.did", Cat.SUBSCRIPTIONS, "zee5", "zee entertainment"),
+        m("jiosaavn", "JioSaavn", "com.jio.media.jiobeats", Cat.SUBSCRIPTIONS, "jiosaavn", "saavn"),
+        m("gaana", "Gaana", "com.gaana", Cat.SUBSCRIPTIONS, "gaana"),
+        m("youtubemusic", "YouTube Music", "com.google.android.apps.youtube.music", Cat.SUBSCRIPTIONS, "youtube music", "youtubemusic"),
+        m("youtube", "YouTube", "com.google.android.youtube", Cat.SUBSCRIPTIONS, "youtube", "google youtube"),
+        m("googleone", "Google One", "com.google.android.apps.subscriptions.red", Cat.SUBSCRIPTIONS, "google one", "googleone"),
         // Books and stories (Play Books before Google Play, whose name it starts with)
         m("playbooks", "Google Play Books", "com.google.android.apps.books", Cat.EDUCATION, "google play books", "play books", "playbooks"),
-        m("storytel", "Storytel", "grit.storytel.app", Cat.RECHARGE, "storytel"),
-        m("pratilipi", "Pratilipi", "com.pratilipi.mobile.android", Cat.RECHARGE, "pratilipi", "nasadiya"),
-        m("googleplay", "Google Play", "com.android.vending", Cat.RECHARGE, "google play", "googleplay", "play store"),
-        m("linkedin", "LinkedIn", "com.linkedin.android", Cat.RECHARGE, "linkedin"),
-        m("microsoft", "Microsoft", "com.microsoft.office.officehubrow", Cat.RECHARGE, "microsoft"),
-        m("chatgpt", "ChatGPT", "com.openai.chatgpt", Cat.RECHARGE, "openai", "chatgpt"),
-        m("claude", "Claude", "com.anthropic.claude", Cat.RECHARGE, "anthropic", "claude.ai"),
-        m("perplexity", "Perplexity", "ai.perplexity.app.android", Cat.RECHARGE, "perplexity"),
-        m("canva", "Canva", "com.canva.editor", Cat.RECHARGE, "canva$"),
-        m("adobe", "Adobe", "com.adobe.reader", Cat.RECHARGE, "adobe"),
-        m("notion", "Notion", "notion.id", Cat.RECHARGE, "notion.so", "notion labs", "notion$"),
-        m("dropbox", "Dropbox", "com.dropbox.android", Cat.RECHARGE, "dropbox"),
-        m("zoom", "Zoom", "us.zoom.videomeetings", Cat.RECHARGE, "zoom.us", "zoom video", "zoom communications"),
-        m("grammarly", "Grammarly", "com.grammarly.android", Cat.RECHARGE, "grammarly"),
-        m("truecaller", "Truecaller", "com.truecaller", Cat.RECHARGE, "truecaller"),
-        m("tinder", "Tinder", "com.tinder", Cat.RECHARGE, "tinder"),
-        m("bumble", "Bumble", "com.bumble.app", Cat.RECHARGE, "bumble$"),
-        m("telegram", "Telegram", "org.telegram.messenger", Cat.RECHARGE, "telegram"),
-        m("discord", "Discord", "com.discord", Cat.RECHARGE, "discord"),
-        m("snapchat", "Snapchat", "com.snapchat.android", Cat.RECHARGE, "snapchat"),
+        m("storytel", "Storytel", "grit.storytel.app", Cat.SUBSCRIPTIONS, "storytel"),
+        m("pratilipi", "Pratilipi", "com.pratilipi.mobile.android", Cat.SUBSCRIPTIONS, "pratilipi", "nasadiya"),
+        m("googleplay", "Google Play", "com.android.vending", Cat.SUBSCRIPTIONS, "google play", "googleplay", "play store"),
+        m("linkedin", "LinkedIn", "com.linkedin.android", Cat.SUBSCRIPTIONS, "linkedin"),
+        m("microsoft", "Microsoft", "com.microsoft.office.officehubrow", Cat.SUBSCRIPTIONS, "microsoft"),
+        m("chatgpt", "ChatGPT", "com.openai.chatgpt", Cat.SUBSCRIPTIONS, "openai", "chatgpt"),
+        m("claude", "Claude", "com.anthropic.claude", Cat.SUBSCRIPTIONS, "anthropic", "claude.ai"),
+        m("perplexity", "Perplexity", "ai.perplexity.app.android", Cat.SUBSCRIPTIONS, "perplexity"),
+        m("canva", "Canva", "com.canva.editor", Cat.SUBSCRIPTIONS, "canva$"),
+        m("adobe", "Adobe", "com.adobe.reader", Cat.SUBSCRIPTIONS, "adobe"),
+        m("notion", "Notion", "notion.id", Cat.SUBSCRIPTIONS, "notion.so", "notion labs", "notion$"),
+        m("dropbox", "Dropbox", "com.dropbox.android", Cat.SUBSCRIPTIONS, "dropbox"),
+        m("zoom", "Zoom", "us.zoom.videomeetings", Cat.SUBSCRIPTIONS, "zoom.us", "zoom video", "zoom communications"),
+        m("grammarly", "Grammarly", "com.grammarly.android", Cat.SUBSCRIPTIONS, "grammarly"),
+        m("truecaller", "Truecaller", "com.truecaller", Cat.SUBSCRIPTIONS, "truecaller"),
+        m("tinder", "Tinder", "com.tinder", Cat.SUBSCRIPTIONS, "tinder"),
+        m("bumble", "Bumble", "com.bumble.app", Cat.SUBSCRIPTIONS, "bumble$"),
+        m("telegram", "Telegram", "org.telegram.messenger", Cat.SUBSCRIPTIONS, "telegram"),
+        m("discord", "Discord", "com.discord", Cat.SUBSCRIPTIONS, "discord"),
+        m("snapchat", "Snapchat", "com.snapchat.android", Cat.SUBSCRIPTIONS, "snapchat"),
         m("bookmyshow", "BookMyShow", "com.bt.bms", Cat.ENTERTAINMENT, "bookmyshow", "bigtree"),
         m("airtel", "Airtel", "com.myairtelapp", Cat.RECHARGE, "airtel"),
         m("vi", "Vi", "com.mventus.selfcare.activity", Cat.RECHARGE, "vodafone idea", "vodafone", "myvi"),
@@ -215,42 +397,42 @@ object MerchantRegistry {
         m("groww", "Groww", "com.nextbillion.groww", Cat.INVESTMENTS, "groww", "nextbillion"),
         m("zerodha", "Zerodha", "com.zerodha.kite3", Cat.INVESTMENTS, "zerodha"),
         m("indmoney", "INDmoney", "in.indwealth", Cat.INVESTMENTS, "indmoney", "indwealth"),
-        m("pharmeasy", "PharmEasy", "com.phonegap.rxpal", Cat.HEALTH, "pharmeasy"),
-        m("tata1mg", "Tata 1mg", "com.aranoah.healthkart.plus", Cat.HEALTH, "1mg", "healthkart"),
-        m("apollo", "Apollo 24|7", "com.apollo.patientapp", Cat.HEALTH, "apollo"),
-        m("netmeds", "Netmeds", "com.NetmedsMarketplace.Netmeds", Cat.HEALTH, "netmeds"),
-        m("practo", "Practo", "com.practo.fabric", Cat.HEALTH, "practo"),
+        m("pharmeasy", "PharmEasy", "com.phonegap.rxpal", Cat.MEDICINES, "pharmeasy"),
+        m("tata1mg", "Tata 1mg", "com.aranoah.healthkart.plus", Cat.MEDICINES, "1mg", "healthkart"),
+        m("apollo", "Apollo 24|7", "com.apollo.patientapp", Cat.MEDICINES, "apollo"),
+        m("netmeds", "Netmeds", "com.NetmedsMarketplace.Netmeds", Cat.MEDICINES, "netmeds"),
+        m("practo", "Practo", "com.practo.fabric", Cat.DOCTOR, "practo"),
         m("cultfit", "cult.fit", "fit.cure.android", Cat.SPORTS, "cult.fit", "cultfit", "curefit"),
-        m("healthifyme", "HealthifyMe", "com.healthifyme.basic", Cat.HEALTH, "healthifyme", "healthify"),
-        m("headspace", "Headspace", "com.getsomeheadspace.android", Cat.HEALTH, "headspace"),
-        m("calm", "Calm", "com.calm.android", Cat.HEALTH, "calm.com"),
+        m("healthifyme", "HealthifyMe", "com.healthifyme.basic", Cat.SPORTS, "healthifyme", "healthify"),
+        m("headspace", "Headspace", "com.getsomeheadspace.android", Cat.SUBSCRIPTIONS, "headspace"),
+        m("calm", "Calm", "com.calm.android", Cat.SUBSCRIPTIONS, "calm.com"),
         m("strava", "Strava", "com.strava", Cat.SPORTS, "strava"),
         // Insurance: aggregators, then insurers. Health insurers count as Health, the rest as Bills.
-        m("policybazaar", "Policybazaar", "com.policybazaar", Cat.BILLS, "policybazaar", "policy bazaar", "pb fintech", "pbfintech"),
-        m("policyx", "PolicyX", "com.policyx.policyx", Cat.BILLS, "policyx"),
-        m("digit", "Digit Insurance", "com.godigit.digit", Cat.BILLS, "go digit", "godigit", "digit insurance", "digit general", "digit life"),
-        m("acko", "ACKO", "com.acko.android", Cat.BILLS, "acko$", "acko general", "acko tech"),
-        m("lic", "LIC", "com.lic.liccustomer", Cat.BILLS, "lic of india", "licindia", "life insurance corp"),
-        m("hdfcergo", "HDFC ERGO", "com.hdfcergo.here", Cat.BILLS, "hdfc ergo", "hdfcergo"),
-        m("icicilombard", "ICICI Lombard", "icici.lombard.ghi", Cat.BILLS, "icici lombard", "icicilombard"),
-        m("tataaig", "Tata AIG", "com.tataaig.android", Cat.BILLS, "tata aig", "tataaig"),
-        m("tataaia", "Tata AIA Life", "com.tataaialife", Cat.BILLS, "tata aia", "tataaia"),
-        m("bajajgeneral", "Bajaj General Insurance", "com.ba.cp.controller", Cat.BILLS, "bajaj allianz general", "bajaj allianz gen", "bajaj general"),
-        m("hdfclife", "HDFC Life", "com.hdfcclife.activities", Cat.BILLS, "hdfc life", "hdfclife", "hdfc standard life"),
-        m("sbilife", "SBI Life", "com.sbilife.smartcare", Cat.BILLS, "sbi life", "sbilife"),
-        m("icicipru", "ICICI Prudential Life", "com.ipru.iciciprulife.customer.release", Cat.BILLS, "icici prudential life", "icici pru life", "iciciprulife"),
-        m("axismaxlife", "Axis Max Life", "com.maxlifeinsurance.www.twa", Cat.BILLS, "max life$", "max life insurance", "maxlifeinsurance"),
-        m("starhealth", "Star Health", "com.star.customer_app", Cat.HEALTH, "star health", "starhealth"),
-        m("nivabupa", "Niva Bupa", "com.maxbupa.healthapp", Cat.HEALTH, "niva bupa", "nivabupa", "max bupa", "maxbupa"),
-        m("carehealth", "Care Health Insurance", "com.religare.healthinsurance", Cat.HEALTH, "care health insurance", "care health ins", "religare health", "careinsurance"),
-        m("byjus", "BYJU'S", "com.byjus.thelearningapp", Cat.EDUCATION, "byju", "think and learn"),
+        m("policybazaar", "Policybazaar", "com.policybazaar", Cat.INSURANCE, "policybazaar", "policy bazaar", "pb fintech", "pbfintech"),
+        m("policyx", "PolicyX", "com.policyx.policyx", Cat.INSURANCE, "policyx"),
+        m("digit", "Digit Insurance", "com.godigit.digit", Cat.INSURANCE, "go digit", "godigit", "digit insurance", "digit general", "digit life"),
+        m("acko", "ACKO", "com.acko.android", Cat.INSURANCE, "acko$", "acko general", "acko tech"),
+        m("lic", "LIC", "com.lic.liccustomer", Cat.INSURANCE, "lic of india", "licindia", "life insurance corp"),
+        m("hdfcergo", "HDFC ERGO", "com.hdfcergo.here", Cat.INSURANCE, "hdfc ergo", "hdfcergo"),
+        m("icicilombard", "ICICI Lombard", "icici.lombard.ghi", Cat.INSURANCE, "icici lombard", "icicilombard"),
+        m("tataaig", "Tata AIG", "com.tataaig.android", Cat.INSURANCE, "tata aig", "tataaig"),
+        m("tataaia", "Tata AIA Life", "com.tataaialife", Cat.INSURANCE, "tata aia", "tataaia"),
+        m("bajajgeneral", "Bajaj General Insurance", "com.ba.cp.controller", Cat.INSURANCE, "bajaj allianz general", "bajaj allianz gen", "bajaj general"),
+        m("hdfclife", "HDFC Life", "com.hdfcclife.activities", Cat.INSURANCE, "hdfc life", "hdfclife", "hdfc standard life"),
+        m("sbilife", "SBI Life", "com.sbilife.smartcare", Cat.INSURANCE, "sbi life", "sbilife"),
+        m("icicipru", "ICICI Prudential Life", "com.ipru.iciciprulife.customer.release", Cat.INSURANCE, "icici prudential life", "icici pru life", "iciciprulife"),
+        m("axismaxlife", "Axis Max Life", "com.maxlifeinsurance.www.twa", Cat.INSURANCE, "max life$", "max life insurance", "maxlifeinsurance"),
+        m("starhealth", "Star Health", "com.star.customer_app", Cat.INSURANCE, "star health", "starhealth"),
+        m("nivabupa", "Niva Bupa", "com.maxbupa.healthapp", Cat.INSURANCE, "niva bupa", "nivabupa", "max bupa", "maxbupa"),
+        m("carehealth", "Care Health Insurance", "com.religare.healthinsurance", Cat.INSURANCE, "care health insurance", "care health ins", "religare health", "careinsurance"),
+        m("byjus", "BYJU'S", "com.byjus.thelearningapp", Cat.KIDS_EDUCATION, "byju", "think and learn"),
         m("unacademy", "Unacademy", "com.unacademyapp", Cat.EDUCATION, "unacademy", "sorting hat"),
         m("coursera", "Coursera", "org.coursera.android", Cat.EDUCATION, "coursera"),
         m("udemy", "Udemy", "com.udemy.android", Cat.EDUCATION, "udemy"),
         m("duolingo", "Duolingo", "com.duolingo", Cat.EDUCATION, "duolingo"),
-        m("dominos", "Domino's", "com.Dominos", Cat.FOOD, "dominos", "domino's", "jubilant foodworks"),
-        m("eatsure", "EatSure", "com.done.faasos", Cat.FOOD, "eatsure", "faasos", "rebel foods"),
-        m("urbancompany", "Urban Company", "com.urbanclap.urbanclap", Cat.BILLS, "urban company", "urbanclap"),
+        m("dominos", "Domino's", "com.Dominos", Cat.FOOD_DELIVERY, "dominos", "domino's", "jubilant foodworks"),
+        m("eatsure", "EatSure", "com.done.faasos", Cat.FOOD_DELIVERY, "eatsure", "faasos", "rebel foods"),
+        m("urbancompany", "Urban Company", "com.urbanclap.urbanclap", Cat.HOME_HELP, "urban company", "urbanclap"),
     )
 
     val packageNames: List<String> = all.mapNotNull { it.packageName }.distinct()
@@ -288,7 +470,7 @@ object MerchantRegistry {
  */
 object MixedStores {
     val keys: Set<String> = setOf(
-        "amazon", "flipkart", "shopsy", "jiomart", "tataneu", "dmart", "meesho", "snapdeal",
+        "amazon", "flipkart", "shopsy", "jiomart", "tataneu", "tatacliq", "dmart", "meesho", "snapdeal",
         "paytm", "payu", "razorpay", "billdesk", "ccavenue", "cashfree",
     )
 

@@ -65,9 +65,9 @@ class ReportsAndBackupFlowTest {
             waitForText("Biggest payments")
 
             // A category: a chip appears and the payments list narrows to it; Income & expenses is about everything, so it goes
-            tapTag("cat_food")
+            tapTag("cat_food_delivery")
             waitForTag("filter_category")
-            // The ring opens into Food's merchants, with a way back up
+            // The ring opens into Food Delivery's merchants, with a way back up
             waitForTag("ring_up")
             waitForTag("ring_merchant_swiggy")
             onAllNodesWithTag("income_expenses").assertCountEquals(0)

@@ -112,21 +112,46 @@ fun DrillRingCard(
     tiles: Boolean = false,
     /** Home, this month: the months behind it, as small bars on every row and a 6 months tab. */
     trends: RingTrends? = null,
+    /**
+     * Inside each group in [categories]: its categories, biggest first, and the group itself (same id) for payments not
+     * sorted yet. With [pickedGroup] set the ring shows that group's categories; [pickedCategory] is then one of them.
+     */
+    groups: Map<String, List<RingCategory>> = emptyMap(),
+    pickedGroup: String? = null,
+    /** The arrow at the top: up one level (the screen keeps track of where it is). Without it, [onCategory] toggles. */
+    onUp: (() -> Unit)? = null,
+    /** "Sort" on a group's payments not sorted yet. */
+    onSort: ((groupId: String) -> Unit)? = null,
 ) {
     val sc = LocalStatusColors.current
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val track = MaterialTheme.colorScheme.surfaceVariant
     val haptics = LocalHapticFeedback.current
     val total = categories.sumOf { it.paise }.coerceAtLeast(1)
-    val pick = pickedCategory?.let { id -> categories.firstOrNull { it.id == id } }
-    val merchantKey = pickedMerchant?.takeIf { pick != null }
+    // A group open: its categories are the ring; one of them may be open in turn
+    val groupKids = pickedGroup?.let { groups[it] }?.takeIf { it.isNotEmpty() }
+    val groupName = pickedGroup?.let { id -> categories.firstOrNull { it.id == id }?.name }
+    val inGroup = groupKids != null && pickedCategory == null
+    // The ring the opened slice came from: the month's, or the open group's
+    val parentList = if (groupKids != null && pickedCategory != null) groupKids else categories
+    val parentTotal = parentList.sumOf { it.paise }.coerceAtLeast(1)
+    val pick = when {
+        pickedCategory != null -> parentList.firstOrNull { it.id == pickedCategory }
+        groupKids != null -> categories.firstOrNull { it.id == pickedGroup }
+        else -> null
+    }
+    val merchantKey = pickedMerchant?.takeIf { pick != null && !inGroup }
     val pickColor = pick?.color ?: MaterialTheme.colorScheme.primary
-    val pickShare = (pick?.paise ?: 0L).toFloat() / total
+    val pickShare = (pick?.paise ?: 0L).toFloat() / (if (inGroup) total else parentTotal)
 
     // Level 0: categories. Levels 1 and 2: the opened category's merchants (2 has one of them picked).
-    val slices: List<Slice> = remember(pick, categories, merchants, merchantKey) {
+    // A group open is level 1 too, with its categories in their own colours.
+    val slices: List<Slice> = remember(pick, categories, merchants, merchantKey, inGroup, groupKids) {
         if (pick == null) {
             categories.map { Slice(it.id, it.name, it.paise, it.paise.toFloat() / total, it.color) }
+        } else if (inGroup && groupKids != null) {
+            val whole = groupKids.sumOf { it.paise }.coerceAtLeast(1)
+            groupKids.map { Slice(it.id, it.name, it.paise, it.paise.toFloat() / whole, it.color) }
         } else {
             // With a merchant picked, the category's own total may be narrowed to that merchant, so the
             // whole is rebuilt from its merchants: the ring stays the whole category
@@ -152,9 +177,9 @@ fun DrillRingCard(
     val active = hover ?: slices.indexOfFirst { it.key.isNotEmpty() && it.key == merchantKey }.takeIf { it >= 0 }
     val ring = growIn(sweepKey to (pick == null), 1000)
     val open = growIn(pick?.id, 1000)
-    val pickStart = remember(pick, categories) {
+    val pickStart = remember(pick, parentList) {
         var acc = 0f
-        for (c in categories) { if (c.id == pick?.id) break; acc += c.paise.toFloat() / total * 360f }
+        for (c in parentList) { if (c.id == pick?.id) break; acc += c.paise.toFloat() / parentTotal * 360f }
         -90f + acc
     }
     // Each slice eases out from the ring when touched or picked, and back when let go
@@ -164,14 +189,14 @@ fun DrillRingCard(
     fun tapSlice(i: Int) {
         val s = slices.getOrNull(i) ?: return
         when {
-            pick == null -> onCategory(s.key)
+            pick == null || inGroup -> onCategory(s.key)
             s.key.isNotEmpty() -> onMerchant(s.key)
         }
     }
 
     Panel(modifier = modifier.testTag("report_categories")) {
         AnimatedContent(
-            targetState = level to (pick?.name to slices.firstOrNull { it.key.isNotEmpty() && it.key == merchantKey }?.name),
+            targetState = (level + if (pickedGroup != null && !inGroup && level > 0) 1 else 0) to (pick?.name to slices.firstOrNull { it.key.isNotEmpty() && it.key == merchantKey }?.name),
             transitionSpec = {
                 val deeper = targetState.first > initialState.first
                 (fadeIn(tween(300)) + slideInHorizontally(tween(380, easing = SettleEasing)) { if (deeper) it / 3 else -it / 3 }) togetherWith fadeOut(tween(150))
@@ -191,21 +216,32 @@ fun DrillRingCard(
                     headerAction?.invoke()
                 }
             } else {
+                val upTo = if (merchantName != null) catName else if (inGroup || pickedGroup == null) null else groupName
                 Row(
                     Modifier.clip(RoundedCornerShape(12.dp))
-                        .clickable { if (lv == 2) pickedMerchant?.let(onMerchant) else pickedCategory?.let(onCategory) }
+                        .clickable {
+                            when {
+                                merchantName != null -> pickedMerchant?.let(onMerchant)
+                                onUp != null -> onUp()
+                                else -> pickedCategory?.let(onCategory)
+                            }
+                        }
                         .padding(end = 8.dp).testTag("ring_up"),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Ic.back, contentDescription = if (lv == 2) "Back to ${catName ?: "the category"}" else "Back to all categories",
+                        Ic.back, contentDescription = if (upTo != null) "Back to $upTo" else "Back to all categories",
                         tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp),
                     )
                     Spacer(Modifier.width(4.dp))
                     Column {
-                        Text((if (lv == 2) merchantName else catName) ?: "", style = MaterialTheme.typography.titleMedium)
+                        Text((merchantName ?: catName) ?: "", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            if (lv == 2) "$catName › payments · back to $catName" else "By merchant · tap one for its payments",
+                            when {
+                                merchantName != null -> "$catName › payments · back to $catName"
+                                inGroup -> "By category · tap one for its merchants"
+                                else -> "By merchant · tap one for its payments" + (groupName?.let { " · back to $it" } ?: "")
+                            },
                             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -221,7 +257,7 @@ fun DrillRingCard(
             // This month's categories first, then any others the months behind it had
             val order = remember(categories, catMap, trends.history) {
                 val now = categories.mapNotNull { catMap[it.id] }
-                now + catMap.values.filter { c -> c.countsAsSpend && !c.archived && now.none { it.id == c.id } }
+                now + catMap.values.filter { c -> c.countsAsSpend && !c.archived && c.parent == null && now.none { it.id == c.id } }
                     .sortedByDescending { trends.history.usual(it.id) }
             }
             SixMonthsView(trends.history, order, trends.monthBudget, sixPick) { sixPick = it }
@@ -285,7 +321,7 @@ fun DrillRingCard(
                         }
                     }
                     .semantics {
-                        contentDescription = (if (pick == null) "Spending by category: " else "${pick.name} by merchant: ") +
+                        contentDescription = (if (pick == null) "Spending by category: " else if (inGroup) "${pick.name} by category: " else "${pick.name} by merchant: ") +
                             slices.joinToString { "${it.name} ${(it.share * 100).toInt()}%" }
                     }
                     .testTag("category_donut"),
@@ -319,8 +355,10 @@ fun DrillRingCard(
                     val e = SettleEasing.transform((open / 0.45f).coerceIn(0f, 1f))
                     if (e < 1f) {
                         var start = -90f
-                        categories.forEach { c ->
-                            val sweep = c.paise.toFloat() / total * 360f
+                        val from = if (inGroup) categories else parentList
+                        val fromTotal = if (inGroup) total else parentTotal
+                        from.forEach { c ->
+                            val sweep = c.paise.toFloat() / fromTotal * 360f
                             if (c.id != pick.id) drawArc(c.color.copy(alpha = 0.9f * (1f - e)), start + 0.6f, (sweep - 1.2f).coerceAtLeast(0.5f), false, tl, arcSize, style = Stroke(stroke))
                             start += sweep
                         }
@@ -353,7 +391,7 @@ fun DrillRingCard(
                     FitText(
                         when {
                             focus != null -> "${(focus.share * 100).toInt()}%" + if (pick != null) " of ${pick.name}" else " of spending"
-                            pick != null -> "${(pickShare * 100).toInt()}% of spending"
+                            pick != null -> "${(pickShare * 100).toInt()}% of " + (if (!inGroup && groupName != null) groupName else "spending")
                             else -> "${slices.size} ${if (slices.size == 1) "category" else "categories"}"
                         },
                         style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.Center, maxLines = 2, minScale = 0.75f,
@@ -397,7 +435,39 @@ fun DrillRingCard(
                 if (h != null) RowTrendStrip(h, c.id, c.name, c.color, openTrend == c.id) { openTrend = if (openTrend == c.id) null else c.id }
                 if (h != null && openTrend == c.id) RowTrendOpen(h, c.id, c.color, trends?.budgets?.get(c.id))
             }
-            1 -> slices.forEachIndexed { i, s ->
+            1 -> if (inGroup && groupKids != null) groupKids.forEachIndexed { i, c ->
+                if (i > 0) Divider()
+                val unsorted = c.id == pickedGroup
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                        .clickable { onCategory(c.id) }
+                        .padding(vertical = 8.dp, horizontal = 6.dp)
+                        .testTag(if (unsorted) "group_unsorted_${c.id}" else "group_cat_${c.id}"),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (unsorted) NotSortedTile(36.dp) else CategoryTile(catMap[c.id], 36.dp)
+                    SideOrStacked(
+                        Modifier.weight(1f),
+                        start = {
+                            Column {
+                                Text(if (unsorted) "Not sorted yet" else c.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    c.note ?: "${(c.paise.toFloat() / (pick?.paise ?: 1L).coerceAtLeast(1L) * 100).toInt()}%",
+                                    style = MaterialTheme.typography.bodySmall, color = muted, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        },
+                        end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleSmall) },
+                    )
+                    if (unsorted && onSort != null) {
+                        androidx.compose.material3.FilledTonalButton(
+                            onClick = { onSort(c.id) },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
+                            modifier = Modifier.testTag("sort_${c.id}"),
+                        ) { Text("Sort") }
+                    } else Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
+                }
+            } else slices.forEachIndexed { i, s ->
                 if (i > 0) Divider()
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
@@ -442,5 +512,16 @@ fun DrillRingCard(
                 }
             }
         }
+    }
+}
+
+/** The tile for payments in a group that aren't sorted into one of its categories yet. */
+@Composable
+fun NotSortedTile(size: androidx.compose.ui.unit.Dp) {
+    Box(
+        Modifier.size(size).clip(RoundedCornerShape(size * 0.32f)).background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("?", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

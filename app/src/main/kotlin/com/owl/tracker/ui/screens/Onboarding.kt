@@ -182,6 +182,7 @@ private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.
             "Owl Tracker warns you early when you're spending faster than your budget allows. Change it any time.",
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        KidsQuestion(vm)
         Panel {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 MonthBudgetPicker(h, h?.now?.values?.sum() ?: 0L, paise, "budget_input") { paise = it }
@@ -201,6 +202,34 @@ private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.
         if (h != null) {
             androidx.compose.material3.TextButton(onClick = onByCategory, modifier = Modifier.fillMaxWidth().testTag("by_category")) {
                 Text("Set a budget for each category instead")
+            }
+        }
+    }
+}
+
+/**
+ * Asked once, while setting up: someone who pays for children gets the Kids group (school fees, tuition, classes);
+ * anyone else doesn't, and those payments go to Courses & Books or Sports & Fitness. Yes until answered.
+ */
+@Composable
+fun KidsQuestion(vm: AppViewModel, modifier: Modifier = Modifier) {
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val on = settings?.kids != false
+    Panel(modifier = modifier.testTag("kids_question")) {
+        Text("Do you pay for children's school, classes or activities?", style = MaterialTheme.typography.titleSmall)
+        Text(
+            if (on) "Yes: a Kids group keeps school fees, tuition and classes apart from yours."
+            else "No: no Kids categories. Turn them on any time in More › Categories.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Gap(10.dp)
+        androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            listOf(true to "Yes", false to "No").forEachIndexed { i, (v, label) ->
+                androidx.compose.material3.SegmentedButton(
+                    selected = on == v, onClick = { if (on != v) vm.setKids(v) },
+                    shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(i, 2),
+                    modifier = Modifier.testTag(if (v) "kids_yes" else "kids_no"),
+                ) { Text(label) }
             }
         }
     }

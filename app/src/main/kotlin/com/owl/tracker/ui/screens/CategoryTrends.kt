@@ -85,7 +85,7 @@ private const val SHOWN = 6
 @Composable
 fun CategoryTrendsCard(h: MonthHistory, cats: List<Category>, picked: String?, vm: AppViewModel) {
     val rows = remember(h, cats) {
-        cats.filter { it.countsAsSpend && !it.archived }
+        cats.filter { it.countsAsSpend && !it.archived && it.parent == null }
             .map { TrendRow(it, h.of(it.id), h.now[it.id] ?: 0L, h.usual(it.id)) }
             .filter { r -> r.now > 0 || Trends.known(r.months).any { it > 0 } }
             .sortedWith(compareByDescending<TrendRow> { it.usual }.thenByDescending { it.now })
@@ -197,7 +197,7 @@ fun movePhrase(m: Move, months: List<Long?>, labels: List<String>): String {
 fun WhatsChangingCard(h: MonthHistory, cats: List<Category>, budgets: Map<String, Long>, vm: AppViewModel, modifier: Modifier = Modifier) {
     val catMap = remember(cats) { cats.associateBy { it.id } }
     val moves = remember(h, catMap) {
-        Trends.biggestMoves(h.byCategory.filterKeys { id -> catMap[id]?.let { it.countsAsSpend && !it.archived } == true })
+        Trends.biggestMoves(h.byCategory.filterKeys { id -> catMap[id]?.let { it.countsAsSpend && !it.archived && it.parent == null } == true })
     }
     if (moves.isEmpty()) return
     var open by rememberSaveable { mutableStateOf<String?>(null) }

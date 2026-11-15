@@ -64,7 +64,7 @@ class BigTextTest {
         tapTag("import_all")
         tapTag("import_continue")
         screen("Budget setup, sliders") { waitForTag("save_budgets"); waitForTag("slider_row_food") }
-        screen("Budget setup, more categories") { tapTag("more_categories"); waitForTag("slider_row_education") }
+        screen("Budget setup, more categories") { tapTag("more_categories"); waitForTag("slider_row_health") }
         screen("Budget setup, one total") { tapTag("one_total"); waitForTag("budget_input") }
         tapTag("by_category")
         setMonthlyTotal("20000")
@@ -79,6 +79,13 @@ class BigTextTest {
         screen("Home, a row's months") { tapTag("where_bars_food"); waitForTag("where_bars_open_food") }
         screen("Home, 6 months") { tapTag("where_six_months"); waitForTag("six_months_caption"); tapTag("six_food") }
         screen("Home, back to this month") { tapTag("where_this_month"); waitForTag("where_bars_food") }
+        // A group opened: its categories (Croma in Phones & Electronics, Amazon not sorted yet), then one of them
+        screen("Home, a group") { tapTag("cat_shopping"); waitForTag("group_cat_electronics"); waitForTag("group_unsorted_shopping") }
+        screen("Home, a group's category") { tapTag("group_cat_electronics"); waitForTag("ring_merchant_croma") }
+        back()
+        screen("Sorting an Amazon order") { tapTag("sort_shopping"); waitForText("what was it?") }
+        back()
+        back()
         screen("Home, a week") { tapTag("mode_week"); waitForTag("week_card") }
         screen("Home, a day") { waitForTag("week_card"); tapTag("week_day_2026-10-18"); waitForTag("day_filter") }
         screen("Activity") { tapTag("tab_activity"); waitForTag("search") }
@@ -99,6 +106,8 @@ class BigTextTest {
         back()
         screen("More") { tapTag("tab_more"); waitForTag("open_rules") }
         screen("Settings") { tapText("Settings"); waitForTag("theme_choice") }
+        back()
+        screen("Categories") { tapText("Categories"); waitForTag("kids_switch") }
         back()
         screen("Reports") { waitForText("Reports"); tapText("Reports"); waitForTag("reports") }
         screen("Reports, income & expenses") { waitForTag("income_expenses") }

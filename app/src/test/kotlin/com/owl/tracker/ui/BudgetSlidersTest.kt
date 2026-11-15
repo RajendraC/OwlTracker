@@ -121,7 +121,7 @@ class BudgetSlidersTest {
             budgets().let { b ->
                 assertEquals(7_000_00L, b[Cat.FOOD])
                 assertEquals(25_000_00L, b[Cat.SHOPPING])
-                assertEquals(4_000_00L, b[Cat.HOLIDAY])
+                assertEquals(4_000_00L, b[Cat.FUN])
                 assertEquals(36_000_00L, b[Schema.OVERALL])
             }
 
@@ -130,15 +130,15 @@ class BudgetSlidersTest {
             tapTag("adjust_budgets")
             waitForTag("slider_summary")
             hasTextAt("slider_total", "₹36,000")
-            waitForText("This month: ₹1,228 spent · ₹5,772 left") // Swiggy and Zomato in October
-            typeInto("budget_amount_${Cat.HOLIDAY}", "")
+            waitForText("This month: ₹2,468 spent · ₹4,532 left") // Swiggy, Zomato and Zepto in October
+            typeInto("budget_amount_${Cat.FUN}", "")
             waitForText("No budget for this category")
             hasTextAt("slider_total", "₹32,000")
             tapTag("save_budgets")
             waitForText("Budgets saved · ₹32,000 a month")
             waitForText("Monthly budget")
             budgets().let { b ->
-                assertNull(b[Cat.HOLIDAY])
+                assertNull(b[Cat.FUN])
                 assertEquals(32_000_00L, b[Schema.OVERALL])
             }
         }
@@ -174,7 +174,7 @@ class BudgetSlidersTest {
             waitForTag("budget_slider_${Cat.FOOD}")
             waitForText("Save · ₹5,000 a month")
             waitForText("↑ Rising · Jul ₹4k, Aug ₹5k, Sep ₹6k")
-            hasTextAt("budget_sheet_now", "This month: ₹1,228 spent · ₹3,772 left")
+            hasTextAt("budget_sheet_now", "This month: ₹2,468 spent · ₹2,532 left")
             hasTextAt("budget_sheet_enough", "Enough in 2 of the last 3 months")
             // ₹100 a step: up to twice the usual month, ₹10,000, is 99 stops between the ends
             assertEquals(99, sliderValue("budget_slider_${Cat.FOOD}").steps)
@@ -192,7 +192,7 @@ class BudgetSlidersTest {
             tapTag("budget_quick_usual")
             waitForText("Save · ₹5,000 a month")
             tapTag("save_budget_sheet")
-            waitForText("Food & Dining budget: ₹5,000 a month")
+            waitForText("Food budget: ₹5,000 a month")
             assertEquals(5_000_00L, budgets()[Cat.FOOD])
             assertEquals(20_000_00L, budgets()[Schema.OVERALL]) // the month's budget is left as it was
 
@@ -200,7 +200,7 @@ class BudgetSlidersTest {
             tapTag("budget_row_${Cat.FOOD}")
             waitForText("Save · ₹5,000 a month")
             tapTag("remove_budget")
-            waitForText("Food & Dining budget removed")
+            waitForText("Food budget removed")
             assertNull(budgets()[Cat.FOOD])
 
             // The month's own budget: a slider too, up to ₹5,00,000 in ₹100 steps, and any amount typed past it
@@ -237,7 +237,7 @@ class BudgetSlidersTest {
             waitForTag("change_${Cat.FOOD}")
             waitForText("↑ Rising · 50% more than in Jul")
             assertEquals(0, onAllNodes(hasTestTag("change_${Cat.SHOPPING}")).fetchSemanticsNodes().size)
-            assertEquals(0, onAllNodes(hasTestTag("change_${Cat.HOLIDAY}")).fetchSemanticsNodes().size)
+            assertEquals(0, onAllNodes(hasTestTag("change_${Cat.FUN}")).fetchSemanticsNodes().size)
             // Tap it: its months with amounts, a note, and its budget's slider
             tapTag("change_${Cat.FOOD}")
             waitForTag("change_bars_${Cat.FOOD}")
@@ -246,7 +246,7 @@ class BudgetSlidersTest {
             waitForTag("budget_slider_${Cat.FOOD}")
             waitForText("Save · ₹5,000 a month")
             tapTag("save_budget_sheet")
-            waitForText("Food & Dining budget: ₹5,000 a month")
+            waitForText("Food budget: ₹5,000 a month")
             waitForText("Over its ₹5,000 budget in 1 of the last 3 months. Usual month now ₹5,000.")
             // All › opens Reports at the trend by category
             tapTag("changes_all")
@@ -272,9 +272,9 @@ class BudgetSlidersTest {
             tapTag("where_six_months")
             waitForTag("six_months_bars")
             hasTextAt("six_months_caption", "Within the ₹20,000 budget, the dashed line, in all 3 months. Tap a category to light it up.")
-            waitForTag("six_${Cat.HOLIDAY}")
+            waitForTag("six_${Cat.FUN}")
             tapTag("six_${Cat.FOOD}")
-            hasTextAt("six_months_caption", "Food & Dining: ↑ Rising · 50% more than in Jul. Its part of each bar is lit.")
+            hasTextAt("six_months_caption", "Food: ↑ Rising · 50% more than in Jul. Its part of each bar is lit.")
             // Kept for next time
             waitUntil(5_000) { runBlocking { app.container.repo.settings().whereSixMonths } }
             tapTag("where_this_month")
@@ -329,14 +329,14 @@ class CategoryBudgetWithoutHistoryTest {
             waitForTag("budget_hero")
             tapTag("tab_budgets")
 
-            // Food: ₹1,228 so far in October, rounded up to ₹1,300
+            // Food: ₹2,468 so far in October (Swiggy, Zomato, Zepto), rounded up to ₹2,500
             tapTag("set_budget_${Cat.FOOD}")
             waitForTag("budget_slider_${Cat.FOOD}")
-            waitForText("This month so far: ₹1,228")
-            waitForText("Save · ₹1,300 a month")
+            waitForText("This month so far: ₹2,468")
+            waitForText("Save · ₹2,500 a month")
             tapTag("save_budget_sheet")
-            waitForText("Food & Dining budget: ₹1,300 a month")
-            assertEquals(1_300_00L, runBlocking { app.container.repo.observeBudgets().first() }[Cat.FOOD])
+            waitForText("Food budget: ₹2,500 a month")
+            assertEquals(2_500_00L, runBlocking { app.container.repo.observeBudgets().first() }[Cat.FOOD])
         }
     }
 }
