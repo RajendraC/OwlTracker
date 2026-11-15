@@ -61,8 +61,14 @@ import com.owl.tracker.ui.theme.LocalStatusColors
 import kotlin.math.atan2
 import kotlin.math.hypot
 
-/** A category on the ring. [note] replaces the share under its name in the list; [warn] colours it. */
-data class RingCategory(val id: String, val name: String, val color: Color, val paise: Long, val note: String? = null, val warn: Boolean = false)
+/**
+ * A category on the ring. [note] replaces the share under its name in the list; [warn] colours it. [inside]: for a
+ * group, what it's made of ("Phones & Electronics ₹19k · Not sorted ₹5.2k"), shown under the note.
+ */
+data class RingCategory(
+    val id: String, val name: String, val color: Color, val paise: Long, val note: String? = null, val warn: Boolean = false,
+    val inside: String? = null,
+)
 
 /** A merchant inside the category opened. */
 data class RingMerchant(val key: String, val name: String, val paise: Long)
@@ -423,6 +429,10 @@ fun DrillRingCard(
                                 Text(
                                     c.note ?: "${(c.paise.toFloat() / total * 100).toInt()}%",
                                     style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted,
+                                )
+                                if (c.inside != null) Text(
+                                    c.inside, style = MaterialTheme.typography.bodySmall, color = muted, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(top = 2.dp).testTag("ring_inside_${c.id}"),
                                 )
                             }
                         },

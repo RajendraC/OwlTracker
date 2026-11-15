@@ -42,7 +42,9 @@ class CategoryGroupsFlowTest {
     fun aGroupOpensIntoItsCategoriesThenTheirMerchants() {
         setUpWithSms()
         with(compose) {
-            // Food: Swiggy and Zomato (Food Delivery) and Zepto (Groceries)
+            // Food: Swiggy and Zomato (Food Delivery) and Zepto (Groceries), named on its row
+            waitForTag("ring_inside_${Cat.FOOD}")
+            waitForText("Groceries ₹1.2k · Food Delivery ₹1.2k")
             tapTag("cat_food")
             waitForTag("ring_up")
             waitForTag("group_cat_food_delivery")

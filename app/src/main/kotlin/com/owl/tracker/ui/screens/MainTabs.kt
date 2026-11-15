@@ -380,6 +380,12 @@ fun HomeScreen(vm: AppViewModel) {
                                         else -> " · ${Money.formatInr(row.limit - row.spent)} left of ${Money.formatInr(row.limit)}"
                                     },
                                     warn = row != null && row.spent > row.limit,
+                                    // A group: what it's made of, biggest first
+                                    inside = scopeChildren[cs.category.id]?.takeIf { it.isNotEmpty() }?.let { list ->
+                                        list.take(3).joinToString(" · ") { ch ->
+                                            (if (ch.category.id == cs.category.id) "Not sorted" else ch.category.name) + " " + Money.formatShort(ch.paise)
+                                        } + if (list.size > 3) " · +${list.size - 3} more" else ""
+                                    },
                                 )
                             },
                             pickedCategory = openCat,
