@@ -31,6 +31,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -211,6 +214,7 @@ private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.
  * Asked once, while setting up: someone who pays for children gets the Kids group (school fees, tuition, classes);
  * anyone else doesn't, and those payments go to Courses & Books or Sports & Fitness. Yes until answered.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun KidsQuestion(vm: AppViewModel, modifier: Modifier = Modifier) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -223,11 +227,11 @@ fun KidsQuestion(vm: AppViewModel, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Gap(10.dp)
-        androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             listOf(true to "Yes", false to "No").forEachIndexed { i, (v, label) ->
-                androidx.compose.material3.SegmentedButton(
+                SegmentedButton(
                     selected = on == v, onClick = { if (on != v) vm.setKids(v) },
-                    shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(i, 2),
+                    shape = SegmentedButtonDefaults.itemShape(i, 2),
                     modifier = Modifier.testTag(if (v) "kids_yes" else "kids_no"),
                 ) { Text(label) }
             }
