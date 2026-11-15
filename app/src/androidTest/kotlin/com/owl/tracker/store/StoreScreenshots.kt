@@ -217,6 +217,22 @@ class StoreScreenshots {
                 Thread.sleep(800)
             }
 
+            // Health opened on Home: Medicines, Doctor & Tests and Sports & Fitness (cult.fit)
+            section("health_group") {
+                runCatching { scrollTo(hasTestTag("cat_${Cat.HEALTH}"), below = 220f) }
+                Thread.sleep(600)
+                shot("13e_home_health_row")
+                tapTag("cat_${Cat.HEALTH}")
+                Thread.sleep(1800)
+                runCatching { scrollTo(hasTestTag("ring_up"), below = 40f) }
+                shot("13f_home_health_group")
+                runCatching { scrollTo(hasTestTag("group_cat_${Cat.SPORTS}"), below = 200f) }
+                Thread.sleep(600)
+                shot("13g_home_health_list")
+                runCatching { activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() } }
+                Thread.sleep(800)
+            }
+
             // Where it went with the months behind it: a row's bars opened, then the 6 months tab (and back)
             section("where_trends") {
                 runCatching { scrollTo(hasTestTag("where_bars_${Cat.SHOPPING}"), below = 220f) }
@@ -421,6 +437,9 @@ class StoreScreenshots {
                 runCatching { scrollTo(hasTestTag("category_group_${Cat.KIDS}"), below = 40f) }
                 Thread.sleep(600)
                 shot("60b_categories_kids")
+                runCatching { scrollTo(hasTestTag("category_group_${Cat.HEALTH}"), below = 40f) }
+                Thread.sleep(600)
+                shot("60c_categories_health")
                 runCatching { scrollTo(hasTestTag("category_group_${Cat.SHOPPING}"), below = 40f) }
                 onAllNodes(hasContentDescription("Edit Food", substring = true))[0].performClick() // "Food & Dining"
                 Thread.sleep(1000)

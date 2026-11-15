@@ -78,11 +78,12 @@ object Cat {
 
     /** Doctor & Tests. */
     const val DOCTOR = "doctor"
+    /** Sports & Fitness: gyms, yoga, courts and turfs (in Health since 1.8.1; in Fun & Travel in 1.8.0). */
+    const val SPORTS = "sports"
 
     // Fun & Travel
     /** Movies & Events (was Entertainment). */
     const val ENTERTAINMENT = "entertainment"
-    const val SPORTS = "sports"
     const val TRAVEL = "travel"
 
     /** Trips and vacations: where you stay and the packages you book. Flights, trains and buses stay in [TRAVEL]. */
@@ -115,8 +116,8 @@ object CategoryGroups {
         Cat.FOOD to listOf(Cat.FOOD_DELIVERY, Cat.DINING, Cat.GROCERIES),
         Cat.KIDS to listOf(Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_CARE),
         Cat.BILLS to listOf(Cat.RENT, Cat.UTILITIES, Cat.RECHARGE, Cat.SUBSCRIPTIONS, Cat.HOME_HELP, Cat.INSURANCE),
-        Cat.HEALTH to listOf(Cat.MEDICINES, Cat.DOCTOR),
-        Cat.FUN to listOf(Cat.ENTERTAINMENT, Cat.SPORTS, Cat.TRAVEL, Cat.HOLIDAY, Cat.EDUCATION),
+        Cat.HEALTH to listOf(Cat.MEDICINES, Cat.DOCTOR, Cat.SPORTS),
+        Cat.FUN to listOf(Cat.ENTERTAINMENT, Cat.TRAVEL, Cat.HOLIDAY, Cat.EDUCATION),
         Cat.GIVING to listOf(Cat.TEMPLE, Cat.GIFTS),
     )
 

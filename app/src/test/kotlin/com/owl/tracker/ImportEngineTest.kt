@@ -408,7 +408,8 @@ class ImportEngineTest {
     fun sportsAndFitnessIsBuiltIn() = runBlocking {
         val c = testContainer(context)
         val ids = c.repo.categories().map { it.id }
-        assertEquals(ids.indexOf(Cat.ENTERTAINMENT) + 1, ids.indexOf(Cat.SPORTS))
+        assertEquals(ids.indexOf(Cat.DOCTOR) + 1, ids.indexOf(Cat.SPORTS))
+        assertEquals(Cat.HEALTH, c.repo.categories().first { it.id == Cat.SPORTS }.parent)
         assertEquals("Sports & Fitness", c.repo.categories().first { it.id == Cat.SPORTS }.name)
         assertTrue(c.repo.categories().first { it.id == Cat.SPORTS }.countsAsSpend)
     }

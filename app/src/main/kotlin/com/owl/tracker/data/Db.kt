@@ -78,6 +78,7 @@ class Db(
             if (oldVersion < 4) Schema.upgradeTo4(db)
             if (oldVersion < 5) Schema.upgradeTo5(db)
             if (oldVersion < 6) Schema.upgradeTo6(db)
+            if (oldVersion < 7) Schema.upgradeTo7(db)
         }
     }
 }
@@ -87,8 +88,9 @@ object Schema {
      * 1: first release. 2: Sports & Fitness category, and the merchants table (names and icons the user chose).
      * 3: pictures. 4: payments split across categories (transactions.parts). 5: Holiday.
      * 6: groups of categories (categories.parent): Shopping into Fashion & Clothing, Phones & Electronics and the rest.
+     * 7: Sports & Fitness in Health instead of Fun & Travel.
      */
-    const val VERSION = 6
+    const val VERSION = 7
     const val OVERALL = "__overall__"
 
     val CREATE = listOf(
@@ -208,9 +210,9 @@ object Schema {
         e(Cat.HEALTH, "Health", "health", 0xFF1F8F86),
         e(Cat.MEDICINES, "Medicines", "medicines", 0xFF2A9D8F, Cat.HEALTH),
         e(Cat.DOCTOR, "Doctor & Tests", "doctor", 0xFF4C9F70, Cat.HEALTH),
+        e(Cat.SPORTS, "Sports & Fitness", "sports", 0xFFC8423B, Cat.HEALTH),
         e(Cat.FUN, "Fun & Travel", "fun", 0xFF11A3B5),
         e(Cat.ENTERTAINMENT, "Movies & Events", "entertainment", 0xFFB04FA5, Cat.FUN),
-        e(Cat.SPORTS, "Sports & Fitness", "sports", 0xFFC8423B, Cat.FUN),
         e(Cat.TRAVEL, "Travel", "travel", 0xFF3A86C9, Cat.FUN),
         e(Cat.HOLIDAY, "Holiday", "holiday", 0xFF0E8FA0, Cat.FUN),
         e(Cat.EDUCATION, "Courses & Books", "education", 0xFF5866B8, Cat.FUN),
@@ -263,6 +265,25 @@ object Schema {
         }
         if (!has) db.execSQL("ALTER TABLE categories ADD COLUMN parent TEXT")
         placeBuiltIns(db)
+    }
+
+    /**
+     * Version 6 to 7 (1.8.1): Sports & Fitness moves from Fun & Travel to Health, unless the user had already put it
+     * somewhere else, or Health is archived. Built-in categories are then listed in the built-in order again (the user
+     * can't reorder them; their own categories stay after them). Budgets stay as they are: a budget is on a group.
+     */
+    fun upgradeTo7(db: SupportSQLiteDatabase) {
+        val healthShown = db.query("SELECT COUNT(*) FROM categories WHERE id = ? AND archived = 0", arrayOf<Any?>(Cat.HEALTH))
+            .use { c -> c.moveToFirst() && c.getInt(0) > 0 }
+        if (healthShown) {
+            db.execSQL(
+                "UPDATE categories SET parent = ? WHERE id = ? AND is_system = 1 AND parent = ?",
+                arrayOf<Any?>(Cat.HEALTH, Cat.SPORTS, Cat.FUN),
+            )
+        }
+        DEFAULT_CATEGORIES.forEachIndexed { i, s ->
+            db.execSQL("UPDATE categories SET sort_order = ? WHERE id = ? AND is_system = 1", arrayOf<Any?>(i, s.id))
+        }
     }
 
     /**

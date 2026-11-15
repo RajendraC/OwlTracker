@@ -123,4 +123,74 @@ class SchemaMigrationTest {
         assertEquals(Cat.GROCERIES, repo.transactions(0, Long.MAX_VALUE).single().categoryId)
         assertTrue(context.deleteDatabase(name))
     }
+
+    /** A version 6 database as 1.8.0 left it: Sports & Fitness in Fun & Travel (or where the user put it), a Fun & Travel budget. */
+    private fun createVersion6(sportsParent: String?, healthArchived: Boolean = false) {
+        context.deleteDatabase(name)
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name(name).callback(object : SupportSQLiteOpenHelper.Callback(6) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    Schema.CREATE.forEach { db.execSQL(it) }
+                    // 1.8.0's order: Sports & Fitness after Movies & Events, in Fun & Travel
+                    val old = Schema.DEFAULT_CATEGORIES.map { it.id }.toMutableList().apply {
+                        remove(Cat.SPORTS)
+                        add(indexOf(Cat.ENTERTAINMENT) + 1, Cat.SPORTS)
+                    }
+                    old.forEachIndexed { i, id ->
+                        val c = Schema.DEFAULT_CATEGORIES.first { it.id == id }
+                        val parent = if (id == Cat.SPORTS) sportsParent else c.parent
+                        val archived = healthArchived && (id == Cat.HEALTH || c.parent == Cat.HEALTH)
+                        db.execSQL(
+                            "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived, parent) VALUES(?,?,?,?,?,?,1,?,?)",
+                            arrayOf<Any?>(c.id, c.name, c.icon, c.color, c.kind.name, i, if (archived) 1 else 0, parent),
+                        )
+                    }
+                    db.execSQL("INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived, parent) VALUES('c_1','Badminton club','sports',4280000000,'EXPENSE',101,0,0,'fun')")
+                    db.execSQL("INSERT INTO budgets(category_key, limit_paise) VALUES('fun', 600000), ('health', 300000)")
+                    db.execSQL(
+                        "INSERT INTO transactions(amount_paise, direction, occurred_at, merchant_name, merchant_key, category_id, source) " +
+                            "VALUES(149900, 'DEBIT', ?, 'CULT.FIT', 'cultfit', 'sports', 'SMS')",
+                        arrayOf<Any?>(TEST_CLOCK.millis()),
+                    )
+                }
+
+                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+            }).build(),
+        )
+        helper.writableDatabase
+        helper.close()
+    }
+
+    @Test
+    fun version6MovesSportsAndFitnessIntoHealth() = runBlocking {
+        createVersion6(sportsParent = Cat.FUN)
+        val repo = Repository(Db(context, { FrameworkSQLiteOpenHelperFactory() }, name), TEST_CLOCK)
+        val cats = repo.categories()
+        assertEquals(Schema.DEFAULT_CATEGORIES.map { it.id } + "c_1", cats.map { it.id })
+        assertEquals(Cat.HEALTH, cats.first { it.id == Cat.SPORTS }.parent)
+        assertEquals(listOf(Cat.MEDICINES, Cat.DOCTOR, Cat.SPORTS), cats.filter { it.parent == Cat.HEALTH }.map { it.id })
+        assertEquals(listOf(Cat.ENTERTAINMENT, Cat.TRAVEL, Cat.HOLIDAY, Cat.EDUCATION, "c_1"), cats.filter { it.parent == Cat.FUN }.map { it.id })
+        // The payment stays in Sports & Fitness; budgets stay where they were
+        assertEquals(Cat.SPORTS, repo.transactions(0, Long.MAX_VALUE).single().categoryId)
+        assertEquals(mapOf(Cat.FUN to 6_000_00L, Cat.HEALTH to 3_000_00L), repo.observeBudgets().first())
+        assertTrue(context.deleteDatabase(name))
+    }
+
+    @Test
+    fun version6LeavesSportsWhereTheUserPutIt() = runBlocking {
+        createVersion6(sportsParent = null)
+        Repository(Db(context, { FrameworkSQLiteOpenHelperFactory() }, name), TEST_CLOCK).let { repo ->
+            assertEquals(null, repo.categories().first { it.id == Cat.SPORTS }.parent)
+        }
+        assertTrue(context.deleteDatabase(name))
+
+        // Health archived: Sports & Fitness stays in sight, in Fun & Travel
+        createVersion6(sportsParent = Cat.FUN, healthArchived = true)
+        Repository(Db(context, { FrameworkSQLiteOpenHelperFactory() }, name), TEST_CLOCK).let { repo ->
+            val sports = repo.categories().first { it.id == Cat.SPORTS }
+            assertEquals(Cat.FUN, sports.parent)
+            assertEquals(false, sports.archived)
+        }
+        assertTrue(context.deleteDatabase(name))
+    }
 }
