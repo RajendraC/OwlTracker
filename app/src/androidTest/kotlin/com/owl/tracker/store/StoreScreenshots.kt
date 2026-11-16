@@ -413,6 +413,9 @@ class StoreScreenshots {
             }
             section("reports") {
                 nav(Screen.MORE)
+                // Let the last message ("Rule deleted…") pass, so it doesn't cover the screen
+                runCatching { compose.waitUntil(15_000) { compose.onAllNodes(hasText("Rule deleted", substring = true)).fetchSemanticsNodes().isEmpty() } }
+                Thread.sleep(400)
                 shot("40_more")
                 nav(Screen.INSIGHTS)
                 waitForTag("report_summary", 20_000)
@@ -479,6 +482,8 @@ class StoreScreenshots {
                 shot("61_category_edit")
             }
             section("backup") {
+                // The category editor is still open from the step before: close it first
+                withVm { it.closeSheet(); it.dismissConfirm() }
                 withVm { it.openBackup() }
                 waitForTag("backup_screen", 20_000)
                 shot("70_backup")
@@ -487,6 +492,11 @@ class StoreScreenshots {
                 nav(Screen.SETTINGS)
                 waitForTag("theme_choice", 20_000)
                 shot("75_settings")
+                // Further down: the rescan, and erasing everything on this phone
+                runCatching { scrollTo(hasText("Reset Owl Tracker", substring = true), below = 300f) }
+                Thread.sleep(500)
+                shot("75b_settings_reset")
+                runCatching { scrollTo(hasTestTag("theme_choice"), below = 20f) }
                 // The opposite of the phone's own mode, then back to following the phone
                 val phoneDark = (app.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
                 val flip = if (phoneDark) "theme_light" else "theme_dark"
