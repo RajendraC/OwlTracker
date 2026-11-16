@@ -99,12 +99,14 @@ fun WhereSwitch(view: Int, hasSix: Boolean, hasPaid: Boolean, onView: (Int) -> U
                     .clickable(onClickLabel = "Show $label") { onView(v) }
                     .semantics { selected = on; role = androidx.compose.ui.semantics.Role.Tab }
                     .testTag(tag)
-                    .padding(horizontal = 4.dp),
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 FitText(
                     label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
-                    color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, minScale = 0.8f,
+                    color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, minScale = 0.7f,
+                    // Three tabs: with big text a label takes two lines, by whole words
+                    maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
         }
