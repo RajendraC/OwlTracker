@@ -328,7 +328,7 @@ def scene_paid(kit, t):
     return compose(kit, screen, "paid", ca, cdy, old="six", old_alpha=1 - ease(ramp(t, 0, 0.25)))
 
 
-PAID_ROW = (540, 1395)  # the first card's row in 15g_home_paid_by
+PAID_ROW = (540, 1110)  # the first card's row in 15g_home_paid_by
 
 
 def zoom_at(t, t_in, t_out, z):
