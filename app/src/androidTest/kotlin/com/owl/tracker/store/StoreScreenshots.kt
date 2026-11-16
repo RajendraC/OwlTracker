@@ -249,7 +249,8 @@ class StoreScreenshots {
                 scrollTo(hasTestTag("where_six_months"), below = 20f)
                 tapTag("where_six_months")
                 Thread.sleep(1000)
-                scrollTo(hasTestTag("where_six_months"), below = 20f)
+                // The tabs in sight, clear of the status bar
+                scrollTo(hasTestTag("where_six_months"), below = 130f, both = true)
                 shot("15e_home_six_months")
                 runCatching { tapTag("six_${Cat.SHOPPING}") }
                 Thread.sleep(700)
@@ -264,7 +265,7 @@ class StoreScreenshots {
                 scrollTo(hasTestTag("where_paid_by"), below = 20f)
                 tapTag("where_paid_by")
                 Thread.sleep(1000)
-                scrollTo(hasTestTag("where_paid_by"), below = 20f)
+                scrollTo(hasTestTag("where_paid_by"), below = 130f, both = true)
                 shot("15g_home_paid_by")
                 runCatching { scrollTo(hasTestTag("paid_row_1"), below = 160f) }
                 Thread.sleep(500)
@@ -785,7 +786,8 @@ class StoreScreenshots {
 
     /** Scrolls the screen's main list until the node matching [m] sits near the top. */
     /** Scrolls the longest list so the node sits [below] dp under the list's top edge. */
-    private fun scrollTo(m: SemanticsMatcher, below: Float = 12f) {
+    /** Scrolls the page so [m] sits [below] dp from the top; with [both], back up too when it's lower than that. */
+    private fun scrollTo(m: SemanticsMatcher, below: Float = 12f, both: Boolean = false) {
         compose.waitForNode(m, 15_000)
         runCatching { compose.onAllNodes(m)[0].performScrollTo() }
         compose.waitForIdle()
@@ -795,7 +797,7 @@ class StoreScreenshots {
             val nodes = lists.fetchSemanticsNodes()
             val i = nodes.indices.maxBy { nodes[it].boundsInRoot.height }
             val dy = target.top - nodes[i].boundsInRoot.top - below * compose.density.density
-            if (dy > 1f) lists[i].performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, dy) }
+            if (dy > 1f || (both && dy < -1f)) lists[i].performSemanticsAction(SemanticsActions.ScrollBy) { it(0f, dy) }
         }
         compose.waitForIdle()
     }
