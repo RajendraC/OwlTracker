@@ -140,9 +140,10 @@ fun PaidByView(vm: AppViewModel, accounts: List<PaidAccount>, opened: String?, c
                         Modifier.weight(1f),
                         start = {
                             Column {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Box(Modifier.size(10.dp).clip(CircleShape).background(colorOf(a, i)))
-                                    Text(a.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(Modifier.padding(top = 6.dp).size(10.dp).clip(CircleShape).background(colorOf(a, i)))
+                                    // Never cut: the digits at the end are what tells one card from another
+                                    Text(a.name, style = MaterialTheme.typography.titleSmall)
                                 }
                                 Text("${a.paise * 100 / total}% · ${a.note}", style = MaterialTheme.typography.bodySmall, color = muted)
                             }
