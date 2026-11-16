@@ -1,7 +1,7 @@
-"""Builds the Google Play promo video (1920x1080, 30 fps, about 40 s, no sound) from the raw
+"""Builds the Google Play promo video (1920x1080, 30 fps, about 55 s, no sound) from the raw
 emulator captures, using the same phone frame and Mango & Cocoa colours as the listing screenshots.
-The category pictures play on the phone: their frames are drawn from the app's own scene page
-(app/src/main/assets/scenes) in Chromium and laid over the captures (needs Playwright).
+It leads with privacy (no internet access, no account, data only on the phone and under the user's
+control), then the app: groups, six months, Paid by, budgets and reports.
 
     python3 tools/make_promo_video.py CAPTURES_DIR OUT.mp4            # full render
     python3 tools/make_promo_video.py CAPTURES_DIR OUT_DIR --preview 2.0,5.1,14.5
@@ -27,14 +27,18 @@ PHONE_CX, PHONE_TOP = 1335, 50  # phone centre x and top of the phone body
 CAP_X, CAP_W = 210, 700         # caption column
 
 CAPTIONS = {
-    "home": ("See where your money goes", "Every bank, card and UPI payment, sorted from your SMS."),
-    "pictures": ("Your month in pictures", "A bright picture for each category fills up with its budget."),
-    "where": ("Tap in to see where it went", "Each category's shops, then every payment."),
-    "privacy": ("Private by design", "No internet permission. Nothing ever leaves your phone."),
-    "reports": ("Reports you can tap into", "Trends, categories and merchants across 1 to 12 months."),
-    "budgets": ("Warned before you overspend", "Monthly budgets for everything, or one category at a time."),
-    "backup": ("Your data, your backups", "Save a file, add a password, restore it on a new phone."),
+    "internet": ("No internet access", "Owl Tracker has no internet permission, so your SMS and spending can't leave your phone."),
+    "account": ("No account, no user ID", "No sign-up, no email, no password. Open it and start."),
+    "phone": ("Stays on your phone, encrypted", "Stored only here, locked with a key in your phone's secure hardware."),
+    "control": ("You're in full control", "Back up to your own file, delete by bank or by date, or erase it all."),
+    "home": ("See where your money goes", "An expense tracker that fills itself in from your bank, card and UPI SMS."),
+    "groups": ("Tap a group to go deeper", "Shopping into Fashion, Phones & Electronics and more, then each shop."),
+    "six": ("Six months at a glance", "Every group's trend, against your budget."),
+    "paid": ("See what each card paid for", "Spending by card and bank account, by its last 4 digits."),
+    "budgets": ("Budgets by group", "Set one for Food, not for every snack. Warned before you overspend."),
+    "reports": ("Reports you can tap into", "Trends, categories and shops over 1 to 12 months."),
 }
+PROMISES = ["No internet access", "No account or user ID", "Your data stays on your phone"]
 
 
 def ease(t):  # ease-in-out cubic, t in [0, 1]
@@ -103,24 +107,19 @@ class PhoneBody:
 class Kit:
     """Everything drawn once: background, phone body, scaled screens, caption and title layers."""
 
+    SCREENS = ["01_welcome", "02_disclosure", "05_import_done", "70_backup", "75b_settings_reset", "10_home", "13b_home_group",
+               "15e_home_six_months", "15g_home_paid_by", "15i_home_paid_by_open", "20_budgets", "50_reports_top"]
+
     def __init__(self, src):
         self.bg = mango(W, H)
-        self.full = {}
-        for n in ["10_home", "10b_home_pictures", "13_home_drill", "01_welcome", "50_reports_top", "51_reports_categories",
-                  "20_budgets", "70_backup"]:
-            self.full[n] = np.asarray(tidy_status_bar(Image.open(os.path.join(src, n + ".png"))))
+        self.full = {n: np.asarray(tidy_status_bar(Image.open(os.path.join(src, n + ".png")))) for n in self.SCREENS}
         self.small = {n: self.scale(a) for n, a in self.full.items()}
         self._phone_body()
         self.captions = {k: self._caption(*v) for k, v in CAPTIONS.items()}
         self.brand = self._brand_mark()
-        self.title = self._title_card("Spending sorted from your bank & UPI SMS", "No internet permission. Nothing leaves your phone.")
-        self.outro = self._title_card("Your spending, sorted. Privately.", "No sign-up. No internet. Just your phone.")
-        # Reports: 51 is 50 scrolled down by exactly 1737 px (measured), so the two make one tall page.
-        a, b = self.full["50_reports_top"], self.full["51_reports_categories"]
-        self.d_scroll = 1737
-        self.tall = np.concatenate([a[:2358], b[2358 - self.d_scroll:2358]], axis=0)
-        self.bottom = a[2358:]
-        self.pictures = Pictures(self.full)
+        self.title = self._title_card("The expense tracker that reads your bank SMS")
+        self.outro = self._title_card("The private expense tracker.")
+        self.badges = [self._badge(t) for t in PROMISES]
 
     @staticmethod
     def scale(arr):
@@ -135,7 +134,7 @@ class Kit:
         return self.body_small.put(screen)
 
     def _caption(self, head, sub):
-        layer = Image.new("RGBA", (CAP_W + 40, 420), (0, 0, 0, 0))
+        layer = Image.new("RGBA", (CAP_W + 40, 460), (0, 0, 0, 0))
         d = ImageDraw.Draw(layer)
         hf, sf = font("ExtraBold", 66), font("SemiBold", 36)
         y = 0
@@ -155,111 +154,32 @@ class Kit:
         d.text((84, 14), "Owl Tracker", font=font("ExtraBold", 38), fill=INK)
         return layer
 
-    def _title_card(self, line1, line2):
+    def _title_card(self, line1):
+        """The icon, the name and one line; the three promises go under it as badges."""
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(layer)
-        layer.alpha_composite(play_icon(200), ((W - 200) // 2, 250))
-        tf, f1, f2 = font("ExtraBold", 104), font("Bold", 44), font("SemiBold", 32)
-        for text, f, y, c in (("Owl Tracker", tf, 486, INK), (line1, f1, 640, INK), (line2, f2, 712, COCOA_SOFT)):
-            d.text(((W - d.textlength(text, font=f)) / 2, y), text, font=f, fill=c)
+        layer.alpha_composite(play_icon(180), ((W - 180) // 2, 170))
+        tf, f1 = font("ExtraBold", 100), font("Bold", 46)
+        for text, f, y in (("Owl Tracker", tf, 382), (line1, f1, 526)):
+            d.text(((W - d.textlength(text, font=f)) / 2, y), text, font=f, fill=INK)
         return layer
 
-
-class Pictures:
-    """The category pictures, playing: frames drawn by the app's own scene page, at their place in each capture."""
-
-    # The demo month: Shopping ₹10,144 of ₹8,000, Food & Dining ₹7,256 of ₹9,000 (as the app hands them over)
-    SHOP = {"kind": "shopping", "name": "Shopping", "color": "#7552C4", "p": 10144 / 8000, "spent": 10144, "budget": 8000,
-            "sub": "of ₹8,000 budget", "chip": "₹2,144 over", "over": True, "order": [], "still": False}
-    FOOD = {"kind": "food", "name": "Food & Dining", "color": "#E65100", "p": 7256 / 9000, "spent": 7256, "budget": 9000,
-            "sub": "of ₹9,000 budget", "chip": "81% used", "over": False, "order": [], "still": False}
-    DP = 2.625  # the pixel_6 emulator's density
-    LAYOUT = {
-        # the pictures row: 16 dp in, 280 dp wide, 12 dp apart
-        "10b_home_pictures": [(SHOP, round(16 * DP), round(280 * DP)), (FOOD, round((16 + 280 + 12) * DP), round(280 * DP))],
-        # "Where it went" with Shopping open: 32 dp in on each side
-        "13_home_drill": [(SHOP, round(32 * DP), 1080 - 2 * round(32 * DP))],
-    }
-    SECONDS = 6.0
-
-    def __init__(self, full):
-        self.full = full
-        self.frames = {}   # capture -> list of (x, y, [RGBA frames])
-        jobs = [(cap, spec, x, w) for cap, items in self.LAYOUT.items() for spec, x, w in items]
-        drawn = self._draw([(spec, w) for _, spec, _, w in jobs])
-        for (cap, spec, x, w), frames in zip(jobs, drawn):
-            # pictures in one row share its height: found from the first, the one fully on screen
-            y = self.frames[cap][0][1] if cap in self.frames else self._find(full[cap], frames[-1], x)
-            print("placed", spec["name"], "in", cap, "at", (x, y), flush=True)
-            self.frames.setdefault(cap, []).append((x, y, frames))
-        self._cache = {}
-
-    def _draw(self, items):
-        import io
-        from playwright.sync_api import sync_playwright
-        page_url = "file://" + os.path.abspath(os.path.join(ROOT, "app", "src", "main", "assets", "scenes", "scene.html"))
-        out = []
-        with sync_playwright() as pw:
-            b = pw.chromium.launch()
-            for spec, w in items:
-                h = round(w * 180 / 320)
-                css_w = w / self.DP
-                pg = b.new_page(viewport={"width": round(css_w), "height": round(css_w * 180 / 320) + 2}, device_scale_factor=self.DP)
-                pg.goto(page_url)
-                pg.evaluate("s => { window.__scene = s; window.renderScene(s); }", spec)
-                pg.wait_for_function("document.querySelector('#stage svg') !== null")
-                pg.evaluate("document.getAnimations().forEach(a => a.pause())")
-                frames = []
-                mask = rounded_mask((w, h), round(22 * self.DP))
-                for i in range(round(self.SECONDS * FPS)):
-                    pg.evaluate("t => document.getAnimations().forEach(a => { a.currentTime = t; })", i * 1000 / FPS)
-                    im = Image.open(io.BytesIO(pg.locator("#stage").screenshot())).convert("RGBA").resize((w, h), Image.LANCZOS)
-                    im.putalpha(mask)
-                    frames.append(im)
-                pg.close()
-                out.append(frames)
-                print("drew", spec["name"], "at", w, "px:", len(frames), "frames", flush=True)
-            b.close()
-        return out
-
     @staticmethod
-    def _find(capture, last, x):
-        """Where the picture sits in the capture: the height at which its last frame matches best."""
-        k = 4
-        cap = Image.fromarray(capture).convert("L")
-        cap = cap.resize((cap.width // k, cap.height // k))
-        pic = Image.alpha_composite(Image.new("RGBA", last.size, (255, 248, 238, 255)), last).convert("L")
-        pic = pic.resize((pic.width // k, pic.height // k))
-        c, p = np.asarray(cap, dtype=np.float32), np.asarray(pic, dtype=np.float32)
-        x0 = x // k
-        w = min(p.shape[1], c.shape[1] - x0)
-        best = min(range(0, c.shape[0] - p.shape[0]), key=lambda y: float(np.abs(c[y:y + p.shape[0], x0:x0 + w] - p[:, :w]).mean()))
-        return best * k
-
-    def index(self, t):
-        return min(round(self.SECONDS * FPS) - 1, max(0, int(t * FPS)))
-
-    def full_screen(self, cap, t):
-        """The full-size capture with its pictures at time t (seconds since they started)."""
-        i = self.index(t)
-        im = Image.fromarray(self.full[cap]).convert("RGBA")
-        for x, y, frames in self.frames[cap]:
-            f = frames[i]
-            im.alpha_composite(f.crop((0, 0, min(f.width, im.width - x), f.height)), (x, y))
-        im.paste(Image.fromarray(self.full[cap][:63]), (0, 0))  # the status bar stays on top
-        return im.convert("RGB")
-
-    def screen(self, cap, t):
-        """The same, scaled for the phone."""
-        key = (cap, self.index(t))
-        if key not in self._cache:
-            self._cache[key] = Kit.scale(np.asarray(self.full_screen(cap, t)))
-        return self._cache[key]
-
-    def centre(self, cap, n=0):
-        """The middle of picture [n] in a capture, in capture px."""
-        x, y, frames = self.frames[cap][n]
-        return x + frames[0].width / 2, y + frames[0].height / 2
+    def _badge(text):
+        """A cream pill with a cocoa tick and [text]."""
+        f = font("ExtraBold", 38)
+        tw = ImageDraw.Draw(Image.new("RGBA", (1, 1))).textlength(text, font=f)
+        w, h, k = int(tw) + 130, 84, 3
+        big = Image.new("RGBA", (w * k, h * k), (0, 0, 0, 0))
+        d = ImageDraw.Draw(big)
+        d.rounded_rectangle([0, 0, w * k - 1, h * k - 1], radius=h * k // 2, fill=(255, 248, 238, 245), outline=COCOA + (60,), width=2 * k)
+        r = 26 * k
+        cx, cy = 48 * k, h * k // 2
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=COCOA + (255,))
+        d.line([(cx - 11 * k, cy + 1 * k), (cx - 3 * k, cy + 9 * k), (cx + 12 * k, cy - 9 * k)], fill=(255, 210, 110, 255), width=6 * k, joint="curve")
+        im = big.resize((w, h), Image.LANCZOS)
+        ImageDraw.Draw(im).text((88, (h - f.size) / 2 - 4), text, font=f, fill=INK)
+        return im
 
 
 def with_alpha(layer, a):
@@ -335,21 +255,50 @@ def caption_in(t, start=0.28, length=0.45):
     return ease_out(p), 22 * (1 - ease_out(p))
 
 
+def badges_layer(kit, t, starts, y0=650):
+    """The three promises, side by side under the title, each rising in from its start time."""
+    gap = 26
+    total = sum(b.width for b in kit.badges) + gap * (len(kit.badges) - 1)
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    x = (W - total) // 2
+    for b, s0 in zip(kit.badges, starts):
+        a = ease_out(ramp(t, s0, s0 + 0.45))
+        if a > 0:
+            layer.alpha_composite(with_alpha(b, a), (x, int(y0 + 30 * (1 - a))))
+        x += b.width + gap
+    return layer
+
+
 def scene_intro(kit, t):
     a = ease_out(ramp(t, 0.1, 0.9))
     frame = kit.bg.copy()
-    layer = with_alpha(kit.title, a)
-    frame.alpha_composite(layer, (0, int(26 * (1 - a))))
+    frame.alpha_composite(with_alpha(kit.title, a), (0, int(26 * (1 - a))))
+    frame.alpha_composite(badges_layer(kit, t, [1.1, 1.6, 2.1]))
     return frame
 
 
-def scene_home(kit, t):
+def scene_internet(kit, t):
+    """The welcome screen comes up; the camera moves in on "No internet permission"."""
     out = 1 - ease(ramp(t, 0.0, 0.35))
-    extra = with_alpha(kit.title, out) if out > 0 else None
+    extra = None
+    if out > 0:
+        extra = with_alpha(kit.title, out)
+        extra.alpha_composite(with_alpha(badges_layer(kit, 9, [0, 0, 0]), out))
     slide = ease_out(ramp(t, 0.2, 1.1))
     ca, cdy = caption_in(t, 0.6, 0.5)
-    return compose(kit, kit.small["10_home"], "home", ca, cdy, phone_dy=(1 - slide) * 1100,
-                   brand_alpha=ease(ramp(t, 0.6, 1.1)), extra=extra)
+    z = zoom_at(t, 1.5, 4.2, 1.6)
+    full = Image.fromarray(kit.full["01_welcome"]) if z > 1.001 else None
+    return compose(kit, kit.small["01_welcome"], "internet", ca, cdy, phone_dy=(1 - slide) * 1100,
+                   brand_alpha=ease(ramp(t, 0.6, 1.1)), extra=extra, zoom=z, focus=(540, 1040), full=full)
+
+
+def scene_account(kit, t):
+    """No sign-in: a tap on Get started goes straight in."""
+    before = ripple(kit.small["01_welcome"], 540, 1639, ramp(t, 0.9, 1.4))
+    p = ramp(t, 1.25, 1.75)
+    ca, cdy = caption_in(t)
+    return compose(kit, crossfade(before, kit.small["02_disclosure"], p), "account", ca, cdy, old="internet",
+                   old_alpha=1 - ease(ramp(t, 0, 0.25)))
 
 
 def switch(kit, t, prev_screen, screen, prev_cap, cap):
@@ -358,19 +307,28 @@ def switch(kit, t, prev_screen, screen, prev_cap, cap):
     return compose(kit, crossfade(prev_screen, screen, p), cap, ca, cdy, old=prev_cap, old_alpha=1 - ease(ramp(t, 0, 0.25)))
 
 
-def reports_at(kit, s):
-    s = int(round(s))
-    a = kit.full["50_reports_top"]
-    frame = np.concatenate([a[:63], kit.tall[63 + s:63 + s + 2295], kit.bottom], axis=0)
-    return Kit.scale(frame)
-
-
-def scene_reports(kit, t):
+def scene_control(kit, t):
+    """Backup & restore, then Settings' delete and reset."""
+    s = kit.small
+    screen = crossfade(s["70_backup"], s["75b_settings_reset"], ramp(t, 2.7, 3.2))
     if t < 0.5:
-        return switch(kit, t, kit.small["01_welcome"], kit.small["50_reports_top"], "privacy", "reports")
-    s = kit.d_scroll * ease(ramp(t, 2.1, 3.7))
-    screen = kit.small["50_reports_top"] if s < 0.5 else kit.small["51_reports_categories"] if s > kit.d_scroll - 0.5 else reports_at(kit, s)
-    return compose(kit, screen, "reports")
+        screen = crossfade(s["05_import_done"], s["70_backup"], ramp(t, 0.0, 0.5))
+    ca, cdy = caption_in(t)
+    return compose(kit, screen, "control", ca, cdy, old="phone", old_alpha=1 - ease(ramp(t, 0, 0.25)))
+
+
+def scene_paid(kit, t):
+    """Paid by, then the first card opened into what it was used for."""
+    s = kit.small
+    if t < 0.5:
+        screen = crossfade(s["15e_home_six_months"], s["15g_home_paid_by"], ramp(t, 0.0, 0.5))
+    else:
+        screen = crossfade(ripple(s["15g_home_paid_by"], PAID_ROW[0], PAID_ROW[1], ramp(t, 2.1, 2.6)), s["15i_home_paid_by_open"], ramp(t, 2.45, 2.95))
+    ca, cdy = caption_in(t)
+    return compose(kit, screen, "paid", ca, cdy, old="six", old_alpha=1 - ease(ramp(t, 0, 0.25)))
+
+
+PAID_ROW = (540, 1395)  # the first card's row in 15g_home_paid_by
 
 
 def zoom_at(t, t_in, t_out, z):
@@ -378,55 +336,31 @@ def zoom_at(t, t_in, t_out, z):
     return 1 + (z - 1) * ease(ramp(t, t_in, t_in + 0.8)) * (1 - ease(ramp(t, t_out, t_out + 0.7)))
 
 
-def scene_pictures(kit, t):
-    """The pictures row: the two cards play as the screen comes in, and the camera moves in on them."""
-    pics = kit.pictures
-    live = pics.screen("10b_home_pictures", t - 0.2)
-    p = ramp(t, 0.0, 0.5)
-    ca, cdy = caption_in(t)
-    z = zoom_at(t, 0.9, 4.3, 1.55)
-    cx, cy = pics.centre("10b_home_pictures")
-    full = pics.full_screen("10b_home_pictures", t - 0.2) if z > 1.001 else None
-    return compose(kit, crossfade(kit.small["10_home"], live, p), "pictures", ca, cdy, old="home",
-                   old_alpha=1 - ease(ramp(t, 0, 0.25)), zoom=z, focus=(cx + 160, cy), full=full)
-
-
-def scene_where(kit, t):
-    """A tap on the Shopping picture opens it in "Where it went", where it plays again, big."""
-    pics = kit.pictures
-    before = ripple(pics.screen("10b_home_pictures", 5.0 + t), 300, 900, ramp(t, 0.0, 0.5))
-    live = pics.screen("13_home_drill", t - 0.45)
-    p = ramp(t, 0.35, 0.8)
-    ca, cdy = caption_in(t)
-    z = zoom_at(t, 1.0, 4.5, ZMAX)
-    full = pics.full_screen("13_home_drill", t - 0.45) if z > 1.001 else None
-    return compose(kit, crossfade(before, live, p), "where", ca, cdy, old="pictures", old_alpha=1 - ease(ramp(t, 0, 0.25)),
-                   zoom=z, focus=pics.centre("13_home_drill"), full=full)
-
-
 def scene_outro(kit, t):
     out = ease_in(ramp(t, 0.0, 0.7))
     fade = 1 - ease(ramp(t, 0.0, 0.4))
     a = ease_out(ramp(t, 0.5, 1.3))
-    title = with_alpha(kit.outro, a)
-    frame = compose(kit, kit.small["70_backup"], "backup", fade, 0, phone_dy=out * 1150, brand_alpha=fade) if t < 0.75 else kit.bg.copy()
-    frame.alpha_composite(title, (0, int(26 * (1 - a))))
+    frame = compose(kit, kit.small["50_reports_top"], "reports", fade, 0, phone_dy=out * 1150, brand_alpha=fade) if t < 0.75 else kit.bg.copy()
+    frame.alpha_composite(with_alpha(kit.outro, a), (0, int(26 * (1 - a))))
+    frame.alpha_composite(badges_layer(kit, t, [1.3, 1.7, 2.1]))
     return frame
 
 
 def scenes(kit):
     s = kit.small
-    where_end = kit.pictures.screen("13_home_drill", 5.5)
     return [
-        ("01-intro", 3.2, lambda t: scene_intro(kit, t)),
-        ("02-home", 4.4, lambda t: scene_home(kit, t)),
-        ("03-pictures", 5.2, lambda t: scene_pictures(kit, t)),
-        ("04-where", 5.4, lambda t: scene_where(kit, t)),
-        ("05-privacy", 4.0, lambda t: switch(kit, t, where_end, s["01_welcome"], "where", "privacy")),
-        ("06-reports", 5.4, lambda t: scene_reports(kit, t)),
-        ("07-budgets", 4.0, lambda t: switch(kit, t, s["51_reports_categories"], s["20_budgets"], "reports", "budgets")),
-        ("08-backup", 4.0, lambda t: switch(kit, t, s["20_budgets"], s["70_backup"], "budgets", "backup")),
-        ("09-outro", 4.0, lambda t: scene_outro(kit, t)),
+        ("01-intro", 4.2, lambda t: scene_intro(kit, t)),
+        ("02-internet", 5.4, lambda t: scene_internet(kit, t)),
+        ("03-account", 4.6, lambda t: scene_account(kit, t)),
+        ("04-phone", 4.4, lambda t: switch(kit, t, s["02_disclosure"], s["05_import_done"], "account", "phone")),
+        ("05-control", 5.6, lambda t: scene_control(kit, t)),
+        ("06-home", 4.2, lambda t: switch(kit, t, s["75b_settings_reset"], s["10_home"], "control", "home")),
+        ("07-groups", 4.4, lambda t: switch(kit, t, s["10_home"], s["13b_home_group"], "home", "groups")),
+        ("08-six", 4.2, lambda t: switch(kit, t, s["13b_home_group"], s["15e_home_six_months"], "groups", "six")),
+        ("09-paid", 5.4, lambda t: scene_paid(kit, t)),
+        ("10-budgets", 4.0, lambda t: switch(kit, t, s["15i_home_paid_by_open"], s["20_budgets"], "paid", "budgets")),
+        ("11-reports", 4.0, lambda t: switch(kit, t, s["20_budgets"], s["50_reports_top"], "budgets", "reports")),
+        ("12-outro", 5.0, lambda t: scene_outro(kit, t)),
     ]
 
 

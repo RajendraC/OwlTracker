@@ -39,18 +39,18 @@ def font(weight, size):
 
 # Phone screenshots, in listing order: capture file, headline, line under it.
 SCREENS = [
-    ("10_home", "See where your money goes", "Every bank, card and UPI payment, sorted from your SMS"),
-    ("10b_home_pictures", "Your month in pictures", "A bright picture for each category fills up with its budget"),
-    ("13_home_drill", "Tap in to see where it went", "Each category's shops, then every payment"),
-    ("01_welcome", "Private by design", "No internet permission. Nothing ever leaves your phone."),
-    ("20_budgets", "Warned before you overspend", "Monthly budgets for everything, or one category at a time"),
-    ("50_reports_top", "Reports you can tap into", "Trends, categories and merchants across 1 to 12 months"),
-    ("03_import_filters", "You choose what's imported", "Pick the banks and how far back. Offers and OTPs are skipped."),
-    ("70_backup", "Your data, your backups", "Save a file, add a password, restore it on a new phone"),
+    ("10_home", "Your expense tracker", "Bank, card and UPI spending, sorted from your SMS"),
+    ("01_welcome", "No internet. No account.", "Your data stays on your phone, and you're in control"),
+    ("13b_home_group", "Tap a group to go deeper", "Shopping into Fashion, Phones & Electronics and more"),
+    ("15g_home_paid_by", "What each card paid for", "Spending by card and bank account, by its last 4 digits"),
+    ("15e_home_six_months", "Six months at a glance", "Every group's trend, against your budget"),
+    ("20_budgets", "Budgets by group", "Warned before you overspend"),
+    ("50_reports_top", "Reports you can tap into", "Trends, categories and shops over 1 to 12 months"),
+    ("70_backup", "Your data, your control", "Back up to your own file. Delete or erase any time."),
 ]
 
 
-NAMES = ["home", "pictures", "where-it-went", "privacy", "budgets", "reports", "import", "backup"]
+NAMES = ["home", "privacy", "groups", "paid-by", "six-months", "budgets", "reports", "backup"]
 
 
 # ---------- drawing helpers ----------
@@ -239,10 +239,10 @@ def feature_graphic(home_raw, dest):
     im.alpha_composite(play_icon(tile), (tx, ty))
     d.text((tx + tile + 22 * k, ty + 16 * k), "Owl Tracker", font=font("ExtraBold", 46 * k), fill=INK)
     y = ty + tile + 34 * k
-    for ln in ["Spending sorted from", "your bank & UPI SMS"]:
+    for ln in ["Expense tracker for", "your bank & UPI SMS"]:
         d.text((tx, y), ln, font=font("Bold", 31 * k), fill=INK)
         y += 42 * k
-    d.text((tx, y + 14 * k), "On your phone only. No internet.", font=font("SemiBold", 20 * k), fill=COCOA_SOFT)
+    d.text((tx, y + 14 * k), "No internet. No account. On your phone only.", font=font("SemiBold", 20 * k), fill=COCOA_SOFT)
     # the phone, right, rising from the bottom edge
     ph, pad = phone(home_raw, 250 * k)
     im.alpha_composite(ph, (690 * k - pad, 56 * k - pad))

@@ -413,8 +413,12 @@ class StoreScreenshots {
             }
             section("reports") {
                 nav(Screen.MORE)
-                // Let the last message ("Rule deleted…") pass, so it doesn't cover the screen
-                runCatching { compose.waitUntil(15_000) { compose.onAllNodes(hasText("Rule deleted", substring = true)).fetchSemanticsNodes().isEmpty() } }
+                // Let the last messages ("Rule deleted…", "Split: …") pass, so they don't cover More or Reports
+                runCatching {
+                    compose.waitUntil(20_000) {
+                        listOf("Rule deleted", "Split:").all { compose.onAllNodes(hasText(it, substring = true)).fetchSemanticsNodes().isEmpty() }
+                    }
+                }
                 Thread.sleep(400)
                 shot("40_more")
                 nav(Screen.INSIGHTS)

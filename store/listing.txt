@@ -1,57 +1,57 @@
-APP NAME (11/30)
-Owl Tracker
+APP NAME (28/30)
+Owl Tracker: Expense Tracker
 
-SHORT DESCRIPTION (74/80)
-Spending from your bank & UPI SMS: budgets, reports, backups. No internet.
+SHORT DESCRIPTION (76/80)
+Offline expense tracker from bank & UPI SMS. No internet, no account needed.
 
-FULL DESCRIPTION (3739/4000)
-Owl Tracker reads the bank, card and UPI SMS alerts already on your phone and turns them into a clear monthly spending dashboard with budgets and reports. Reading these SMS is the app's core feature, and everything happens on your phone: Owl Tracker has no internet permission.
-
-HOW IT WORKS
-• Allow SMS access once. Owl Tracker finds debit and credit alerts from banks, cards, wallets and UPI apps.
-• Choose what to import: pick the banks and cards, how far back to go (3, 6 or 12 months), money in or out, and words to skip.
-• Review the list and untick anything that isn't a real expense, then import.
-• New alerts are picked up automatically when you open the app and every few hours.
-
-SEE WHERE YOUR MONEY GOES
-• Monthly dashboard with spending by category and your most recent transactions.
-• This month in pictures: a bright picture for each category, a basket of vegetables, a road of cars and autos, a suitcase of stickers, that fills up with how much of its budget is used.
-• Real app icons for about 200 popular Indian apps, from Swiggy, Tanishq, FanCode and your petrol pump's brand to PhonePe, FASTag and your bank's own app, when they are installed. Shops with no app get an icon for their kind of shop: jeweller, clothing, books, pharmacy, opticals and more. Or use any picture as a merchant's icon.
-• Search your activity by merchant, category or note.
-
-REPORTS YOU CAN TAP THROUGH
-• Look at this month, or the last 3, 6 or 12 months, compared with the period before.
-• Spent, received and net, a day-by-day or month-by-month chart, a category breakdown, top merchants and your spending by day of the week.
-• Tap a day, month, category, merchant or weekday and every chart narrows to it, with the matching payments listed.
-• Short highlights, such as your biggest category and your busiest day.
-
-BUDGETS THAT WARN YOU EARLY
-• Set a monthly budget, overall and per category.
-• A pace marker shows whether you are spending faster than the month allows.
-• Clear over-budget alerts with the amount over and where it went.
-• Start your budget month on your salary day if you like.
-
-YOUR CATEGORIES, YOUR RULES
-• 19 ready-made categories; add, rename, recolour or archive your own.
-• Fix a category once and Owl Tracker can remember it for that merchant.
-• Add cash expenses yourself.
-
-BACK UP AND MOVE TO A NEW PHONE
-• Save a password-protected backup file, or share it straight to your new phone, and restore it there in a few taps.
-• Backups never contain SMS text, account or card numbers, UPI IDs or bank references.
+FULL DESCRIPTION (3704/4000)
+Owl Tracker is an expense tracker and budget planner that turns the bank, card and UPI SMS already on your phone into a clear picture of your spending. It works completely offline: the app has no internet permission, needs no account or user ID, and keeps your data only on your phone, where you are always in control of it.
 
 PRIVATE BY DESIGN
-• No internet permission: Owl Tracker never sends your messages or spending anywhere. A backup leaves your phone only if you send it yourself.
+• No internet access: Owl Tracker has no internet permission, so your messages and spending can never leave your phone.
+• No account and no user ID: no sign-up, no email, no password. Open the app and start.
+• Your data stays on your phone, in an encrypted database (AES-256) whose key is held by Android Keystore.
+• You are in full control: back up to your own file, delete single expenses, delete by bank or by age, or erase everything at any time.
 • OTPs, promotions and messages from people are skipped and never stored.
-• Data is kept in an encrypted database (AES-256) whose key is protected by Android Keystore.
-• Optional fingerprint or screen-lock app lock, and screenshot blocking.
-• No account, no ads, no analytics.
-• Delete single transactions, delete by bank or by age, or reset everything at any time.
+• Optional fingerprint or screen-lock app lock, and screenshot blocking. No ads, no analytics.
+
+AN EXPENSE TRACKER THAT FILLS ITSELF IN
+• Allow SMS access once. Owl Tracker finds debit and credit alerts from banks, cards, wallets and UPI apps.
+• Choose what to import: the banks and cards, how far back (3, 6 or 12 months), money in or out, and words to skip.
+• Review the list, untick anything that isn't a real expense, and import.
+• New alerts are picked up when you open the app and every few hours.
+• Prefer not to share SMS? Add your expenses yourself in manual mode.
+
+SEE WHERE YOUR MONEY GOES
+• Spending sorted into groups such as Shopping, Food, Getting around, Home & Bills, Health and Kids, each with finer categories: Fashion & Clothing, Phones & Electronics, Food Delivery, Groceries, Daily Commute, Medicines and more.
+• Tap a group to see its categories, a category to see its shops, and a shop to see every payment.
+• Six months at a glance: each group's trend, against your budget.
+• Paid by: what each card and bank account was used for, by its last 4 digits.
+• Week by week, and a calendar of your month: tap a day for its payments.
+• Real app icons for about 200 popular Indian apps, when they are installed.
+
+BUDGETS THAT WARN YOU EARLY
+• Set a budget for each group with sliders, or one total for the month.
+• See how much is left, the safe amount to spend a day, and what's changing from month to month.
+• Clear alerts when a group goes over, with where the money went.
+• Start your budget month on your salary day if you like.
+
+REPORTS YOU CAN TAP THROUGH
+• This month, or the last 3, 6 or 12 months, compared with the period before.
+• Income and expenses, a trend for each category, top merchants, spending by day of the week, and ways to save.
+• Tap a day, month, category or merchant and every chart narrows to it.
+
+AMAZON, SPLITS AND RULES
+• Orders from stores that sell everything wait in their group until you say what they were.
+• Split one payment across categories.
+• Fix a category once and Owl Tracker can remember it; see and undo your rules any time.
+
+BACK UP AND MOVE TO A NEW PHONE
+• Save a password-protected backup file, or share it to your new phone, and restore it there in a few taps.
+• Backups never contain SMS text, account or card numbers, UPI IDs or bank references.
 
 FREE FOR 7 DAYS, THEN ₹50 ONCE
-• Try everything free for 7 days. Then unlock Owl Tracker with a one-time payment of ₹50 through Google Play: no subscription, no ads.
-• If you don't unlock, nothing is lost: everything you've imported stays visible and you can still back it up. New imports pause until you unlock.
+• Try everything free for 7 days, then unlock Owl Tracker with a one-time payment of ₹50 through Google Play: no subscription, no ads.
+• If you don't unlock, nothing is lost: everything stays visible and you can still back it up. New imports pause until you unlock.
 
-Prefer not to share SMS? Use manual mode and add expenses yourself, or tap "Explore with sample data" to try the app with example messages.
-
-Owl Tracker supports SMS formats from major Indian banks, cards and UPI apps. If your bank's messages are missed, the app shows what it skipped. Questions or a bank format we miss? Write to rajendra.chandrasekhar@gmail.com.
+Owl Tracker supports SMS formats from major Indian banks, cards and UPI apps. Tap "Explore with sample data" to try it with example messages. Questions or a bank format we miss? Write to rajendra.chandrasekhar@gmail.com.
