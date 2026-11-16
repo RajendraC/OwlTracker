@@ -526,7 +526,10 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     /** Home's Where it went: this month or six months, kept for next time. */
-    fun setWhereSixMonths(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(whereSixMonths = on) } }
+    fun setWhereSixMonths(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(whereSixMonths = on, wherePaidBy = false) } }
+
+    /** Where it went's Paid by tab; turning it off shows This month. */
+    fun setWherePaidBy(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(wherePaidBy = on, whereSixMonths = false) } }
 
     /** Home's "What's changing" → All: Reports, scrolled to the trend by category. */
     fun openCategoryTrends() {

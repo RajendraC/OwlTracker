@@ -128,6 +128,8 @@ fun DrillRingCard(
     onUp: (() -> Unit)? = null,
     /** "Sort" on a group's payments not sorted yet. */
     onSort: ((groupId: String) -> Unit)? = null,
+    /** Home, the whole month: a Paid by tab, the spending by card and account. */
+    paidBy: PaidByTab? = null,
 ) {
     val sc = LocalStatusColors.current
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -174,7 +176,8 @@ fun DrillRingCard(
     // The row whose months are open, and the category lit up in 6 months
     var openTrend by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var sixPick by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
-    val six = trends != null && trends.sixMonths && level == 0
+    val paidShowing = paidBy != null && paidBy.showing && level == 0
+    val six = trends != null && trends.sixMonths && level == 0 && !paidShowing
     // The 3D ring's chosen slice (turned to the front, the owl talking about it), and a count to replay the owl's act
     var chosen by remember(sweepKey) { mutableStateOf<String?>(null) }
     var act by remember { mutableIntStateOf(0) }
@@ -215,7 +218,8 @@ fun DrillRingCard(
                     Column(Modifier.weight(1f)) {
                         Text(title, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            if (moods != null) "Tap a slice to see how it's doing · tap again to open it" else "Slide round the ring · tap a slice to open it",
+                            if (paidShowing) "By card and account · tap one to see what it was used for"
+                            else if (moods != null) "Tap a slice to see how it's doing · tap again to open it" else "Slide round the ring · tap a slice to open it",
                             style = MaterialTheme.typography.bodySmall, color = muted,
                         )
                     }
@@ -255,9 +259,19 @@ fun DrillRingCard(
             }
         }
         Gap(12.dp)
-        if (trends != null && level == 0) {
-            WhereSwitch(trends.sixMonths, trends.onSixMonths)
+        if ((trends != null || paidBy != null) && level == 0 && !(paidShowing && paidBy?.opened == true)) {
+            WhereSwitch(if (paidShowing) 2 else if (six) 1 else 0, hasSix = trends != null, hasPaid = paidBy != null) { v ->
+                when (v) {
+                    2 -> paidBy?.onShow(true)
+                    1 -> trends?.onSixMonths?.invoke(true)
+                    else -> if (trends != null) trends.onSixMonths(false) else paidBy?.onShow(false)
+                }
+            }
             Gap(12.dp)
+        }
+        if (paidShowing && paidBy != null) {
+            paidBy.content()
+            return@Panel
         }
         if (six && trends != null) {
             // This month's categories first, then any others the months behind it had

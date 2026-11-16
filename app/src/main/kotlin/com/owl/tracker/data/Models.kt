@@ -211,6 +211,8 @@ data class AppSettings(
     val categoriesVersion: Int = 1,
     /** Home's Where it went shows six months (else this month), as last left. */
     val whereSixMonths: Boolean = false,
+    /** Home's Where it went shows the Paid by tab (by card and account), as last left. Never with [whereSixMonths]. */
+    val wherePaidBy: Boolean = false,
     /** Pays for children: the Kids categories are shown and payments are sorted into them. Asked once at setup. */
     val kids: Boolean = true,
 ) {
@@ -228,7 +230,7 @@ data class AppSettings(
         "theme" to theme.key,
         "parser_version" to parserVersion.toString(),
         "categories_version" to categoriesVersion.toString(),
-        "where_view" to if (whereSixMonths) "six" else "month",
+        "where_view" to if (wherePaidBy) "paid" else if (whereSixMonths) "six" else "month",
         "kids" to if (kids) "on" else "off",
     )
 
@@ -248,6 +250,7 @@ data class AppSettings(
             parserVersion = m["parser_version"]?.toIntOrNull() ?: 1,
             categoriesVersion = m["categories_version"]?.toIntOrNull() ?: 1,
             whereSixMonths = m["where_view"] == "six",
+            wherePaidBy = m["where_view"] == "paid",
             kids = m["kids"] != "off",
         )
 

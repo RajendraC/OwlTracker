@@ -73,24 +73,33 @@ fun trendTint(kind: TrendKind): Color {
     }
 }
 
-/** This month | 6 months: two segments pressed into the card, the picked one raised. */
+/** The Paid by tab of Where it went: whether it's showing, whether a card or account is opened in it, and what it draws. */
+class PaidByTab(
+    val showing: Boolean,
+    val opened: Boolean,
+    val onShow: (Boolean) -> Unit,
+    val content: @Composable () -> Unit,
+)
+
+/** This month | 6 months | Paid by: segments pressed into the card, the picked one raised. [view]: 0, 1 or 2. */
 @Composable
-fun WhereSwitch(six: Boolean, onSix: (Boolean) -> Unit) {
+fun WhereSwitch(view: Int, hasSix: Boolean, hasPaid: Boolean, onView: (Int) -> Unit) {
     val brand = LocalBrand.current
     Row(
         Modifier.fillMaxWidth().clay(RoundedCornerShape(22.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true).padding(4.dp)
-            .semantics { contentDescription = "Show this month or six months" },
+            .semantics { contentDescription = "Show this month, six months or paid by" },
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        listOf("This month" to false, "6 months" to true).forEach { (label, isSix) ->
-            val on = six == isSix
+        listOfNotNull(Triple("This month", 0, "where_this_month"), Triple("6 months", 1, "where_six_months").takeIf { hasSix },
+            Triple("Paid by", 2, "where_paid_by").takeIf { hasPaid }).forEach { (label, v, tag) ->
+            val on = view == v
             Box(
                 Modifier.weight(1f).heightIn(min = 40.dp)
                     .then(if (on) Modifier.clay(RoundedCornerShape(18.dp), brand.clay, elevation = 3.dp) else Modifier.clip(RoundedCornerShape(18.dp)))
-                    .clickable(onClickLabel = "Show $label") { onSix(isSix) }
+                    .clickable(onClickLabel = "Show $label") { onView(v) }
                     .semantics { selected = on; role = androidx.compose.ui.semantics.Role.Tab }
-                    .testTag(if (isSix) "where_six_months" else "where_this_month")
-                    .padding(horizontal = 8.dp),
+                    .testTag(tag)
+                    .padding(horizontal = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 FitText(

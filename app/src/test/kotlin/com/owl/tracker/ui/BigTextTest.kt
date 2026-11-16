@@ -86,6 +86,10 @@ class BigTextTest {
         screen("Sorting an Amazon order") { tapTag("sort_shopping"); waitForText("what was it?") }
         back()
         back()
+        screen("Home, paid by") { tapTag("where_paid_by"); waitForTag("paid_row_0") }
+        screen("Home, a card opened") { tapTag("paid_row_0"); waitForTag("paid_up") }
+        back()
+        tapTag("where_this_month")
         screen("Home, a week") { tapTag("mode_week"); waitForTag("week_card") }
         screen("Home, a day") { waitForTag("week_card"); tapTag("week_day_2026-10-18"); waitForTag("day_filter") }
         screen("Activity") { tapTag("tab_activity"); waitForTag("search") }

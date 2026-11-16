@@ -259,6 +259,35 @@ class StoreScreenshots {
                 Thread.sleep(600)
             }
 
+            // The third tab: the month by card and account; one opened, then a group's payments from it
+            section("paid_by") {
+                scrollTo(hasTestTag("where_paid_by"), below = 20f)
+                tapTag("where_paid_by")
+                Thread.sleep(1000)
+                scrollTo(hasTestTag("where_paid_by"), below = 20f)
+                shot("15g_home_paid_by")
+                runCatching { scrollTo(hasTestTag("paid_row_1"), below = 160f) }
+                Thread.sleep(500)
+                shot("15h_home_paid_by_list")
+                tapTag("paid_row_0")
+                Thread.sleep(1000)
+                runCatching { scrollTo(hasTestTag("paid_up"), below = 20f) }
+                shot("15i_home_paid_by_open")
+                runCatching {
+                    val tag = compose.onAllNodes(SemanticsMatcher("a group's row") { n ->
+                        n.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("paid_top_") == true
+                    }).fetchSemanticsNodes().first().config[androidx.compose.ui.semantics.SemanticsProperties.TestTag]
+                    scrollTo(hasTestTag(tag), below = 200f)
+                    tapTag(tag)
+                    Thread.sleep(800)
+                    shot("15j_home_paid_by_payments")
+                }
+                runCatching { activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() } }
+                Thread.sleep(600)
+                runCatching { scrollTo(hasTestTag("where_this_month"), below = 20f); tapTag("where_this_month") }
+                Thread.sleep(600)
+            }
+
             // The month as a calendar, a day picked in it, then a week at a time and a day in it
             section("week") {
                 val day = java.time.LocalDate.now().minusDays(1)

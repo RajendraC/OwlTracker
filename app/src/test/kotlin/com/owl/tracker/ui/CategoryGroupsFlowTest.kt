@@ -93,6 +93,39 @@ class CategoryGroupsFlowTest {
         }
     }
 
+    /** Where it went's third tab: the month by card and account; one opens into its groups, a group into its payments. */
+    @Test
+    fun paidByShowsTheMonthByCardAndAccount() {
+        setUpWithSms()
+        with(compose) {
+            fun noRecent() = assertTrue("Recent is still shown", runCatching { waitForTag("recent", 1_500) }.isFailure)
+            tapTag("where_paid_by")
+            waitForTag("paid_by")
+            waitForTag("paid_row_0")
+            waitForText("••")
+            assertTrue(runBlocking { app.container.repo.settings() }.wherePaidBy)
+            // The groups' ring and rows are the other tab's
+            assertTrue(onAllNodesWithTag("cat_food").fetchSemanticsNodes().isEmpty())
+            waitForTag("recent")
+            // One opened: what it was used for, by group; no tabs and no Recent while it's open
+            tapTag("paid_row_0")
+            waitForTag("paid_up")
+            assertTrue(onAllNodesWithTag("where_paid_by").fetchSemanticsNodes().isEmpty())
+            noRecent()
+            val top = onAllNodes(androidx.compose.ui.test.SemanticsMatcher("a group's row") { n ->
+                n.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("paid_top_") == true
+            }).fetchSemanticsNodes().first().config[androidx.compose.ui.semantics.SemanticsProperties.TestTag]
+            tapTag(top)
+            waitForTag(top.replace("paid_top_", "paid_payments_"))
+            // Back: to every card and account, where the tabs are again; This month is as before
+            back()
+            waitForTag("paid_row_0")
+            tapTag("where_this_month")
+            waitForTag("cat_food")
+            assertFalse(runBlocking { app.container.repo.settings() }.wherePaidBy)
+        }
+    }
+
     @Test
     fun anAmazonOrderWaitsInShoppingUntilItIsSorted() {
         setUpWithSms()

@@ -188,6 +188,10 @@ fun HomeScreen(vm: AppViewModel) {
     var openMerchant by androidx.compose.runtime.saveable.rememberSaveable(ringKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
     fun ringUp() { if (openMerchant != null) openMerchant = null else if (openCat != null) openCat = null else openGroup = null }
     androidx.activity.compose.BackHandler(enabled = openCat != null || openGroup != null) { ringUp() }
+    // The Paid by tab: the card or account opened in it
+    var openPaid by androidx.compose.runtime.saveable.rememberSaveable(ringKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val paidTab = wholeMonth && settings?.wherePaidBy == true && openGroup == null && openCat == null
+    androidx.activity.compose.BackHandler(enabled = paidTab && openPaid != null) { openPaid = null }
     androidx.activity.compose.BackHandler(enabled = openCat == null && openGroup == null && picked != null) { pickedIso = null }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -442,6 +446,14 @@ fun HomeScreen(vm: AppViewModel) {
                             trends = hist?.takeIf { wholeMonth && dash.isCurrent && it.hasData }?.let { h ->
                                 com.owl.tracker.ui.components.RingTrends(h, budgetMap, budgetMap[Schema.OVERALL], settings?.whereSixMonths == true) { vm.setWhereSixMonths(it) }
                             },
+                            // The whole month: a third tab, by the card or account it was paid from
+                            paidBy = if (!wholeMonth) null else com.owl.tracker.ui.components.PaidByTab(
+                                showing = settings?.wherePaidBy == true, opened = openPaid != null,
+                                onShow = { on -> openPaid = null; vm.setWherePaidBy(on) },
+                            ) {
+                                val accounts = remember(txns, cats) { com.owl.tracker.ui.PaidBy.build(txns, cats) }
+                                PaidByView(vm, accounts, openPaid, cats) { openPaid = it }
+                            },
                             // The month's pictures say "of your month's budget", so they only show for the whole month
                             scene = if (!wholeMonth) null else { id ->
                                 val cat = catMap[id]
@@ -472,7 +484,7 @@ fun HomeScreen(vm: AppViewModel) {
             // Recent lists every payment, so it's only for the whole month's view: with a group or a category opened in
             // "Where it went" it read as that group's payments. Going back up brings it back.
             if (wholeMonth) {
-                if (openGroup == null && openCat == null) item(key = "recent") {
+                if (openGroup == null && openCat == null && !(paidTab && openPaid != null)) item(key = "recent") {
                 Column(side.testTag("recent")) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Recent", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() })
