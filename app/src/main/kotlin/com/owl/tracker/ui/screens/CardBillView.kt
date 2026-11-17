@@ -179,8 +179,7 @@ private fun LastBill(vm: AppViewModel, label: String, bill: CardBill, today: Loc
         if (bill.markedPaid) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Marked as paid in full by you", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                val idx = CardBills.paymentsFromJson(vm.settings.value?.cardPayments)[label].orEmpty().indexOfLast { it.full && it.bill == bill.last.end }
-                TextButton(onClick = { if (idx >= 0) vm.removeCardPayment(label, idx) }, modifier = Modifier.testTag("bill_unmark_paid")) { Text("Undo") }
+                TextButton(onClick = { vm.unmarkCardPaid(label, bill.last.end) }, modifier = Modifier.testTag("bill_unmark_paid")) { Text("Undo") }
             }
         }
         Divider()

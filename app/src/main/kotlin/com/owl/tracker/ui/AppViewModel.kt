@@ -541,6 +541,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         say(if (cycle == null) "Billing cycle removed" else "Billing cycle saved: bill on ${cycle.dayWords}")
     }
 
+    /** Takes back "paid in full" on a card's bill dated [bill]. */
+    fun unmarkCardPaid(label: String, bill: LocalDate) {
+        val idx = CardBills.paymentsFromJson(settings.value?.cardPayments)[label].orEmpty().indexOfLast { it.full && it.bill == bill }
+        if (idx >= 0) removeCardPayment(label, idx)
+    }
+
     /** Records a payment towards a card's bill dated [bill]: [paise], or the whole bill when [full]. */
     fun addCardPayment(label: String, bill: LocalDate, paise: Long, full: Boolean) = viewModelScope.launch {
         repo.updateSettings { s ->
