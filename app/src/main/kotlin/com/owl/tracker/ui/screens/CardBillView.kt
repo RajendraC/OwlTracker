@@ -295,7 +295,7 @@ private fun AmountDialog(left: Long, onDismiss: () -> Unit, onSave: (Long) -> Un
                 Text("How much did you pay towards this bill? ${Money.formatInr(left)} is left.", style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(
                     value = text, onValueChange = { v -> text = v.filter(Char::isDigit).take(9) },
-                    prefix = { Text("₹") }, singleLine = true,
+                    prefix = { Text("₹") }, singleLine = true, placeholder = { Text("0") }, label = { Text("Amount paid") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth().testTag("bill_payment_amount"),
                 )
