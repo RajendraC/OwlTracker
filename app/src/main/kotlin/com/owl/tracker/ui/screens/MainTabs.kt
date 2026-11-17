@@ -190,7 +190,8 @@ fun HomeScreen(vm: AppViewModel) {
     androidx.activity.compose.BackHandler(enabled = openCat != null || openGroup != null) { ringUp() }
     // The Paid by tab: the card or account opened in it
     var openPaid by androidx.compose.runtime.saveable.rememberSaveable(ringKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    val paidTab = wholeMonth && settings?.wherePaidBy == true && openGroup == null && openCat == null
+    val whereView by vm.whereView.collectAsStateWithLifecycle()
+    val paidTab = wholeMonth && whereView == "paid" && openGroup == null && openCat == null
     androidx.activity.compose.BackHandler(enabled = paidTab && openPaid != null) { openPaid = null }
     androidx.activity.compose.BackHandler(enabled = openCat == null && openGroup == null && picked != null) { pickedIso = null }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -444,11 +445,11 @@ fun HomeScreen(vm: AppViewModel) {
                             tiles = true,
                             // This month, with months behind it: small bars on every row and a 6 months tab
                             trends = hist?.takeIf { wholeMonth && dash.isCurrent && it.hasData }?.let { h ->
-                                com.owl.tracker.ui.components.RingTrends(h, budgetMap, budgetMap[Schema.OVERALL], settings?.whereSixMonths == true) { vm.setWhereSixMonths(it) }
+                                com.owl.tracker.ui.components.RingTrends(h, budgetMap, budgetMap[Schema.OVERALL], whereView == "six") { vm.setWhereSixMonths(it) }
                             },
                             // The whole month: a third tab, by the card or account it was paid from
                             paidBy = if (!wholeMonth) null else com.owl.tracker.ui.components.PaidByTab(
-                                showing = settings?.wherePaidBy == true, opened = openPaid != null,
+                                showing = whereView == "paid", opened = openPaid != null,
                                 onShow = { on -> openPaid = null; vm.setWherePaidBy(on) },
                             ) {
                                 val kinds = settings?.paidKinds.orEmpty()

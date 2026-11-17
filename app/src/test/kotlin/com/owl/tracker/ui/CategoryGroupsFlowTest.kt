@@ -109,7 +109,8 @@ class CategoryGroupsFlowTest {
             waitForTag("paid_by")
             waitForTag("paid_row_0")
             waitForText("••")
-            assertTrue(runBlocking { app.container.repo.settings() }.wherePaidBy)
+            // Not kept for the next time the app opens: a new start shows This month
+            assertEquals("month", AppViewModel(app.container).whereView.value)
             // The groups' ring and rows are the other tab's
             assertTrue(onAllNodesWithTag("cat_food").fetchSemanticsNodes().isEmpty())
             waitForTag("recent")
@@ -137,7 +138,6 @@ class CategoryGroupsFlowTest {
             waitForTag("paid_kinds_bar")
             tapTag("where_this_month")
             waitForTag("cat_food")
-            assertFalse(runBlocking { app.container.repo.settings() }.wherePaidBy)
         }
     }
 

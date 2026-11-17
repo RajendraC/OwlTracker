@@ -526,11 +526,18 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         go(Screen.INSIGHTS)
     }
 
-    /** Home's Where it went: this month or six months, kept for next time. */
-    fun setWhereSixMonths(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(whereSixMonths = on, wherePaidBy = false) } }
+    /**
+     * Home's Where it went tab: "month", "six" or "paid". Kept while the app is open, so leaving Home and coming back
+     * keeps it, but the app always opens on This month.
+     */
+    private val _whereView = MutableStateFlow("month")
+    val whereView: StateFlow<String> = _whereView.asStateFlow()
+
+    /** Where it went: this month or six months. */
+    fun setWhereSixMonths(on: Boolean) { _whereView.value = if (on) "six" else "month" }
 
     /** Where it went's Paid by tab; turning it off shows This month. */
-    fun setWherePaidBy(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(wherePaidBy = on, whereSixMonths = false) } }
+    fun setWherePaidBy(on: Boolean) { _whereView.value = if (on) "paid" else "month" }
 
     /** A credit card's billing cycle; null forgets it. */
     fun setCardCycle(label: String, cycle: CardCycle?) = viewModelScope.launch {

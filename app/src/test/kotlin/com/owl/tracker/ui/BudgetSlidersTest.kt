@@ -275,11 +275,8 @@ class BudgetSlidersTest {
             waitForTag("six_${Cat.FUN}")
             tapTag("six_${Cat.FOOD}")
             hasTextAt("six_months_caption", "Food: ↑ Rising · 50% more than in Jul. Its part of each bar is lit.")
-            // Kept for next time
-            waitUntil(5_000) { runBlocking { app.container.repo.settings().whereSixMonths } }
             tapTag("where_this_month")
             waitForTag("where_bars_${Cat.FOOD}")
-            waitUntil(5_000) { !runBlocking { app.container.repo.settings().whereSixMonths } }
         }
     }
 
