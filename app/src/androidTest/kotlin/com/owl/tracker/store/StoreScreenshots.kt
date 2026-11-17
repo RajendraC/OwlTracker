@@ -20,6 +20,7 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
@@ -281,6 +282,36 @@ class StoreScreenshots {
                     shot("15k_paid_kind_change")
                     compose.onAllNodes(hasText("Cancel"))[0].performClick()
                     Thread.sleep(400)
+                }
+                // Still to pay: set the billing cycle, the bill, a part payment
+                runCatching {
+                    scrollTo(hasTestTag("card_tab_bill"), below = 120f)
+                    tapTag("card_tab_bill")
+                    Thread.sleep(800)
+                    shot("15l_card_bill_no_cycle")
+                    tapTag("bill_cycle_set")
+                    Thread.sleep(600)
+                    runCatching { scrollTo(hasTestTag("bill_day_10"), below = 60f) }
+                    tapTag("bill_day_10")
+                    Thread.sleep(500)
+                    shot("15m_card_bill_cycle")
+                    tapTag("bill_cycle_save")
+                    Thread.sleep(1200)
+                    runCatching { scrollTo(hasTestTag("card_tab_bill"), below = 20f, both = true) }
+                    shot("15n_card_bill")
+                    runCatching { scrollTo(hasTestTag("bill_add_payment"), below = 200f) }
+                    shot("15o_card_bill_rows")
+                    tapTag("bill_add_payment")
+                    Thread.sleep(600)
+                    compose.onNodeWithTag("bill_payment_amount").performTextInput("5000")
+                    shot("15p_card_bill_payment")
+                    tapTag("bill_payment_save")
+                    Thread.sleep(1500)
+                    runCatching { scrollTo(hasTestTag("bill_payment_0"), below = 200f) }
+                    shot("15q_card_bill_paid_part")
+                    runCatching { scrollTo(hasTestTag("card_tab_used"), below = 20f, both = true) }
+                    tapTag("card_tab_used")
+                    Thread.sleep(600)
                 }
                 runCatching {
                     val tag = compose.onAllNodes(SemanticsMatcher("a group's row") { n ->

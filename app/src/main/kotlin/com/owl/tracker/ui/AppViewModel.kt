@@ -177,6 +177,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     private val engine = c.importEngine
     private val zone: ZoneId get() = c.clock.zone
     fun today(): LocalDate = LocalDate.now(c.clock)
+    val timeZone: ZoneId get() = zone
     fun now(): Long = c.clock.millis()
     val appIcons get() = c.appIcons
 
@@ -530,6 +531,38 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     /** Where it went's Paid by tab; turning it off shows This month. */
     fun setWherePaidBy(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(wherePaidBy = on, whereSixMonths = false) } }
+
+    /** A credit card's billing cycle; null forgets it. */
+    fun setCardCycle(label: String, cycle: CardCycle?) = viewModelScope.launch {
+        repo.updateSettings { s ->
+            val m = CardBills.cyclesFromJson(s.cardCycles)
+            s.copy(cardCycles = CardBills.cyclesToJson(if (cycle == null) m - label else m + (label to cycle)))
+        }
+        say(if (cycle == null) "Billing cycle removed" else "Billing cycle saved: bill on ${cycle.dayWords}")
+    }
+
+    /** Records a payment towards a card's bill dated [bill]: [paise], or the whole bill when [full]. */
+    fun addCardPayment(label: String, bill: LocalDate, paise: Long, full: Boolean) = viewModelScope.launch {
+        repo.updateSettings { s ->
+            val m = CardBills.paymentsFromJson(s.cardPayments)
+            val list = m[label].orEmpty().filter { it.bill.isAfter(bill.minusYears(1)) } + CardPayment(bill, paise, now(), full)
+            s.copy(cardPayments = CardBills.paymentsToJson(m + (label to list)))
+        }
+        say(if (full) "Marked as paid in full" else "Payment of ${Money.formatInr(paise)} added")
+    }
+
+    /** Takes back a payment the user recorded ([index] in the card's list). */
+    fun removeCardPayment(label: String, index: Int) = viewModelScope.launch {
+        repo.updateSettings { s ->
+            val m = CardBills.paymentsFromJson(s.cardPayments)
+            val list = m[label].orEmpty().filterIndexed { i, _ -> i != index }
+            s.copy(cardPayments = CardBills.paymentsToJson(if (list.isEmpty()) m - label else m + (label to list)))
+        }
+    }
+
+    /** Every payment from [from] to now, for a card's bills (they can reach back two months). */
+    suspend fun txnsSince(from: LocalDate): List<Txn> =
+        repo.transactions(from.atStartOfDay(zone).toInstant().toEpochMilli(), now() + 1)
 
     /**
      * Sets what a card or account is (credit card, debit card or bank account), for all its payments; null goes back to

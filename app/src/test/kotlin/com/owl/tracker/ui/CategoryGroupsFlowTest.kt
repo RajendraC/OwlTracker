@@ -1,7 +1,12 @@
 package com.owl.tracker.ui
 
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.onAllNodesWithTag
 import com.owl.tracker.OwlTrackerApp
 import com.owl.tracker.TestApp
@@ -133,6 +138,47 @@ class CategoryGroupsFlowTest {
             tapTag("where_this_month")
             waitForTag("cat_food")
             assertFalse(runBlocking { app.container.repo.settings() }.wherePaidBy)
+        }
+    }
+
+    /** A credit card's Still to pay: set its billing cycle, add a part payment, mark it paid, undo. */
+    @Test
+    fun aCreditCardsBillWithItsCycleAndPayments() {
+        setUpWithSms()
+        with(compose) {
+            tapTag("where_paid_by")
+            waitForTag("paid_section_credit")
+            // ICICI card ••1234: ₹3,499 on 15 Oct, the biggest credit card
+            tapTag("paid_row_0")
+            waitForText("ICICI Bank card ••1234")
+            tapTag("card_tab_bill")
+            tapTag("bill_cycle_set")
+            waitForTag("bill_cycle_dialog")
+            tapTag("bill_day_16")
+            waitForText("17 Sep – 16 Oct")
+            waitForText("pay by Thu 5 Nov")
+            tapTag("bill_cycle_save")
+            waitUntil(5_000) { runBlocking { app.container.repo.settings() }.cardCycles.contains("ICICI Bank card ••1234") }
+            waitForTag("still_to_pay_amount")
+            onNodeWithTag("still_to_pay_amount").assertTextEquals("₹3,499")
+            // A part payment
+            tapTag("bill_add_payment")
+            waitForTag("bill_payment_dialog")
+            onNodeWithTag("bill_payment_amount").performTextInput("1000")
+            tapTag("bill_payment_save")
+            waitUntil(5_000) { runCatching { onNodeWithTag("still_to_pay_amount").assertTextEquals("₹2,499") }.isSuccess }
+            waitForTag("bill_payment_0")
+            // Paid in full, then undone
+            tapTag("bill_mark_paid")
+            waitUntil(5_000) { runCatching { onNodeWithTag("still_to_pay_amount").assertTextEquals("Paid in full ✓") }.isSuccess }
+            tapTag("bill_unmark_paid")
+            waitUntil(5_000) { runCatching { onNodeWithTag("still_to_pay_amount").assertTextEquals("₹2,499") }.isSuccess }
+            // The part payment taken back
+            onNodeWithContentDescription("Remove this payment").performClick()
+            waitUntil(5_000) { runCatching { onNodeWithTag("still_to_pay_amount").assertTextEquals("₹3,499") }.isSuccess }
+            // What it was used for is still there
+            tapTag("card_tab_used")
+            waitUntil(5_000) { onAllNodesWithTag("still_to_pay").fetchSemanticsNodes().isEmpty() }
         }
     }
 

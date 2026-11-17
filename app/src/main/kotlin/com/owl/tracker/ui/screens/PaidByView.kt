@@ -178,6 +178,16 @@ fun PaidByView(vm: AppViewModel, accounts: List<PaidAccount>, opened: String?, c
             // What it is (credit card, debit card or bank account), and a way to correct it
             if (open.kind.named) PaidKindChoice(vm, open.key, open.kind, open.guessed, Modifier.padding(start = 30.dp))
             Gap(12.dp)
+            // A credit card: what it was used for | still to pay on its bill
+            var billTab by rememberSaveable(open.key) { mutableStateOf(false) }
+            if (open.kind == PaidKind.CREDIT_CARD) {
+                CardTabs(billTab) { billTab = it }
+                Gap(12.dp)
+                if (billTab) {
+                    StillToPay(vm, open.key)
+                    return@Column
+                }
+            }
             PaidRing(
                 open.tops.map { Color(it.category.color) to it.paise },
                 "${open.name} by group: " + open.tops.joinToString { "${it.category.name} ${it.paise * 100 / open.paise.coerceAtLeast(1)}%" },

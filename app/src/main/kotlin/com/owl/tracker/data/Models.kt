@@ -220,6 +220,10 @@ data class AppSettings(
      * "account". Holds card and account digits, so it's never put in a backup (backups carry only two settings).
      */
     val paidKinds: Map<String, String> = emptyMap(),
+    /** Credit cards' billing cycles, as JSON (`CardBills.cyclesFromJson`); card digits, so never in backups. */
+    val cardCycles: String = "{}",
+    /** Payments the user recorded against card bills, as JSON (`CardBills.paymentsFromJson`); never in backups. */
+    val cardPayments: String = "{}",
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -238,6 +242,8 @@ data class AppSettings(
         "where_view" to if (wherePaidBy) "paid" else if (whereSixMonths) "six" else "month",
         "kids" to if (kids) "on" else "off",
         "paid_kinds" to org.json.JSONObject(paidKinds as Map<*, *>).toString(),
+        "card_cycles" to cardCycles,
+        "card_payments" to cardPayments,
     )
 
     companion object {
@@ -257,6 +263,8 @@ data class AppSettings(
             paidKinds = m["paid_kinds"]?.let { raw ->
                 runCatching { org.json.JSONObject(raw).let { o -> o.keys().asSequence().associateWith { k -> o.getString(k) } } }.getOrNull()
             } ?: emptyMap(),
+            cardCycles = m["card_cycles"] ?: "{}",
+            cardPayments = m["card_payments"] ?: "{}",
             categoriesVersion = m["categories_version"]?.toIntOrNull() ?: 1,
             whereSixMonths = m["where_view"] == "six",
             wherePaidBy = m["where_view"] == "paid",
