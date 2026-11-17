@@ -121,7 +121,7 @@ fun PaidByView(vm: AppViewModel, accounts: List<PaidAccount>, opened: String?, c
             return@Column
         }
         if (open == null) {
-            val named = accounts.count { it.kind == PaidKind.CARD || it.kind == PaidKind.ACCOUNT }
+            val named = accounts.count { it.kind.named }
             PaidRing(
                 accounts.mapIndexed { i, a -> colorOf(a, i) to a.paise },
                 "Spending by card and account: " + accounts.joinToString { "${it.name} ${it.paise * 100 / total}%" },
