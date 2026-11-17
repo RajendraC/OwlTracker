@@ -185,7 +185,11 @@ private fun LastBill(vm: AppViewModel, label: String, bill: CardBill, today: Loc
         }
         Divider()
         AmountRow("Still to pay", bill.stillToPayPaise, bold = true)
-        if (!bill.paidInFull) {
+        if (adding) AmountEntry(bill.stillToPayPaise, onDismiss = { adding = false }) { paise ->
+            adding = false
+            vm.addCardPayment(label, bill.last.end, paise, full = false)
+        }
+        if (!bill.paidInFull && !adding) {
             FlowRow2 {
                 Button(onClick = { vm.addCardPayment(label, bill.last.end, 0, full = true) }, modifier = Modifier.testTag("bill_mark_paid")) { Text("Mark as fully paid") }
                 FilledTonalButton(onClick = { adding = true }, modifier = Modifier.testTag("bill_add_payment")) { Text("Add a payment") }
@@ -194,10 +198,6 @@ private fun LastBill(vm: AppViewModel, label: String, bill: CardBill, today: Loc
         if (bill.last.charges == 0 && bill.last.chargedPaise == 0L) {
             Text("No payments on this card in that bill period.", style = MaterialTheme.typography.bodySmall, color = muted)
         }
-    }
-    if (adding) AmountDialog(bill.stillToPayPaise, onDismiss = { adding = false }) { paise ->
-        adding = false
-        vm.addCardPayment(label, bill.last.end, paise, full = false)
     }
 }
 
@@ -281,31 +281,24 @@ private fun CycleDialog(label: String, now: CardCycle?, today: LocalDate, onDism
     )
 }
 
-/** A payment's amount in rupees; starts empty, with what's left as a hint. */
+/** A payment's amount in rupees, typed in the bill card; starts empty, with what's left above it. */
 @Composable
-private fun AmountDialog(left: Long, onDismiss: () -> Unit, onSave: (Long) -> Unit) {
+private fun AmountEntry(left: Long, onDismiss: () -> Unit, onSave: (Long) -> Unit) {
     var text by remember { mutableStateOf("") }
-    val rupees = text.filter(Char::isDigit).take(9).toLongOrNull() ?: 0
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.testTag("bill_payment_dialog"),
-        title = { Text("Add a payment") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("How much did you pay towards this bill? ${Money.formatInr(left)} is left.", style = MaterialTheme.typography.bodyMedium)
-                OutlinedTextField(
-                    value = text, onValueChange = { v -> text = v.filter(Char::isDigit).take(9) },
-                    prefix = { Text("₹") }, singleLine = true, placeholder = { Text("0") }, label = { Text("Amount paid") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth().testTag("bill_payment_amount"),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(enabled = rupees > 0, onClick = { onSave(rupees * 100) }, modifier = Modifier.testTag("bill_payment_save")) { Text("Add") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+    val rupees = text.toLongOrNull() ?: 0
+    Column(Modifier.fillMaxWidth().testTag("bill_payment_dialog"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("How much did you pay towards this bill? ${Money.formatInr(left)} is left.", style = MaterialTheme.typography.bodyMedium)
+        OutlinedTextField(
+            value = text, onValueChange = { v -> text = v.filter(Char::isDigit).take(9) },
+            prefix = { Text("₹") }, singleLine = true, placeholder = { Text("0") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth().testTag("bill_payment_amount"),
+        )
+        FlowRow2 {
+            Button(enabled = rupees > 0, onClick = { onSave(rupees * 100) }, modifier = Modifier.testTag("bill_payment_save")) { Text("Add payment") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    }
 }
 
 /** What it was used for | Still to pay, for a credit card opened on Paid by. */
