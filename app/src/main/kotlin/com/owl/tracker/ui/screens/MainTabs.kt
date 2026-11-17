@@ -451,7 +451,8 @@ fun HomeScreen(vm: AppViewModel) {
                                 showing = settings?.wherePaidBy == true, opened = openPaid != null,
                                 onShow = { on -> openPaid = null; vm.setWherePaidBy(on) },
                             ) {
-                                val accounts = remember(txns, cats) { com.owl.tracker.ui.PaidBy.build(txns, cats) }
+                                val kinds = settings?.paidKinds.orEmpty()
+                                val accounts = remember(txns, cats, kinds) { com.owl.tracker.ui.PaidBy.build(txns, cats, kinds) }
                                 PaidByView(vm, accounts, openPaid, cats) { openPaid = it }
                             },
                             // The month's pictures say "of your month's budget", so they only show for the whole month

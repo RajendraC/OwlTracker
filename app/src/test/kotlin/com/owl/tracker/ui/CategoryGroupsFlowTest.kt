@@ -118,9 +118,18 @@ class CategoryGroupsFlowTest {
             }).fetchSemanticsNodes().first().config[androidx.compose.ui.semantics.SemanticsProperties.TestTag]
             tapTag(top)
             waitForTag(top.replace("paid_top_", "paid_payments_"))
-            // Back: to every card and account, where the tabs are again; This month is as before
+            // Correct what it is: it moves to that section, and says it was set by you
+            tapTag("paid_kind_change")
+            waitForTag("paid_kind_dialog")
+            tapTag("paid_kind_account")
+            tapTag("paid_kind_save")
+            waitUntil(5_000) { runBlocking { app.container.repo.settings() }.paidKinds.values.contains("account") }
+            waitForText("Bank account (set by you)", substring = true)
+            // Back: to every card and account, in sections by kind, where the tabs are again; This month is as before
             back()
             waitForTag("paid_row_0")
+            waitForTag("paid_section_account")
+            waitForTag("paid_kinds_bar")
             tapTag("where_this_month")
             waitForTag("cat_food")
             assertFalse(runBlocking { app.container.repo.settings() }.wherePaidBy)

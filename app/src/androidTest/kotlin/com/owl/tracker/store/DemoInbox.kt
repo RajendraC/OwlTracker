@@ -70,7 +70,7 @@ object DemoInbox {
         fun hdfcCard(t: ZonedDateTime, a: Int, at: String) = add(
             "VM-HDFCBK-T",
             t,
-            "Spent Rs.$a On HDFC Bank Card 9012 At $at On ${f(t, "yyyy-MM-dd:HH:mm:ss")} Bal Rs.${150000 - a} Not You? Call 18002586161/SMS BLOCK DC 9012 to 7308080808",
+            "Spent Rs.$a On HDFC Bank Card 9012 At $at On ${f(t, "yyyy-MM-dd:HH:mm:ss")} Bal Rs.${150000 - a} Not You? Call 18002586161/SMS BLOCK CC 9012 to 7308080808",
         )
 
         // ICICI savings account 710
@@ -85,6 +85,13 @@ object DemoInbox {
             "VM-ICICIT-T",
             t,
             "INR ${inr(a)} spent using ICICI Bank Card XX1234 on ${f(t, "dd-MMM-yy")} on $on. Avl Limit: INR 1,42,310.00. If not you, call 1800 2662/SMS BLOCK 1234 to 9215676766",
+        )
+
+        // SBI debit card 6611 (shops and the pharmacy, now and then)
+        fun sbiDebit(t: ZonedDateTime, a: Int, at: String) = add(
+            "VM-SBIINB-S",
+            t,
+            "Rs.${rs(a)} spent on your SBI Debit Card ending 6611 at $at on ${f(t, "dd-MM-yy")}. Avl Bal Rs.${inr(42000 - a)}. Not you? Call 1800111109",
         )
 
         // SBI savings account 3307 (bills)
@@ -116,6 +123,7 @@ object DemoInbox {
             if (dom == 1) add("VM-HDFCBK-S", at(d, 9, 11), "Rs.120000.00 credited to HDFC Bank A/c XX4821 on ${f(at(d, 9, 10), "dd-MM-yy")} by NEFT from ACME SOFTWARE (salary). Avl Bal Rs.1,46,250.00")
             if (dom == 5) add("VM-HDFCBK-S", at(d, 6, 8), "Rs.10000.00 debited from A/c XX4821 on ${f(at(d, 6, 7), "dd-MM-yy")} towards SIP Groww Mutual Fund. Avl Bal Rs.1,36,250.00")
             if (dom == 3) sbiUpi(at(d, 19, 22), 1179, "ACT FIBERNET")
+            if (dom == 7 || dom == 21) sbiDebit(d.atStartOfDay(ZONE).plusHours(18).plusMinutes((dom * 7L) % 50), 380 + (d.monthValue * 137 + dom * 53) % 1070 / 10 * 10, if (dom == 7) "DMART AVENUE" else "APOLLO PHARMACY") // no draw from r: the other messages stay as they were
             if (dom == 12) axisUpi(at(d, 6, 9), 649, "NETFLIX")
             if (dom == 18) axisUpi(at(d, 6, 9), 139, "SPOTIFY")
             if (dom == 2) axisUpi(at(d, 7, 9), 1499, "CULT.FIT")

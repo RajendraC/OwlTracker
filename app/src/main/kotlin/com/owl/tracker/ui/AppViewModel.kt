@@ -531,6 +531,15 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     /** Where it went's Paid by tab; turning it off shows This month. */
     fun setWherePaidBy(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(wherePaidBy = on, whereSixMonths = false) } }
 
+    /**
+     * Sets what a card or account is (credit card, debit card or bank account), for all its payments; null goes back to
+     * what the app worked out from its SMS.
+     */
+    fun setPaidKind(label: String, kind: com.owl.tracker.ui.PaidKind?) = viewModelScope.launch {
+        repo.updateSettings { s -> s.copy(paidKinds = if (kind == null) s.paidKinds - label else s.paidKinds + (label to kind.key)) }
+        say(if (kind == null) "$label: back to automatic" else "$label is now a ${kind.label.lowercase()}")
+    }
+
     /** Home's "What's changing" → All: Reports, scrolled to the trend by category. */
     fun openCategoryTrends() {
         reportRange.value = ReportRange.ONE

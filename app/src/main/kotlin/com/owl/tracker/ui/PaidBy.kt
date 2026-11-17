@@ -5,8 +5,24 @@ import com.owl.tracker.data.CategoryTree
 import com.owl.tracker.data.Source
 import com.owl.tracker.data.Txn
 
-/** What a payment was made from, as far as the app can tell. */
-enum class PaidKind { CARD, ACCOUNT, BY_HAND, UNKNOWN }
+/** What a payment was made from, as far as the app can tell. In this order on Paid by. */
+enum class PaidKind(val key: String, val label: String, val heading: String) {
+    CREDIT_CARD("credit", "Credit card", "Credit cards"),
+    DEBIT_CARD("debit", "Debit card", "Debit cards"),
+    ACCOUNT("account", "Bank account", "Bank accounts"),
+    BY_HAND("by_hand", "No card or account", "Cash and added by hand"),
+    UNKNOWN("unknown", "The SMS didn't say which", "Not known"),
+    ;
+
+    /** A card or account the user can say is one of the first three. */
+    val named: Boolean get() = this == CREDIT_CARD || this == DEBIT_CARD || this == ACCOUNT
+
+    companion object {
+        /** The three a card or account can be set to. */
+        val CHOICES = listOf(CREDIT_CARD, DEBIT_CARD, ACCOUNT)
+        fun fromKey(key: String?): PaidKind? = CHOICES.firstOrNull { it.key == key }
+    }
+}
 
 /**
  * A card or bank account, by the bank and the last 4 digits its SMS gives ("HDFC Bank card ••9110"), with what was
@@ -21,15 +37,14 @@ data class PaidAccount(
     val paise: Long,
     val payments: List<Txn>,
     val tops: List<CategorySpend>,
+    /** What the app worked out from the SMS; [kind] differs when the user changed it. */
+    val guessed: PaidKind = kind,
 ) {
-    /** "Card · 38 payments" */
+    val changed: Boolean get() = kind != guessed
+
+    /** "Credit card · 38 payments" */
     val note: String
-        get() = when (kind) {
-            PaidKind.CARD -> "Card"
-            PaidKind.ACCOUNT -> "Bank account"
-            PaidKind.BY_HAND -> "No card or account"
-            PaidKind.UNKNOWN -> "The SMS didn't say which"
-        } + " · ${payments.size} ${if (payments.size == 1) "payment" else "payments"}"
+        get() = kind.label + " · ${payments.size} ${if (payments.size == 1) "payment" else "payments"}"
 }
 
 /**
@@ -40,9 +55,30 @@ object PaidBy {
     const val BY_HAND = "by_hand"
     const val UNKNOWN = "unknown"
 
-    fun keyOf(t: Txn): String = t.accountLabel ?: if (t.source == Source.MANUAL) BY_HAND else UNKNOWN
+    /** Cash taken out at an ATM is stored with the label "Cash": it's spent as cash, so it goes with cash. */
+    fun keyOf(t: Txn): String = t.accountLabel?.takeUnless { it == "Cash" } ?: if (t.source == Source.MANUAL || t.accountLabel == "Cash") BY_HAND else UNKNOWN
 
-    fun build(txns: List<Txn>, cats: List<Category>): List<PaidAccount> {
+    private val CREDIT = Regex("""(?i)credit\s*card|\bcc\b""")
+    private val DEBIT = Regex("""(?i)debit\s*card|\bdc\b|\bATM\s*card""")
+
+    /**
+     * What a card or account is, from its label and its SMS: an account unless the label says card; a card the SMS
+     * calls a debit card more often than a credit card is a debit card, otherwise a credit card ("HDFC Bank Card 9110"
+     * with neither word is usually a credit card alert).
+     */
+    fun guess(label: String, bodies: List<String?>): PaidKind {
+        if (" card ••" !in label) return PaidKind.ACCOUNT
+        val texts = bodies.filterNotNull()
+        val debit = texts.count { DEBIT.containsMatchIn(it) }
+        val credit = texts.count { CREDIT.containsMatchIn(it) }
+        return if (debit > credit) PaidKind.DEBIT_CARD else PaidKind.CREDIT_CARD
+    }
+
+    /** What the card or account [label] is: the user's choice, else [guess] from these payments' SMS. */
+    fun kindOf(label: String, payments: List<Txn>, overrides: Map<String, String>): PaidKind =
+        PaidKind.fromKey(overrides[label]) ?: guess(label, payments.filter { it.accountLabel == label }.map { it.smsBody })
+
+    fun build(txns: List<Txn>, cats: List<Category>, overrides: Map<String, String> = emptyMap()): List<PaidAccount> {
         val catMap = cats.associateBy { it.id }
         val tree = CategoryTree(cats)
         return txns.groupBy(::keyOf).mapNotNull { (key, list) ->
@@ -50,12 +86,12 @@ object PaidBy {
             val total = spends.sumOf { it.amountPaise }
             if (total <= 0) return@mapNotNull null
             val ids = spends.map { it.id }.toSet()
-            val kind = when {
-                key == BY_HAND -> PaidKind.BY_HAND
-                key == UNKNOWN -> PaidKind.UNKNOWN
-                " card ••" in key -> PaidKind.CARD
-                else -> PaidKind.ACCOUNT
+            val guessed = when (key) {
+                BY_HAND -> PaidKind.BY_HAND
+                UNKNOWN -> PaidKind.UNKNOWN
+                else -> guess(key, list.map { it.smsBody })
             }
+            val kind = if (guessed.named) PaidKind.fromKey(overrides[key]) ?: guessed else guessed
             PaidAccount(
                 key = key,
                 name = when (kind) {
@@ -64,6 +100,7 @@ object PaidBy {
                     else -> key
                 },
                 kind = kind,
+                guessed = guessed,
                 senderGroup = list.firstNotNullOfOrNull { it.senderGroup },
                 paise = total,
                 payments = list.filter { it.id in ids }.sortedByDescending { it.occurredAt },
@@ -71,7 +108,7 @@ object PaidBy {
                     .mapNotNull { (id, l) -> catMap[id]?.let { CategorySpend(it, l.sumOf { p -> p.amountPaise }) } }
                     .sortedByDescending { it.paise },
             )
-        }.sortedWith(compareBy<PaidAccount> { it.kind.ordinal >= PaidKind.BY_HAND.ordinal }.thenByDescending { it.paise })
+        }.sortedWith(compareBy<PaidAccount> { it.kind.ordinal }.thenByDescending { it.paise })
     }
 
     /** The account's payments that went to a group (or a category on its own), newest first. */

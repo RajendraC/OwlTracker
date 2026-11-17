@@ -174,6 +174,15 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                 modifier = Modifier.testTag("paid_from"),
             )
         }
+        // A card or account named by the SMS: what it is, as on Paid by, and a way to correct it
+        val label = tx.accountLabel
+        if (label != null && tx.source == com.owl.tracker.data.Source.SMS && !credit) {
+            val period by vm.periodTxns.collectAsStateWithLifecycle()
+            val same = remember(period, tx) { (period.filter { it.accountLabel == label } + tx).distinctBy { it.id } }
+            val guessed = remember(same) { com.owl.tracker.ui.PaidBy.kindOf(label, same, emptyMap()) }
+            val current = com.owl.tracker.ui.PaidKind.fromKey(settings?.paidKinds?.get(label)) ?: guessed
+            PaidKindChoice(vm, label, current, guessed)
+        }
     }
 
     if (tx.needsReview) {

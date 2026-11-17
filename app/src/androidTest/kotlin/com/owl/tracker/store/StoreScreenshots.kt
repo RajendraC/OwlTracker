@@ -267,13 +267,21 @@ class StoreScreenshots {
                 Thread.sleep(1000)
                 scrollTo(hasTestTag("where_paid_by"), below = 130f, both = true)
                 shot("15g_home_paid_by")
-                runCatching { scrollTo(hasTestTag("paid_row_1"), below = 160f) }
+                runCatching { scrollTo(hasTestTag("paid_section_debit"), below = 120f) }
                 Thread.sleep(500)
                 shot("15h_home_paid_by_list")
                 tapTag("paid_row_0")
                 Thread.sleep(1000)
                 runCatching { scrollTo(hasTestTag("paid_up"), below = 20f) }
                 shot("15i_home_paid_by_open")
+                // Correcting what it is: the choice of credit card, debit card or bank account
+                runCatching {
+                    tapTag("paid_kind_change")
+                    Thread.sleep(700)
+                    shot("15k_paid_kind_change")
+                    compose.onAllNodes(hasText("Cancel"))[0].performClick()
+                    Thread.sleep(400)
+                }
                 runCatching {
                     val tag = compose.onAllNodes(SemanticsMatcher("a group's row") { n ->
                         n.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("paid_top_") == true

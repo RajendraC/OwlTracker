@@ -215,6 +215,11 @@ data class AppSettings(
     val wherePaidBy: Boolean = false,
     /** Pays for children: the Kids categories are shown and payments are sorted into them. Asked once at setup. */
     val kids: Boolean = true,
+    /**
+     * Cards and accounts whose type the user set by hand on Paid by: "HDFC Bank card ••9110" to "credit", "debit" or
+     * "account". Holds card and account digits, so it's never put in a backup (backups carry only two settings).
+     */
+    val paidKinds: Map<String, String> = emptyMap(),
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -232,6 +237,7 @@ data class AppSettings(
         "categories_version" to categoriesVersion.toString(),
         "where_view" to if (wherePaidBy) "paid" else if (whereSixMonths) "six" else "month",
         "kids" to if (kids) "on" else "off",
+        "paid_kinds" to org.json.JSONObject(paidKinds as Map<*, *>).toString(),
     )
 
     companion object {
@@ -248,6 +254,9 @@ data class AppSettings(
             tipsHiddenUntil = m["tips_hidden_until"]?.toLongOrNull() ?: 0,
             theme = ThemeMode.from(m["theme"]),
             parserVersion = m["parser_version"]?.toIntOrNull() ?: 1,
+            paidKinds = m["paid_kinds"]?.let { raw ->
+                runCatching { org.json.JSONObject(raw).let { o -> o.keys().asSequence().associateWith { k -> o.getString(k) } } }.getOrNull()
+            } ?: emptyMap(),
             categoriesVersion = m["categories_version"]?.toIntOrNull() ?: 1,
             whereSixMonths = m["where_view"] == "six",
             wherePaidBy = m["where_view"] == "paid",
