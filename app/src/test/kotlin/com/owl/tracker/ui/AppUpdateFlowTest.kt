@@ -98,7 +98,7 @@ class AppUpdateFlowTest {
                     "confirm=${play.isConfirmationDialogVisible} card=${compose.onAllNodesWithTag("update_card").fetchSemanticsNodes().size}"
             }
             compose.waitForIdle()
-            throw AssertionError("Google Play's full screen didn't open: $said")
+            throw AssertionError("Google Play's full screen didn't open: $said; start: ${(compose.activity.application as OwlTrackerApp).container.updates.lastStart}")
         }
         assertTrue(compose.onAllNodesWithTag("update_card").fetchSemanticsNodes().isEmpty())
     }

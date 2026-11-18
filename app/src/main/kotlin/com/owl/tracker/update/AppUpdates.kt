@@ -130,10 +130,16 @@ class AppUpdates(private val manager: AppUpdateManager?, private val prefs: Shar
     fun update() = start(AppUpdateType.FLEXIBLE)
 
     private fun start(type: Int) {
-        val i = info ?: return
-        val l = launcher ?: return
-        runCatching { manager?.startUpdateFlowForResult(i, l, AppUpdateOptions.defaultOptions(type)) }
+        val i = info ?: run { lastStart = "no update info"; return }
+        val l = launcher ?: run { lastStart = "no screen to start from"; return }
+        lastStart = runCatching { manager?.startUpdateFlowForResult(i, l, AppUpdateOptions.defaultOptions(type)) }
+            .fold({ "type $type started: $it" }, { "type $type failed: $it" })
+        android.util.Log.i("OwlUpdate", lastStart.orEmpty())
     }
+
+    /** What Google Play said to the last request to open its update screen (for tests and the log). */
+    @Volatile internal var lastStart: String? = null
+        private set
 
     /** The answer from Google Play's screen. Said no: the card stays (an urgent update asks again next time). */
     fun onResult(resultCode: Int) {
