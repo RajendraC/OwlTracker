@@ -89,7 +89,17 @@ class AppUpdateFlowTest {
         play.setUpdateAvailable(142, com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE)
         play.setUpdatePriority(5)
         checkAgain()
-        compose.waitUntil(5_000) { play.isImmediateFlowVisible }
+        val ok = runCatching { compose.waitUntil(5_000) { play.isImmediateFlowVisible } }.isSuccess
+        if (!ok) {
+            var said = "no answer"
+            play.appUpdateInfo.addOnSuccessListener { i ->
+                said = "availability=${i.updateAvailability()} priority=${i.updatePriority()} immediate=${i.isUpdateTypeAllowed(com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE)} " +
+                    "flexible=${i.isUpdateTypeAllowed(com.google.android.play.core.install.model.AppUpdateType.FLEXIBLE)} status=${i.installStatus()} " +
+                    "confirm=${play.isConfirmationDialogVisible} card=${compose.onAllNodesWithTag("update_card").fetchSemanticsNodes().size}"
+            }
+            compose.waitForIdle()
+            throw AssertionError("Google Play's full screen didn't open: $said")
+        }
         assertTrue(compose.onAllNodesWithTag("update_card").fetchSemanticsNodes().isEmpty())
     }
 
