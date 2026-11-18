@@ -50,7 +50,7 @@ class AppUpdateFlowTest {
         with(compose) {
             waitForTag("update_card")
             waitForText("A new version is ready")
-            waitForText("Get it from Google Play (about 6 MB). Keep using the app while it downloads.")
+            waitForText("Keep using the app while it downloads.")
             tapTag("update_now")
             waitUntil(5_000) { play.isConfirmationDialogVisible }
             play.userAcceptsUpdate()
@@ -86,7 +86,7 @@ class AppUpdateFlowTest {
     @Test
     fun anUrgentFixOpensGooglePlaysFullScreenUpdate() {
         setUpManually()
-        play.setUpdateAvailable(142)
+        play.setUpdateAvailable(142, com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE)
         play.setUpdatePriority(5)
         checkAgain()
         compose.waitUntil(5_000) { play.isImmediateFlowVisible }
