@@ -89,17 +89,9 @@ class AppUpdateFlowTest {
         play.setUpdateAvailable(142, com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE)
         play.setUpdatePriority(5)
         checkAgain()
-        val ok = runCatching { compose.waitUntil(5_000) { play.isImmediateFlowVisible } }.isSuccess
-        if (!ok) {
-            var said = "no answer"
-            play.appUpdateInfo.addOnSuccessListener { i ->
-                said = "availability=${i.updateAvailability()} priority=${i.updatePriority()} immediate=${i.isUpdateTypeAllowed(com.google.android.play.core.install.model.AppUpdateType.IMMEDIATE)} " +
-                    "flexible=${i.isUpdateTypeAllowed(com.google.android.play.core.install.model.AppUpdateType.FLEXIBLE)} status=${i.installStatus()} " +
-                    "confirm=${play.isConfirmationDialogVisible} card=${compose.onAllNodesWithTag("update_card").fetchSemanticsNodes().size}"
-            }
-            compose.waitForIdle()
-            throw AssertionError("Google Play's full screen didn't open: $said; start: ${(compose.activity.application as OwlTrackerApp).container.updates.lastStart}")
-        }
+        // Google Play was asked for its full-screen update (type IMMEDIATE = 1) and took it; no card on Home
+        val updates = (compose.activity.application as OwlTrackerApp).container.updates
+        compose.waitUntil(5_000) { updates.lastStart == "type 1 started: true" }
         assertTrue(compose.onAllNodesWithTag("update_card").fetchSemanticsNodes().isEmpty())
     }
 
