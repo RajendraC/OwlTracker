@@ -16,6 +16,11 @@ on:
         type: choice
         options: [internal, alpha, none]
         default: internal
+      update_priority:
+        description: "How hard the app asks people to update: normal = a card on Home they can put off, urgent = Google Play's full-screen update (for serious bugs only)"
+        type: choice
+        options: [normal, urgent]
+        default: normal
 
 permissions:
   contents: read
@@ -145,6 +150,7 @@ jobs:
           PLAY_TOKEN: ${{ steps.google.outputs.access_token }}
           VERSION_NAME: ${{ inputs.version_name }}
           TRACK: ${{ inputs.play_track }}
+          UPDATE_PRIORITY: ${{ inputs.update_priority == 'urgent' && '5' || '2' }}
         shell: bash
         run: bash ci/play-upload.sh com.owl.tracker "out/owl-tracker-${VERSION_NAME}-${OWL_TRACKER_VERSION_CODE}.aab" "$TRACK" "$VERSION_NAME" | tee -a "$GITHUB_STEP_SUMMARY"
 

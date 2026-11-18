@@ -133,6 +133,7 @@ dependencies {
     // The ₹50 unlock. Talks only to the Play Store app on the phone; its INTERNET permission is
     // stripped in AndroidManifest.xml, and CI fails if it ever comes back.
     implementation(libs.google.play.billing)
+    implementation(libs.google.play.app.update)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

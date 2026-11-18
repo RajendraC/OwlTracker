@@ -42,6 +42,11 @@ class MainActivity : FragmentActivity() {
 
     private lateinit var vm: AppViewModel
 
+    /** Google Play's update screens; the answer goes back to the app's update check. */
+    private val updateLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()) {
+        (application as OwlTrackerApp).container.updates.onResult(it.resultCode)
+    }
+
     private val processObserver = object : DefaultLifecycleObserver {
         override fun onStart(owner: LifecycleOwner) = vm.onAppForeground()
         override fun onStop(owner: LifecycleOwner) = vm.onAppBackground()
@@ -71,6 +76,14 @@ class MainActivity : FragmentActivity() {
             }
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(processObserver)
+        container.updates.attach(updateLauncher)
+        if (savedInstanceState == null) runCatching {
+            @Suppress("DEPRECATION")
+            val p = packageManager.getPackageInfo(packageName, 0)
+            @Suppress("DEPRECATION")
+            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) p.longVersionCode.toInt() else p.versionCode
+            container.updates.startUp(code, p.versionName.orEmpty(), updatedFromEarlier = p.lastUpdateTime > p.firstInstallTime)
+        }
 
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
@@ -86,7 +99,13 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        (application as OwlTrackerApp).container.updates.check()
+    }
+
     override fun onDestroy() {
+        (application as OwlTrackerApp).container.updates.detach()
         ProcessLifecycleOwner.get().lifecycle.removeObserver(processObserver)
         super.onDestroy()
     }

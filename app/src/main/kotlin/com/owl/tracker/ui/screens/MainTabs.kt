@@ -191,6 +191,8 @@ fun HomeScreen(vm: AppViewModel) {
     // The Paid by tab: the card or account opened in it
     var openPaid by androidx.compose.runtime.saveable.rememberSaveable(ringKey) { androidx.compose.runtime.mutableStateOf<String?>(null) }
     val whereView by vm.whereView.collectAsStateWithLifecycle()
+    val appUpdate by vm.appUpdate.collectAsStateWithLifecycle()
+    val whatsNew by vm.whatsNew.collectAsStateWithLifecycle()
     val paidTab = wholeMonth && whereView == "paid" && openGroup == null && openCat == null
     androidx.activity.compose.BackHandler(enabled = paidTab && openPaid != null) { openPaid = null }
     androidx.activity.compose.BackHandler(enabled = openCat == null && openGroup == null && picked != null) { pickedIso = null }
@@ -271,6 +273,12 @@ fun HomeScreen(vm: AppViewModel) {
                     }
                 }
             }
+
+            // Under the budget card: a new version from Google Play, or What's new after updating
+            if (appUpdate != com.owl.tracker.update.UpdateUi.None) item(key = "update") {
+                UpdateCard(appUpdate, vm::updateNow, vm::updateLater, vm::restartToUpdate, side)
+            }
+            whatsNew?.let { v -> item(key = "whats_new") { WhatsNewCard(v, vm::closeWhatsNew, side) } }
 
             when (val a = access) {
                 is Access.Trial -> item { Box(side) { TrialBanner(a.daysLeft, store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }

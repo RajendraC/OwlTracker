@@ -29,6 +29,7 @@ fun testContainer(
     granted: Boolean = true,
     store: UnlockStore = FakeUnlockStore(),
     installedAt: Long = TEST_CLOCK.millis(),
+    updates: com.google.android.play.core.appupdate.AppUpdateManager? = null,
 ) = AppContainer(
     context = context,
     dbFactory = { FrameworkSQLiteOpenHelperFactory() },
@@ -38,6 +39,7 @@ fun testContainer(
     keyManager = null,
     unlockStore = store,
     installedAt = { installedAt },
+    updateManager = updates,
 )
 
 /** Application used by Robolectric UI tests: same app, test container, no background scheduling. */
@@ -47,6 +49,7 @@ class TestApp : OwlTrackerApp() {
         inboxOverride ?: sampleInbox(),
         store = storeOverride ?: FakeUnlockStore(),
         installedAt = installedAtOverride ?: TEST_CLOCK.millis(),
+        updates = updatesOverride,
     )
     override val scheduleBackgroundSync: Boolean = false
 
@@ -59,5 +62,8 @@ class TestApp : OwlTrackerApp() {
 
         /** The fake Google Play for one test, to buy through or inspect afterwards. */
         var storeOverride: FakeUnlockStore? = null
+
+        /** Google's fake Play update manager for one test (none: no update is ever offered). */
+        var updatesOverride: com.google.android.play.core.appupdate.testing.FakeAppUpdateManager? = null
     }
 }

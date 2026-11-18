@@ -177,6 +177,14 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     private val engine = c.importEngine
     private val zone: ZoneId get() = c.clock.zone
     fun today(): LocalDate = LocalDate.now(c.clock)
+
+    /** A new version from Google Play (the card on Home), and What's new after updating. */
+    val appUpdate get() = c.updates.state
+    val whatsNew get() = c.updates.whatsNew
+    fun updateNow() = c.updates.update()
+    fun updateLater() = c.updates.later()
+    fun restartToUpdate() = c.updates.restart()
+    fun closeWhatsNew() = c.updates.closeWhatsNew()
     val timeZone: ZoneId get() = zone
     fun now(): Long = c.clock.millis()
     val appIcons get() = c.appIcons

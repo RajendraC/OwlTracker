@@ -40,6 +40,7 @@ class AppContainer(
     val keyManager: KeyManager?,
     unlockStore: UnlockStore = NoStore(),
     installedAt: () -> Long = { TrialClock.installTime(context) },
+    updateManager: com.google.android.play.core.appupdate.AppUpdateManager? = null,
 ) {
     val db = Db(context, dbFactory, dbName)
     val appIcons: AppIcons = AppIcons(context) { id -> repo.pictureBytes(id) }
@@ -60,6 +61,9 @@ class AppContainer(
         prefs = licencePrefs,
         scope = scope,
     )
+
+    /** New versions from Google Play, and What's new after updating. */
+    val updates = com.owl.tracker.update.AppUpdates(updateManager, context.getSharedPreferences(com.owl.tracker.update.AppUpdates.PREFS, Context.MODE_PRIVATE))
 
     /**
      * Erases everything: the Keystore key that protected the database, then the database file.
@@ -93,6 +97,7 @@ class AppContainer(
                 keyManager = keys,
                 unlockStore = runCatching { PlayBillingStore(app, app.getString(R.string.play_licence_key)) as UnlockStore }
                     .getOrElse { NoStore() },
+                updateManager = runCatching { com.google.android.play.core.appupdate.AppUpdateManagerFactory.create(app) }.getOrNull(),
             )
         }
     }

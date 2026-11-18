@@ -58,9 +58,17 @@ edit=$(call POST "$APP/edits" -H "Content-Type: application/json" -d '{}' | jq -
 code=$(call POST "$UPLOAD/edits/$edit/bundles?uploadType=media" -H "Content-Type: application/octet-stream" --data-binary "@$AAB" | jq -r '.versionCode') ||
   fail "Google Play didn't accept the bundle"
 
+# How hard the app asks people to update (Play's inAppUpdatePriority, 0-5): the app shows a card on Home
+# below 4, and Google Play's full-screen update at 4 or 5. Normal releases are 2, urgent fixes 5.
+PRIORITY="${UPDATE_PRIORITY:-2}"
+case "$PRIORITY" in
+  [0-5]) ;;
+  *) echo "::error::UPDATE_PRIORITY must be 0 to 5, not '$PRIORITY'"; exit 1 ;;
+esac
+
 release() {
-  jq -n --arg t "$TRACK" --arg n "$NAME" --arg c "$code" --arg s "$1" \
-    '{track: $t, releases: [{name: $n, versionCodes: [$c], status: $s}]}'
+  jq -n --arg t "$TRACK" --arg n "$NAME" --arg c "$code" --arg s "$1" --argjson p "$PRIORITY" \
+    '{track: $t, releases: [{name: $n, versionCodes: [$c], status: $s, inAppUpdatePriority: $p}]}'
 }
 
 # Testers get it straight away ("completed"). An app Google hasn't published anywhere yet only
@@ -92,6 +100,7 @@ track_name=$([ "$TRACK" = internal ] && echo "Internal testing" || echo "Closed 
 echo "### Sent to Google Play"
 echo ""
 echo "- Version **$NAME** (code $code) is on **$track_name**."
+if [ "$PRIORITY" -ge 4 ]; then echo "- Update priority **$PRIORITY**: the app asks with Google Play's full-screen update."; else echo "- Update priority **$PRIORITY**: the app shows an update card on Home."; fi
 if [ "$status" = draft ]; then
   echo "- It's a **draft**: open Play Console → Test and release → $track_name and roll it out."
 elif [ "$review" = waiting ]; then
