@@ -337,8 +337,11 @@ class ImportEngine(
         val s = repo.settings()
         if (s.keysVersion >= KEYS_VERSION) return 0
         val all = repo.transactions(0, Long.MAX_VALUE).filter { it.source == Source.SMS }
-        fun parsed(t: com.owl.tracker.data.Txn) =
-            (SmsParser.parse(com.owl.tracker.core.SmsMessage(t.smsId ?: 0L, t.sender ?: return null, t.smsBody ?: return null, t.occurredAt)) as? ParseResult.Accepted)?.tx
+        fun parsed(t: com.owl.tracker.data.Txn): ParsedTransaction? {
+            val sender = t.sender ?: return null
+            val body = t.smsBody ?: return null
+            return (SmsParser.parse(com.owl.tracker.core.SmsMessage(t.smsId ?: 0L, sender, body, t.occurredAt)) as? ParseResult.Accepted)?.tx
+        }
         // The shared keys: payments with only a UPI ID that were keyed some other way
         val wrong = all.mapNotNull { t ->
             val p = parsed(t) ?: return@mapNotNull null
