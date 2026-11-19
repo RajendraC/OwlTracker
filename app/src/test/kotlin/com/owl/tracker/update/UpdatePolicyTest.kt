@@ -74,7 +74,7 @@ class UpdatePolicyTest {
         updates().apply { startUp(37, "1.9.4", updatedFromEarlier = true); assertNull(whatsNew.value) }
 
         // A later version with no notes: nothing, and it counts as seen
-        updates().apply { startUp(38, "1.9.5", updatedFromEarlier = true); assertNull(whatsNew.value) }
+        updates().apply { startUp(38, "9.9.9", updatedFromEarlier = true); assertNull(whatsNew.value) }
         assertEquals(3, WhatsNew.notes("1.9.4").size)
     }
 }
