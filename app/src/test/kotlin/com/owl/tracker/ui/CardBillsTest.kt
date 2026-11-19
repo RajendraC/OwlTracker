@@ -98,4 +98,57 @@ class CardBillsTest {
         val pays = mapOf(card to listOf(CardPayment(LocalDate.parse("2026-10-20"), 500_00, 123L), CardPayment(LocalDate.parse("2026-10-20"), 0, 456L, true)))
         assertEquals(pays, CardBills.paymentsFromJson(CardBills.paymentsToJson(pays)))
     }
+
+    /** The tester's card: bill on the 1st, ₹31,742 billed, ₹31,780 paid on 3 Nov, ₹27,439 spent since. */
+    @Test
+    fun aBillPaymentOnTheCardIsNeverARefundAndTheExtraPaidComesOffTheNextBill() {
+        val txns = listOf(
+            tx(31_780, "2026-10-20"), tx(38, "2026-10-25", Direction.CREDIT, TxKind.REFUND),
+            // The account's SMS names the card; the card's own SMS came in as plain money back
+            tx(31_780, "2026-11-03", kind = TxKind.CARD_BILL_PAYMENT, label = "HDFC Bank ••4821", body = "Rs 31780 debited for ICICI credit card XX1234"),
+            tx(31_780, "2026-11-03", Direction.CREDIT, TxKind.NORMAL, body = "Dear Customer, Payment of INR 31,780.00 has been received on your ICICI Bank Credit Card XX1234"),
+            tx(27_439, "2026-11-10"),
+        )
+        val today = LocalDate.parse("2026-11-19")
+        val b = CardBills.compute(card, CardCycle(1), txns, emptyList(), today, zone)
+        assertEquals(31_742_00L, b.last.netPaise)
+        assertTrue(b.paidInFull)
+        assertEquals(listOf(31_780_00L), b.payments.map { it.paise }) // counted once
+        assertEquals(0L, b.current.refundsPaise) // not a refund on the next bill
+        assertEquals(38_00L, b.current.extraPaidPaise)
+        assertEquals(27_401_00L, b.current.netPaise)
+        val credit = b.credits.single { it.txn.amountPaise == 31_780_00L }
+        assertTrue(credit.payment)
+        assertEquals(CardCredit.Why.SMS_SAYS_PAYMENT, credit.why)
+
+        // No payment words, but the same money left a bank account for this card: still a payment
+        val plain = txns.map { if (it.direction == Direction.CREDIT && it.amountPaise == 31_780_00L) it.copy(smsBody = "Rs 31780 credited to your card XX1234") else it }
+        val b2 = CardBills.compute(card, CardCycle(1), plain, emptyList(), today, zone)
+        assertEquals(CardCredit.Why.MATCHES_ACCOUNT_PAYMENT, b2.credits.single { it.txn.amountPaise == 31_780_00L }.why)
+        assertEquals(27_401_00L, b2.current.netPaise)
+
+        // The user says it was a refund after all: it comes off the next bill, and the bill stays paid by the account
+        val id = credit.txn.id
+        val b3 = CardBills.compute(card, CardCycle(1), txns, emptyList(), today, zone, mapOf(id to false))
+        assertEquals(CardCredit.Why.YOU, b3.credits.single { it.txn.id == id }.why)
+        assertEquals(31_780_00L, b3.current.refundsPaise)
+        // And the ₹38 refund called a payment: it no longer lowers the 1 Nov bill
+        val refundId = b.credits.single { it.txn.amountPaise == 38_00L }.txn.id
+        val b4 = CardBills.compute(card, CardCycle(1), txns, emptyList(), today, zone, mapOf(refundId to true))
+        assertEquals(31_780_00L, b4.last.netPaise)
+        assertEquals(0L, b4.current.extraPaidPaise)
+    }
+
+    @Test
+    fun paymentWordsAndTheSavedChoices() {
+        assertTrue(CardBills.saysPayment("Thank you for your payment of Rs 5,000 towards your credit card"))
+        assertTrue(CardBills.saysPayment("Payment received on your SBI Card ending 1234"))
+        assertTrue(CardBills.saysPayment("We have received payment of Rs.2,000 for your HDFC Bank Credit Card"))
+        assertFalse(CardBills.saysPayment("Refund of Rs 499 credited to your credit card XX1234"))
+        assertFalse(CardBills.saysPayment("Rs 120 cashback credited to card XX1234"))
+        val m = mapOf(5L to true, 9L to false)
+        assertEquals(m, CardBills.creditKindsFromJson(CardBills.creditKindsToJson(m)))
+        assertEquals(mapOf(5L to true), CardBills.creditKindsFromJson("""{"5":"payment","x":"refund","7":"other"}"""))
+    }
+
 }

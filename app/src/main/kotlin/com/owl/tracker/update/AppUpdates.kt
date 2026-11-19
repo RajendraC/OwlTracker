@@ -192,6 +192,11 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.5" to listOf(
+            Item("Card bills add up right", "A payment to your credit card no longer shows up as a refund on the next bill, and anything paid extra comes off it."),
+            Item("Refund or payment? You choose", "In Still to pay, tap Refunds and payments on this card to correct any that were read wrong."),
+            Item("Why a day is green", "Tap a day in the calendar: a bar shows its everyday spending against the day's share, with EMIs and rent apart."),
+        ),
         "1.9.4" to listOf(
             Item("Still to pay on credit cards", "Open a credit card in Paid by: set its bill date, then mark a bill paid or add a part payment."),
             Item("Opens on This month", "Where it went always starts on This month when you open the app."),

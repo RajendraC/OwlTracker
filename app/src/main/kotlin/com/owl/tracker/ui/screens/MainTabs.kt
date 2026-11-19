@@ -343,7 +343,7 @@ fun HomeScreen(vm: AppViewModel) {
             // One day picked: everything below is about that day
             if (pickedTotal != null) item(key = "day_filter") {
                 DayFilterBar(
-                    pickedTotal, txns.size, (week?.share ?: calendar?.share)?.fromBudget == true, today, { pickedIso = null }, side,
+                    pickedTotal, txns.size, week?.share ?: calendar?.share, today, { pickedIso = null }, side,
                 )
             }
 

@@ -309,6 +309,14 @@ class StoreScreenshots {
                     Thread.sleep(1500)
                     runCatching { scrollTo(hasTestTag("bill_payment_0"), below = 200f) }
                     shot("15q_card_bill_paid_part")
+                    runCatching {
+                        scrollTo(hasTestTag("card_credits_open"), below = 120f)
+                        tapTag("card_credits_open")
+                        Thread.sleep(700)
+                        shot("15r_card_credits")
+                        tapTag("card_credits_done")
+                        Thread.sleep(400)
+                    }
                     runCatching { scrollTo(hasTestTag("card_tab_used"), below = 20f, both = true) }
                     tapTag("card_tab_used")
                     Thread.sleep(600)

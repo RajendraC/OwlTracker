@@ -581,6 +581,18 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
+    /**
+     * A credit on a credit card counts as a bill payment ([payment] true) or a refund (false); null goes back to
+     * what the app works out from the SMS.
+     */
+    fun setCardCreditKind(txnId: Long, payment: Boolean?) = viewModelScope.launch {
+        repo.updateSettings { s ->
+            val m = CardBills.creditKindsFromJson(s.cardCreditKinds)
+            s.copy(cardCreditKinds = CardBills.creditKindsToJson(if (payment == null) m - txnId else m + (txnId to payment)))
+        }
+        say(when (payment) { true -> "Counted as a bill payment"; false -> "Counted as a refund"; null -> "Back to what the SMS says" })
+    }
+
     /** Every payment from [from] to now, for a card's bills (they can reach back two months). */
     suspend fun txnsSince(from: LocalDate): List<Txn> =
         repo.transactions(from.atStartOfDay(zone).toInstant().toEpochMilli(), now() + 1)

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -46,6 +48,7 @@ import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.BillPeriod
 import com.owl.tracker.ui.CardBill
 import com.owl.tracker.ui.CardBills
+import com.owl.tracker.ui.CardCredit
 import com.owl.tracker.ui.CardCycle
 import com.owl.tracker.ui.components.Divider
 import com.owl.tracker.ui.components.Gap
@@ -87,14 +90,22 @@ fun StillToPay(vm: AppViewModel, label: String) {
             val today = vm.today()
             val from = cycle.billBefore(cycle.lastBillOnOrBefore(today)).minusDays(1)
             val txns by produceState<List<Txn>?>(null, label, cycle, period, settings?.cardPayments) { value = vm.txnsSince(from) }
+            var checking by remember { mutableStateOf(false) }
             val list = txns
             if (list == null) {
                 Text("Working it out…", style = MaterialTheme.typography.bodySmall)
             } else {
                 val manual = remember(settings?.cardPayments) { CardBills.paymentsFromJson(settings?.cardPayments)[label].orEmpty() }
-                val bill = remember(list, manual, cycle, today) { CardBills.compute(label, cycle, list, manual, today, vm.timeZone) }
-                LastBill(vm, label, bill, today)
-                ThisBill(bill.current, bill.nextBill)
+                val kinds = remember(settings?.cardCreditKinds) { CardBills.creditKindsFromJson(settings?.cardCreditKinds) }
+                val bill = remember(list, manual, cycle, today, kinds) { CardBills.compute(label, cycle, list, manual, today, vm.timeZone, kinds) }
+                LastBill(vm, label, bill, today, onCheck = { checking = true })
+                ThisBill(bill.current, bill.nextBill, bill.last.end, onCheck = { checking = true })
+                if (bill.credits.isNotEmpty()) {
+                    TextButton(onClick = { checking = true }, modifier = Modifier.testTag("card_credits_open")) {
+                        Text("Refunds and payments on this card (${bill.credits.size}) ›")
+                    }
+                }
+                if (checking) CreditsDialog(vm, bill, onDismiss = { checking = false })
             }
             // The cycle, and a way to change it
             Row(
@@ -119,8 +130,16 @@ fun StillToPay(vm: AppViewModel, label: String) {
 }
 
 @Composable
-private fun AmountRow(label: String, paise: Long, minus: Boolean = false, bold: Boolean = false, tag: String? = null, trailing: (@Composable () -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().then(if (tag != null) Modifier.testTag(tag) else Modifier), verticalAlignment = Alignment.CenterVertically) {
+private fun AmountRow(
+    label: String, paise: Long, minus: Boolean = false, bold: Boolean = false, tag: String? = null,
+    onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .then(if (onClick != null) Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClickLabel = "Check refunds and payments", onClick = onClick) else Modifier)
+            .then(if (tag != null) Modifier.testTag(tag) else Modifier),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         SideOrStacked(
             Modifier.weight(1f),
             start = { Text(label, style = if (bold) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium) },
@@ -137,7 +156,7 @@ private fun AmountRow(label: String, paise: Long, minus: Boolean = false, bold: 
 }
 
 @Composable
-private fun LastBill(vm: AppViewModel, label: String, bill: CardBill, today: LocalDate) {
+private fun LastBill(vm: AppViewModel, label: String, bill: CardBill, today: LocalDate, onCheck: () -> Unit) {
     var adding by remember { mutableStateOf(false) }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val overdue = !bill.paidInFull && today.isAfter(bill.dueDate)
@@ -161,13 +180,16 @@ private fun LastBill(vm: AppViewModel, label: String, bill: CardBill, today: Loc
         )
         Divider()
         AmountRow("Charged, ${d(bill.last.start)} – ${d(bill.last.end)}", bill.last.chargedPaise)
-        if (bill.last.refundsPaise > 0) AmountRow("Refunds back to the card", bill.last.refundsPaise, minus = true)
+        if (bill.last.refundsPaise > 0) AmountRow("Refunds back to the card ›", bill.last.refundsPaise, minus = true, tag = "bill_refunds", onClick = onCheck)
         AmountRow("This bill", bill.last.netPaise, bold = true, tag = "bill_amount")
+        val onCardIds = bill.credits.map { it.txn.id }.toSet()
         bill.payments.forEach { p ->
             val on = vm.dateOf(p.atMs)
+            val onCard = p.txnId != null && p.txnId in onCardIds
             AmountRow(
-                "Paid ${d(on)} · " + if (p.txnId != null) "from the bank's SMS" else "added by you",
+                "Paid ${d(on)} · " + when { p.txnId == null -> "added by you"; onCard -> "from the card's SMS ›"; else -> "from the bank's SMS" },
                 p.paise, minus = true, tag = "bill_payment_${p.manualIndex ?: ("sms" + p.txnId)}",
+                onClick = if (onCard) onCheck else null,
             ) {
                 if (p.manualIndex != null) {
                     IconButton(onClick = { vm.removeCardPayment(label, p.manualIndex) }, modifier = Modifier.size(36.dp)) {
@@ -207,11 +229,12 @@ private fun FlowRow2(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun ThisBill(p: BillPeriod, nextBill: LocalDate) {
+private fun ThisBill(p: BillPeriod, nextBill: LocalDate, lastBill: LocalDate, onCheck: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp).testTag("this_bill"), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text("On the next bill so far", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         AmountRow("Charged, ${d(p.start)} – today", p.chargedPaise)
-        if (p.refundsPaise > 0) AmountRow("Refunds", p.refundsPaise, minus = true)
+        if (p.refundsPaise > 0) AmountRow("Refunds ›", p.refundsPaise, minus = true, tag = "next_refunds", onClick = onCheck)
+        if (p.extraPaidPaise > 0) AmountRow("Paid extra on the ${d(lastBill)} bill", p.extraPaidPaise, minus = true, tag = "next_extra_paid")
         AmountRow("Bill on ${nextBill.format(DAY_W)}, so far", p.netPaise, bold = true)
     }
 }
@@ -324,4 +347,70 @@ fun CardTabs(bill: Boolean, onBill: (Boolean) -> Unit) {
             }
         }
     }
+}
+
+/** Every credit on the card since the last bill period began, each a refund or a bill payment, correctable. */
+@Composable
+private fun CreditsDialog(vm: AppViewModel, bill: CardBill, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("card_credits_dialog"),
+        title = { Text("Refunds and payments") },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    "Money back on this card since ${d(bill.last.start)}. A refund lowers the bill it lands on; a payment pays the bill before it.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                bill.credits.forEach { c ->
+                    val t = c.txn
+                    Column(Modifier.fillMaxWidth().testTag("credit_${t.id}"), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("${d(vm.dateOf(t.occurredAt))} · ${t.merchantName}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text(Money.formatInr(t.amountPaise), style = MaterialTheme.typography.titleSmall)
+                        }
+                        Text(
+                            when (c.why) {
+                                CardCredit.Why.YOU -> "Set by you"
+                                CardCredit.Why.SMS_SAYS_PAYMENT -> "The SMS says it's a payment"
+                                CardCredit.Why.MATCHES_ACCOUNT_PAYMENT -> "Same amount as a card bill payment from your bank account"
+                                CardCredit.Why.LOOKS_LIKE_REFUND -> "Taken as a refund"
+                            },
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalBrand.current.clay.pressed).padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            listOf(false to "Refund", true to "Payment").forEach { (pay, text) ->
+                                val on = c.payment == pay
+                                Box(
+                                    Modifier.weight(1f).clip(RoundedCornerShape(13.dp))
+                                        .background(if (on) MaterialTheme.colorScheme.surface else Color.Transparent)
+                                        .clickable(onClickLabel = "Count as a ${text.lowercase()}") { if (!on) vm.setCardCreditKind(t.id, pay) }
+                                        .padding(vertical = 10.dp)
+                                        .testTag(if (pay) "credit_payment_${t.id}" else "credit_refund_${t.id}"),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        (if (on) "✓ " else "") + text, style = MaterialTheme.typography.labelLarge,
+                                        color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                        if (c.why == CardCredit.Why.YOU) {
+                            TextButton(onClick = { vm.setCardCreditKind(t.id, null) }, modifier = Modifier.testTag("credit_auto_${t.id}")) {
+                                Text("Go back to what the SMS says")
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss, modifier = Modifier.testTag("card_credits_done")) { Text("Done") } },
+    )
 }

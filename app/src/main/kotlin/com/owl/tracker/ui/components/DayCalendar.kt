@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -319,24 +320,65 @@ fun MonthCalendarCard(
 
 /** Shown while one day is picked: the day, what went out, and the way back to every day. */
 @Composable
-fun DayFilterBar(day: DayTotal, payments: Int, budgeted: Boolean, today: LocalDate, onClear: () -> Unit, modifier: Modifier = Modifier) {
+fun DayFilterBar(day: DayTotal, payments: Int, share: DayShare?, today: LocalDate, onClear: () -> Unit, modifier: Modifier = Modifier) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val budgeted = share?.fromBudget == true
+    val every = day.everydayPaise.coerceAtLeast(0)
     com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(24.dp), modifier.fillMaxWidth().testTag("day_filter"), elevation = 8.dp) {
-        Row(Modifier.padding(start = 6.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = 6.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.Top) {
             DayCircle(day.date, day.level, day.fixedPaise > 0, picked = false, today = day.date == today, size = 36.dp)
-            Column(Modifier.weight(1f).padding(start = 6.dp)) {
+            Column(Modifier.weight(1f).padding(start = 8.dp, top = 2.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 FitText(
                     "${dayTitle(day.date)} · ${Money.formatInr(day.paise)}", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
                     maxLines = 2, minScale = 0.8f,
                 )
-                Text(
-                    listOfNotNull(
-                        "$payments ${if (payments == 1) "payment" else "payments"}",
-                        levelName(day.level, budgeted).takeIf { day.level != DayLevel.NONE },
-                        day.fixedPaise.takeIf { it > 0 }?.let { "EMI or rent ${Money.formatInr(it)}" },
-                    ).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall, color = muted, maxLines = 2,
-                )
+                // What the colour is about: the everyday spending, against the day's share
+                if (day.level != DayLevel.NONE && day.level != DayLevel.FUTURE) {
+                    Text(
+                        androidx.compose.ui.text.buildAnnotatedString {
+                            append("${Money.formatInr(every)} everyday · ")
+                            pushStyle(androidx.compose.ui.text.SpanStyle(color = levelFill(day.level)?.let { darker(it) } ?: muted, fontWeight = FontWeight.ExtraBold))
+                            append(levelName(day.level, budgeted))
+                            pop()
+                        },
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), modifier = Modifier.testTag("day_filter_everyday"),
+                    )
+                    if (share != null && share.paise > 0) {
+                        val part = (every.toFloat() / (share.paise * 2f)).coerceIn(0f, 1f)
+                        Box(
+                            Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(6.dp)).background(LocalBrand.current.clay.pressed)
+                                .testTag("day_filter_bar")
+                                .semantics { contentDescription = "${Money.formatInr(every)} of the day's ${Money.formatInr(share.paise)} share" },
+                        ) {
+                            Box(Modifier.fillMaxWidth(part).fillMaxHeight().clip(RoundedCornerShape(6.dp)).background(levelFill(day.level) ?: muted))
+                            // The day's share, half way along
+                            Box(Modifier.fillMaxWidth(0.5f).fillMaxHeight()) {
+                                Box(Modifier.align(Alignment.CenterEnd).width(2.dp).fillMaxHeight().background(MaterialTheme.colorScheme.onSurface))
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth()) {
+                            Text("₹0", style = MaterialTheme.typography.labelSmall, color = muted, modifier = Modifier.weight(1f))
+                            Text(
+                                (if (budgeted) "day's share " else "usual day ") + Money.formatInr(share.paise),
+                                style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.Center, modifier = Modifier.weight(2f),
+                            )
+                            Text("2×", style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+                // EMIs and rent: shown, but not in the colour
+                if (day.fixedPaise > 0) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(LocalBrand.current.clay.pressed)
+                            .padding(horizontal = 10.dp, vertical = 7.dp).testTag("day_filter_fixed"),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(Modifier.size(9.dp).clip(CircleShape).background(FIXED_DOT))
+                        Text("+ EMI or rent · not in the colour", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f))
+                        Text(Money.formatInr(day.fixedPaise), style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
+                    }
+                }
+                Text("$payments ${if (payments == 1) "payment" else "payments"}", style = MaterialTheme.typography.bodySmall, color = muted)
             }
             IconButton(onClick = onClear, modifier = Modifier.testTag("day_filter_clear")) {
                 Icon(Ic.close, contentDescription = "Show every day again", modifier = Modifier.size(20.dp))
@@ -344,3 +386,6 @@ fun DayFilterBar(day: DayTotal, payments: Int, budgeted: Boolean, today: LocalDa
         }
     }
 }
+
+/** A level's colour made dark enough to read as text on the card. */
+private fun darker(c: Color): Color = Color(c.red * 0.62f, c.green * 0.62f, c.blue * 0.62f, 1f)

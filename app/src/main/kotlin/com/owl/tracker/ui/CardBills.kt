@@ -67,8 +67,20 @@ data class BillPeriod(
     val chargedPaise: Long,
     val refundsPaise: Long,
     val charges: Int,
+    /** Paid over the bill before, which the bank takes off this one. */
+    val extraPaidPaise: Long = 0,
 ) {
-    val netPaise: Long get() = (chargedPaise - refundsPaise).coerceAtLeast(0)
+    val netPaise: Long get() = (chargedPaise - refundsPaise - extraPaidPaise).coerceAtLeast(0)
+}
+
+/** Money back on the card (a credit): a refund, or a payment towards a bill. */
+data class CardCredit(
+    val txn: Txn,
+    val payment: Boolean,
+    /** Why: the user said so, or what the app saw. */
+    val why: Why,
+) {
+    enum class Why { YOU, SMS_SAYS_PAYMENT, MATCHES_ACCOUNT_PAYMENT, LOOKS_LIKE_REFUND }
 }
 
 /** A credit card's last bill and the bill building up now. */
@@ -82,6 +94,8 @@ data class CardBill(
     /** The bill period running now, up to today. */
     val current: BillPeriod,
     val nextBill: LocalDate,
+    /** Every credit on the card from the last bill period to today, with how it counts (to correct). */
+    val credits: List<CardCredit> = emptyList(),
 ) {
     val paidPaise: Long get() = payments.sumOf { it.paise }
     /** Still to pay on the last bill: nothing once it's marked paid or the payments cover it. */
@@ -107,46 +121,90 @@ object CardBills {
         manual: List<CardPayment>,
         today: LocalDate,
         zone: ZoneId,
+        /** The user's say on a card credit, by payment id: true = a bill payment, false = a refund. */
+        creditKinds: Map<Long, Boolean> = emptyMap(),
     ): CardBill {
         fun dayOf(t: Txn) = java.time.Instant.ofEpochMilli(t.occurredAt).atZone(zone).toLocalDate()
         val lastBill = cycle.lastBillOnOrBefore(today)
         val lastStart = cycle.billBefore(lastBill).plusDays(1)
         val nextBill = cycle.nextBillAfter(lastBill)
         val mine = txns.filter { it.accountLabel == label }
+        val last4 = label.takeLast(4).takeIf { it.all(Char::isDigit) }
+        val digits = last4?.let { Regex("(?<!\\d)$it(?!\\d)") }
+        // Card bill payments from bank accounts, naming this card
+        val accountPayments = txns.filter { t ->
+            t.accountLabel != label && t.direction == Direction.DEBIT && t.kind == TxKind.CARD_BILL_PAYMENT &&
+                digits != null && t.smsBody?.let { digits.containsMatchIn(it) } == true
+        }
+        fun sameMoney(a: Txn, b: Txn) = a.amountPaise == b.amountPaise && kotlin.math.abs(a.occurredAt - b.occurredAt) <= 4 * 86_400_000L
 
-        fun period(start: LocalDate, end: LocalDate): BillPeriod {
+        // Each credit on the card: a bill payment or a refund
+        val credits = mine.filter { it.direction == Direction.CREDIT }.map { t ->
+            val said = creditKinds[t.id]
+            when {
+                said != null -> CardCredit(t, said, CardCredit.Why.YOU)
+                t.kind == TxKind.CARD_BILL_PAYMENT || saysPayment(t.smsBody) -> CardCredit(t, true, CardCredit.Why.SMS_SAYS_PAYMENT)
+                accountPayments.any { sameMoney(it, t) } -> CardCredit(t, true, CardCredit.Why.MATCHES_ACCOUNT_PAYMENT)
+                else -> CardCredit(t, false, CardCredit.Why.LOOKS_LIKE_REFUND)
+            }
+        }
+        val paymentIds = credits.filter { it.payment }.map { it.txn.id }.toSet()
+
+        fun period(start: LocalDate, end: LocalDate, extra: Long = 0): BillPeriod {
             val inIt = mine.filter { val d = dayOf(it); !d.isBefore(start) && !d.isAfter(end) }
             val charges = inIt.filter { it.direction == Direction.DEBIT }
-            val refunds = inIt.filter { it.direction == Direction.CREDIT && it.kind != TxKind.CARD_BILL_PAYMENT }
-            return BillPeriod(start, end, charges.sumOf { it.amountPaise }, refunds.sumOf { it.amountPaise }, charges.size)
+            val refunds = inIt.filter { it.direction == Direction.CREDIT && it.id !in paymentIds }
+            return BillPeriod(start, end, charges.sumOf { it.amountPaise }, refunds.sumOf { it.amountPaise }, charges.size, extra)
         }
 
         // Bill payments after the last bill date
         val after = { t: Txn -> dayOf(t).isAfter(lastBill) }
-        val onCard = mine.filter { it.direction == Direction.CREDIT && it.kind == TxKind.CARD_BILL_PAYMENT && after(it) }
-        val last4 = label.takeLast(4).takeIf { it.all(Char::isDigit) }
-        val digits = last4?.let { Regex("(?<!\\d)$it(?!\\d)") }
-        val fromAccounts = txns.filter { t ->
-            t.accountLabel != label && t.direction == Direction.DEBIT && t.kind == TxKind.CARD_BILL_PAYMENT && after(t) &&
-                digits != null && t.smsBody?.let { digits.containsMatchIn(it) } == true
-        }.filter { a ->
+        val onCard = mine.filter { it.id in paymentIds && after(it) }
+        val fromAccounts = accountPayments.filter { after(it) }.filter { a ->
             // The same payment seen from both sides: the card's SMS is enough
-            onCard.none { it.amountPaise == a.amountPaise && kotlin.math.abs(it.occurredAt - a.occurredAt) <= 4 * 86_400_000L }
+            onCard.none { sameMoney(it, a) }
         }
         val found = (onCard + fromAccounts).sortedBy { it.occurredAt }.map { BillPayment(it.amountPaise, it.occurredAt, txnId = it.id) }
         val added = manual.withIndex().filter { it.value.bill == lastBill }
             .map { (i, p) -> BillPayment(p.paise, p.atMs, manualIndex = i, full = p.full) }
 
+        val last = period(lastStart, lastBill)
+        val payments = found + added.filter { !it.full }
+        val markedPaid = added.any { it.full }
+        // Paid more than the bill: the bank takes the extra off the next one
+        val extra = if (markedPaid) 0 else (payments.sumOf { it.paise } - last.netPaise).coerceAtLeast(0)
         return CardBill(
             cycle = cycle,
-            last = period(lastStart, lastBill),
+            last = last,
             dueDate = lastBill.plusDays(cycle.dueDays.toLong()),
-            payments = found + added.filter { !it.full },
-            markedPaid = added.any { it.full },
-            current = period(lastBill.plusDays(1), today),
+            payments = payments,
+            markedPaid = markedPaid,
+            current = period(lastBill.plusDays(1), today, extra),
             nextBill = nextBill,
+            credits = credits.filter { !dayOf(it.txn).isBefore(lastStart) }.sortedBy { it.txn.occurredAt },
         )
     }
+
+    /** A card's own SMS for a payment towards its bill ("Payment of Rs 31,780 received…", "Thank you for your payment"). */
+    private val PAYMENT_WORDS = Regex(
+        "payment\\s+(of\\s+(rs\\.?|inr|₹)\\s*[\\d,]+(\\.\\d+)?\\s+)?(has\\s+been\\s+|is\\s+|was\\s+)?(received|credited|successful|posted)" +
+            "|thank\\s+you\\s+for\\s+(your|the)\\s+payment|received\\s+(a\\s+|your\\s+)?payment|payment\\s+received" +
+            "|towards\\s+(your\\s+)?(\\w+\\s+){0,3}credit\\s+card(\\s+bill)?|card\\s+bill\\s+payment",
+        RegexOption.IGNORE_CASE,
+    )
+
+    fun saysPayment(body: String?): Boolean = body != null && !body.contains("refund", ignoreCase = true) && PAYMENT_WORDS.containsMatchIn(body)
+
+    fun creditKindsToJson(m: Map<Long, Boolean>): String =
+        JSONObject().apply { m.forEach { (id, pay) -> put(id.toString(), if (pay) "payment" else "refund") } }.toString()
+
+    fun creditKindsFromJson(raw: String?): Map<Long, Boolean> = runCatching {
+        val o = JSONObject(raw ?: return emptyMap())
+        o.keys().asSequence().mapNotNull { k ->
+            val id = k.toLongOrNull() ?: return@mapNotNull null
+            when (o.optString(k)) { "payment" -> id to true; "refund" -> id to false; else -> null }
+        }.toMap()
+    }.getOrDefault(emptyMap())
 
     // ---- stored in settings (never in backups: the keys hold card digits)
 

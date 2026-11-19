@@ -220,6 +220,8 @@ data class AppSettings(
     val cardCycles: String = "{}",
     /** Payments the user recorded against card bills, as JSON (`CardBills.paymentsFromJson`); never in backups. */
     val cardPayments: String = "{}",
+    /** Card credits the user marked as a bill payment or a refund (JSON payment id → "payment"/"refund"). Not in backups. */
+    val cardCreditKinds: String = "{}",
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -239,6 +241,7 @@ data class AppSettings(
         "paid_kinds" to org.json.JSONObject(paidKinds as Map<*, *>).toString(),
         "card_cycles" to cardCycles,
         "card_payments" to cardPayments,
+        "card_credit_kinds" to cardCreditKinds,
     )
 
     companion object {
@@ -260,6 +263,7 @@ data class AppSettings(
             } ?: emptyMap(),
             cardCycles = m["card_cycles"] ?: "{}",
             cardPayments = m["card_payments"] ?: "{}",
+            cardCreditKinds = m["card_credit_kinds"] ?: "{}",
             categoriesVersion = m["categories_version"]?.toIntOrNull() ?: 1,
             kids = m["kids"] != "off",
         )
