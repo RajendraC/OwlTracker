@@ -559,6 +559,27 @@ class StoreScreenshots {
                 onNode(hasTestTag("theme_system")).performClick()
                 Thread.sleep(800)
             }
+            // The ₹50-a-year subscription: as a subscriber, then (forgetting it) after the trial
+            section("subscription") {
+                withVm { it.openUnlock() }
+                waitForTag("unlock_done", 20_000)
+                Thread.sleep(800)
+                shot("80_subscribed")
+                nav(Screen.HOME)
+                app.getSharedPreferences(TrialClock.PREFS, Context.MODE_PRIVATE).edit()
+                    .remove("subscription_confirmed_at").putBoolean("ever_subscribed", false).commit()
+                compose.runOnUiThread { app.container.licence.setDebugTrialEnded(true) }
+                Thread.sleep(800)
+                shot("81_home_trial_ended")
+                withVm { it.openUnlock() }
+                waitForTag("unlock_ended", 20_000)
+                Thread.sleep(3000)
+                shot("82_subscribe")
+                runCatching { scrollTo(hasTestTag("unlock_terms"), below = 200f) }
+                Thread.sleep(500)
+                shot("83_subscribe_terms")
+                nav(Screen.HOME)
+            }
             nav(Screen.HOME)
         }
         val files = out.listFiles()?.map { it.name }?.sorted().orEmpty()
