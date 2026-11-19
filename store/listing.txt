@@ -50,8 +50,8 @@ BACK UP AND MOVE TO A NEW PHONE
 • Save a password-protected backup file, or share it to your new phone, and restore it there in a few taps.
 • Backups never contain SMS text, account or card numbers, UPI IDs or bank references.
 
-FREE FOR 7 DAYS, THEN ₹50 ONCE
-• Try everything free for 7 days, then unlock Owl Tracker with a one-time payment of ₹50 through Google Play: no subscription, no ads.
-• If you don't unlock, nothing is lost: everything stays visible and you can still back it up. New imports pause until you unlock.
+FREE FOR 7 DAYS, THEN ₹50 A YEAR
+• Try everything free for 7 days, with no payment details needed. Then subscribe for ₹50 a year through Google Play: no ads, cancel anytime in the Play Store.
+• If you don't subscribe, or later cancel, nothing is lost: everything stays visible and you can still back it up. New imports pause until you subscribe.
 
 Owl Tracker supports SMS formats from major Indian banks, cards and UPI apps. Tap "Explore with sample data" to try it with example messages. Questions or a bank format we miss? Write to rajendra.chandrasekhar@gmail.com.

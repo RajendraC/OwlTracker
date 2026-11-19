@@ -31,8 +31,13 @@ sealed interface Access {
         override val canEdit = true
     }
 
-    /** Read-only: everything stays visible, nothing new comes in until the unlock is bought. */
+    /** Read-only: everything stays visible, nothing new comes in until a subscription starts. */
     data object TrialEnded : Access {
+        override val canEdit = false
+    }
+
+    /** Read-only again: the yearly subscription ended (cancelled, or a renewal couldn't be paid). */
+    data object Lapsed : Access {
         override val canEdit = false
     }
 }
@@ -42,8 +47,10 @@ data class StoreState(
     val status: Status = Status.CONNECTING,
     /** Price as Google Play shows it, e.g. "₹50.00". Null until Play has answered. */
     val price: String? = null,
-    /** Play's answer to "has this Google account bought the unlock?". Null when Play hasn't answered yet. */
+    /** Play's answer to "does this Google account have an active subscription?". Null when Play hasn't answered yet. */
     val owned: Boolean? = null,
+    /** The subscription renews by itself (false: cancelled, and it stops at the end of the paid year). Null when unknown. */
+    val renewing: Boolean? = null,
     /** A purchase is waiting for payment (UPI and some cards can take a while). */
     val pending: Boolean = false,
     /** Google Play's payment sheet is open. */
@@ -61,15 +68,24 @@ interface UnlockStore {
     /** Connects if needed, then re-reads the price and the purchase. Safe to call often. */
     fun refresh()
 
-    /** Opens Google Play's payment sheet for the one-time unlock. */
+    /** Opens Google Play's payment sheet for the yearly subscription. */
     fun buy(activity: Activity)
 
     companion object {
-        /** The one-time product to create in Play Console (Monetize with Play → Products → One-time products). */
-        const val PRODUCT_ID = "owl_tracker_unlock"
+        /**
+         * The subscription in Play Console (Monetize with Play → Products → Subscriptions), with one auto-renewing
+         * base plan [BASE_PLAN] of ₹50 a year. (Until 1.9.5 this was the one-time product `owl_tracker_unlock`,
+         * bought only by licence testers in Closed testing; it is no longer sold or honoured.)
+         */
+        const val PRODUCT_ID = "owl_tracker_yearly"
+        const val BASE_PLAN = "yearly"
 
         /** Shown until Google Play reports the real price. */
         const val FALLBACK_PRICE = "₹50"
+
+        /** Where a subscriber manages or cancels it: the Play Store app's subscription page. */
+        fun manageUrl(packageName: String) =
+            "https://play.google.com/store/account/subscriptions?sku=$PRODUCT_ID&package=$packageName"
     }
 }
 
@@ -124,8 +140,9 @@ class TrialClock(
 
 /**
  * Combines the trial and Google Play into one answer: [access].
- * Once Play has confirmed the unlock it is remembered on the phone, so Owl Tracker stays unlocked
- * when the Play Store can't be reached. Play's later answer still wins (for example after a refund).
+ * Once Play has confirmed the subscription it is remembered on the phone for [OFFLINE_DAYS] days, so Owl Tracker
+ * stays unlocked while the Play Store can't be reached. Play's later answer always wins: when it no longer lists
+ * the subscription (cancelled and run out, or a renewal not paid) the app is read-only again.
  */
 class Licence(
     val store: UnlockStore,
@@ -156,16 +173,26 @@ class Licence(
     }
 
     private fun compute(s: StoreState): Access {
-        s.owned?.let { if (it != prefs.getBoolean(KEY_OWNED, false)) prefs.edit().putBoolean(KEY_OWNED, it).apply() }
-        if (s.owned ?: prefs.getBoolean(KEY_OWNED, false)) return Access.Unlocked
-        val start = trial.start()
         val now = trial.now()
-        if (trial.debugEnded || TrialMath.isOver(start, now)) return Access.TrialEnded
+        when (s.owned) {
+            true -> prefs.edit().putLong(KEY_CONFIRMED_AT, now).putBoolean(KEY_EVER, true).apply()
+            false -> if (prefs.getLong(KEY_CONFIRMED_AT, 0L) != 0L) prefs.edit().putLong(KEY_CONFIRMED_AT, 0L).apply()
+            null -> Unit
+        }
+        // Play hasn't answered (yet): the last confirmation counts for a while
+        val confirmedAt = prefs.getLong(KEY_CONFIRMED_AT, 0L)
+        val remembered = confirmedAt > 0 && now - confirmedAt <= OFFLINE_DAYS * 86_400_000L
+        if (s.owned ?: remembered) return Access.Unlocked
+        val start = trial.start()
+        if (trial.debugEnded || TrialMath.isOver(start, now)) return if (prefs.getBoolean(KEY_EVER, false)) Access.Lapsed else Access.TrialEnded
         return Access.Trial(TrialMath.daysLeft(start, now), TrialMath.endsAt(start))
     }
 
     companion object {
-        private const val KEY_OWNED = "unlock_owned"
+        /** How long a confirmed subscription is trusted while Google Play can't be asked. */
+        const val OFFLINE_DAYS = 30
+        private const val KEY_CONFIRMED_AT = "subscription_confirmed_at"
+        private const val KEY_EVER = "ever_subscribed"
     }
 }
 

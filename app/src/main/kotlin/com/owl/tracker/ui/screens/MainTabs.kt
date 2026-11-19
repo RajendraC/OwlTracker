@@ -118,29 +118,29 @@ private fun TrialBanner(daysLeft: Int, price: String, onUnlock: () -> Unit) {
         Icon(Ic.calendar, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
         Column(Modifier.weight(1f)) {
             Text("Free trial: ${daysText(daysLeft)} left", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Text("Then a one-time $price unlock", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("Then $price a year", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
-        TextButton(onClick = onUnlock) { Text("Unlock") }
+        TextButton(onClick = onUnlock) { Text("Subscribe") }
     }
 }
 
-/** After the trial: read-only until the unlock is bought. */
+/** After the trial, or when the subscription ended: read-only until a subscription starts. */
 @Composable
-private fun TrialEndedBanner(price: String, onUnlock: () -> Unit) {
+private fun TrialEndedBanner(price: String, lapsed: Boolean, onUnlock: () -> Unit) {
     val sc = LocalStatusColors.current
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(sc.warnBg).padding(16.dp).testTag("trial_ended_banner")) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(Ic.lock, contentDescription = null, tint = sc.warnFg, modifier = Modifier.size(22.dp))
             Column {
-                Text("Your free trial has ended", style = MaterialTheme.typography.titleMedium, color = sc.warnFg)
+                Text(if (lapsed) "Your subscription has ended" else "Your free trial has ended", style = MaterialTheme.typography.titleMedium, color = sc.warnFg)
                 Text(
-                    "You can still see everything here. Unlock to import new SMS, add expenses and change budgets.",
+                    "You can still see everything here. Subscribe to import new SMS, add expenses and change budgets.",
                     style = MaterialTheme.typography.bodySmall, color = sc.warnFg,
                 )
             }
         }
         Gap(10.dp)
-        Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth().testTag("trial_ended_unlock")) { Text("Unlock for $price") }
+        Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth().testTag("trial_ended_unlock")) { Text("Subscribe for $price a year") }
     }
 }
 
@@ -207,7 +207,7 @@ fun HomeScreen(vm: AppViewModel) {
     }
     // Where "Where it went" sits in the list, to scroll to it from the budget circle and the pictures
     val whereIndex = 1 + (if (calendar != null) 1 else 0) + (if (pickedTotal != null) 1 else 0) +
-        (if (access is Access.Trial || access == Access.TrialEnded) 1 else 0) +
+        (if (access is Access.Trial || !access.canEdit) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
         dash.over.size + (if (showChanges) 1 else 0) + (if (showPictures) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
@@ -282,7 +282,7 @@ fun HomeScreen(vm: AppViewModel) {
 
             when (val a = access) {
                 is Access.Trial -> item { Box(side) { TrialBanner(a.daysLeft, store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }
-                Access.TrialEnded -> item { Box(side) { TrialEndedBanner(store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }
+                Access.TrialEnded, Access.Lapsed -> item { Box(side) { TrialEndedBanner(store.price ?: UnlockStore.FALLBACK_PRICE, a == Access.Lapsed) { vm.openUnlock() } } }
                 Access.Unlocked -> Unit
             }
 

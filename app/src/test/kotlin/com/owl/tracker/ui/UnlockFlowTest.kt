@@ -66,18 +66,19 @@ class TrialRunningTest : LicenceUiTest(installedDaysAgo = 0) {
         with(compose) {
             waitForTag("trial_banner")
             waitForText("Free trial: 7 days left")
-            waitForText("Then a one-time ₹50.00 unlock")
+            waitForText("Then ₹50.00 a year")
 
             tapTag("tab_more")
-            tapText("Unlock Owl Tracker")
+            tapText("Subscribe to Owl Tracker")
             waitForTag("unlock_trial")
-            waitForText("One payment of ₹50.00")
+            waitForText("₹50.00 a year")
+            waitForTag("unlock_terms")
             tapTag("unlock_buy")
             waitForTag("unlock_done")
             assertEquals(1, store.buys)
 
             goBack()
-            waitForText("Owl Tracker is unlocked")
+            waitForText("Subscribed")
             tapTag("tab_home")
             waitForTag("home")
             onAllNodesWithTag("trial_banner").assertCountEquals(0)

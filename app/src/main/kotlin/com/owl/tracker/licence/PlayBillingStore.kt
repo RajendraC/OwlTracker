@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * The one-time ₹50 unlock through Google Play Billing.
+ * The ₹50-a-year subscription through Google Play Billing.
  *
  * Everything goes through the Play Store app on the phone (Android IPC); Owl Tracker itself still
  * has no internet permission. The Play Store app does the network part, takes the payment and
@@ -108,7 +108,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
                 listOf(
                     QueryProductDetailsParams.Product.newBuilder()
                         .setProductId(UnlockStore.PRODUCT_ID)
-                        .setProductType(BillingClient.ProductType.INAPP)
+                        .setProductType(BillingClient.ProductType.SUBS)
                         .build(),
                 ),
             )
@@ -120,7 +120,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
                 _state.update { it.copy(price = priceOf(found)) }
             } else if (result.responseCode == BillingResponseCode.OK) {
                 // Play answered but has no such product: it isn't set up (or active) in Play Console yet.
-                _state.update { it.copy(message = "The unlock isn't on sale in Google Play yet. Please try again later.") }
+                _state.update { it.copy(message = "The subscription isn't on sale in Google Play yet. Please try again later.") }
             } else {
                 _state.update { it.copy(message = errorText(result)) }
             }
@@ -128,7 +128,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
     }
 
     private fun loadPurchases() {
-        val params = QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()
+        val params = QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()
         client.queryPurchasesAsync(params) { result, purchases ->
             if (result.responseCode == BillingResponseCode.OK) apply(purchases, definitive = true)
             else _state.update { it.copy(busy = false) }
@@ -143,9 +143,12 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
             refresh()
             return
         }
-        val offerToken = details.oneTimePurchaseOfferDetailsList?.firstOrNull()?.offerToken
-        val productParams = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(details)
-        if (offerToken != null) productParams.setOfferToken(offerToken)
+        val offerToken = yearlyOffer(details)?.offerToken
+        if (offerToken == null) {
+            _state.update { it.copy(message = "The subscription isn't on sale in Google Play yet. Please try again later.") }
+            return
+        }
+        val productParams = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(details).setOfferToken(offerToken)
         val flow = BillingFlowParams.newBuilder().setProductDetailsParamsList(listOf(productParams.build())).build()
         val result = client.launchBillingFlow(activity, flow)
         _state.update {
@@ -184,6 +187,11 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
                     definitive -> false
                     else -> it.owned
                 },
+                renewing = when {
+                    bought.isNotEmpty() -> bought.any { p -> p.isAutoRenewing }
+                    definitive -> null
+                    else -> it.renewing
+                },
                 pending = bought.isEmpty() && pending,
                 busy = false,
                 message = when {
@@ -207,9 +215,14 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
         const val NOT_RESPONDING = "Google Play isn't responding. Check the Play Store app is installed, signed in and up to date, then try again."
     }
 
+    /** The yearly base plan itself (no special offer). */
+    private fun yearlyOffer(details: ProductDetails): ProductDetails.SubscriptionOfferDetails? =
+        details.subscriptionOfferDetails?.let { offers ->
+            offers.firstOrNull { it.basePlanId == UnlockStore.BASE_PLAN && it.offerId == null } ?: offers.firstOrNull { it.basePlanId == UnlockStore.BASE_PLAN }
+        }
+
     private fun priceOf(details: ProductDetails): String? =
-        details.oneTimePurchaseOfferDetailsList?.firstOrNull()?.formattedPrice
-            ?: details.oneTimePurchaseOfferDetails?.formattedPrice
+        yearlyOffer(details)?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
 
     private fun unavailableText(result: BillingResult): String = when (result.responseCode) {
         BillingResponseCode.BILLING_UNAVAILABLE ->
@@ -222,7 +235,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
     private fun errorText(result: BillingResult): String = when (result.responseCode) {
         BillingResponseCode.SERVICE_UNAVAILABLE, BillingResponseCode.SERVICE_DISCONNECTED, BillingResponseCode.NETWORK_ERROR ->
             "Google Play can't be reached. Check your phone is online, then try again."
-        BillingResponseCode.ITEM_UNAVAILABLE -> "The unlock isn't on sale in Google Play yet. Please try again later."
+        BillingResponseCode.ITEM_UNAVAILABLE -> "The subscription isn't on sale in Google Play yet. Please try again later."
         BillingResponseCode.BILLING_UNAVAILABLE -> "Google Play can't take payments with this account. Check your payment methods in the Play Store."
         else -> "Google Play couldn't finish the payment (code ${result.responseCode}). Please try again."
     }

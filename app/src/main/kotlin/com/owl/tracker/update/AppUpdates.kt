@@ -192,6 +192,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.6" to listOf(
+            Item("Now ₹50 a year", "After the 7-day free trial, Owl Tracker is a ₹50-a-year subscription through Google Play. Manage or cancel it any time from More."),
+        ),
         "1.9.5" to listOf(
             Item("Card bills add up right", "A payment to your credit card no longer shows up as a refund on the next bill, and anything paid extra comes off it."),
             Item("Refund or payment? You choose", "In Still to pay, tap Refunds and payments on this card to correct any that were read wrong."),

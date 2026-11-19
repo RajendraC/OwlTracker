@@ -684,7 +684,7 @@ class StoreScreenshots {
     /** For [smsDemo]: the app as [seedInbox] left it (not set up yet, demo inbox filled), unlocked, screenshots allowed. */
     private fun prepareSmsDemo() {
         val ctx = app
-        ctx.getSharedPreferences(TrialClock.PREFS, Context.MODE_PRIVATE).edit().putBoolean("unlock_owned", true).commit()
+        ctx.getSharedPreferences(TrialClock.PREFS, Context.MODE_PRIVATE).edit().putLong("subscription_confirmed_at", System.currentTimeMillis()).putBoolean("ever_subscribed", true).commit()
         shell("settings put global sysui_demo_allowed 1")
         shell("am broadcast -a com.android.systemui.demo -e command enter")
         shell("am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1030")
@@ -699,7 +699,7 @@ class StoreScreenshots {
         val ctx = app
         // Unlocked, so no trial banner on the screenshots. Written before the app's container (and its
         // licence) is first built. Never set outside this emulator-only test.
-        ctx.getSharedPreferences(TrialClock.PREFS, Context.MODE_PRIVATE).edit().putBoolean("unlock_owned", true).commit()
+        ctx.getSharedPreferences(TrialClock.PREFS, Context.MODE_PRIVATE).edit().putLong("subscription_confirmed_at", System.currentTimeMillis()).putBoolean("ever_subscribed", true).commit()
         shell("settings put global sysui_demo_allowed 1")
         shell("am broadcast -a com.android.systemui.demo -e command enter")
         shell("am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1030")

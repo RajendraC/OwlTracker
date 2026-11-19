@@ -183,7 +183,7 @@ interface Platform {
     fun authenticate(title: String, subtitle: String, onSuccess: () -> Unit, onFail: (String) -> Unit)
     fun openAppSettings()
 
-    /** Opens Google Play's payment sheet for the one-time unlock. */
+    /** Opens Google Play's payment sheet for the yearly subscription. */
     fun buyUnlock()
 
     /** Opens the share sheet for a backup file (WhatsApp, Drive, Quick Share...). */

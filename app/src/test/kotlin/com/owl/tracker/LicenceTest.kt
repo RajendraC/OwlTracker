@@ -72,13 +72,35 @@ class LicenceTest {
         assertEquals(Access.Unlocked, licence(offline, installedAt = now - 30 * DAY_MS).current())
     }
 
+    @Test fun aRememberedSubscriptionRunsOutAfter30DaysWithoutGooglePlay() {
+        val store = FakeUnlockStore()
+        licence(store, installedAt = now - 30 * DAY_MS).also { store.mutable.update { s -> s.copy(owned = true) }; it.current() }
+        val offline = FakeUnlockStore(StoreState(status = StoreState.Status.UNAVAILABLE, owned = null))
+        assertEquals(Access.Unlocked, licence(offline, clockMs = now + 29 * DAY_MS, installedAt = now - 30 * DAY_MS).current())
+        assertEquals(Access.Lapsed, licence(offline, clockMs = now + 31 * DAY_MS, installedAt = now - 30 * DAY_MS).current())
+    }
+
+    @Test fun aCancelledSubscriptionThatRanOutIsReadOnlyAgain() {
+        val store = FakeUnlockStore()
+        val l = licence(store, installedAt = now - 400 * DAY_MS)
+        store.mutable.update { it.copy(owned = true, renewing = false) }
+        assertEquals(Access.Unlocked, l.current())
+        // A year later Play no longer lists it
+        store.mutable.update { it.copy(owned = false, renewing = null) }
+        assertEquals(Access.Lapsed, l.current())
+        assertEquals(false, l.current().canEdit)
+        // Even offline afterwards it doesn't come back
+        val offline = FakeUnlockStore(StoreState(status = StoreState.Status.UNAVAILABLE, owned = null))
+        assertEquals(Access.Lapsed, licence(offline, installedAt = now - 400 * DAY_MS).current())
+    }
+
     @Test fun googlePlaysLaterAnswerWins_forExampleAfterARefund() {
         val store = FakeUnlockStore()
         val l = licence(store, installedAt = now - 30 * DAY_MS)
         store.mutable.update { it.copy(owned = true) }
         assertEquals(Access.Unlocked, l.current())
         store.mutable.update { it.copy(owned = false) }
-        assertEquals(Access.TrialEnded, l.current())
+        assertEquals(Access.Lapsed, l.current())
     }
 
     @Test fun pendingPaymentDoesNotUnlockUntilConfirmed() {
@@ -137,7 +159,7 @@ class LicenceTest {
 
     private val keys = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
     private val publicKey = Base64.getEncoder().encodeToString(keys.public.encoded)
-    private val json = """{"orderId":"GPA.1234","packageName":"com.owl.tracker","productId":"owl_tracker_unlock","purchaseState":0}"""
+    private val json = """{"orderId":"GPA.1234","packageName":"com.owl.tracker","productId":"owl_tracker_yearly","purchaseState":0}"""
 
     private fun sign(data: String): String = Signature.getInstance("SHA1withRSA").run {
         initSign(keys.private); update(data.toByteArray()); Base64.getEncoder().encodeToString(sign())
