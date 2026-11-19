@@ -37,6 +37,8 @@ class MerchantEditFlowTest {
             waitForTag("rename_field")
             typeInto("rename_field", "Food delivery")
             tapTag("rename_save")
+            waitForTag("rename_dialog")
+            tapTag("rename_all")
             waitForText("Renamed") // "Renamed to …" or "Renamed N payments to …"
             waitForTag("delete_txn") // back on the payment
             waitForText("Food delivery")
@@ -54,6 +56,7 @@ class MerchantEditFlowTest {
             tapTag("change_category")
             waitForText("Sports & Fitness")
             tapText("Sports & Fitness")
+            tapTag("apply_one")
             waitForText("Sports & Fitness")
         }
     }

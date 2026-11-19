@@ -890,6 +890,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
                 else -> "$sorted payments moved to the new categories, like Holiday"
             },
         )
+        // And giving payments that named only a UPI ID their own payee, once (they were all named after the bank)
+        val separated = runCatching { engine.separateUpiPayees() }.getOrDefault(0)
+        if (separated > 0) say(
+            "$separated UPI ${if (separated == 1) "payment" else "payments"} with no shop name had been grouped under the bank's name. " +
+                "Each is now its own, so rename them one at a time.",
+        )
         if (gone > 0) say(if (gone == 1) "Removed 1 payment reminder that was counted as spending" else "Removed $gone payment reminders that were counted as spending")
         if (c.licence.current().canEdit) runCatching { engine.syncNew() }
     }

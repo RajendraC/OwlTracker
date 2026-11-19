@@ -377,11 +377,11 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
     val cats by vm.categories.collectAsStateWithLifecycle()
     val countFlow = remember(txId) { vm.sameMerchantCount(txId) }
     val count by countFlow.collectAsStateWithLifecycle(initialValue = 1)
-    var chosen by rememberSaveable(txId) { mutableStateOf<Boolean?>(null) }
+    // The category picked, waiting for "just this one or all?"
+    var pending by rememberSaveable(txId) { mutableStateOf<String?>(null) }
     val tx = t ?: return
-    // Stores that sell everything ("WWW AMAZON IN" says nothing about what was bought): one payment at a time unless asked
+    // Stores that sell everything ("WWW AMAZON IN" says nothing about what was bought): just this one is usually right
     val mixed = com.owl.tracker.core.MixedStores.isMixed(tx.merchantKey)
-    val rememberRule = chosen ?: !mixed
     Row(verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
         SheetTitle("Choose category")
@@ -392,22 +392,24 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
     if (mixed) {
         Box(Modifier.testTag("mixed_store_note")) {
             InfoNote(
-                "${tx.merchantName} sells all kinds of things, and its SMS doesn't say what was bought. A change here moves this payment only.",
+                "${tx.merchantName} sells all kinds of things, and its SMS doesn't say what was bought, so changing just this payment is usually right.",
                 icon = Ic.info, container = MaterialTheme.colorScheme.primaryContainer, content = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
     }
-    val others = (count - 1).coerceAtLeast(0)
-    SwitchRow(
-        if (mixed) "Use for every ${tx.merchantName} payment" else "Always use for ${tx.merchantName}",
-        when {
-            !rememberRule -> "Off: only this payment changes"
-            others > 0 -> "This and $others other ${tx.merchantName} ${if (others == 1) "payment" else "payments"}, and every new one"
-            else -> "This payment and every new one from ${tx.merchantName}"
-        },
-        rememberRule, { chosen = it },
-        modifier = Modifier.testTag("remember_rule"),
-    )
+    pending?.let { id ->
+        val name = cats.firstOrNull { it.id == id }?.name ?: ""
+        OneOrAllDialog(
+            title = "Move to $name",
+            text = if (count > 1) "Just this payment, or all $count payments from ${tx.merchantName}? All also sorts new ones from ${tx.merchantName} into $name."
+            else "Just this payment, or new payments from ${tx.merchantName} too?",
+            allLabel = if (count > 1) "All $count" else "This and new ones",
+            onOne = { pending = null; vm.setCategory(txId, id, false) },
+            onAll = { pending = null; vm.setCategory(txId, id, true) },
+            onDismiss = { pending = null },
+            tag = "apply",
+        )
+    }
     // Money in can go to Income (listed first); money out never can.
     val credit = tx.direction == com.owl.tracker.core.Direction.CREDIT
     val tree = remember(cats) { com.owl.tracker.data.CategoryTree(cats) }
@@ -430,7 +432,7 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
                 Column(
                     Modifier.width(w).heightIn(min = 92.dp).clip(RoundedCornerShape(16.dp))
                         .border(if (on) 2.dp else 1.dp, if (on) Color(c.color) else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-                        .selectable(selected = on, role = Role.RadioButton) { vm.setCategory(txId, c.id, rememberRule) }
+                        .selectable(selected = on, role = Role.RadioButton) { pending = c.id }
                         .padding(8.dp)
                         .testTag("pick_${c.id}"),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -603,7 +605,7 @@ private fun RenameSheet(vm: AppViewModel, txId: Long) {
     val count by countFlow.collectAsStateWithLifecycle(initialValue = 1)
     val tx = t ?: return
     var name by rememberSaveable(txId) { mutableStateOf(tx.merchantName) }
-    var all by rememberSaveable(txId) { mutableStateOf(true) }
+    var asking by rememberSaveable(txId) { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
         SheetTitle("Rename", "Banks often send a company's legal name. Use one you'll recognise.")
@@ -613,15 +615,20 @@ private fun RenameSheet(vm: AppViewModel, txId: Long) {
         label = { Text("Name") }, singleLine = true,
         modifier = Modifier.fillMaxWidth().testTag("rename_field"),
     )
-    Box(Modifier.testTag("rename_all")) {
-        SwitchRow(
-            if (count > 1) "Rename all $count payments" else "Use for this merchant",
-            "New payments from ${tx.merchantName} will get this name too",
-            all, { all = it },
+    if (asking) {
+        OneOrAllDialog(
+            title = "Rename to ${name.trim()}",
+            text = if (count > 1) "Just this payment, or all $count payments from ${tx.merchantName}? All also names new ones from ${tx.merchantName} this way."
+            else "Just this payment, or new payments from ${tx.merchantName} too?",
+            allLabel = if (count > 1) "All $count" else "This and new ones",
+            onOne = { asking = false; vm.renameTxn(txId, name, false) },
+            onAll = { asking = false; vm.renameTxn(txId, name, true) },
+            onDismiss = { asking = false },
+            tag = "rename",
         )
     }
     Button(
-        onClick = { vm.renameTxn(txId, name, all) },
+        onClick = { asking = true },
         enabled = name.isNotBlank() && name.trim() != tx.merchantName,
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("rename_save"),
     ) { Text("Save name") }
@@ -957,4 +964,20 @@ private fun SkippedSheet(vm: AppViewModel) {
             if (list.size > 30) Text("\u2026and ${list.size - 30} more", style = MaterialTheme.typography.bodySmall)
         }
     }
+}
+
+/**
+ * "Just this payment, or all of them?" after renaming or re-categorising a payment. Just this one is the first choice;
+ * all of them also covers new payments from the same payee. Tags: `<tag>_dialog`, `<tag>_one`, `<tag>_all`.
+ */
+@Composable
+private fun OneOrAllDialog(title: String, text: String, allLabel: String, onOne: () -> Unit, onAll: () -> Unit, onDismiss: () -> Unit, tag: String) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("${tag}_dialog"),
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = { Button(onClick = onOne, modifier = Modifier.testTag("${tag}_one")) { Text("Just this one") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onAll, modifier = Modifier.testTag("${tag}_all")) { Text(allLabel) } },
+    )
 }

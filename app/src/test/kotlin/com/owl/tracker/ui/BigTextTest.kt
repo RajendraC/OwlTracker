@@ -94,7 +94,7 @@ class BigTextTest {
         screen("Home, a day") { waitForTag("week_card"); tapTag("week_day_2026-10-18"); waitForTag("day_filter") }
         screen("Activity") { tapTag("tab_activity"); waitForTag("search") }
         screen("A payment") { tapText("Amazon"); waitForTag("delete_txn") }
-        screen("Category picker") { tapTag("change_category"); waitForTag("remember_rule") }
+        screen("Category picker") { tapTag("change_category"); waitForText("Choose category") }
         back()
         screen("Split") { tapText("Amazon"); waitForTag("split_open"); tapTag("split_open"); waitForTag("split_save") }
         back()

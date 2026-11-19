@@ -106,15 +106,18 @@ class ImportEngine(
 
     fun toCandidate(t: ParsedTransaction): Candidate {
         val known = MerchantRegistry.match(t.merchantRaw, t.vpa)
+        // No shop name, only a UPI ID ("At *5287@ca"): the UPI ID is the payee, never the bank that sent the SMS
+        val upiOnly = known == null && t.merchantRaw == null && t.vpa != null && t.kind == TxKind.NORMAL
         val name = known?.takeUnless { it.keepName && t.merchantRaw != null }?.displayName
             ?: t.merchantRaw
+            ?: if (upiOnly) "UPI ${t.vpa}" else null
             ?: when (t.kind) {
                 TxKind.CASH_WITHDRAWAL -> "ATM withdrawal"
                 TxKind.CARD_BILL_PAYMENT -> "Card bill payment"
                 TxKind.SALARY -> "Salary"
                 else -> t.institutionName ?: "Unknown"
             }
-        return Candidate(t, known, name, MerchantRegistry.keyFor(known, t.merchantRaw ?: name, t.vpa))
+        return Candidate(t, known, name, MerchantRegistry.keyFor(known, if (upiOnly) null else t.merchantRaw ?: name, t.vpa))
     }
 
     fun rangeStart(filters: ImportFilters): Long =
@@ -216,7 +219,7 @@ class ImportEngine(
      */
     suspend fun syncNew(): Int {
         val s = repo.settings()
-        if (s.onboarded) { fixMoneyIn(); dropReminders(); sortIntoNewCategories() }
+        if (s.onboarded) { fixMoneyIn(); dropReminders(); sortIntoNewCategories(); separateUpiPayees() }
         if (!s.onboarded || !s.smsEnabled || !sms.hasPermission()) return 0
         val rangeFrom = rangeStart(s.filters)
         val since = maxOf(rangeFrom, s.lastSmsTimestamp - OVERLAP_MS)
@@ -323,6 +326,45 @@ class ImportEngine(
         return moved
     }
 
+    /**
+     * Once (1.9.5): payments whose SMS named no shop, only a UPI ID ("Txn Rs.250.00 On HDFC Bank Card 9110 At
+     * *5287@ca"), were all named and grouped after the bank ("HDFC Bank"), so renaming or re-categorising one changed
+     * every one of them. Each now gets its own payee, the UPI ID. Everything that shared that bank name (other payments
+     * named after the bank too) goes back to its own name, icon and usual category: the name and rule made on the
+     * shared name are dropped, since they were meant for one payment. Returns how many payments were separated.
+     */
+    suspend fun separateUpiPayees(): Int {
+        val s = repo.settings()
+        if (s.keysVersion >= KEYS_VERSION) return 0
+        val all = repo.transactions(0, Long.MAX_VALUE).filter { it.source == Source.SMS }
+        fun parsed(t: com.owl.tracker.data.Txn) =
+            (SmsParser.parse(com.owl.tracker.core.SmsMessage(t.smsId ?: 0L, t.sender ?: return null, t.smsBody ?: return null, t.occurredAt)) as? ParseResult.Accepted)?.tx
+        // The shared keys: payments with only a UPI ID that were keyed some other way
+        val wrong = all.mapNotNull { t ->
+            val p = parsed(t) ?: return@mapNotNull null
+            val c = toCandidate(p)
+            if (p.merchantRaw == null && p.vpa != null && c.known == null && c.merchantKey != t.merchantKey) t.merchantKey else null
+        }.toSet()
+        var separated = 0
+        if (wrong.isNotEmpty()) {
+            val rules = repo.rules()
+            val dropped = rules.filter { it.match == RuleMatch.MERCHANT && wrong.any { k -> k.equals(it.pattern, ignoreCase = true) } }
+            val categorizer = Categorizer(rules - dropped.toSet(), s.kids)
+            val fixes = all.filter { it.merchantKey in wrong }.mapNotNull { t ->
+                val p = parsed(t) ?: return@mapNotNull null
+                val c = toCandidate(p)
+                val ruleCat = dropped.firstOrNull { it.pattern.equals(t.merchantKey, ignoreCase = true) }?.categoryKey
+                // Moved by the shared rule: back to its usual category; put somewhere else by hand: left there
+                val cat = if (ruleCat != null && t.categoryId == ruleCat && t.parts.isEmpty()) categorizer.categorize(p, c.merchantKey, c.known) else null
+                if (c.merchantKey != t.merchantKey) separated++
+                com.owl.tracker.data.Repository.Rekey(t.id, c.merchantKey, c.merchantName, c.known?.packageName, cat)
+            }
+            repo.rekey(fixes, wrong)
+        }
+        repo.updateSettings { it.copy(keysVersion = KEYS_VERSION) }
+        return separated
+    }
+
     private fun knownOf(t: com.owl.tracker.data.Txn): KnownMerchant? =
         MerchantRegistry.all.firstOrNull { it.key == t.merchantKey } ?: MerchantRegistry.match(t.merchantName, t.vpa)
 
@@ -387,6 +429,9 @@ class ImportEngine(
 
         /** See [AppSettings.categoriesVersion]: 2 since Holiday, 3 since groups (1.8). */
         const val CATEGORIES_VERSION = 3
+
+        /** See [AppSettings.keysVersion]: 1 since payments with only a UPI ID are keyed by it (1.9.5). */
+        const val KEYS_VERSION = 1
         private const val OVERLAP_MS = 24 * 60 * 60_000L
 
         /** A cash or other manual expense. */

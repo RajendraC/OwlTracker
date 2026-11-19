@@ -483,6 +483,25 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
     }
 
     /** Every rule with its id, newest first. */
+    /** A payment's payee, name, icon and (when not null) category, set again. */
+    data class Rekey(val id: Long, val key: String, val name: String, val pkg: String?, val categoryId: String?)
+
+    /**
+     * Gives payments their own payee again, and drops the rules, names and icons that were made on the payee keys
+     * they shared ([dropKeys]), all in one go.
+     */
+    suspend fun rekey(fixes: List<Rekey>, dropKeys: Set<String>): Int = write { d ->
+        dropKeys.forEach { k ->
+            d.delete("rules", "match_type = ? AND pattern = ? COLLATE NOCASE", arrayOf<Any?>(RuleMatch.MERCHANT.name, k))
+            d.delete("merchants", "merchant_key = ?", arrayOf<Any?>(k))
+        }
+        fixes.sumOf { f ->
+            val v = contentValuesOf("merchant_key" to f.key, "merchant_name" to f.name, "merchant_package" to f.pkg)
+            if (f.categoryId != null) v.put("category_id", f.categoryId)
+            d.update("transactions", CONFLICT_REPLACE, v, "id = ?", arrayOf<Any?>(f.id))
+        }
+    }
+
     suspend fun ruleRows(): List<StoredRuleRow> = read { d ->
         d.query("SELECT id, match_type, pattern, category_id FROM rules ORDER BY created_at DESC").use { c ->
             buildList {

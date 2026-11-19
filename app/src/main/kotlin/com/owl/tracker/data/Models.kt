@@ -209,6 +209,8 @@ data class AppSettings(
      * Travel), payments the usual rules now put there are moved once (see ImportEngine.sortIntoNewCategories).
      */
     val categoriesVersion: Int = 1,
+    /** How payments are grouped into payees: 1 since a payment with only a UPI ID is its UPI ID's, not its bank's (1.9.5). */
+    val keysVersion: Int = 0,
     /** Pays for children: the Kids categories are shown and payments are sorted into them. Asked once at setup. */
     val kids: Boolean = true,
     /**
@@ -237,6 +239,7 @@ data class AppSettings(
         "theme" to theme.key,
         "parser_version" to parserVersion.toString(),
         "categories_version" to categoriesVersion.toString(),
+        "keys_version" to keysVersion.toString(),
         "kids" to if (kids) "on" else "off",
         "paid_kinds" to org.json.JSONObject(paidKinds as Map<*, *>).toString(),
         "card_cycles" to cardCycles,
@@ -265,6 +268,7 @@ data class AppSettings(
             cardPayments = m["card_payments"] ?: "{}",
             cardCreditKinds = m["card_credit_kinds"] ?: "{}",
             categoriesVersion = m["categories_version"]?.toIntOrNull() ?: 1,
+            keysVersion = m["keys_version"]?.toIntOrNull() ?: 0,
             kids = m["kids"] != "off",
         )
 

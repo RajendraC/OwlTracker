@@ -426,10 +426,11 @@ class StoreScreenshots {
                 tapTag("change_category")
                 Thread.sleep(1200)
                 shot("34_amazon_picker")
-                // A rule made on purpose: the switch turned on
-                tapTag("remember_rule")
-                Thread.sleep(400)
+                // A rule made on purpose: all Amazon payments
                 tapText("Groceries")
+                Thread.sleep(800)
+                shot("34c_one_or_all")
+                tapTag("apply_all")
                 Thread.sleep(1200)
                 withVm { it.closeSheet(); it.go(com.owl.tracker.ui.Screen.RULES) }
                 waitForTag("rule_amazon")

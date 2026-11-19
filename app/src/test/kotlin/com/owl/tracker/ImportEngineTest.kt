@@ -12,6 +12,8 @@ import com.owl.tracker.sms.FakeSmsSource
 import com.owl.tracker.sms.ImportEngine
 import com.owl.tracker.core.ImportFilters
 import com.owl.tracker.core.SmsMessage
+import com.owl.tracker.core.SmsParser
+import com.owl.tracker.core.ParseResult
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -563,4 +565,50 @@ class ImportEngineTest {
         assertTrue(c.repo.observeBudgets().first().isEmpty())
         assertEquals(Schema.DEFAULT_CATEGORIES.size, c.repo.categories().size)
     }
+
+    /** The tester's HDFC card UPI payments name no shop ("At *5287@ca"): each is its own payee, not "HDFC Bank". */
+    @Test
+    fun upiPaymentsWithNoShopNameAreTheirOwnPayeeAndOldGroupingIsUndoneOnce() = runBlocking {
+        val inbox = sampleInbox()
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        c.repo.updateSettings { it.copy(onboarded = true, keysVersion = 0) }
+        val now = TEST_CLOCK.millis()
+        val canteen = "Txn Rs.250.00\nOn HDFC Bank Card 9110\nAt *5287@ca \nby UPI 632238528017\nOn 18-11\nNot You?\nCall 18002586161/SMS BLOCK CC 9110 to 7308080808"
+        val metro = "Txn Rs.59.00\nOn HDFC Bank Card 9110\nAt *5666@ybl \nby UPI 083293735837\nOn 19-11\nNot You?\nCall 18002586161/SMS BLOCK CC 9110 to 7308080808"
+
+        // New ones: a payee each, named by the UPI ID
+        val a = (SmsParser.parse(SmsMessage(1, "JX-HDFCBK-S", canteen, now)) as ParseResult.Accepted).tx
+        val b = (SmsParser.parse(SmsMessage(2, "JX-HDFCBK-S", metro, now)) as ParseResult.Accepted).tx
+        val ca = e.toCandidate(a)
+        val cb = e.toCandidate(b)
+        assertEquals("UPI 5287@ca", ca.merchantName)
+        assertTrue(ca.merchantKey != cb.merchantKey)
+
+        // As older versions stored them: both "HDFC Bank", renamed and moved together by one rename and one rule
+        fun stored(smsId: Long, body: String, paise: Long, at: Long) = com.owl.tracker.data.NewTxn(
+            amountPaise = paise, direction = com.owl.tracker.core.Direction.DEBIT, occurredAt = at, merchantName = "SAP Canteen Breakfast",
+            merchantKey = "hdfc_bank", merchantPackage = null, vpa = null, categoryId = Cat.DINING, accountLabel = "HDFC Bank card ••9110",
+            senderGroup = "hdfc", sender = "JX-HDFCBK-S", refNo = null, source = Source.SMS, smsId = smsId, needsReview = false, smsBody = body,
+        )
+        c.repo.insertAll(listOf(stored(7101, canteen, 25_000, now - 7_200_000), stored(7102, metro, 5_900, now - 3_600_000)))
+        val one = month(c).first { it.smsId == 7101L }
+        c.repo.setCategory(one.id, Cat.DINING, true) // the rule on "hdfc_bank"
+        c.repo.renameMerchant(one.id, "SAP Canteen Breakfast", true)
+
+        assertEquals(2, e.separateUpiPayees())
+        val after = month(c).filter { it.smsId in setOf(7101L, 7102L) }.sortedBy { it.smsId }
+        assertEquals(listOf("UPI 5287@ca", "UPI 5666@ybl"), after.map { it.merchantName })
+        assertTrue(after[0].merchantKey != after[1].merchantKey)
+        assertTrue("The shared rule is gone", c.repo.rules().none { it.pattern == "hdfc_bank" })
+        assertTrue("The shared name is gone", c.repo.merchantOverrides()["hdfc_bank"] == null)
+        // Once only
+        assertEquals(0, e.separateUpiPayees())
+
+        // Now renaming one leaves the other alone
+        c.repo.renameMerchant(after[0].id, "SAP Canteen", true)
+        assertEquals("UPI 5666@ybl", month(c).first { it.smsId == 7102L }.merchantName)
+    }
+
 }

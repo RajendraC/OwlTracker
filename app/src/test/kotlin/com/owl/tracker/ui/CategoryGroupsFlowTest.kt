@@ -192,6 +192,7 @@ class CategoryGroupsFlowTest {
             tapTag("sort_shopping")
             waitForText("Shopping: what was it?")
             tapTag("pick_${Cat.ELECTRONICS}")
+            tapTag("apply_one")
             waitForText("Moved to Phones & Electronics")
             val amazon = runBlocking { app.container.repo.transactions(0, Long.MAX_VALUE) }.first { it.merchantName == "Amazon" && !it.isMoneyIn }
             assertEquals(Cat.ELECTRONICS, amazon.categoryId)

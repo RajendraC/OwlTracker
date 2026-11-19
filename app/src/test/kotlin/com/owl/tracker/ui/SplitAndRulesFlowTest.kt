@@ -1,6 +1,5 @@
 package com.owl.tracker.ui
 
-import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -45,19 +44,19 @@ class SplitAndRulesFlowTest {
             tapText("Amazon")
             waitForTag("delete_txn")
 
-            // A store that sells everything: the picker says so, and "Use for every Amazon payment" starts off
+            // A store that sells everything: the picker says so, and asks just this one or all
             tapTag("change_category")
             waitForTag("mixed_store_note")
-            onNodeWithTag("remember_rule").assertIsOff()
-            waitForText("Off: only this payment changes")
             tapText("Groceries")
+            waitForTag("apply_dialog")
+            waitForText("Just this payment, or all 2 payments from Amazon?")
+            tapTag("apply_one")
             waitForText("Moved to Groceries")
 
-            // Making a rule on purpose: switch it on, and it says what it would change
+            // Making a rule on purpose: all of them
             tapTag("change_category")
-            tapTag("remember_rule")
-            waitForText("This and 1 other Amazon payment, and every new one")
             tapText("Medicines")
+            tapTag("apply_all")
             waitForText("Rule saved: Amazon → Medicines")
 
             // More → Rules shows it, with the warning, and deleting it puts both payments back in Shopping
