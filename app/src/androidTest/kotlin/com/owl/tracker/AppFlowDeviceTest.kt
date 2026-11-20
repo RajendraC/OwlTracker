@@ -51,6 +51,8 @@ class AppFlowDeviceTest {
             typeInto("add_merchant", "Tea stall")
             tapTag("save_expense")
             waitForText("over budget with", timeoutMs = 20_000)
+            // Home has no Recent list: the new expense is in Activity
+            tapTag("tab_activity")
             waitForText("Tea stall", timeoutMs = 20_000)
 
             tapTag("tab_more")
