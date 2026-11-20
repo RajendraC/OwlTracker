@@ -320,6 +320,8 @@ fun DrillRingCard(
                     category = chosenHere?.let { id -> categories.firstOrNull { it.id == id } },
                     art = chosenHere?.let { catMap[it] },
                     onOpen = chosenHere?.let { id -> { onCategory(id) } },
+                    all = categories.map { it to catMap[it.id] },
+                    onPick = { id -> chosen = id },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -601,8 +603,14 @@ fun NotSortedTile(size: androidx.compose.ui.unit.Dp) {
  * Beside the ring (Round 28 B6): the month's word from the owl, or, with a slice picked, that category's picture,
  * how much went there and how it's doing, with Open to see its merchants. Tinted with the owl's mood.
  */
+private const val SIDE_TILES = 6
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun SideCard(say: OwlSay, category: RingCategory?, art: Category?, onOpen: (() -> Unit)?, modifier: Modifier = Modifier) {
+private fun SideCard(
+    say: OwlSay, category: RingCategory?, art: Category?, onOpen: (() -> Unit)?,
+    all: List<Pair<RingCategory, Category?>>, onPick: (String) -> Unit, modifier: Modifier = Modifier,
+) {
     val dark = LocalDarkTheme.current
     val ink = say.mood.ink
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
@@ -616,9 +624,23 @@ private fun SideCard(say: OwlSay, category: RingCategory?, art: Category?, onOpe
             Text(Money.formatInr(category.paise), style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, modifier = Modifier.testTag("side_amount"))
             category.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (category.warn) LocalStatusColors.current.overFg else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis) }
         } else {
+            // To start with: how the month is going, and every category's picture to pick from
             Text(say.mood.says, color = ink, style = MaterialTheme.typography.labelLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
             FitText(say.title, style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, maxLines = 2, minScale = 0.8f)
-            Text(say.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            if (all.isEmpty()) Text(say.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.padding(top = 4.dp).testTag("side_categories"),
+                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                all.take(SIDE_TILES).forEach { (c, cat) ->
+                    Box(
+                        Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                            .clickable(onClickLabel = "Show ${c.name}") { onPick(c.id) }
+                            .semantics { contentDescription = c.name }
+                            .testTag("side_cat_" + c.id),
+                    ) { CategoryTile(cat, 40.dp) }
+                }
+            }
         }
         if (onOpen != null) {
             Row(
