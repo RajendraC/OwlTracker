@@ -820,7 +820,7 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
                         com.owl.tracker.ui.components.glossyArt(overRows[0].category.icon), "figure_over", "Open ${overRows[0].category.name}") { onOpen(overRows[0].category.id) })
                     overRows.size > 1 -> add(Figure("Over budget", "${overRows.size} categories", sc.overBg, sc.overFg,
                         com.owl.tracker.ui.components.glossyArt(overRows[0].category.icon), "figure_over", "See the budgets that are over",
-                        badge = overRows.size) { vm.openSheet(Sheet.OverBudget) })
+                    ) { vm.openSheet(Sheet.OverBudget) }.apply { badge = overRows.size })
                     monthOver && biggest != null -> add(Figure("Biggest", biggest.category.name, brand.spentBg, MaterialTheme.colorScheme.onSurface,
                         com.owl.tracker.ui.components.glossyArt(biggest.category.icon), "figure_over", "Open ${biggest.category.name}") { onOpen(biggest.category.id) })
                     else -> add(Figure("Over budget", "None", sc.okBg, sc.okFg, null, "figure_over", "See your budgets") { vm.go(Screen.BUDGETS) })
@@ -841,8 +841,11 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
 /** One figure under the budget: its label, value, colours, picture, and what a tap opens (null: nothing). */
 private class Figure(
     val label: String, val value: String, val bg: Color, val fg: Color, val art: Int?, val tag: String,
-    val clickLabel: String?, val badge: Int? = null, val onClick: (() -> Unit)?,
-)
+    val clickLabel: String?, val onClick: (() -> Unit)?,
+) {
+    /** A count shown in place of the chevron (how many budgets are over). */
+    var badge: Int? = null
+}
 
 /**
  * The figures as three small tiles in a row when their words fit, else as full-width rows one under the other (big
