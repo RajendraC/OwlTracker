@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -312,21 +313,23 @@ fun HomeScreen(vm: AppViewModel) {
                 }
             }
 
-            items(dash.over, key = { "over_" + it.budgetKey }) { o ->
-                Column(side.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(sc.overBg).padding(16.dp).testTag("over_banner")) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Icon(Ic.alert, contentDescription = null, tint = sc.overFg, modifier = Modifier.size(22.dp))
-                        Column {
-                            Text(o.title, style = MaterialTheme.typography.titleMedium, color = sc.overFg)
-                            Text(o.subtitle, style = MaterialTheme.typography.bodySmall, color = sc.overFg)
-                        }
-                    }
-                    Gap(10.dp)
-                    // The buttons go onto a second line when they don't fit side by side
-                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { vm.showActivity(o.categoryId) }, colors = ButtonDefaults.buttonColors(containerColor = sc.overFg, contentColor = sc.overBg)) { Text("See where it went") }
-                        OutlinedButton(onClick = { vm.openSheet(Sheet.BudgetEdit(o.budgetKey)) }) { Text("Adjust budget", color = sc.overFg) }
-                    }
+            // Round 27 B: one slim line, not a card per budget; the line and the Over budget figure open the sheet with them all
+            if (dash.over.isNotEmpty()) item(key = "over_line") {
+                val names = dash.over.sortedByDescending { it.spent - it.limit }.map { it.name }
+                val text = when (names.size) {
+                    1 -> "${names[0]} is over its budget"
+                    2 -> "${names[0]} and ${names[1]} are over"
+                    else -> "${names[0]}, ${names[1]} and ${names.size - 2} more are over"
+                }
+                Row(
+                    side.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp)).background(sc.overBg)
+                        .clickable(onClickLabel = "See the budgets that are over") { vm.openSheet(Sheet.OverBudget) }
+                        .padding(horizontal = 14.dp, vertical = 10.dp).testTag("over_line"),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Icon(Ic.alert, contentDescription = null, tint = sc.overFg, modifier = Modifier.size(20.dp))
+                    Text(text, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = sc.overFg, modifier = Modifier.weight(1f))
+                    Icon(Ic.chevR, contentDescription = null, tint = sc.overFg, modifier = Modifier.size(16.dp))
                 }
             }
 
@@ -816,7 +819,8 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
                     overRows.size == 1 -> add(Figure("Over budget", overRows[0].category.name, sc.overBg, sc.overFg,
                         com.owl.tracker.ui.components.glossyArt(overRows[0].category.icon), "figure_over", "Open ${overRows[0].category.name}") { onOpen(overRows[0].category.id) })
                     overRows.size > 1 -> add(Figure("Over budget", "${overRows.size} categories", sc.overBg, sc.overFg,
-                        com.owl.tracker.ui.components.glossyArt(overRows[0].category.icon), "figure_over", "See your budgets") { vm.go(Screen.BUDGETS) })
+                        com.owl.tracker.ui.components.glossyArt(overRows[0].category.icon), "figure_over", "See the budgets that are over",
+                        badge = overRows.size) { vm.openSheet(Sheet.OverBudget) })
                     monthOver && biggest != null -> add(Figure("Biggest", biggest.category.name, brand.spentBg, MaterialTheme.colorScheme.onSurface,
                         com.owl.tracker.ui.components.glossyArt(biggest.category.icon), "figure_over", "Open ${biggest.category.name}") { onOpen(biggest.category.id) })
                     else -> add(Figure("Over budget", "None", sc.okBg, sc.okFg, null, "figure_over", "See your budgets") { vm.go(Screen.BUDGETS) })
@@ -837,7 +841,7 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
 /** One figure under the budget: its label, value, colours, picture, and what a tap opens (null: nothing). */
 private class Figure(
     val label: String, val value: String, val bg: Color, val fg: Color, val art: Int?, val tag: String,
-    val clickLabel: String?, val onClick: (() -> Unit)?,
+    val clickLabel: String?, val badge: Int? = null, val onClick: (() -> Unit)?,
 )
 
 /**
@@ -882,7 +886,12 @@ private fun FigureTile(f: Figure, labelStyle: androidx.compose.ui.text.TextStyle
             if (f.art != null) androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(f.art), contentDescription = null, modifier = Modifier.size(24.dp))
             else Spacer(Modifier.height(24.dp))
             Spacer(Modifier.weight(1f))
-            if (f.onClick != null) Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+            if (f.badge != null) {
+                androidx.compose.foundation.layout.Box(
+                    Modifier.sizeIn(minWidth = 22.dp, minHeight = 22.dp).clip(RoundedCornerShape(11.dp)).background(f.fg).padding(horizontal = 6.dp).testTag("figure_badge"),
+                    contentAlignment = Alignment.Center,
+                ) { Text("${f.badge}", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold), color = f.bg) }
+            } else if (f.onClick != null) Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
         }
         Gap(2.dp)
         com.owl.tracker.ui.components.FitText(f.label, style = labelStyle, color = MaterialTheme.colorScheme.onSurfaceVariant, minScale = 0.85f)

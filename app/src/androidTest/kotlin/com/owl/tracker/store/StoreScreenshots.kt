@@ -559,6 +559,15 @@ class StoreScreenshots {
                 onNode(hasTestTag("theme_system")).performClick()
                 Thread.sleep(800)
             }
+            // Round 27 B: budgets that are over, in one sheet
+            section("over_sheet") {
+                nav(Screen.HOME)
+                withVm { it.openSheet(com.owl.tracker.ui.Sheet.OverBudget) }
+                waitForTag("over_sheet", 20_000)
+                Thread.sleep(800)
+                shot("19_over_sheet")
+                withVm { it.closeSheet() }
+            }
             // The ₹50-a-year subscription: as a subscriber, then (forgetting it) after the trial
             section("subscription") {
                 withVm { it.openUnlock() }

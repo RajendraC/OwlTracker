@@ -107,6 +107,7 @@ fun SheetHost(vm: AppViewModel) {
                 Sheet.AddExpense -> AddExpenseSheet(vm)
                 Sheet.DeleteData -> DeleteSheet(vm)
                 Sheet.Skipped -> SkippedSheet(vm)
+                Sheet.OverBudget -> OverBudgetSheet(vm)
             }
         }
     }
@@ -919,6 +920,68 @@ private fun DeleteSheet(vm: AppViewModel) {
  * Why messages were left out, so a bank format Owl Tracker doesn't know yet can be spotted and shared.
  * Nothing here is stored: the list lives in memory for this import only.
  */
+@OptIn(ExperimentalLayoutApi::class)
+/** Round 27 B: the budgets that are over, worst first, each with a bar to its budget and its two buttons. */
+@Composable
+private fun OverBudgetSheet(vm: AppViewModel) {
+    val dash by vm.dashboard.collectAsStateWithLifecycle()
+    val over = dash?.over.orEmpty().sortedByDescending { it.spent - it.limit }
+    val sc = LocalStatusColors.current
+    if (over.isEmpty()) {
+        SheetTitle("No budget is over", "Nice. Every category is within its budget.")
+        return
+    }
+    val total = over.sumOf { it.spent - it.limit }
+    SheetTitle(
+        if (over.size == 1) "1 budget is over" else "${over.size} budgets are over",
+        "${Money.formatInr(total)} over in all · ${over.first().daysLeftText}",
+    )
+    Column(Modifier.testTag("over_sheet"), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        over.forEach { o ->
+            Divider()
+            Column(Modifier.fillMaxWidth().padding(vertical = 12.dp).testTag("over_row_" + o.budgetKey), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(o.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                    Text("${Money.formatInr(o.spent - o.limit)} over", style = MaterialTheme.typography.titleSmall, color = sc.overFg)
+                }
+                Text("${Money.formatInr(o.spent)} spent of ${Money.formatInr(o.limit)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OverBar(o.spent, o.limit, sc.overFg, sc.overBg)
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { vm.closeSheet(); vm.showActivity(o.categoryId) },
+                        modifier = Modifier.testTag("over_see_" + o.budgetKey),
+                    ) { Text("See where it went") }
+                    OutlinedButton(
+                        onClick = { vm.openSheet(Sheet.BudgetEdit(o.budgetKey)) },
+                        modifier = Modifier.testTag("over_adjust_" + o.budgetKey),
+                    ) { Text("Adjust budget") }
+                }
+            }
+        }
+    }
+}
+
+/** Spending against a budget on a scale to twice the budget, with a mark at the budget. */
+@Composable
+private fun OverBar(spent: Long, limit: Long, fg: androidx.compose.ui.graphics.Color, bg: androidx.compose.ui.graphics.Color) {
+    val frac = if (limit > 0) (spent.toFloat() / (2f * limit)).coerceIn(0f, 1f) else 1f
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().height(14.dp)) {
+        val w = maxWidth
+        androidx.compose.foundation.layout.Box(
+            Modifier.align(Alignment.CenterStart).fillMaxWidth().height(8.dp)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)).background(bg),
+        )
+        androidx.compose.foundation.layout.Box(
+            Modifier.align(Alignment.CenterStart).width(w * frac).height(8.dp)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)).background(fg),
+        )
+        androidx.compose.foundation.layout.Box(
+            Modifier.align(Alignment.CenterStart).padding(start = w / 2 - 1.dp).width(2.dp).height(14.dp)
+                .background(MaterialTheme.colorScheme.onSurface),
+        )
+    }
+}
+
 @Composable
 private fun SkippedSheet(vm: AppViewModel) {
     val ui by vm.importUi.collectAsStateWithLifecycle()

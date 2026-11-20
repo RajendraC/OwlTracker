@@ -68,6 +68,8 @@ sealed interface Sheet {
     data object AddExpense : Sheet
     data object DeleteData : Sheet
     data object Skipped : Sheet
+    /** Every category budget that is over, with its buttons (opened from Home's one-line note or the Over budget figure). */
+    data object OverBudget : Sheet
 }
 
 enum class ConfirmKind { DELETE, RESET }
@@ -80,7 +82,10 @@ class UiMessage(val text: String, val actionLabel: String? = null, val action: (
 
 data class CategorySpend(val category: Category, val paise: Long)
 data class CategoryBudgetRow(val category: Category, val spent: Long, val limit: Long, val status: BudgetStatus)
-data class OverItem(val title: String, val subtitle: String, val categoryId: String?, val budgetKey: String)
+data class OverItem(
+    val title: String, val subtitle: String, val categoryId: String?, val budgetKey: String,
+    val name: String = "", val spent: Long = 0L, val limit: Long = 0L, val daysLeftText: String = "",
+)
 
 data class Dashboard(
     val period: BudgetPeriod,
@@ -1353,7 +1358,10 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         // Category budgets that are over. The month itself being over is said once, in the budget card's own line.
         val over = buildList {
             rows.filter { it.status.state == BudgetState.OVER }.forEach {
-                add(OverItem("${Money.formatInr(it.spent - it.limit)} over on ${it.category.name}", "${Money.formatInr(it.spent)} spent of ${Money.formatInr(it.limit)} · $daysLeftText", it.category.id, it.category.id))
+                add(OverItem(
+                    "${Money.formatInr(it.spent - it.limit)} over on ${it.category.name}", "${Money.formatInr(it.spent)} spent of ${Money.formatInr(it.limit)} · $daysLeftText",
+                    it.category.id, it.category.id, it.category.name, it.spent, it.limit, daysLeftText,
+                ))
             }
         }
         return Dashboard(
