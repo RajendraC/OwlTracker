@@ -88,11 +88,11 @@ fun MoodOwl(mood: OwlMood, size: Dp, modifier: Modifier = Modifier, playKey: Any
             .semantics { contentDescription = "The owl looks ${mood.label}" }
             .testTag("owl"),
     ) {
-        // the owl's own units: a 1040 box; it stands with its feet near the bottom middle
-        val s = this.size.width / 1040f
+                // an 870-unit square around it, feet at the same height in the box as the old owl's (84 of 92)
+        val s = this.size.width / 870f
         withTransform({
             scale(s, s, pivot = Offset.Zero)
-            translate(-120f, -20f)
+            translate(-190f, -174f)
         }) { drawOwl(mood, clock.value, dark) }
     }
 }
