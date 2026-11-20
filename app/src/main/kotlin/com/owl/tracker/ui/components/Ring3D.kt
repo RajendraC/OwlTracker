@@ -381,7 +381,7 @@ fun RingOwlStage(
         val feet = g.feet(tilt)
         val owlPx = with(density) { owlSize.toPx() }
         val tailX = with(density) { (g.cx - 12.dp.toPx()).toDp() }
-        val bubbleW = (tailX + 48.dp).coerceIn(200.dp, maxWidth)
+        val bubbleW = (tailX + 48.dp).coerceIn(minOf(200.dp, maxWidth), maxWidth)   // narrow beside a card (Home): no crash
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (showBubble) OwlBubble(say, onOpen, tailX, bubbleW, Modifier.graphicsLayer {
