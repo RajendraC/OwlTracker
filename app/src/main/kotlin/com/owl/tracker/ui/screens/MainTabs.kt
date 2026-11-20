@@ -483,29 +483,9 @@ fun HomeScreen(vm: AppViewModel) {
 
             if (wholeMonth) plan?.takeIf { dash.isCurrent && it.monthlyPaise > 0 && !vm.tipsHidden(settings) }?.let { p -> item(key = "saving_nudge") { Box(side) { SavingNudge(vm, p) } } }
 
-            // Recent lists every payment, so it's only for the whole month's view: with a group or a category opened in
-            // "Where it went" it read as that group's payments. Going back up brings it back.
-            if (wholeMonth) {
-                if (openGroup == null && openCat == null && !(paidTab && openPaid != null)) item(key = "recent") {
-                Column(side.testTag("recent")) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Recent", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() })
-                        TextButton(onClick = { vm.showActivity() }) { Text("See all") }
-                    }
-                    if (dash.recent.isEmpty()) {
-                        Panel { Text("No transactions yet. Tap + to add one.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    }
-                    // Each payment its own little clay card
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        dash.recent.forEach { t ->
-                            com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(24.dp), Modifier.fillMaxWidth(), elevation = 6.dp) {
-                                Box(Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) { TxnRow(vm, t, catMap[t.categoryId], showDay = true) }
-                            }
-                        }
-                    }
-                }
-                }
-            } else {
+            // No Recent list on Home any more (the user, 20 Nov): every payment is in Activity. A week or a day still
+            // lists its payments, as that view is about them.
+            if (!wholeMonth) {
                 // A day: every payment that day. A week: day by day, newest first.
                 item(key = "payments_head") {
                     Column(side.testTag("day_payments")) {

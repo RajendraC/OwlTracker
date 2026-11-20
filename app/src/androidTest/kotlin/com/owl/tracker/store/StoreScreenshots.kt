@@ -159,7 +159,7 @@ class StoreScreenshots {
                 compose.onAllNodes(row)[0].performClick()
                 Thread.sleep(500)
             }.onFailure { Log.w(TAG, "What's changing: not shown", it) }
-            runCatching { scrollTo(hasText("Recent")) }
+            runCatching { scrollTo(hasTestTag("saving_nudge"), below = 300f) }
             shot("11_home_lower")
             runCatching { scrollTo(hasTestTag("saving_nudge")) }
             shot("12_saving_nudge")

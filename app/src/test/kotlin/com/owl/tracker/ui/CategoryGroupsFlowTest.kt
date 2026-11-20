@@ -69,33 +69,18 @@ class CategoryGroupsFlowTest {
         }
     }
 
-    /** Recent lists every payment, so it isn't shown under an opened group or category; Ways to save and Reports stay. */
+    /** Home has no Recent list (every payment is in Activity), opened or not; Ways to save and Reports stay. */
     @Test
-    fun recentIsOnlyShownWithNothingOpened() {
+    fun homeHasNoRecentList() {
         setUpWithSms()
         with(compose) {
-            fun noRecent() = assertTrue("Recent is still shown", runCatching { waitForTag("recent", 1_500) }.isFailure)
-            waitForTag("recent")
-            // A group opened: no Recent below it
+            fun noRecent() = assertTrue("Recent is shown", runCatching { waitForTag("recent", 1_500) }.isFailure)
+            waitForTag("figures")
+            noRecent()
             tapTag("cat_food")
             waitForTag("ring_up")
             noRecent()
             waitForText("Income & expenses, ways to save")
-            // One of its categories opened: still none
-            tapTag("group_cat_food_delivery")
-            waitForTag("ring_merchant_swiggy")
-            noRecent()
-            // Back to the group: none; back to all the groups: Recent again
-            back()
-            waitForTag("group_cat_groceries")
-            noRecent()
-            back()
-            waitUntil(5_000) { onAllNodesWithTag("ring_up").fetchSemanticsNodes().isEmpty() }
-            waitForTag("recent")
-            // A category on its own (Cash isn't in a group) hides it too
-            tapTag("cat_${Cat.CASH}")
-            waitForTag("ring_up")
-            noRecent()
         }
     }
 
@@ -113,7 +98,7 @@ class CategoryGroupsFlowTest {
             assertEquals("month", AppViewModel(app.container).whereView.value)
             // The groups' ring and rows are the other tab's
             assertTrue(onAllNodesWithTag("cat_food").fetchSemanticsNodes().isEmpty())
-            waitForTag("recent")
+            noRecent()
             // One opened: what it was used for, by group; no tabs and no Recent while it's open
             tapTag("paid_row_0")
             waitForTag("paid_up")

@@ -55,7 +55,7 @@ class WeekCalendarFlowTest {
             // Tapping the day again, or ✕, shows every day again
             tapTag("day_filter_clear")
             onAllNodesWithTag("day_filter").assertCountEquals(0)
-            waitForText("Recent")
+            waitForText("Where it went")
             // A day with nothing spent can be picked too
             tapTag("cal_day_2026-10-13")
             waitForText("Nothing on Tue 13 Oct")

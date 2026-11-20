@@ -192,6 +192,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.9" to listOf(
+            Item("A shorter Home", "The Recent list has moved off Home. Every payment is in Activity, one tap away."),
+        ),
         "1.9.8" to listOf(
             Item("A new owl", "The owl in Where it went is new: it hops and waves when you're on track, thinks when you're close, worries when spending runs fast and sheds a tear when a budget goes over."),
             Item("Every category at a glance", "Beside the ring you now see a picture for each category. Tap one to see how it's doing."),
