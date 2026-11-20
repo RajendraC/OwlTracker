@@ -159,10 +159,6 @@ class StoreScreenshots {
                 compose.onAllNodes(row)[0].performClick()
                 Thread.sleep(500)
             }.onFailure { Log.w(TAG, "What's changing: not shown", it) }
-            // Home runs up behind the status bar: keep the heading clear of it
-            runCatching { scrollTo(hasText("This month in pictures"), below = 40f) }
-            Thread.sleep(4500)
-            shot("10b_home_pictures")
             runCatching { scrollTo(hasText("Recent")) }
             shot("11_home_lower")
             runCatching { scrollTo(hasTestTag("saving_nudge")) }

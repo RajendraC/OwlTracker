@@ -192,6 +192,10 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.7" to listOf(
+            Item("Where it went, side by side", "The owl's ring now sits beside a card. Tap a slice and the card shows that category's picture, how much went there and how it's doing."),
+            Item("No more picture row", "This month in pictures is gone: the same pictures now show in Where it went, so Home is shorter."),
+        ),
         "1.9.6" to listOf(
             Item("Now ₹50 a year", "After the 7-day free trial, Owl Tracker is a ₹50-a-year subscription through Google Play. Manage or cancel it any time from More."),
             Item("A calmer Home", "Budgets that are over now share one line on Home. Tap it, or the Over budget figure, to see them all with their buttons."),

@@ -339,6 +339,8 @@ fun RingOwlStage(
     onTap: (RingHit) -> Unit,
     onOpen: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    /** False when the owl's words sit in a card beside the ring instead (Home's side-by-side layout). */
+    showBubble: Boolean = true,
 ) {
     val dark = LocalDarkTheme.current
     val brand = LocalBrand.current
@@ -382,7 +384,7 @@ fun RingOwlStage(
         val bubbleW = (tailX + 48.dp).coerceIn(200.dp, maxWidth)
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            OwlBubble(say, onOpen, tailX, bubbleW, Modifier.graphicsLayer {
+            if (showBubble) OwlBubble(say, onOpen, tailX, bubbleW, Modifier.graphicsLayer {
                 scaleX = 0.5f + 0.5f * bubbleIn; scaleY = scaleX; alpha = bubbleIn.coerceIn(0f, 1f)
                 transformOrigin = TransformOrigin(0.7f, 1f)
             })

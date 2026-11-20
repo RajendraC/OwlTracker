@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,6 +59,7 @@ import com.owl.tracker.data.Txn
 import com.owl.tracker.ui.theme.Ic
 import com.owl.tracker.ui.theme.LocalBrand
 import com.owl.tracker.ui.theme.LocalStatusColors
+import com.owl.tracker.ui.theme.LocalDarkTheme
 import kotlin.math.atan2
 import kotlin.math.hypot
 
@@ -130,6 +132,11 @@ fun DrillRingCard(
     onSort: ((groupId: String) -> Unit)? = null,
     /** Home, the whole month: a Paid by tab, the spending by card and account. */
     paidBy: PaidByTab? = null,
+    /**
+     * Round 28 B6: the ring with the owl on the left and a card beside it, saying how the month is doing or, after a
+     * tap on a slice, showing that category's picture, amount and how it's doing.
+     */
+    sideBySide: Boolean = false,
 ) {
     val sc = LocalStatusColors.current
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -287,7 +294,36 @@ fun DrillRingCard(
             scene(pick.id)
             Gap(12.dp)
         }
-        if (level == 0 && moods != null) {
+        if (level == 0 && moods != null && sideBySide) {
+            val say = chosenHere?.let { moods.byCategory[it] } ?: moods.month
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RingOwlStage(
+                    slices = categories.map { Ring3DSlice(it.id, it.color, it.paise.toFloat() / total) },
+                    description = "Spending by category: " + categories.joinToString { "${it.name} ${it.paise * 100 / total}%" },
+                    say = say,
+                    picked = chosenHere,
+                    actKey = act,
+                    sweepKey = sweepKey,
+                    onTap = { hit ->
+                        when (hit) {
+                            is RingHit.Slice -> if (chosenHere == hit.id) onCategory(hit.id) else chosen = hit.id
+                            RingHit.Middle -> if (chosenHere != null) chosen = null else act++
+                            RingHit.Outside -> Unit
+                        }
+                    },
+                    onOpen = null,
+                    modifier = Modifier.weight(1.1f),
+                    showBubble = false,
+                )
+                SideCard(
+                    say = say,
+                    category = chosenHere?.let { id -> categories.firstOrNull { it.id == id } },
+                    art = chosenHere?.let { catMap[it] },
+                    onOpen = chosenHere?.let { id -> { onCategory(id) } },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        } else if (level == 0 && moods != null) {
             RingOwlStage(
                 slices = categories.map { Ring3DSlice(it.id, it.color, it.paise.toFloat() / total) },
                 description = "Spending by category: " + categories.joinToString { "${it.name} ${it.paise * 100 / total}%" },
@@ -558,5 +594,41 @@ fun NotSortedTile(size: androidx.compose.ui.unit.Dp) {
         contentAlignment = Alignment.Center,
     ) {
         Text("?", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * Beside the ring (Round 28 B6): the month's word from the owl, or, with a slice picked, that category's picture,
+ * how much went there and how it's doing, with Open to see its merchants. Tinted with the owl's mood.
+ */
+@Composable
+private fun SideCard(say: OwlSay, category: RingCategory?, art: Category?, onOpen: (() -> Unit)?, modifier: Modifier = Modifier) {
+    val dark = LocalDarkTheme.current
+    val ink = say.mood.ink
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+    Column(
+        modifier.clip(shape).background(ink.copy(alpha = if (dark) 0.22f else 0.12f)).padding(12.dp).testTag("owl_bubble"),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        if (category != null) {
+            CategoryTile(art, 44.dp)
+            Text(category.name.uppercase(), color = ink, style = MaterialTheme.typography.labelSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(Money.formatInr(category.paise), style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, modifier = Modifier.testTag("side_amount"))
+            category.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (category.warn) LocalStatusColors.current.overFg else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis) }
+        } else {
+            Text(say.mood.says, color = ink, style = MaterialTheme.typography.labelLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
+            FitText(say.title, style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, maxLines = 2, minScale = 0.8f)
+            Text(say.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 4, overflow = TextOverflow.Ellipsis)
+        }
+        if (onOpen != null) {
+            Row(
+                Modifier.padding(top = 4.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).clickable(onClickLabel = "Open ${category?.name ?: ""}", onClick = onOpen)
+                    .background(ink.copy(alpha = 0.14f)).heightIn(min = 40.dp).padding(start = 10.dp, end = 4.dp).testTag("owl_open"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Open", color = ink, style = MaterialTheme.typography.labelLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
+                Icon(Ic.chevR, contentDescription = null, tint = ink, modifier = Modifier.size(16.dp))
+            }
+        }
     }
 }

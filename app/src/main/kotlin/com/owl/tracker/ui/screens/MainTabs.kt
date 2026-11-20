@@ -199,18 +199,17 @@ fun HomeScreen(vm: AppViewModel) {
     androidx.activity.compose.BackHandler(enabled = openCat == null && openGroup == null && picked != null) { pickedIso = null }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val showPictures = wholeMonth && dash.byCategory.isNotEmpty()
     // What's changing: this month on Home, when the months behind it show something moving
     val changes = hist?.takeIf { wholeMonth && dash.isCurrent && it.hasData }
     val showChanges = remember(changes, cats) {
         val ok = cats.filter { it.countsAsSpend && !it.archived && it.parent == null }.map { it.id }.toSet()
         changes != null && com.owl.tracker.core.Trends.biggestMoves(changes.byCategory.filterKeys { it in ok }).isNotEmpty()
     }
-    // Where "Where it went" sits in the list, to scroll to it from the budget circle and the pictures
+    // Where "Where it went" sits in the list, to scroll to it from the budget circle
     val whereIndex = 1 + (if (calendar != null) 1 else 0) + (if (pickedTotal != null) 1 else 0) +
         (if (access is Access.Trial || !access.canEdit) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
-        dash.over.size + (if (showChanges) 1 else 0) + (if (showPictures) 1 else 0)
+        (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
     // the status bar readable, and a card scrolled to stops just below it
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -350,18 +349,7 @@ fun HomeScreen(vm: AppViewModel) {
                 )
             }
 
-            // A picture for each category the money went to; tapping one opens it in "Where it went" below (the whole month only)
-            if (showPictures) item(key = "pictures") {
-                val pictures = dash.byCategory.take(MAX_PICTURES).map { cs -> cs.category to sceneFor(cs.category, cs.paise) }
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        if (dash.isCurrent) "This month in pictures" else "That month in pictures",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(horizontal = 20.dp).semantics { heading() },
-                    )
-                    PicturesRow(pictures, onOpen = { id -> openCategory(id) })
-                }
-            }
+            // Round 28 B6: no row of pictures; the picture shows in the card beside the ring when a slice is tapped
 
             // "Where it went": touch the ring, open a category, then a merchant's payments
             item(key = "where") {
@@ -454,6 +442,7 @@ fun HomeScreen(vm: AppViewModel) {
                                 }
                             },
                             tiles = true,
+                            sideBySide = true,
                             // This month, with months behind it: small bars on every row and a 6 months tab
                             trends = hist?.takeIf { wholeMonth && dash.isCurrent && it.hasData }?.let { h ->
                                 com.owl.tracker.ui.components.RingTrends(h, budgetMap, budgetMap[Schema.OVERALL], whereView == "six") { vm.setWhereSixMonths(it) }
@@ -570,7 +559,6 @@ fun HomeScreen(vm: AppViewModel) {
     }
 }
 
-private const val MAX_PICTURES = 10
 
 /** Lays the content out [by] higher than it would sit, and that much shorter, so it overlaps what's above. */
 private fun Modifier.pullUp(by: androidx.compose.ui.unit.Dp) = layout { measurable, constraints ->
@@ -1047,45 +1035,6 @@ private fun scopeMoods(
     )
 }
 
-/**
- * "This month in pictures": a row of category pictures to swipe through, biggest spend first. The pictures (each a
- * small web page) are put in a moment after Home first shows, so Home itself appears without waiting for them.
- */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-@Composable
-private fun PicturesRow(pictures: List<Pair<Category, com.owl.tracker.ui.scene.SceneSpec>>, onOpen: (String) -> Unit) {
-    val brand = LocalBrand.current
-    var live by remember { androidx.compose.runtime.mutableStateOf(false) }
-    androidx.compose.runtime.LaunchedEffect(Unit) { kotlinx.coroutines.delay(300); live = true }
-    val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
-    androidx.compose.foundation.lazy.LazyRow(
-        state = rowState,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 18.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(rowState),
-        modifier = Modifier.fillMaxWidth().testTag("pictures"),
-    ) {
-        items(pictures, key = { it.first.id }) { (cat, spec) ->
-            val shape = RoundedCornerShape(22.dp)
-            Box(
-                Modifier.width(280.dp)
-                    // Leaning back a little, like a card stood up on the table
-                    .graphicsLayer {
-                        rotationX = 4f
-                        cameraDistance = 12f * density
-                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
-                    }
-                    .shadow(12.dp, shape, ambientColor = brand.shadow, spotColor = brand.shadow),
-            ) {
-                if (live) {
-                    CategoryScene(spec, cat.name, caption = false, tag = "picture_${cat.id}", onClick = { onOpen(cat.id) })
-                } else {
-                    Box(Modifier.fillMaxWidth().aspectRatio(320f / 180f).clip(shape).background(androidx.compose.ui.graphics.lerp(Color(cat.color), Color.White, 0.86f)))
-                }
-            }
-        }
-    }
-}
 
 /**
  * The budget circle, split into the categories the money went to (in their colours). Slide a finger
