@@ -62,7 +62,7 @@ class OverBudgetSheetTest {
             tapTag("figure_over")
             waitForTag("over_sheet")
             tapTag("over_adjust_" + top[1].category.id)
-            waitForTag("budget_amount")
+            waitForTag("save_budget_sheet")
         }
     }
 
