@@ -106,8 +106,10 @@ class AppFlowTest {
             typeInto("add_amount", "1500")
             typeInto("add_merchant", "Tea stall")
             tapTag("save_expense")
-            waitForText("Tea stall")
             waitForText("₹500 over budget with")
+            // Home has no Recent list: the new expense is in Activity
+            tapTag("tab_activity")
+            waitForText("Tea stall")
         }
     }
 
