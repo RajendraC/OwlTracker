@@ -1,7 +1,7 @@
 """Builds the Google Play promo video (1920x1080, 30 fps, about 55 s, no sound) from the raw
 emulator captures, using the same phone frame and Mango & Cocoa colours as the listing screenshots.
 It leads with privacy (no internet access, no account, data only on the phone and under the user's
-control), then the app: groups, six months, Paid by, budgets and reports.
+control), then the app: the owl in Where it went, groups, six months, Paid by, budgets and reports.
 
     python3 tools/make_promo_video.py CAPTURES_DIR OUT.mp4            # full render
     python3 tools/make_promo_video.py CAPTURES_DIR OUT_DIR --preview 2.0,5.1,14.5
@@ -32,6 +32,8 @@ CAPTIONS = {
     "phone": ("Stays on your phone, encrypted", "Stored only here, locked with a key in your phone's secure hardware."),
     "control": ("You're in full control", "Back up to your own file, delete by bank or by date, or erase it all."),
     "home": ("See where your money goes", "An expense tracker that fills itself in from your bank, card and UPI SMS."),
+    "owl": ("The owl shows how it's going", "Hops on track, thinks near a budget, sheds a tear when one goes over."),
+    "pick": ("Tap a category", "See its picture, how much went there and how it's doing."),
     "groups": ("Tap a group to go deeper", "Shopping into Fashion, Phones & Electronics and more, then each shop."),
     "six": ("Six months at a glance", "Every group's trend, against your budget."),
     "paid": ("See what each card paid for", "Spending by card and bank account, by its last 4 digits."),
@@ -107,7 +109,7 @@ class PhoneBody:
 class Kit:
     """Everything drawn once: background, phone body, scaled screens, caption and title layers."""
 
-    SCREENS = ["01_welcome", "02_disclosure", "05_import_done", "70_backup", "75b_settings_reset", "10_home", "13b_home_group",
+    SCREENS = ["01_welcome", "02_disclosure", "05_import_done", "70_backup", "75b_settings_reset", "10_home", "14_home_ring", "15_home_ring_pick", "13b_home_group",
                "15e_home_six_months", "15g_home_paid_by", "15i_home_paid_by_open", "20_budgets", "50_reports_top"]
 
     def __init__(self, src):
@@ -355,7 +357,9 @@ def scenes(kit):
         ("04-phone", 4.4, lambda t: switch(kit, t, s["02_disclosure"], s["05_import_done"], "account", "phone")),
         ("05-control", 5.6, lambda t: scene_control(kit, t)),
         ("06-home", 4.2, lambda t: switch(kit, t, s["75b_settings_reset"], s["10_home"], "control", "home")),
-        ("07-groups", 4.4, lambda t: switch(kit, t, s["10_home"], s["13b_home_group"], "home", "groups")),
+        ("06b-owl", 4.2, lambda t: switch(kit, t, s["10_home"], s["14_home_ring"], "home", "owl")),
+        ("06c-pick", 4.0, lambda t: switch(kit, t, s["14_home_ring"], s["15_home_ring_pick"], "owl", "pick")),
+        ("07-groups", 4.4, lambda t: switch(kit, t, s["15_home_ring_pick"], s["13b_home_group"], "pick", "groups")),
         ("08-six", 4.2, lambda t: switch(kit, t, s["13b_home_group"], s["15e_home_six_months"], "groups", "six")),
         ("09-paid", 5.4, lambda t: scene_paid(kit, t)),
         ("10-budgets", 4.0, lambda t: switch(kit, t, s["15i_home_paid_by_open"], s["20_budgets"], "paid", "budgets")),

@@ -41,7 +41,7 @@ def font(weight, size):
 SCREENS = [
     ("10_home", "Your expense tracker", "Bank, card and UPI spending, sorted from your SMS"),
     ("01_welcome", "No internet. No account.", "Your data stays on your phone, and you're in control"),
-    ("13b_home_group", "Tap a group to go deeper", "Shopping into Fashion, Phones & Electronics and more"),
+    ("14_home_ring", "The owl shows how it's going", "Tap a category to see how it's doing"),
     ("15g_home_paid_by", "What each card paid for", "Spending by card and bank account, by its last 4 digits"),
     ("15e_home_six_months", "Six months at a glance", "Every group's trend, against your budget"),
     ("20_budgets", "Budgets by group", "Warned before you overspend"),
@@ -50,7 +50,7 @@ SCREENS = [
 ]
 
 
-NAMES = ["home", "privacy", "groups", "paid-by", "six-months", "budgets", "reports", "backup"]
+NAMES = ["home", "privacy", "owl", "paid-by", "six-months", "budgets", "reports", "backup"]
 
 
 # ---------- drawing helpers ----------
