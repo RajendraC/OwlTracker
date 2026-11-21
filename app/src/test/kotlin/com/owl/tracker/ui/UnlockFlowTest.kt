@@ -112,6 +112,9 @@ class TrialEndedTest : LicenceUiTest(installedDaysAgo = 8) {
             typeInto("add_amount", "1500")
             typeInto("add_merchant", "Tea stall")
             tapTag("save_expense")
+            // Home has no payments list any more (1.9.9): the new one is in Activity
+            waitForTag("home")
+            tapTag("tab_activity")
             waitForText("Tea stall")
         }
     }

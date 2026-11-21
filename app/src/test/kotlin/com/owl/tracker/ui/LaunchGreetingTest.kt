@@ -1,6 +1,8 @@
 package com.owl.tracker.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
@@ -41,17 +43,28 @@ class LaunchGreetingTest {
 
     @Test
     fun everyActDrawsTheOwlFromStartToEnd() {
-        var act by mutableStateOf(LaunchAct.BLINK)
-        var t by mutableStateOf(0f)
-        compose.setContent { OwlTrackerTheme(dark = false) { LaunchBadge(act, t, 120.dp, Modifier.testTag("badge")) } }
-        for (a in LaunchAct.entries) for (step in 0..6) {
-            act = a; t = LAUNCH_SECONDS * step / 6f
-            compose.waitForIdle()
-            val px = compose.onNodeWithTag("badge").captureToImage().toPixelMap()
-            // the owl's dark brown is in the middle of the mango circle
-            var brown = 0
-            for (x in 30 until 90 step 3) for (y in 20 until 80 step 3) { val c = px[x, y]; if (c.red < 0.45f && c.green < 0.3f && c.alpha > 0.9f) brown++ }
-            assertTrue("$a at $t", brown > 20)
+        val steps = 7
+        compose.setContent {
+            OwlTrackerTheme(dark = false) {
+                Column(Modifier.testTag("grid")) {
+                    for (a in LaunchAct.entries) Row {
+                        for (step in 0 until steps) LaunchBadge(a, LAUNCH_SECONDS * step / (steps - 1), 50.dp)
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        val px = compose.onNodeWithTag("grid").captureToImage().toPixelMap()
+        val cell = px.width / steps
+        for ((row, a) in LaunchAct.entries.withIndex()) for (step in 0 until steps) {
+            // the owl's dark brown fills the middle of each mango circle
+            var brown = 0; var seen = 0
+            for (fx in 35..65 step 3) for (fy in 30..60 step 3) {
+                val c = px[step * cell + cell * fx / 100, row * cell + cell * fy / 100]
+                seen++
+                if (c.red < 0.45f && c.green < 0.3f && c.alpha > 0.9f) brown++
+            }
+            assertTrue("$a, step $step: $brown of $seen", brown > seen / 5)
         }
     }
 
