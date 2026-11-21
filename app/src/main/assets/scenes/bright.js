@@ -447,8 +447,10 @@
       '<rect x="18" y="116" width="' + f1(chipW) + '" height="22" rx="11" fill="' + chipFill + '" stroke="' + ink + '" stroke-opacity="' + (over ? 0 : 0.14) + '"></rect>' +
       '<text x="' + f1(18 + chipW / 2) + '" y="131" text-anchor="middle" font-family="' + FONT + '" font-size="11" font-weight="800" fill="' + chipInk + '">' + esc(chip) + '</text>' +
       '</g>';
-    var cluster = (CLUSTER[kind] || others)(sc, f, still, spec);
-    var sparkles = still ? '' : [[168, 34, 5, '#FFFFFF', 1.2], [306, 98, 4, '#FFFFFF', 2.0], [214, 22, 3.4, '#FFD43B', 2.6]].map(function (e) {
+    // With the owl's scenes loaded (owl-scenes.js), the owl draws the picture's right half instead (see scene.html)
+    var owl = !!window.OWL_SCENES;
+    var cluster = owl ? '' : (CLUSTER[kind] || others)(sc, f, still, spec);
+    var sparkles = (still || owl) ? '' : [[168, 34, 5, '#FFFFFF', 1.2], [306, 98, 4, '#FFFFFF', 2.0], [214, 22, 3.4, '#FFD43B', 2.6]].map(function (e) {
       return '<g class="' + sc.idle('twinkle', e[4]) + '">' + sparkle(e[0], e[1], e[2], e[3]) + '</g>';
     }).join('');
     var defs = sc.defs.join('') + sc.used.map(function (n) { return ART[n][0]; }).join('');

@@ -29,6 +29,18 @@ class SceneSpecTest {
         kinds.forEach { (icon, kind) -> assertEquals(icon, kind, Scenes.kindOf(cat(icon))) }
     }
 
+    /** Every kind has an owl scene too (owl-scenes.js; Transport is the car). */
+    @Test
+    fun everyKindHasAnOwlScene() {
+        val dir = listOf(File("src/main/assets/scenes"), File("app/src/main/assets/scenes")).first { it.isDirectory }
+        val owl = File(dir, "owl-scenes.js").readText()
+        listOf("food", "groceries", "shopping", "fuel", "bills", "recharge", "entertainment", "sports", "health", "travel",
+            "education", "rent", "emi", "investments", "cash", "transfers", "income", "others").forEach { kind ->
+            assertTrue("$kind has no owl scene", owl.contains("\"$kind\":{\"extra\""))
+        }
+        assertTrue(owl.contains("\"car\":{\"stage\""))
+    }
+
     /** Every kind the app asks for is one the page can draw (bright.js), so none falls back to the jar by mistake. */
     @Test
     fun everyKindIsDrawnByThePage() {
@@ -114,7 +126,7 @@ class SceneSpecTest {
     @Test
     fun theScenePageLoadsNothingFromOutside() {
         val dir = listOf(File("src/main/assets/scenes"), File("app/src/main/assets/scenes")).first { it.isDirectory }
-        val files = listOf("scene.html", "bright-font.js", "bright-art.js", "bright.js").map { File(dir, it) }
+        val files = listOf("scene.html", "bright-font.js", "bright-art.js", "bright.js", "owl-scenes.js").map { File(dir, it) }
         files.forEach { assertTrue("${it.name} is missing", it.isFile) }
         val all = files.joinToString("\n") { it.readText() }
         listOf("http://", "https://", "fetch(", "XMLHttpRequest", "WebSocket", "importScripts").forEach {
@@ -123,8 +135,19 @@ class SceneSpecTest {
         // url() only ever points inside the picture itself (its gradients and filters), never at a file
         assertEquals(emptyList<String>(), Regex("url\\((?!#)[^)]*\\)").findAll(all).map { it.value }.toList())
         val html = files[0].readText()
-        assertEquals(listOf("bright-font.js", "bright-art.js", "bright.js"), Regex("<script src=\"([^\"]+)\"").findAll(html).map { it.groupValues[1] }.toList())
-        // The font comes with its licence
+        assertEquals(listOf("bright-font.js", "bright-art.js", "bright.js", "owl-scenes.js"), Regex("<script src=\"([^\"]+)\"").findAll(html).map { it.groupValues[1] }.toList())
+        // The font comes with its licence, and so do the owl's props
         assertTrue(File(dir, "../fonts/OFL.txt").isFile)
+        assertTrue(File(dir, "art/LICENSE").isFile)
+        // The props are the app's own SVG files; past their namespace names they mention no web address
+        File(dir, "art").listFiles { f -> f.name.endsWith(".svg") }!!.forEach { f ->
+            val text = f.readText().replace(Regex("xmlns(:\\w+)?=\"http://www\\.w3\\.org/[^\"]*\""), "")
+            assertFalse("${f.name} mentions a web address", text.contains("http"))
+        }
+        // and every prop the owl's scenes use is there
+        val owl = File(dir, "owl-scenes.js").readText()
+        Regex("art/([0-9a-f_]+)\\.svg").findAll(owl).map { it.groupValues[1] }.toSet().forEach {
+            assertTrue("art/$it.svg is missing", File(dir, "art/$it.svg").isFile)
+        }
     }
 }

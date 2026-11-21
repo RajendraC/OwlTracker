@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import com.owl.tracker.ui.components.LaunchAct
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.owl.tracker.AppContainer
@@ -854,12 +855,20 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
+    /**
+     * The owl's hello (one of five acts, at random): when the app starts, and when it comes back after
+     * [GREET_AFTER_MS] away. Shown once the app lock (if any) has been passed; [greeted] clears it.
+     */
+    val greeting = MutableStateFlow(if (greetingsOn) LaunchAct.entries.random() else null)
+    fun greeted() { greeting.value = null }
+
     fun onAppBackground() { backgroundAt = now() }
 
     fun onAppForeground() {
         val s = settings.value ?: return
         val at = backgroundAt
         if (s.appLock && at != null && now() - at > LOCK_AFTER_MS) locked.value = true
+        if (greetingsOn && at != null && now() - at > GREET_AFTER_MS) greeting.value = LaunchAct.entries.random()
         backgroundAt = null
         c.licence.refresh()
         if (s.onboarded && !locked.value) syncQuietly()
@@ -1375,6 +1384,19 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     companion object {
         const val LOCK_AFTER_MS = 60_000L
+
+        /** Away this long, the owl says hello again when you come back. */
+        const val GREET_AFTER_MS = 30 * 60_000L
+
+        /**
+         * The owl's hello is off under tests (Robolectric, or the instrumented tests on emulators), so their first
+         * screen is the app itself; a test can switch it back on.
+         */
+        @Volatile internal var greetingsOn = !runningTests()
+
+        private fun runningTests(): Boolean =
+            android.os.Build.FINGERPRINT == "robolectric" ||
+                runCatching { Class.forName("androidx.test.platform.app.InstrumentationRegistry"); true }.getOrDefault(false)
 
         /** Most useful first: messages that may be real transactions the parser missed. */
         val SKIP_ORDER = listOf(

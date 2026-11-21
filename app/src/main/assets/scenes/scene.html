@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Owl Tracker's category pictures. bright-art.js (made by tools/scenes/export_bright.py) holds the glossy objects,
-  bright-font.js the font for the words; bright.js places and times them. The app hands over the picture as
+  bright-font.js the font for the words; bright.js places and times them; owl-scenes.js and art/ (Noto Emoji, Apache 2.0) are the owl's half. The app hands over the picture as
     window.__scene = { kind, name, color, p, spent, budget, sub, chip, over, order, still }
   and calls renderScene(window.__scene) if the page is ready (otherwise the page picks it up itself), and replay()
   when the picture is tapped. Nothing here reaches the network, or even another file: the page and its scripts are
@@ -12,13 +12,21 @@
 html,body{margin:0;padding:0;overflow:hidden;background:transparent;-webkit-user-select:none;user-select:none}
 /* Sized from the width alone (320 × 180): a WebView's page height can read as 0, so nothing here relies on it */
 #stage{position:relative;width:100%;height:0;padding-top:56.25%}
-#stage svg{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+#stage > svg{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 </style>
 <style id="anim"></style>
+<style>
+/* The owl's half of the picture (owl-scenes.js): a 240-unit stage, scaled to fit the right of the card */
+.owlbox{position:absolute;left:44.4%;top:1.1%;width:55%;height:97.8%;pointer-events:none}
+.owlbox .st{transform-origin:0 0}
+.owlbox .still *{animation:none!important}
+</style>
+<style id="owlcss"></style>
 </head><body><div id="stage"></div>
 <script src="bright-font.js"></script>
 <script src="bright-art.js"></script>
 <script src="bright.js"></script>
+<script src="owl-scenes.js"></script>
 <script>
 (function () {
   'use strict';
@@ -54,11 +62,50 @@ html,body{margin:0;padding:0;overflow:hidden;background:transparent;-webkit-user
     }, 14000);
   }
 
+  /** How the owl feels about the category: party for money in, else from the budget. */
+  function mood(s) {
+    if (s.kind === 'income') return 'party';
+    if (s.over) return 'sad';
+    if (!(s.budget > 0)) return 'look';
+    if (s.p >= 0.8 && s.kind !== 'rent' && s.kind !== 'emi') return 'worried';
+    return 'happy';
+  }
+
+  /** The owl acting out the category (see tools/scenes/make_owl_scenes.py), for the right half of the card. */
+  function owlHalf(spec, uid) {
+    var O = window.OWL_SCENES;
+    if (!O) return '';
+    if (!document.getElementById('owlcss').textContent) document.getElementById('owlcss').textContent = O.css;
+    var kind = spec.kind === 'transport' ? 'transport' : (O.kinds[spec.kind] ? spec.kind : 'others');
+    var m = mood(spec);
+    var svg = O.owls[m === 'party' ? 'happy' : m].split('UID').join(uid);
+    var stage;
+    if (kind === 'transport') {
+      svg = svg.replace('<!--EXTRA-->', '').replace('<!--WEAR-->', '');
+      stage = O.car.stage;
+    } else {
+      var k = O.kinds[kind];
+      svg = svg.replace('<!--EXTRA-->', k.extra).replace('<!--WEAR-->', k.wear);
+      stage = k.stage + (O.extras[m] || '');
+    }
+    return '<div class="owlbox"><div class="st k-' + kind + ' m-' + m + (spec.still ? ' still' : '') + '"><div class="ob">' + svg + '</div>' + stage + '</div></div>';
+  }
+
+  /** Scales the owl's 240-unit stage to its box (55% of the card's width). */
+  function fitOwl() {
+    var st = document.querySelector('.owlbox .st');
+    if (!st) return;
+    var w = document.getElementById('stage').clientWidth * 0.55;
+    if (w > 0) st.style.transform = 'scale(' + (w / 240) + ')';
+  }
+  window.addEventListener('resize', fitOwl);
+
   function draw(spec) {
     runs += 1;
     var out = window.BrightKit.scene(spec, 'r' + runs, false, 4.4, null);
     document.getElementById('anim').textContent = out[1];
-    document.getElementById('stage').innerHTML = out[0];
+    document.getElementById('stage').innerHTML = out[0] + owlHalf(spec, 'o' + runs);
+    fitOwl();
     if (!spec.still) settleLater();
   }
 
