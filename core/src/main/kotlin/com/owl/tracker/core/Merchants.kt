@@ -49,8 +49,20 @@ object Cat {
     /** Kids' Sports & Extracurricular. */
     const val KIDS_ACTIVITIES = "kids_activities"
 
-    /** Kids' Shopping & Care. */
+    /** Kids' Clothes (was Kids' Shopping & Care before 1.9.12, when Toys and Baby Essentials got their own). */
     const val KIDS_CARE = "kids_care"
+
+    /** Baby Essentials: diapers, wipes, formula, baby food (1.9.12). */
+    const val BABY = "baby_essentials"
+
+    /** Daycare & Nanny: creche, daycare and playgroup fees, a nanny or babysitter (1.9.12). */
+    const val DAYCARE = "daycare"
+
+    /** Kids' Health & Vaccines: the paediatrician, children's hospitals, vaccinations (1.9.12). */
+    const val KIDS_HEALTH = "kids_health"
+
+    /** Toys (1.9.12). */
+    const val KIDS_TOYS = "kids_toys"
 
     // Food
     const val FOOD_DELIVERY = "food_delivery"
@@ -114,7 +126,7 @@ object CategoryGroups {
         Cat.TRANSPORT to listOf(Cat.COMMUTE, Cat.FUEL, Cat.CAR_BIKE),
         Cat.SHOPPING to listOf(Cat.FASHION, Cat.ELECTRONICS, Cat.FURNITURE, Cat.BEAUTY, Cat.JEWELLERY),
         Cat.FOOD to listOf(Cat.FOOD_DELIVERY, Cat.DINING, Cat.GROCERIES),
-        Cat.KIDS to listOf(Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_CARE),
+        Cat.KIDS to listOf(Cat.BABY, Cat.DAYCARE, Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_HEALTH, Cat.KIDS_TOYS, Cat.KIDS_CARE),
         Cat.BILLS to listOf(Cat.RENT, Cat.UTILITIES, Cat.RECHARGE, Cat.SUBSCRIPTIONS, Cat.HOME_HELP, Cat.INSURANCE),
         Cat.HEALTH to listOf(Cat.MEDICINES, Cat.DOCTOR, Cat.SPORTS),
         Cat.FUN to listOf(Cat.ENTERTAINMENT, Cat.TRAVEL, Cat.HOLIDAY, Cat.EDUCATION),
@@ -123,13 +135,19 @@ object CategoryGroups {
 
     val PARENT: Map<String, String> = CHILDREN.flatMap { (g, kids) -> kids.map { it to g } }.toMap()
 
-    val KIDS: Set<String> = setOf(Cat.KIDS, Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_CARE)
+    val KIDS: Set<String> = setOf(Cat.KIDS, Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_CARE, Cat.BABY, Cat.DAYCARE, Cat.KIDS_HEALTH, Cat.KIDS_TOYS)
+
+    /** The Kids categories added in 1.9.12: payments the usual rules now put there are moved once (categories 4). */
+    val NEW_KIDS: Set<String> = setOf(Cat.BABY, Cat.DAYCARE, Cat.KIDS_HEALTH, Cat.KIDS_TOYS)
 
     /** Where a Kids category's payments go for someone who doesn't pay for children. */
     fun withoutKids(id: String): String = when (id) {
         Cat.KIDS_EDUCATION -> Cat.EDUCATION
         Cat.KIDS_ACTIVITIES -> Cat.SPORTS
-        Cat.KIDS_CARE, Cat.KIDS -> Cat.SHOPPING
+        Cat.KIDS_CARE -> Cat.FASHION
+        Cat.BABY, Cat.KIDS_TOYS, Cat.KIDS -> Cat.SHOPPING
+        Cat.DAYCARE -> Cat.HOME_HELP
+        Cat.KIDS_HEALTH -> Cat.DOCTOR
         else -> id
     }
 
@@ -236,7 +254,15 @@ object MerchantRegistry {
         m("tatacliq", "Tata CLiQ", "com.tul.tatacliq", Cat.SHOPPING, "tatacliq", "tata cliq"),
         m("lenskart", "Lenskart", "com.lenskart.app", Cat.FASHION, "lenskart"),
         m("snapdeal", "Snapdeal", "com.snapdeal.main", Cat.SHOPPING, "snapdeal"),
-        m("firstcry", "FirstCry", "fc.admin.fcexpressadmin", Cat.KIDS_CARE, "firstcry", "brainbees"),
+        m("firstcry", "FirstCry", "fc.admin.fcexpressadmin", Cat.BABY, "firstcry", "brainbees"),
+        m("babychakra", "BabyChakra", null, Cat.BABY, "babychakra"),
+        m("pampers", "Pampers", null, Cat.BABY, "pampers"),
+        m("huggies", "Huggies", null, Cat.BABY, "huggies"),
+        m("mamypoko", "MamyPoko", null, Cat.BABY, "mamypoko", "mamy poko"),
+        m("luvlap", "LuvLap", null, Cat.BABY, "luvlap"),
+        m("rainbowhospitals", "Rainbow Children's Hospital", null, Cat.KIDS_HEALTH, "rainbow child", "rainbow hospital"),
+        m("funskool", "Funskool", null, Cat.KIDS_TOYS, "funskool"),
+        m("toycra", "Toycra", null, Cat.KIDS_TOYS, "toycra"),
         m("ikea", "IKEA", "com.ingka.ikea.app", Cat.FURNITURE, "ikea"),
         m("tataneu", "Tata Neu", "com.tatadigital.tcp", Cat.SHOPPING, "tata neu", "tataneu", "tata digital"),
         // Jewellers. Short or common words ("gold", "malabar", "giva") only match with the brand's own words.
@@ -280,7 +306,7 @@ object MerchantRegistry {
         m("purplle", "Purplle", null, Cat.BEAUTY, "purplle"),
         m("mamaearth", "Mamaearth", null, Cat.BEAUTY, "mamaearth", "honasa"),
         m("sugarcosmetics", "SUGAR Cosmetics", null, Cat.BEAUTY, "sugar cosmetics"),
-        m("hamleys", "Hamleys", null, Cat.KIDS_CARE, "hamleys"),
+        m("hamleys", "Hamleys", null, Cat.KIDS_TOYS, "hamleys"),
         m("hopscotch", "Hopscotch", null, Cat.KIDS_CARE, "hopscotch"),
         m("mothercare", "Mothercare", null, Cat.KIDS_CARE, "mothercare"),
         m("decathlon", "Decathlon", null, Cat.SPORTS, "decathlon"),

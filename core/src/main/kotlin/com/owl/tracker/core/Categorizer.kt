@@ -75,6 +75,9 @@ class Categorizer(private val userRules: List<CategoryRule> = emptyList(), priva
             k("""insurance|assurance""", Cat.INSURANCE),
             k("""recharge|prepaid|postpaid|vodafone|\bvi\b|dth|tata play|sun direct|broadband|fibernet|act fibernet""", Cat.RECHARGE),
             k("""electricity|\bpower\b|bescom|tneb|tangedco|msedcl|bses|tata power|water board|water supply|\bgas\b|bbps|billdesk""", Cat.UTILITIES),
+            // Babies and children first: "Rainbow Children's Hospital" is the children's doctor, "Baby Care Medicals" baby things
+            k("""child(?:ren)?'?s? hospital|child care clinic|p(?:a)?ediatric|\bneonat""", Cat.KIDS_HEALTH),
+            k("""\bbaby\b|\bbabies\b|diaper|nappy|nappies|infant""", Cat.BABY),
             k("""pharma|medical|chemist|medplus|druggist""", Cat.MEDICINES),
             k("""hospital|clinic|diagnostic|\blabs?\b|dental|doctor""", Cat.DOCTOR),
             // Before Food: "Hotel & Resort" is a stay. A plain "hotel" stays Food: in India it is often a restaurant.
@@ -84,7 +87,8 @@ class Categorizer(private val userRules: List<CategoryRule> = emptyList(), priva
             // Children's school and care. Classes and academies could be anyone's, so they stay with Sports or Courses.
             k("""school|vidyalaya|vidyalay|vidya mandir|vidyashram|kindergarten|montessori|tuition|tution""", Cat.KIDS_EDUCATION),
             k("""abacus|summer camp|\bkids\b|tiny tots""", Cat.KIDS_ACTIVITIES),
-            k("""day ?care|creche|\btoys?\b""", Cat.KIDS_CARE),
+            k("""day ?care|cr[eè]che|playgroup|play group|nanny|babysit""", Cat.DAYCARE),
+            k("""\btoys?\b|toy store|toy world""", Cat.KIDS_TOYS),
             k("""\bsports?\b|\bturf\b|playo|hudle|badminton|cricket|football|futsal|tennis|pickleball|\bswim|stadium|\bgym\b|gymnasium|fitness|\byoga\b|marathon|skating|bowling|\bgolf\b|decathlon""", Cat.SPORTS),
             k("""metro|railway|\bbus\b|\bcab\b|taxi|\bauto\b""", Cat.COMMUTE),
             k("""fastag|parking|\btoll\b|car wash|\btyres?\b|garage|service cent(?:er|re)""", Cat.CAR_BIKE),

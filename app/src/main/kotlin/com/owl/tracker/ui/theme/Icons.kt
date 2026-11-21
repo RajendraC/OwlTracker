@@ -101,6 +101,10 @@ object Ic {
         "kids" to icon("M5.6 6a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0M14.6 8.5a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0M4.5 21v-6.5a3.5 3.5 0 0 1 7 0V21M13.5 21v-5a3 3 0 0 1 6 0v5"),
         "school" to icon("M2.5 9 12 4.5 21.5 9 12 13.5zM6.5 11.2v4.3c1.5 1.4 3.5 2.1 5.5 2.1s4-.7 5.5-2.1v-4.3M21.5 9v5"),
         "kids_sports" to icon("M3.5 12a8.5 8.5 0 1 0 17 0a8.5 8.5 0 1 0-17 0M12 8l3.3 2.4-1.3 3.9h-4l-1.3-3.9zM12 3.5V8M15.3 10.4l4.6-1.6M14 14.3l2.6 4M10 14.3l-2.6 4M8.7 10.4 4.1 8.8"),
+        "baby" to icon("M9.5 2.5h5M10.3 2.5v3M13.7 2.5v3M8.5 5.5h7l.5 2.5v11a2.5 2.5 0 0 1-2.5 2.5h-3A2.5 2.5 0 0 1 8 19V8zM8.2 11h3M8.2 14.5h3"),
+        "daycare" to icon("M3 11 12 3.5 21 11M5.5 9v11.5h13V9M10.4 12.6a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0M9.5 20.5v-2.5a2.5 2.5 0 0 1 5 0v2.5"),
+        "kids_health" to icon("M12 20.5S3.5 15.5 3.5 9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8.5 2.5c0 6-8.5 11-8.5 11zM12 10.5v5M9.5 13h5"),
+        "kids_clothes" to icon("M8.5 3.5 4 6.5l2 3.2 1.5-.9V15l2 2v3.5h5V17l2-2V8.8l1.5.9 2-3.2-4.5-3c-.7 1.5-2 2.3-3.5 2.3S9.2 5 8.5 3.5z"),
         "toys" to icon("M4.8 6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0M14.8 6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0M7 10a5 5 0 1 0 10 0a5 5 0 1 0-10 0M8.3 13.6C6.6 14.6 6 16 6 17.5 6 19.7 8.5 21 12 21s6-1.3 6-3.5c0-1.5-.6-2.9-2.3-3.9"),
         "utilities" to icon("M12 3c-3 4-5 6.8-5 9.5a5 5 0 0 0 10 0C17 9.8 15 7 12 3zM12.8 10l-2.3 3.2h2.2l-1 3"),
         "subscriptions" to icon("M2.5 4.5h19v13h-19zM8 21h8M10.2 8.3v5.4l4.6-2.7z"),
@@ -118,7 +122,7 @@ object Ic {
 
     val categoryChoices = listOf(
         "tag", "food", "coffee", "delivery", "groceries", "shopping", "fashion", "electronics", "furniture", "beauty", "jewellery",
-        "transport", "commute", "car", "fuel", "kids", "school", "kids_sports", "toys", "bills", "utilities", "recharge",
+        "transport", "commute", "car", "fuel", "kids", "baby", "daycare", "school", "kids_sports", "kids_health", "toys", "kids_clothes", "bills", "utilities", "recharge",
         "subscriptions", "home_help", "insurance", "health", "medicines", "doctor", "entertainment", "sports", "travel",
         "holiday", "education", "fun", "rent", "emi", "investments", "cash", "gift", "temple", "pet", "others",
     )

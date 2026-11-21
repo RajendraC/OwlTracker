@@ -79,6 +79,7 @@ class Db(
             if (oldVersion < 5) Schema.upgradeTo5(db)
             if (oldVersion < 6) Schema.upgradeTo6(db)
             if (oldVersion < 7) Schema.upgradeTo7(db)
+            if (oldVersion < 8) Schema.upgradeTo8(db)
         }
     }
 }
@@ -88,9 +89,9 @@ object Schema {
      * 1: first release. 2: Sports & Fitness category, and the merchants table (names and icons the user chose).
      * 3: pictures. 4: payments split across categories (transactions.parts). 5: Holiday.
      * 6: groups of categories (categories.parent): Shopping into Fashion & Clothing, Phones & Electronics and the rest.
-     * 7: Sports & Fitness in Health instead of Fun & Travel.
+     * 7: Sports & Fitness in Health instead of Fun & Travel. 8: more Kids categories (Baby Essentials and the rest).
      */
-    const val VERSION = 7
+    const val VERSION = 8
     const val OVERALL = "__overall__"
 
     val CREATE = listOf(
@@ -197,9 +198,13 @@ object Schema {
         e(Cat.DINING, "Eating Out", "coffee", 0xFFB5452A, Cat.FOOD),
         e(Cat.GROCERIES, "Groceries", "groceries", 0xFF3F8A3A, Cat.FOOD),
         e(Cat.KIDS, "Kids", "kids", 0xFFE0569A),
+        e(Cat.BABY, "Baby Essentials", "baby", 0xFF4FA8D8, Cat.KIDS),
+        e(Cat.DAYCARE, "Daycare & Nanny", "daycare", 0xFF8A6FD1, Cat.KIDS),
         e(Cat.KIDS_EDUCATION, "Kids' Education", "school", 0xFF5866B8, Cat.KIDS),
         e(Cat.KIDS_ACTIVITIES, "Kids' Sports & Extracurricular", "kids_sports", 0xFFD35A3A, Cat.KIDS),
-        e(Cat.KIDS_CARE, "Kids' Shopping & Care", "toys", 0xFFE87FB0, Cat.KIDS),
+        e(Cat.KIDS_HEALTH, "Kids' Health & Vaccines", "kids_health", 0xFF2FA37A, Cat.KIDS),
+        e(Cat.KIDS_TOYS, "Toys", "toys", 0xFFF29E38, Cat.KIDS),
+        e(Cat.KIDS_CARE, "Kids' Clothes", "kids_clothes", 0xFFE87FB0, Cat.KIDS),
         e(Cat.BILLS, "Home & Bills", "bills", 0xFF9E740C),
         e(Cat.RENT, "Rent", "rent", 0xFF6B7D3A, Cat.BILLS),
         e(Cat.UTILITIES, "Electricity, Water & Gas", "utilities", 0xFFD49A00, Cat.BILLS),
@@ -232,6 +237,7 @@ object Schema {
     private val OLD_NAMES = mapOf(
         Cat.TRANSPORT to "Transport", Cat.FOOD to "Food & Dining", Cat.BILLS to "Bills & Utilities",
         Cat.RECHARGE to "Recharge & Subscriptions", Cat.ENTERTAINMENT to "Entertainment", Cat.EDUCATION to "Education",
+        Cat.KIDS_CARE to "Kids' Shopping & Care",
     )
 
     /**
@@ -284,6 +290,16 @@ object Schema {
         DEFAULT_CATEGORIES.forEachIndexed { i, s ->
             db.execSQL("UPDATE categories SET sort_order = ? WHERE id = ? AND is_system = 1", arrayOf<Any?>(i, s.id))
         }
+    }
+
+    /**
+     * Version 7 to 8 (1.9.12): four more Kids categories (Baby Essentials, Daycare & Nanny, Kids' Health & Vaccines,
+     * Toys), and Kids' Shopping & Care becomes Kids' Clothes, with its own picture, if the user kept its name and icon.
+     * Payments the usual rules now put in the new ones move there once (ImportEngine.sortIntoNewCategories, 4).
+     */
+    fun upgradeTo8(db: SupportSQLiteDatabase) {
+        db.execSQL("UPDATE categories SET icon = ? WHERE id = ? AND is_system = 1 AND icon = ? AND name = ?", arrayOf<Any?>("kids_clothes", Cat.KIDS_CARE, "toys", "Kids' Shopping & Care"))
+        placeBuiltIns(db)
     }
 
     /**

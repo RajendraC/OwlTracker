@@ -288,6 +288,8 @@ class ImportEngine(
      * Clothing, Uber from Transport to Daily Commute, Netflix from Recharge to OTT & Subscriptions. First the user's
      * rules that point at a category that became a group are pointed at the group's category those payments belong in
      * ("Swiggy → Food & Dining" becomes "Swiggy → Food Delivery"), so payments they cover move too.
+     * 4, more Kids categories (1.9.12), for those who pay for children: FirstCry to Baby Essentials, Hamleys to Toys,
+     * Rainbow Children's Hospital to Kids' Health & Vaccines, a creche to Daycare & Nanny.
      */
     suspend fun sortIntoNewCategories(): Int {
         val s = repo.settings()
@@ -318,6 +320,17 @@ class ImportEngine(
                 val moves = repo.unsplitMoneyOutIn(from).mapNotNull { t ->
                     val to = categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, knownOf(t), t.smsBody ?: "")
                     if (to != from && to in into) t.id to to else null
+                }
+                moves.groupBy({ it.second }, { it.first }).forEach { (to, ids) -> moved += repo.moveTo(ids, to) }
+            }
+        }
+        if (s.categoriesVersion < 4 && s.kids) {
+            // Only what came from SMS, and only out of the categories these payments were sorted into before
+            val categorizer = Categorizer(repo.rules(), s.kids)
+            for (from in KIDS_FROM_4) {
+                val moves = repo.unsplitMoneyOutIn(from).filter { it.source == Source.SMS }.mapNotNull { t ->
+                    val to = categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, knownOf(t), t.smsBody ?: "")
+                    if (to != from && to in CategoryGroups.NEW_KIDS) t.id to to else null
                 }
                 moves.groupBy({ it.second }, { it.first }).forEach { (to, ids) -> moved += repo.moveTo(ids, to) }
             }
@@ -430,8 +443,16 @@ class ImportEngine(
     companion object {
         const val MAX_MONTHS = 12
 
-        /** See [AppSettings.categoriesVersion]: 2 since Holiday, 3 since groups (1.8). */
-        const val CATEGORIES_VERSION = 3
+        /** See [AppSettings.categoriesVersion]: 2 since Holiday, 3 since groups (1.8), 4 since more Kids categories (1.9.12). */
+        const val CATEGORIES_VERSION = 4
+
+        /**
+         * Where payments for the 1.9.12 Kids categories were before: FirstCry and toy shops in Kids' Shopping & Care,
+         * children's hospitals in Doctor & Tests, baby shops in Shopping, Medicines or Others.
+         */
+        private val KIDS_FROM_4 = listOf(
+            Cat.KIDS_CARE, Cat.SHOPPING, Cat.FASHION, Cat.DOCTOR, Cat.HEALTH, Cat.MEDICINES, Cat.HOME_HELP, Cat.KIDS_ACTIVITIES, Cat.OTHERS,
+        )
 
         /** See [AppSettings.keysVersion]: 1 since payments with only a UPI ID are keyed by it (1.9.5). */
         const val KEYS_VERSION = 1

@@ -192,6 +192,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.12" to listOf(
+            Item("More for families with babies", "Kids now has Baby Essentials, Daycare & Nanny, Kids' Health & Vaccines and Toys, and Kids' Shopping & Care is now Kids' Clothes. FirstCry, baby shops, creches and children's hospitals are sorted there by themselves."),
+        ),
         "1.9.11" to listOf(
             Item("The owl in every category", "Each category's picture now has the owl acting it out: eating noodles, pushing a trolley, driving, filling up, swinging a bat and more. Its face shows how the budget is going."),
             Item("Hello after unlocking", "With the app lock on, the owl now says hello after you unlock. It also greets you when you come back after half an hour or more."),

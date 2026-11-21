@@ -181,6 +181,35 @@ class ImportEngineTest {
     }
 
     @Test
+    fun kidsPaymentsMoveIntoTheNewKidsCategoriesOnce() = runBlocking {
+        val inbox = sampleInbox()
+        inbox += SmsMessage(6401, "VM-HDFCBK-S", "Sent Rs.1899.00 From HDFC Bank A/C *4821 To FIRSTCRY On 12/10/26 Ref 629999996401", TEST_CLOCK.millis() - 6 * DAY_MS)
+        inbox += SmsMessage(6402, "VM-HDFCBK-S", "Sent Rs.1200.00 From HDFC Bank A/C *4821 To RAINBOW CHILDRENS HOSPITAL On 11/10/26 Ref 629999996402", TEST_CLOCK.millis() - 7 * DAY_MS)
+        inbox += SmsMessage(6403, "VM-HDFCBK-S", "Sent Rs.999.00 From HDFC Bank A/C *4821 To HOPSCOTCH On 10/10/26 Ref 629999996403", TEST_CLOCK.millis() - 8 * DAY_MS)
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        fun tx(sms: Long) = runBlocking { c.repo.smsTransactionsSince(0).first { it.smsId == sms } }
+        assertEquals(Cat.BABY, tx(6401).categoryId)
+        assertEquals(Cat.KIDS_HEALTH, tx(6402).categoryId)
+        assertEquals(Cat.KIDS_CARE, tx(6403).categoryId)
+
+        // As 1.9.11 left them: FirstCry in Kids' Shopping & Care, the children's hospital in Doctor & Tests
+        c.repo.moveTo(listOf(tx(6401).id), Cat.KIDS_CARE)
+        c.repo.moveTo(listOf(tx(6402).id), Cat.DOCTOR)
+        c.repo.updateSettings { it.copy(categoriesVersion = 3) }
+        assertEquals(2, e.sortIntoNewCategories())
+        assertEquals(Cat.BABY, tx(6401).categoryId)
+        assertEquals(Cat.KIDS_HEALTH, tx(6402).categoryId)
+        assertEquals(Cat.KIDS_CARE, tx(6403).categoryId)
+        assertEquals(ImportEngine.CATEGORIES_VERSION, c.repo.settings().categoriesVersion)
+        // Once only
+        c.repo.setCategory(tx(6401).id, Cat.KIDS_CARE, rememberForMerchant = false)
+        assertEquals(0, e.sortIntoNewCategories())
+        assertEquals(Cat.KIDS_CARE, tx(6401).categoryId)
+    }
+
+    @Test
     fun staysMoveFromTravelToTheNewHolidayCategoryOnce() = runBlocking {
         val inbox = sampleInbox()
         inbox += SmsMessage(6101, "VM-HDFCBK-S", "Sent Rs.4200.00 From HDFC Bank A/C *4821 To OYO ROOMS On 12/10/26 Ref 629999996101", TEST_CLOCK.millis() - 6 * DAY_MS)
@@ -254,7 +283,7 @@ class ImportEngineTest {
         e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
         fun cat(sms: Long) = runBlocking { c.repo.smsTransactionsSince(0).first { it.smsId == sms }.categoryId }
         assertEquals(Cat.KIDS_EDUCATION, cat(6301))
-        assertEquals(Cat.KIDS_CARE, cat(6302))
+        assertEquals(Cat.BABY, cat(6302))
         c.repo.setBudget(Cat.KIDS, 15_000_00L)
 
         assertEquals(2, c.repo.setKids(false))

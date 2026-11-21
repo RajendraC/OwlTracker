@@ -35,7 +35,8 @@ class SceneSpecTest {
         val dir = listOf(File("src/main/assets/scenes"), File("app/src/main/assets/scenes")).first { it.isDirectory }
         val owl = File(dir, "owl-scenes.js").readText()
         listOf("food", "groceries", "shopping", "fuel", "bills", "recharge", "entertainment", "sports", "health", "travel",
-            "education", "rent", "emi", "investments", "cash", "transfers", "income", "others").forEach { kind ->
+            "education", "rent", "emi", "investments", "cash", "transfers", "income", "others",
+            "baby", "daycare", "kids_health", "toys", "kids_clothes").forEach { kind ->
             assertTrue("$kind has no owl scene", owl.contains("\"$kind\":{\"extra\""))
         }
         assertTrue(owl.contains("\"car\":{\"stage\""))

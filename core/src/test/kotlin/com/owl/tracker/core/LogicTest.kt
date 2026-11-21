@@ -189,8 +189,15 @@ class CategorizerTest {
         assertEquals(Cat.KIDS_EDUCATION, cat("Kendriya Vidyalaya"))
         assertEquals(Cat.KIDS_EDUCATION, cat("BYJUS THINK AND LEARN"))
         assertEquals(Cat.KIDS_ACTIVITIES, cat("UCMAS Abacus"))
-        assertEquals(Cat.KIDS_CARE, cat("FIRSTCRY BRAINBEES"))
-        assertEquals(Cat.KIDS_CARE, cat("Hamleys"))
+        assertEquals(Cat.BABY, cat("FIRSTCRY BRAINBEES"))
+        assertEquals(Cat.KIDS_TOYS, cat("Hamleys"))
+        // The Kids categories added in 1.9.12
+        assertEquals(Cat.BABY, cat("Baby Care Store"))
+        assertEquals(Cat.DAYCARE, cat("Little Steps Daycare"))
+        assertEquals(Cat.DAYCARE, cat("Sunshine Creche"))
+        assertEquals(Cat.KIDS_HEALTH, cat("Rainbow Children's Hospital"))
+        assertEquals(Cat.KIDS_HEALTH, cat("Dr Rao Paediatric Clinic"))
+        assertEquals(Cat.KIDS_TOYS, cat("Toy World"))
         // Academies and classes could be anyone's
         assertEquals(Cat.SPORTS, cat("Aqua Swim Academy"))
         assertEquals(Cat.EDUCATION, cat("Vidya Coaching Academy"))
@@ -198,6 +205,8 @@ class CategorizerTest {
         assertEquals(Cat.EDUCATION, cat("Delhi Public School", kids = false))
         assertEquals(Cat.SPORTS, cat("UCMAS Abacus", kids = false))
         assertEquals(Cat.SHOPPING, cat("FIRSTCRY BRAINBEES", kids = false))
+        assertEquals(Cat.HOME_HELP, cat("Little Steps Daycare", kids = false))
+        assertEquals(Cat.DOCTOR, cat("Rainbow Children's Hospital", kids = false))
     }
 
     @Test fun academiesAndClassesAskWhoTheyWereFor() {
