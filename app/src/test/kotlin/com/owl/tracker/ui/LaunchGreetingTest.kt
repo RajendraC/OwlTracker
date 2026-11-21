@@ -1,8 +1,6 @@
 package com.owl.tracker.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
@@ -12,7 +10,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -20,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.owl.tracker.TestApp
 import com.owl.tracker.ui.components.LAUNCH_SECONDS
 import com.owl.tracker.ui.components.LaunchAct
-import com.owl.tracker.ui.components.LaunchBadge
+import com.owl.tracker.ui.components.drawLaunchBadge
 import com.owl.tracker.ui.theme.OwlTrackerTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -43,28 +46,19 @@ class LaunchGreetingTest {
 
     @Test
     fun everyActDrawsTheOwlFromStartToEnd() {
-        val steps = 7
-        compose.setContent {
-            OwlTrackerTheme(dark = false) {
-                Column(Modifier.testTag("grid")) {
-                    for (a in LaunchAct.entries) Row {
-                        for (step in 0 until steps) LaunchBadge(a, LAUNCH_SECONDS * step / (steps - 1), 50.dp)
-                    }
-                }
-            }
-        }
-        compose.waitForIdle()
-        val px = compose.onNodeWithTag("grid").captureToImage().toPixelMap()
-        val cell = px.width / steps
-        for ((row, a) in LaunchAct.entries.withIndex()) for (step in 0 until steps) {
-            // the owl's dark brown fills the middle of each mango circle
+        for (a in LaunchAct.entries) for (step in 0..6) {
+            val t = LAUNCH_SECONDS * step / 6f
+            val img = ImageBitmap(300, 300)
+            CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(img), Size(300f, 300f)) { drawLaunchBadge(a, t, null) }
+            val px = img.toPixelMap()
+            // the owl's dark brown fills the middle of the mango circle, and the circle's edge is mango
             var brown = 0; var seen = 0
-            for (fx in 35..65 step 3) for (fy in 30..60 step 3) {
-                val c = px[step * cell + cell * fx / 100, row * cell + cell * fy / 100]
-                seen++
+            for (x in 105..195 step 6) for (y in 90..180 step 6) {
+                val c = px[x, y]; seen++
                 if (c.red < 0.45f && c.green < 0.3f && c.alpha > 0.9f) brown++
             }
             assertTrue("$a, step $step: $brown of $seen", brown > seen / 5)
+            assertTrue("$a, step $step: mango edge", px[150, 6].red > 0.9f && px[150, 6].green > 0.7f)
         }
     }
 

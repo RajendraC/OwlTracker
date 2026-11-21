@@ -328,29 +328,32 @@ fun LaunchBadge(act: LaunchAct, t: Float, size: Dp, modifier: Modifier = Modifie
     val rupee = remember(text) {
         text.measure("₹", androidx.compose.ui.text.TextStyle(color = Color(0xFFB9790A), fontSize = androidx.compose.ui.unit.TextUnit(30f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold))
     }
-    Canvas(modifier.size(size)) {
-        val k = this.size.width / 300f
-        val p = (t / LAUNCH_SECONDS).coerceIn(0f, 1f)
-        scale(k, k, pivot = Offset.Zero) {
-            drawCircle(Brush.linearGradient(listOf(Color(0xFFFFF1B3), Color(0xFFFFC85C), Color(0xFFFF9A3D)), Offset.Zero, Offset(300f, 300f)), 150f, Offset(150f, 150f))
-            drawOval(DARK.copy(alpha = 0.18f), Offset(92f, 222f), Size(110f, 14f))
-            withTransform({ translate(46f, 22f); scale(200f / 1040f, 200f / 1040f, pivot = Offset.Zero); translate(-120f, -20f) }) { drawLaunchOwl(act, p) }
-            // the coin: it hops and spins, then a shine runs across it, for the coin wink
-            val spin = if (act == LaunchAct.COIN_WINK) smooth(kf(p, 0f to 0f, 0.06f to 0f, 0.45f to 1f, 1f to 1f)) else 0f
-            val hop = if (act == LaunchAct.COIN_WINK) -30f * kf(p, 0f to 0f, 0.06f to 0f, 0.3f to 1f, 0.5f to 0f, 1f to 0f) else 0f
-            val c = Offset(218f, 198f + hop)
-            scale(abs(cos(spin * 4 * PI.toFloat())).coerceAtLeast(0.06f), 1f, pivot = c) {
-                drawCircle(Color(0xFFE09A12), 28f, c)
-                drawCircle(Color(0xFFFFC93C), 24f, c)
-                drawCircle(Color(0xFFE5A417), 17f, c, style = Stroke(1.5f))
-                drawText(rupee, topLeft = Offset(c.x - rupee.size.width / 2f, c.y - rupee.size.height / 2f))
-            }
-            if (act == LaunchAct.COIN_WINK) {
-                val s = kf(p, 0f to -1f, 0.5f to -1f, 0.75f to 1f, 1f to 1f)
-                if (s > -1f && s < 1f) clipPath(Path().apply { addOval(Rect(c, 28f)) }) {
-                    val x = c.x + 40f * s
-                    drawRect(Brush.linearGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.85f), Color.Transparent), Offset(x - 14f, c.y - 10f), Offset(x + 14f, c.y + 10f)), Offset(c.x - 30f, c.y - 30f), Size(60f, 60f))
-                }
+    Canvas(modifier.size(size)) { drawLaunchBadge(act, t, rupee) }
+}
+
+/** [LaunchBadge]'s drawing, scaled to fill this DrawScope's width; [rupee] is the coin's ₹ (none in tests). */
+internal fun DrawScope.drawLaunchBadge(act: LaunchAct, t: Float, rupee: androidx.compose.ui.text.TextLayoutResult?) {
+    val k = this.size.width / 300f
+    val p = (t / LAUNCH_SECONDS).coerceIn(0f, 1f)
+    scale(k, k, pivot = Offset.Zero) {
+        drawCircle(Brush.linearGradient(listOf(Color(0xFFFFF1B3), Color(0xFFFFC85C), Color(0xFFFF9A3D)), Offset.Zero, Offset(300f, 300f)), 150f, Offset(150f, 150f))
+        drawOval(DARK.copy(alpha = 0.18f), Offset(92f, 222f), Size(110f, 14f))
+        withTransform({ translate(46f, 22f); scale(200f / 1040f, 200f / 1040f, pivot = Offset.Zero); translate(-120f, -20f) }) { drawLaunchOwl(act, p) }
+        // the coin: it hops and spins, then a shine runs across it, for the coin wink
+        val spin = if (act == LaunchAct.COIN_WINK) smooth(kf(p, 0f to 0f, 0.06f to 0f, 0.45f to 1f, 1f to 1f)) else 0f
+        val hop = if (act == LaunchAct.COIN_WINK) -30f * kf(p, 0f to 0f, 0.06f to 0f, 0.3f to 1f, 0.5f to 0f, 1f to 0f) else 0f
+        val c = Offset(218f, 198f + hop)
+        scale(abs(cos(spin * 4 * PI.toFloat())).coerceAtLeast(0.06f), 1f, pivot = c) {
+            drawCircle(Color(0xFFE09A12), 28f, c)
+            drawCircle(Color(0xFFFFC93C), 24f, c)
+            drawCircle(Color(0xFFE5A417), 17f, c, style = Stroke(1.5f))
+            if (rupee != null) drawText(rupee, topLeft = Offset(c.x - rupee.size.width / 2f, c.y - rupee.size.height / 2f))
+        }
+        if (act == LaunchAct.COIN_WINK) {
+            val s = kf(p, 0f to -1f, 0.5f to -1f, 0.75f to 1f, 1f to 1f)
+            if (s > -1f && s < 1f) clipPath(Path().apply { addOval(Rect(c, 28f)) }) {
+                val x = c.x + 40f * s
+                drawRect(Brush.linearGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.85f), Color.Transparent), Offset(x - 14f, c.y - 10f), Offset(x + 14f, c.y + 10f)), Offset(c.x - 30f, c.y - 30f), Size(60f, 60f))
             }
         }
     }
