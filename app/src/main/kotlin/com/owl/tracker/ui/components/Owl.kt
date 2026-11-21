@@ -23,12 +23,14 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
@@ -305,5 +307,132 @@ private fun DrawScope.drawEyes(mood: OwlMood, t: Float, amp: Float, acting: Bool
     }
     if (mood == OwlMood.HAPPY || mood == OwlMood.CHEERING) {
         for (x in listOf(440f, 815f)) drawOval(Color(0xFFFF7A6B).copy(alpha = 0.35f), Offset(x - 34f, 500f), Size(68f, 26f))
+    }
+}
+
+// ---------------------------------------------------------------- the owl that says hello when the app opens
+
+/** The five ways the owl greets you when Owl Tracker opens; one is picked at random each time. */
+enum class LaunchAct { BLINK, WAKE_UP, LOOK_AROUND, COIN_WINK, HELLO }
+
+/** How long the greeting plays before the app fades in. */
+const val LAUNCH_SECONDS = 1.5f
+
+/**
+ * The app icon (the owl on its mango circle with the ₹ coin) acting out [act] at [t] seconds (0..[LAUNCH_SECONDS]).
+ * Drawn in the icon's own 300-unit box.
+ */
+@Composable
+fun LaunchBadge(act: LaunchAct, t: Float, size: Dp, modifier: Modifier = Modifier) {
+    val text = androidx.compose.ui.text.rememberTextMeasurer()
+    val rupee = remember(text) {
+        text.measure("₹", androidx.compose.ui.text.TextStyle(color = Color(0xFFB9790A), fontSize = androidx.compose.ui.unit.TextUnit(30f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold))
+    }
+    Canvas(modifier.size(size)) {
+        val k = this.size.width / 300f
+        val p = (t / LAUNCH_SECONDS).coerceIn(0f, 1f)
+        scale(k, k, pivot = Offset.Zero) {
+            drawCircle(Brush.linearGradient(listOf(Color(0xFFFFF1B3), Color(0xFFFFC85C), Color(0xFFFF9A3D)), Offset.Zero, Offset(300f, 300f)), 150f, Offset(150f, 150f))
+            drawOval(DARK.copy(alpha = 0.18f), Offset(92f, 222f), Size(110f, 14f))
+            withTransform({ translate(46f, 22f); scale(200f / 1040f, 200f / 1040f, pivot = Offset.Zero); translate(-120f, -20f) }) { drawLaunchOwl(act, p) }
+            // the coin: it hops and spins, then a shine runs across it, for the coin wink
+            val spin = if (act == LaunchAct.COIN_WINK) smooth(kf(p, 0f to 0f, 0.06f to 0f, 0.45f to 1f, 1f to 1f)) else 0f
+            val hop = if (act == LaunchAct.COIN_WINK) -30f * kf(p, 0f to 0f, 0.06f to 0f, 0.3f to 1f, 0.5f to 0f, 1f to 0f) else 0f
+            val c = Offset(218f, 198f + hop)
+            scale(abs(cos(spin * 4 * PI.toFloat())).coerceAtLeast(0.06f), 1f, pivot = c) {
+                drawCircle(Color(0xFFE09A12), 28f, c)
+                drawCircle(Color(0xFFFFC93C), 24f, c)
+                drawCircle(Color(0xFFE5A417), 17f, c, style = Stroke(1.5f))
+                drawText(rupee, topLeft = Offset(c.x - rupee.size.width / 2f, c.y - rupee.size.height / 2f))
+            }
+            if (act == LaunchAct.COIN_WINK) {
+                val s = kf(p, 0f to -1f, 0.5f to -1f, 0.75f to 1f, 1f to 1f)
+                if (s > -1f && s < 1f) clipPath(Path().apply { addOval(Rect(c, 28f)) }) {
+                    val x = c.x + 40f * s
+                    drawRect(Brush.linearGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.85f), Color.Transparent), Offset(x - 14f, c.y - 10f), Offset(x + 14f, c.y + 10f)), Offset(c.x - 30f, c.y - 30f), Size(60f, 60f))
+                }
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawLaunchOwl(act: LaunchAct, p: Float) {
+    // lids (0 open, 1 shut), where the pupils look, the head tilt, the ear tufts, the whole owl's hop and squash
+    var lidL = 0f; var lidR = 0f; var px = 0f; var py = 0f; var head = 0f; var tuft = 0f; var ty = 0f; var sy = 1f
+    when (act) {
+        LaunchAct.BLINK -> { lidL = kf(p, 0f to 0f, 0.22f to 0f, 0.3f to 1f, 0.4f to 0f, 0.52f to 0f, 0.6f to 1f, 0.7f to 0f, 1f to 0f); lidR = lidL }
+        LaunchAct.WAKE_UP -> {
+            lidL = kf(p, 0f to 1f, 0.45f to 1f, 0.53f to 0.15f, 0.58f to 0.05f, 0.64f to 0f, 1f to 0f); lidR = lidL
+            sy = kf(p, 0f to 0.96f, 0.45f to 0.96f, 0.55f to 1.06f, 0.64f to 0.98f, 0.74f to 1f, 1f to 1f)
+            tuft = kf(p, 0f to -18f, 0.45f to -18f, 0.57f to 8f, 0.66f to 0f, 1f to 0f)
+        }
+        LaunchAct.LOOK_AROUND -> {
+            val look = kf(p, 0f to 0f, 0.08f to 0f, 0.2f to -1f, 0.36f to -1f, 0.5f to 1f, 0.64f to 1f, 0.74f to 0f, 1f to 0f)
+            px = 34f * look; py = 4f * abs(look); head = 5f * look
+            lidL = kf(p, 0f to 0f, 0.78f to 0f, 0.85f to 1f, 0.93f to 0f, 1f to 0f); lidR = lidL
+        }
+        LaunchAct.COIN_WINK -> {
+            val f = kf(p, 0f to 0f, 0.1f to 0f, 0.25f to 1f, 0.45f to 1f, 0.56f to 0f, 1f to 0f)
+            px = 26f * f; py = 30f * f
+            lidR = kf(p, 0f to 0f, 0.56f to 0f, 0.63f to 1f, 0.8f to 1f, 0.88f to 0f, 1f to 0f)
+        }
+        LaunchAct.HELLO -> {
+            ty = -110f * kf(p, 0f to 0f, 0.1f to 1f, 0.22f to 0f, 1f to 0f)
+            lidL = kf(p, 0f to 0f, 0.76f to 0f, 0.83f to 1f, 0.91f to 0f, 1f to 0f); lidR = lidL
+        }
+    }
+    val feet = Offset(625f, 968f)
+    withTransform({ translate(0f, ty); scale(2f - sy, sy, pivot = feet) }) {
+        drawPath(OwlArt.body, DARK)
+        drawPath(OwlArt.belly, BELLY)
+        drawPath(OwlArt.bellyShade, PALE)
+        drawPath(OwlArt.feet, DARK)
+        drawPath(OwlArt.wing, Brush.linearGradient(listOf(LIGHT, MID), Offset(345f, 565f), Offset(650f, 965f)))
+        drawPath(OwlArt.wingIn1, DARK)
+        drawPath(OwlArt.wingIn2, DARK)
+        if (act == LaunchAct.HELLO) {
+            val show = kf(p, 0f to 0f, 0.1f to 1f, 0.72f to 1f, 0.84f to 0f, 1f to 0f)
+            if (show > 0.02f) {
+                val a = kf(p, 0f to -70f, 0.1f to 0f, 0.2f to -16f, 0.3f to 6f, 0.4f to -16f, 0.5f to 6f, 0.62f to 0f, 0.84f to -70f, 1f to -70f)
+                rotate(a, pivot = Offset(830f, 640f)) {
+                    scale(0.4f + 0.6f * show, pivot = Offset(830f, 640f)) {
+                        drawPath(OwlArt.wave, DARK)
+                        drawPath(OwlArt.waveLine, MID, style = Stroke(14f, cap = StrokeCap.Round))
+                    }
+                }
+            }
+        }
+        rotate(head, pivot = Offset(625f, 540f)) {
+            rotate(tuft, pivot = Offset(480f, 290f)) { drawPath(OwlArt.tuftL, DARK) }
+            rotate(-tuft, pivot = Offset(770f, 290f)) { drawPath(OwlArt.tuftR, DARK) }
+            drawPath(OwlArt.head, DARK)
+            for ((cx, lid) in listOf(EL_X to lidL, ER_X to lidR)) {
+                val c = Offset(cx, E_Y)
+                drawCircle(Color.White, E_R, c)
+                drawCircle(DARK, 52f, Offset(cx + px, E_Y + py))
+                drawCircle(Color.White, 16f, Offset(cx + px + 16f, E_Y + py - 18f))
+                if (lid > 0.01f) clipPath(Path().apply { addOval(Rect(c, E_R)) }) {
+                    drawRect(DARK, Offset(cx - E_R, E_Y - E_R), Size(2 * E_R, 2 * E_R * lid))
+                    if (lid > 0.85f) {
+                        val crease = Path().apply { moveTo(cx - 70f, E_Y + 25f); quadraticBezierTo(cx, E_Y + 65f, cx + 70f, E_Y + 25f) }
+                        drawPath(crease, LIGHT, style = Stroke(12f, cap = StrokeCap.Round))
+                    }
+                }
+            }
+            drawPath(OwlArt.brow, DARK)
+            drawPath(OwlArt.beak, MANGO)
+        }
+    }
+    // "z Z" drifting up while it sleeps
+    if (act == LaunchAct.WAKE_UP) {
+        for ((i, at) in listOf(Offset(900f, 250f) to 0f, Offset(960f, 170f) to 0.12f).withIndex()) {
+            val (o, d) = at
+            val q = ((p - d) / 0.4f).coerceIn(0f, 1f)
+            val a = kf(q, 0f to 0f, 0.3f to 1f, 0.8f to 1f, 1f to 0f)
+            if (a <= 0f) continue
+            val s = if (i == 0) 60f else 85f
+            val z = Path().apply { moveTo(0f, 0f); lineTo(s, 0f); lineTo(0f, s); lineTo(s, s) }
+            translate(o.x + 30f * q, o.y - 50f * q) { drawPath(z, DARK.copy(alpha = a * 0.8f), style = Stroke(16f, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)) }
+        }
     }
 }

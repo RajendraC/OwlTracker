@@ -15,6 +15,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
@@ -52,6 +55,18 @@ class MainActivity : FragmentActivity() {
         override fun onStop(owner: LifecycleOwner) = vm.onAppBackground()
     }
 
+    companion object {
+        /**
+         * The opening owl is off under tests (Robolectric, or the instrumented tests on emulators), so their first
+         * screen is the app itself; a test can switch it back on.
+         */
+        @Volatile internal var showGreeting = !runningTests()
+
+        private fun runningTests(): Boolean =
+            Build.FINGERPRINT == "robolectric" ||
+                runCatching { Class.forName("androidx.test.platform.app.InstrumentationRegistry"); true }.getOrDefault(false)
+    }
+
     /** Whether the app is drawn dark right now (for tests). */
     internal var drawsDark = false
         private set
@@ -85,6 +100,7 @@ class MainActivity : FragmentActivity() {
             container.updates.startUp(code, p.versionName.orEmpty(), updatedFromEarlier = p.lastUpdateTime > p.firstInstallTime)
         }
 
+        val greet = savedInstanceState == null && showGreeting
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             val dark = (settings?.theme ?: startTheme).isDark(isSystemInDarkTheme())
@@ -94,7 +110,12 @@ class MainActivity : FragmentActivity() {
                 onDispose {}
             }
             OwlTrackerTheme(dark = dark) {
-                OwlTrackerRoot(vm, platform)
+                // The owl says hello in one of its five ways, picked at random, when the app starts (not on a rotation)
+                var greeting by rememberSaveable { mutableStateOf(if (greet) com.owl.tracker.ui.components.LaunchAct.entries.random() else null) }
+                androidx.compose.foundation.layout.Box {
+                    OwlTrackerRoot(vm, platform)
+                    greeting?.let { LaunchGreeting(it) { greeting = null } }
+                }
             }
         }
     }
