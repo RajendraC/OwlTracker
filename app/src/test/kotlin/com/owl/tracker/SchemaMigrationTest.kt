@@ -7,6 +7,7 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.owl.tracker.core.Cat
+import com.owl.tracker.core.CategoryGroups
 import com.owl.tracker.core.MerchantPicture
 import com.owl.tracker.data.Db
 import com.owl.tracker.data.Repository
@@ -125,7 +126,7 @@ class SchemaMigrationTest {
     }
 
     /** A version 6 database as 1.8.0 left it: Sports & Fitness in Fun & Travel (or where the user put it), a Fun & Travel budget. */
-    private fun createVersion6(sportsParent: String?, healthArchived: Boolean = false) {
+    private fun createVersion6(sportsParent: String?, healthArchived: Boolean = false, kidsArchived: Boolean = false) {
         context.deleteDatabase(name)
         val helper = FrameworkSQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(context).name(name).callback(object : SupportSQLiteOpenHelper.Callback(6) {
@@ -135,14 +136,18 @@ class SchemaMigrationTest {
                     val old = Schema.DEFAULT_CATEGORIES.map { it.id }.toMutableList().apply {
                         remove(Cat.SPORTS)
                         add(indexOf(Cat.ENTERTAINMENT) + 1, Cat.SPORTS)
+                        // Before 1.9.12: no Baby Essentials, Daycare & Nanny, Kids' Health & Vaccines or Toys
+                        removeAll(CategoryGroups.NEW_KIDS)
                     }
                     old.forEachIndexed { i, id ->
                         val c = Schema.DEFAULT_CATEGORIES.first { it.id == id }
                         val parent = if (id == Cat.SPORTS) sportsParent else c.parent
-                        val archived = healthArchived && (id == Cat.HEALTH || parent == Cat.HEALTH)
+                        val archived = healthArchived && (id == Cat.HEALTH || parent == Cat.HEALTH) ||
+                            kidsArchived && (id == Cat.KIDS || parent == Cat.KIDS)
+                        val (cname, icon) = if (id == Cat.KIDS_CARE) "Kids' Shopping & Care" to "toys" else c.name to c.icon
                         db.execSQL(
                             "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived, parent) VALUES(?,?,?,?,?,?,1,?,?)",
-                            arrayOf<Any?>(c.id, c.name, c.icon, c.color, c.kind.name, i, if (archived) 1 else 0, parent),
+                            arrayOf<Any?>(c.id, cname, icon, c.color, c.kind.name, i, if (archived) 1 else 0, parent),
                         )
                     }
                     db.execSQL("INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived, parent) VALUES('c_1','Badminton club','sports',4280000000,'EXPENSE',101,0,0,'fun')")
@@ -173,6 +178,34 @@ class SchemaMigrationTest {
         // The payment stays in Sports & Fitness; budgets stay where they were
         assertEquals(Cat.SPORTS, repo.transactions(0, Long.MAX_VALUE).single().categoryId)
         assertEquals(mapOf(Cat.FUN to 6_000_00L, Cat.HEALTH to 3_000_00L), repo.observeBudgets().first())
+        assertTrue(context.deleteDatabase(name))
+    }
+
+    @Test
+    fun version7GetsTheNewKidsCategories() = runBlocking {
+        createVersion6(sportsParent = null)
+        Repository(Db(context, { FrameworkSQLiteOpenHelperFactory() }, name), TEST_CLOCK).let { repo ->
+            val cats = repo.categories().associateBy { it.id }
+            for (id in CategoryGroups.NEW_KIDS) {
+                assertEquals(Cat.KIDS, cats.getValue(id).parent)
+                assertEquals(false, cats.getValue(id).archived)
+            }
+            assertEquals("Kids' Clothes", cats.getValue(Cat.KIDS_CARE).name)
+            assertEquals("kids_clothes", cats.getValue(Cat.KIDS_CARE).icon)
+            // In the built-in order: Baby Essentials first in Kids, Kids' Clothes last
+            val kids = repo.categories().filter { it.parent == Cat.KIDS }.map { it.id }
+            assertEquals(CategoryGroups.CHILDREN.getValue(Cat.KIDS), kids)
+            // and nothing else moved
+            assertEquals(null, cats.getValue(Cat.SPORTS).parent)
+        }
+        assertTrue(context.deleteDatabase(name))
+
+        // Kids hidden (someone without children): the new ones are hidden too
+        createVersion6(sportsParent = Cat.HEALTH, kidsArchived = true)
+        Repository(Db(context, { FrameworkSQLiteOpenHelperFactory() }, name), TEST_CLOCK).let { repo ->
+            val cats = repo.categories().associateBy { it.id }
+            for (id in CategoryGroups.NEW_KIDS) assertEquals(true, cats.getValue(id).archived)
+        }
         assertTrue(context.deleteDatabase(name))
     }
 

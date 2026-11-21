@@ -294,12 +294,30 @@ object Schema {
 
     /**
      * Version 7 to 8 (1.9.12): four more Kids categories (Baby Essentials, Daycare & Nanny, Kids' Health & Vaccines,
-     * Toys), and Kids' Shopping & Care becomes Kids' Clothes, with its own picture, if the user kept its name and icon.
+     * Toys), in Kids and hidden if Kids is, and Kids' Shopping & Care becomes Kids' Clothes, with its own picture, if
+     * the user kept its name and icon.
      * Payments the usual rules now put in the new ones move there once (ImportEngine.sortIntoNewCategories, 4).
      */
     fun upgradeTo8(db: SupportSQLiteDatabase) {
-        db.execSQL("UPDATE categories SET icon = ? WHERE id = ? AND is_system = 1 AND icon = ? AND name = ?", arrayOf<Any?>("kids_clothes", Cat.KIDS_CARE, "toys", "Kids' Shopping & Care"))
-        placeBuiltIns(db)
+        db.execSQL(
+            "UPDATE categories SET name = ?, icon = ? WHERE id = ? AND is_system = 1 AND name = ? AND icon = ?",
+            arrayOf<Any?>("Kids' Clothes", "kids_clothes", Cat.KIDS_CARE, "Kids' Shopping & Care", "toys"),
+        )
+        // Only the new ones are added; every other category stays where the user put it
+        val kids = db.query("SELECT archived FROM categories WHERE id = ?", arrayOf<Any?>(Cat.KIDS)).use { c -> if (c.moveToFirst()) c.getInt(0) == 1 else null }
+        for (id in listOf(Cat.BABY, Cat.DAYCARE, Cat.KIDS_HEALTH, Cat.KIDS_TOYS)) {
+            val exists = db.query("SELECT COUNT(*) FROM categories WHERE id = ?", arrayOf<Any?>(id)).use { c -> c.moveToFirst() && c.getInt(0) > 0 }
+            if (exists) continue
+            val s = DEFAULT_CATEGORIES.first { it.id == id }
+            db.execSQL(
+                "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived, parent) VALUES(?,?,?,?,?,?,1,?,?)",
+                arrayOf<Any?>(s.id, s.name, s.icon, s.color, s.kind.name, 0, if (kids == true) 1 else 0, if (kids != null) Cat.KIDS else null),
+            )
+        }
+        // Built-in categories in the built-in order (the user's own stay after them)
+        DEFAULT_CATEGORIES.forEachIndexed { i, s ->
+            db.execSQL("UPDATE categories SET sort_order = ? WHERE id = ? AND is_system = 1", arrayOf<Any?>(i, s.id))
+        }
     }
 
     /**
