@@ -1,5 +1,5 @@
 APP NAME (28/30)
-Owl Tracker: Expense Tracker
+Owl Tracker: Expense Manager
 
 SHORT DESCRIPTION (76/80)
 Offline expense tracker from bank & UPI SMS. No internet, no account needed.
