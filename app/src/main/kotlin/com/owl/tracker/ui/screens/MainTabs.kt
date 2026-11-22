@@ -604,10 +604,7 @@ private fun HomeHeader(
                     Modifier.size(54.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(MaterialTheme.colorScheme.background),
                     contentAlignment = Alignment.Center,
                 ) {
-                    androidx.compose.foundation.Image(
-                        androidx.compose.ui.res.painterResource(com.owl.tracker.R.drawable.owl_mascot), contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                    )
+                    com.owl.tracker.ui.components.IdleOwl(48.dp, wander = com.owl.tracker.ui.AppViewModel.greetingsOn)
                 }
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Text(greeting(), style = MaterialTheme.typography.labelLarge, color = brand.onHeaderSoft)

@@ -239,6 +239,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.16" to listOf(
+            Item("A livelier owl", "The owl beside the greeting on Home now blinks, looks around and waves now and then. Tap it and it waves back."),
+        ),
         "1.9.15" to listOf(
             Item("Cabs & Bike Taxis", "Uber, Ola, Rapido, Namma Yatri, BluSmart, inDrive and taxis now have their own category in Getting around. Daily Commute keeps buses, local trains and autos."),
         ),

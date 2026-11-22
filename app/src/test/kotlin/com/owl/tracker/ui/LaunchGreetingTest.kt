@@ -83,4 +83,15 @@ class LaunchGreetingTest {
         compose.waitForIdle()
         assertTrue(done)
     }
+
+    @Test
+    fun theHeaderOwlWavesWhenTapped() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { OwlTrackerTheme(dark = false) { com.owl.tracker.ui.components.IdleOwl(48.dp, wander = false) } }
+        compose.mainClock.advanceTimeBy(100)
+        compose.onNodeWithTag("header_owl").assertExists().performClick()
+        compose.mainClock.advanceTimeBy((LAUNCH_SECONDS * 1000).toLong() + 200)
+        compose.waitForIdle()
+        compose.onNodeWithTag("header_owl").assertExists()
+    }
 }

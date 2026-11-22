@@ -1,5 +1,11 @@
 package com.owl.tracker.ui.components
 
+import androidx.compose.foundation.clickable
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -437,5 +443,49 @@ private fun DrawScope.drawLaunchOwl(act: LaunchAct, p: Float) {
             val z = Path().apply { moveTo(0f, 0f); lineTo(s, 0f); lineTo(0f, s); lineTo(s, s) }
             translate(o.x + 30f * q, o.y - 50f * q) { drawPath(z, DARK.copy(alpha = a * 0.8f), style = Stroke(16f, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)) }
         }
+    }
+}
+
+// ---------------------------------------------------------------- the owl in Home's header, alive
+
+/**
+ * The owl beside Home's greeting, alive: now and then it blinks, looks around, or (less often) hops and waves,
+ * the same moves as its hello when the app opens. Tap it and it waves at you. Between moves it sits still, and with
+ * [wander] off (tests) it only moves when tapped. The month's mood stays with the owl in the ring.
+ */
+@Composable
+fun IdleOwl(size: Dp, modifier: Modifier = Modifier, wander: Boolean = true) {
+    val clock = remember { Animatable(LAUNCH_SECONDS) }
+    var act by remember { mutableStateOf(LaunchAct.BLINK) }
+    val scope = rememberCoroutineScope()
+    val play = { a: LaunchAct ->
+        act = a
+        scope.launch {
+            clock.snapTo(0f)
+            clock.animateTo(LAUNCH_SECONDS, tween((LAUNCH_SECONDS * 1000).toInt(), easing = LinearEasing))
+        }
+        Unit
+    }
+    if (wander && !androidx.compose.ui.platform.LocalInspectionMode.current) {
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(1_500)
+            while (true) {
+                val r = kotlin.random.Random.nextInt(10)
+                play(if (r < 5) LaunchAct.BLINK else if (r < 8) LaunchAct.LOOK_AROUND else LaunchAct.HELLO)
+                kotlinx.coroutines.delay(kotlin.random.Random.nextLong(7_000, 12_000))
+            }
+        }
+    }
+    Canvas(
+        modifier.size(size)
+            .clickable(onClickLabel = "Wave at the owl") { play(LaunchAct.HELLO) }
+            .semantics { contentDescription = "The owl" }
+            .testTag("header_owl"),
+    ) {
+        val s = this.size.width / 870f
+        withTransform({
+            scale(s, s, pivot = Offset.Zero)
+            translate(-190f, -174f)
+        }) { drawLaunchOwl(act, clock.value / LAUNCH_SECONDS) }
     }
 }
