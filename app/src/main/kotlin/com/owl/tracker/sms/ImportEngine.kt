@@ -335,6 +335,16 @@ class ImportEngine(
                 moves.groupBy({ it.second }, { it.first }).forEach { (to, ids) -> moved += repo.moveTo(ids, to) }
             }
         }
+        if (s.categoriesVersion < 5) {
+            // Metro rides were in Daily Commute (or Others, before the metro systems were known)
+            val categorizer = Categorizer(repo.rules(), s.kids)
+            for (from in listOf(Cat.COMMUTE, Cat.OTHERS, Cat.TRAVEL)) {
+                val ids = repo.unsplitMoneyOutIn(from).filter { it.source == Source.SMS }.filter { t ->
+                    categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, knownOf(t), t.smsBody ?: "") == Cat.METRO
+                }.map { it.id }
+                if (ids.isNotEmpty()) moved += repo.moveTo(ids, Cat.METRO)
+            }
+        }
         repo.updateSettings { it.copy(categoriesVersion = CATEGORIES_VERSION) }
         return moved
     }
@@ -443,8 +453,8 @@ class ImportEngine(
     companion object {
         const val MAX_MONTHS = 12
 
-        /** See [AppSettings.categoriesVersion]: 2 since Holiday, 3 since groups (1.8), 4 since more Kids categories (1.9.12). */
-        const val CATEGORIES_VERSION = 4
+        /** See [AppSettings.categoriesVersion]: 2 since Holiday, 3 since groups (1.8), 4 since more Kids categories (1.9.12), 5 since Metro (1.9.13). */
+        const val CATEGORIES_VERSION = 5
 
         /**
          * Where payments for the 1.9.12 Kids categories were before: FirstCry and toy shops in Kids' Shopping & Care,

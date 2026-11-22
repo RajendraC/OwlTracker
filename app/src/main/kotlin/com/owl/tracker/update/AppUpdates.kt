@@ -192,6 +192,10 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.13" to listOf(
+            Item("New category pictures", "Every category has a new, softer 3D picture: an auto rickshaw for getting around, a barber pole for the salon, a cricket bat for sports and more."),
+            Item("Metro", "Metro rides and metro card top-ups now have their own category in Getting around. Delhi, Namma, Mumbai, Hyderabad, Chennai, Kochi, Pune, Noida, Lucknow, Gujarat and Kolkata metros are sorted there by themselves."),
+        ),
         "1.9.12" to listOf(
             Item("More for families with babies", "Kids now has Baby Essentials, Daycare & Nanny, Kids' Health & Vaccines and Toys, and Kids' Shopping & Care is now Kids' Clothes. FirstCry, baby shops, creches and children's hospitals are sorted there by themselves."),
         ),

@@ -71,7 +71,7 @@ object Scenes {
         "commute" to "transport", "car" to "transport", "delivery" to "food", "fashion" to "shopping", "electronics" to "shopping",
         "furniture" to "shopping", "beauty" to "shopping", "jewellery" to "shopping", "school" to "education",
         // The Kids categories have their own owl scenes (1.9.12)
-        "toys" to "toys", "baby" to "baby", "daycare" to "daycare", "kids_health" to "kids_health", "kids_clothes" to "kids_clothes",
+        "metro" to "metro", "toys" to "toys", "baby" to "baby", "daycare" to "daycare", "kids_health" to "kids_health", "kids_clothes" to "kids_clothes",
         "kids_sports" to "sports", "utilities" to "bills", "subscriptions" to "recharge", "home_help" to "bills", "insurance" to "bills",
         "medicines" to "health", "doctor" to "health", "fun" to "travel",
     )

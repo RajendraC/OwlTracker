@@ -138,6 +138,8 @@ class SchemaMigrationTest {
                         add(indexOf(Cat.ENTERTAINMENT) + 1, Cat.SPORTS)
                         // Before 1.9.12: no Baby Essentials, Daycare & Nanny, Kids' Health & Vaccines or Toys
                         removeAll(CategoryGroups.NEW_KIDS)
+                        // nor Metro (1.9.13)
+                        remove(Cat.METRO)
                     }
                     old.forEachIndexed { i, id ->
                         val c = Schema.DEFAULT_CATEGORIES.first { it.id == id }
@@ -195,6 +197,9 @@ class SchemaMigrationTest {
             // In the built-in order: Baby Essentials first in Kids, Kids' Clothes last
             val kids = repo.categories().filter { it.parent == Cat.KIDS }.map { it.id }
             assertEquals(CategoryGroups.CHILDREN.getValue(Cat.KIDS), kids)
+            // Metro too, in Getting around
+            assertEquals(Cat.TRANSPORT, cats.getValue(Cat.METRO).parent)
+            assertEquals("metro", cats.getValue(Cat.METRO).icon)
             // and nothing else moved
             assertEquals(null, cats.getValue(Cat.SPORTS).parent)
         }

@@ -781,24 +781,24 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
             val biggest = dash.byCategory.firstOrNull()
             val monthOver = status.state == BudgetState.OVER
             val figures = buildList {
-                add(Figure("Spent", Money.formatInr(dash.spent), brand.spentBg, MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.glossy_coins,
+                add(Figure("Spent", Money.formatInr(dash.spent), brand.spentBg, MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.soft3d_coins,
                     "figure_spent", "See this month's payments") { vm.showActivity(filter = com.owl.tracker.ui.ActivityFilter.SPENT) })
                 when {
                     overRows.size == 1 -> add(Figure("Over budget", overRows[0].category.name, sc.overBg, sc.overFg,
-                        com.owl.tracker.ui.components.glossyArt(overRows[0].category.icon), "figure_over", "Open ${overRows[0].category.name}") { onOpen(overRows[0].category.id) })
+                        com.owl.tracker.ui.components.categoryArt(overRows[0].category.icon), "figure_over", "Open ${overRows[0].category.name}") { onOpen(overRows[0].category.id) })
                     overRows.size > 1 -> add(Figure("Over budget", "${overRows.size} categories", sc.overBg, sc.overFg,
-                        com.owl.tracker.ui.components.glossyArt(overRows[0].category.icon), "figure_over", "See the budgets that are over",
+                        com.owl.tracker.ui.components.categoryArt(overRows[0].category.icon), "figure_over", "See the budgets that are over",
                     ) { vm.openSheet(Sheet.OverBudget) }.apply { badge = overRows.size })
                     monthOver && biggest != null -> add(Figure("Biggest", biggest.category.name, brand.spentBg, MaterialTheme.colorScheme.onSurface,
-                        com.owl.tracker.ui.components.glossyArt(biggest.category.icon), "figure_over", "Open ${biggest.category.name}") { onOpen(biggest.category.id) })
+                        com.owl.tracker.ui.components.categoryArt(biggest.category.icon), "figure_over", "Open ${biggest.category.name}") { onOpen(biggest.category.id) })
                     else -> add(Figure("Over budget", "None", sc.okBg, sc.okFg, null, "figure_over", "See your budgets") { vm.go(Screen.BUDGETS) })
                 }
                 val save = plan?.monthlyPaise?.takeIf { it > 0 && dash.isCurrent }
                 if (save != null) {
-                    add(Figure("Could save", Money.formatInr(save), sc.okBg, sc.okFg, com.owl.tracker.R.drawable.glossy_piggy, "figure_save", "See the ways to save") { vm.openWaysToSave() })
+                    add(Figure("Could save", Money.formatInr(save), sc.okBg, sc.okFg, com.owl.tracker.R.drawable.soft3d_piggy, "figure_save", "See the ways to save") { vm.openWaysToSave() })
                 } else {
                     add(Figure(if (dash.isCurrent) "Days left" else "Days", "${if (dash.isCurrent) daysLeft else dash.period.days}", brand.spentBg,
-                        MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.glossy_emi, "figure_days", null, null))
+                        MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.soft3d_calendar, "figure_days", null, null))
                 }
             }
             Figures(figures)
@@ -956,12 +956,12 @@ private fun WeekCard(vm: AppViewModel, week: com.owl.tracker.ui.WeekView, picked
             Figures(
                 listOf(
                     Figure("Daily average", Money.formatInr(week.spent / passed.size.coerceAtLeast(1)), brand.spentBg, MaterialTheme.colorScheme.onSurface,
-                        com.owl.tracker.R.drawable.glossy_coins, "figure_week_average", null, null),
+                        com.owl.tracker.R.drawable.soft3d_coins, "figure_week_average", null, null),
                     Figure(
                         "Biggest day",
                         if (biggest == null || biggest.paise == 0L) "None yet"
                         else biggest.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH) + " " + Money.formatShort(biggest.paise),
-                        brand.spentBg, MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.glossy_wallet, "figure_week_biggest", "Show that day",
+                        brand.spentBg, MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.soft3d_wallet, "figure_week_biggest", "Show that day",
                         biggest?.takeIf { it.paise > 0 }?.let { b -> { onPick(b.date) } },
                     ),
                 ),
@@ -972,7 +972,7 @@ private fun WeekCard(vm: AppViewModel, week: com.owl.tracker.ui.WeekView, picked
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.owl.tracker.R.drawable.glossy_piggy), contentDescription = null, modifier = Modifier.size(34.dp))
+                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.owl.tracker.R.drawable.soft3d_piggy), contentDescription = null, modifier = Modifier.size(34.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
                             if (left >= 0) "${Money.formatInr(left)} left in ${week.monthName}" else "${Money.formatInr(-left)} over budget in ${week.monthName}",

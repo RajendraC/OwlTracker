@@ -181,6 +181,29 @@ class ImportEngineTest {
     }
 
     @Test
+    fun metroRidesMoveFromDailyCommuteOnce() = runBlocking {
+        val inbox = sampleInbox()
+        inbox += SmsMessage(6501, "VM-HDFCBK-S", "Sent Rs.60.00 From HDFC Bank A/C *4821 To DMRC On 12/10/26 Ref 629999996501", TEST_CLOCK.millis() - 6 * DAY_MS)
+        inbox += SmsMessage(6502, "VM-HDFCBK-S", "Sent Rs.140.00 From HDFC Bank A/C *4821 To UBER INDIA On 11/10/26 Ref 629999996502", TEST_CLOCK.millis() - 7 * DAY_MS)
+        val c = testContainer(context, inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), 0, false)
+        fun tx(sms: Long) = runBlocking { c.repo.smsTransactionsSince(0).first { it.smsId == sms } }
+        assertEquals(Cat.METRO, tx(6501).categoryId)
+        assertEquals(Cat.COMMUTE, tx(6502).categoryId)
+
+        // As 1.9.12 left them: the metro ride in Daily Commute
+        c.repo.moveTo(listOf(tx(6501).id), Cat.COMMUTE)
+        c.repo.updateSettings { it.copy(categoriesVersion = 4) }
+        assertEquals(1, e.sortIntoNewCategories())
+        assertEquals(Cat.METRO, tx(6501).categoryId)
+        assertEquals(Cat.COMMUTE, tx(6502).categoryId)
+        // Once only
+        c.repo.setCategory(tx(6501).id, Cat.COMMUTE, rememberForMerchant = false)
+        assertEquals(0, e.sortIntoNewCategories())
+    }
+
+    @Test
     fun kidsPaymentsMoveIntoTheNewKidsCategoriesOnce() = runBlocking {
         val inbox = sampleInbox()
         inbox += SmsMessage(6401, "VM-HDFCBK-S", "Sent Rs.1899.00 From HDFC Bank A/C *4821 To FIRSTCRY On 12/10/26 Ref 629999996401", TEST_CLOCK.millis() - 6 * DAY_MS)

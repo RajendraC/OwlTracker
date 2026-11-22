@@ -80,6 +80,7 @@ class Db(
             if (oldVersion < 6) Schema.upgradeTo6(db)
             if (oldVersion < 7) Schema.upgradeTo7(db)
             if (oldVersion < 8) Schema.upgradeTo8(db)
+            if (oldVersion < 9) Schema.upgradeTo9(db)
         }
     }
 }
@@ -90,8 +91,9 @@ object Schema {
      * 3: pictures. 4: payments split across categories (transactions.parts). 5: Holiday.
      * 6: groups of categories (categories.parent): Shopping into Fashion & Clothing, Phones & Electronics and the rest.
      * 7: Sports & Fitness in Health instead of Fun & Travel. 8: more Kids categories (Baby Essentials and the rest).
+     * 9: Metro.
      */
-    const val VERSION = 8
+    const val VERSION = 9
     const val OVERALL = "__overall__"
 
     val CREATE = listOf(
@@ -185,6 +187,7 @@ object Schema {
     val DEFAULT_CATEGORIES = listOf(
         e(Cat.TRANSPORT, "Getting around", "transport", 0xFF2A6FB5),
         e(Cat.COMMUTE, "Daily Commute", "commute", 0xFF3B82C4, Cat.TRANSPORT),
+        e(Cat.METRO, "Metro", "metro", 0xFF7A4FB5, Cat.TRANSPORT),
         e(Cat.FUEL, "Fuel", "fuel", 0xFF9A6B2F, Cat.TRANSPORT),
         e(Cat.CAR_BIKE, "Car & Bike", "car", 0xFF4F8A9E, Cat.TRANSPORT),
         e(Cat.SHOPPING, "Shopping", "shopping", 0xFF7552C4),
@@ -303,18 +306,29 @@ object Schema {
             "UPDATE categories SET name = ?, icon = ? WHERE id = ? AND is_system = 1 AND name = ? AND icon = ?",
             arrayOf<Any?>("Kids' Clothes", "kids_clothes", Cat.KIDS_CARE, "Kids' Shopping & Care", "toys"),
         )
-        // Only the new ones are added; every other category stays where the user put it
-        val kids = db.query("SELECT archived FROM categories WHERE id = ?", arrayOf<Any?>(Cat.KIDS)).use { c -> if (c.moveToFirst()) c.getInt(0) == 1 else null }
-        for (id in listOf(Cat.BABY, Cat.DAYCARE, Cat.KIDS_HEALTH, Cat.KIDS_TOYS)) {
+        addBuiltIns(db, Cat.KIDS, listOf(Cat.BABY, Cat.DAYCARE, Cat.KIDS_HEALTH, Cat.KIDS_TOYS))
+    }
+
+    /** Version 8 to 9 (1.9.13): Metro, in Getting around (hidden if that is). */
+    fun upgradeTo9(db: SupportSQLiteDatabase) {
+        addBuiltIns(db, Cat.TRANSPORT, listOf(Cat.METRO))
+    }
+
+    /**
+     * Adds the built-in categories [ids] that are missing, in [parent] (hidden if it is), then puts the built-ins
+     * in the built-in order; every other category stays where the user put it.
+     */
+    private fun addBuiltIns(db: SupportSQLiteDatabase, parent: String, ids: List<String>) {
+        val hidden = db.query("SELECT archived FROM categories WHERE id = ?", arrayOf<Any?>(parent)).use { c -> if (c.moveToFirst()) c.getInt(0) == 1 else null }
+        for (id in ids) {
             val exists = db.query("SELECT COUNT(*) FROM categories WHERE id = ?", arrayOf<Any?>(id)).use { c -> c.moveToFirst() && c.getInt(0) > 0 }
             if (exists) continue
             val s = DEFAULT_CATEGORIES.first { it.id == id }
             db.execSQL(
                 "INSERT INTO categories(id, name, icon, color, kind, sort_order, is_system, archived, parent) VALUES(?,?,?,?,?,?,1,?,?)",
-                arrayOf<Any?>(s.id, s.name, s.icon, s.color, s.kind.name, 0, if (kids == true) 1 else 0, if (kids != null) Cat.KIDS else null),
+                arrayOf<Any?>(s.id, s.name, s.icon, s.color, s.kind.name, 0, if (hidden == true) 1 else 0, if (hidden != null) parent else null),
             )
         }
-        // Built-in categories in the built-in order (the user's own stay after them)
         DEFAULT_CATEGORIES.forEachIndexed { i, s ->
             db.execSQL("UPDATE categories SET sort_order = ? WHERE id = ? AND is_system = 1", arrayOf<Any?>(i, s.id))
         }

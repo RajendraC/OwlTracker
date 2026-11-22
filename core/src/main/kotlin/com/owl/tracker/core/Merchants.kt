@@ -36,8 +36,11 @@ object Cat {
     const val JEWELLERY = "jewellery"
 
     // Getting around
-    /** Daily Commute: cabs, autos, metro and buses. */
+    /** Daily Commute: cabs, autos and buses. */
     const val COMMUTE = "commute"
+
+    /** Metro: metro rides, metro card and NCMC top-ups (1.9.13). */
+    const val METRO = "metro"
     const val FUEL = "fuel"
 
     /** Car & Bike: tolls, FASTag, parking, service. */
@@ -123,7 +126,7 @@ object CategoryGroups {
     val GROUPS: List<String> = listOf(Cat.TRANSPORT, Cat.SHOPPING, Cat.FOOD, Cat.KIDS, Cat.BILLS, Cat.HEALTH, Cat.FUN, Cat.GIVING)
 
     val CHILDREN: Map<String, List<String>> = mapOf(
-        Cat.TRANSPORT to listOf(Cat.COMMUTE, Cat.FUEL, Cat.CAR_BIKE),
+        Cat.TRANSPORT to listOf(Cat.COMMUTE, Cat.METRO, Cat.FUEL, Cat.CAR_BIKE),
         Cat.SHOPPING to listOf(Cat.FASHION, Cat.ELECTRONICS, Cat.FURNITURE, Cat.BEAUTY, Cat.JEWELLERY),
         Cat.FOOD to listOf(Cat.FOOD_DELIVERY, Cat.DINING, Cat.GROCERIES),
         Cat.KIDS to listOf(Cat.BABY, Cat.DAYCARE, Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_HEALTH, Cat.KIDS_TOYS, Cat.KIDS_CARE),
@@ -293,6 +296,19 @@ object MerchantRegistry {
         m("reliancetrends", "Trends", null, Cat.FASHION, "reliance trends"),
         m("bata", "Bata", null, Cat.FASHION, "bata india", "bata store", "bata shoe"),
         m("metroshoes", "Metro Shoes", null, Cat.FASHION, "metro brands", "metro shoes"),
+        m("metrocash", "Metro Cash & Carry", null, Cat.GROCERIES, "metro cash", "metro wholesale"),
+        // The metro systems (1.9.13): rides, smart cards and their apps
+        m("dmrc", "Delhi Metro", null, Cat.METRO, "dmrc", "delhi metro"),
+        m("bmrcl", "Namma Metro", null, Cat.METRO, "bmrcl", "namma metro", "bangalore metro", "bengaluru metro"),
+        m("mmopl", "Mumbai Metro", null, Cat.METRO, "mmopl", "mumbai metro", "mmmocl", "mmrda metro"),
+        m("hmrl", "Hyderabad Metro", null, Cat.METRO, "hyderabad metro", "l&t metro", "ltmrhl", "hmrl"),
+        m("cmrl", "Chennai Metro", null, Cat.METRO, "cmrl", "chennai metro"),
+        m("kmrl", "Kochi Metro", null, Cat.METRO, "kmrl", "kochi metro"),
+        m("mahametro", "Maha Metro", null, Cat.METRO, "maha metro", "mahametro", "pune metro", "nagpur metro"),
+        m("nmrc", "Noida Metro", null, Cat.METRO, "nmrc", "noida metro"),
+        m("lmrc", "Lucknow Metro", null, Cat.METRO, "lmrc", "lucknow metro", "upmrc"),
+        m("gmrc", "Gujarat Metro", null, Cat.METRO, "gmrc", "ahmedabad metro", "surat metro"),
+        m("kolkatametro", "Kolkata Metro", null, Cat.METRO, "kolkata metro"),
         m("croma", "Croma", null, Cat.ELECTRONICS, "croma", "infiniti retail"),
         m("reliancedigital", "Reliance Digital", null, Cat.ELECTRONICS, "reliance digital", "reliancedigital"),
         m("applestore", "Apple Store", null, Cat.ELECTRONICS, "apple store", "apple india", "apple retail"),

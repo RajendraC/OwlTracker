@@ -34,6 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -125,41 +128,76 @@ fun IconTile(icon: ImageVector, tint: Color, background: Color, size: Dp = 40.dp
     }
 }
 
-/** The glossy pictures drawn for the category icons (tools/make_glossy_icons.py); other icons keep their line icon. */
-private val GLOSSY = mapOf(
-    "food" to R.drawable.glossy_food, "coffee" to R.drawable.glossy_coffee, "groceries" to R.drawable.glossy_groceries,
-    "shopping" to R.drawable.glossy_shopping, "transport" to R.drawable.glossy_transport, "fuel" to R.drawable.glossy_fuel,
-    "bills" to R.drawable.glossy_bills, "recharge" to R.drawable.glossy_recharge, "entertainment" to R.drawable.glossy_entertainment,
-    "health" to R.drawable.glossy_health, "travel" to R.drawable.glossy_travel, "holiday" to R.drawable.glossy_holiday, "education" to R.drawable.glossy_education,
-    "rent" to R.drawable.glossy_rent, "emi" to R.drawable.glossy_emi, "investments" to R.drawable.glossy_investments,
-    "cash" to R.drawable.glossy_cash, "transfer" to R.drawable.glossy_transfer, "income" to R.drawable.glossy_income,
-    "others" to R.drawable.glossy_others, "sports" to R.drawable.glossy_sports, "gift" to R.drawable.glossy_gift,
-    "wallet" to R.drawable.glossy_wallet,
-    // Fun & Travel: the beach umbrella
-    "fun" to R.drawable.glossy_holiday,
+/**
+ * The soft 3D pictures for the category icons: Microsoft's Fluent Emoji (MIT, assets/licenses/fluent-emoji.txt),
+ * chosen 22 Nov 2026 ("Option 4") in place of the glossy pictures. Every built-in icon has one.
+ */
+private val SOFT3D = mapOf(
+    "tag" to R.drawable.soft3d_tag, "food" to R.drawable.soft3d_food, "coffee" to R.drawable.soft3d_coffee,
+    "delivery" to R.drawable.soft3d_delivery, "groceries" to R.drawable.soft3d_groceries,
+    "shopping" to R.drawable.soft3d_shopping, "fashion" to R.drawable.soft3d_fashion,
+    "electronics" to R.drawable.soft3d_electronics, "furniture" to R.drawable.soft3d_furniture,
+    "beauty" to R.drawable.soft3d_beauty, "jewellery" to R.drawable.soft3d_jewellery,
+    "transport" to R.drawable.soft3d_transport, "commute" to R.drawable.soft3d_commute,
+    "car" to R.drawable.soft3d_car, "metro" to R.drawable.soft3d_metro, "fuel" to R.drawable.soft3d_fuel,
+    "kids" to R.drawable.soft3d_kids, "baby" to R.drawable.soft3d_baby, "daycare" to R.drawable.soft3d_daycare,
+    "school" to R.drawable.soft3d_school, "kids_sports" to R.drawable.soft3d_kids_sports,
+    "kids_health" to R.drawable.soft3d_kids_health, "toys" to R.drawable.soft3d_toys,
+    "kids_clothes" to R.drawable.soft3d_kids_clothes, "bills" to R.drawable.soft3d_bills,
+    "utilities" to R.drawable.soft3d_utilities, "recharge" to R.drawable.soft3d_recharge,
+    "subscriptions" to R.drawable.soft3d_subscriptions, "home_help" to R.drawable.soft3d_home_help,
+    "insurance" to R.drawable.soft3d_insurance, "health" to R.drawable.soft3d_health,
+    "medicines" to R.drawable.soft3d_medicines, "doctor" to R.drawable.soft3d_doctor,
+    "entertainment" to R.drawable.soft3d_entertainment, "sports" to R.drawable.soft3d_sports,
+    "travel" to R.drawable.soft3d_travel, "holiday" to R.drawable.soft3d_holiday,
+    "education" to R.drawable.soft3d_education, "fun" to R.drawable.soft3d_fun, "rent" to R.drawable.soft3d_rent,
+    "emi" to R.drawable.soft3d_emi, "investments" to R.drawable.soft3d_investments, "cash" to R.drawable.soft3d_cash,
+    "income" to R.drawable.soft3d_income, "transfer" to R.drawable.soft3d_transfer,
+    "wallet" to R.drawable.soft3d_wallet, "coins" to R.drawable.soft3d_coins, "gift" to R.drawable.soft3d_gift,
+    "temple" to R.drawable.soft3d_temple, "pet" to R.drawable.soft3d_pet, "others" to R.drawable.soft3d_others,
 )
 
-/** The glossy picture for a category icon, if one was drawn. */
-fun glossyArt(icon: String?): Int? = GLOSSY[icon ?: "others"]
+/** The 3D picture for a category icon, if there is one. */
+fun categoryArt(icon: String?): Int? = SOFT3D[icon ?: "others"]
 
 /**
- * A category's tile: its glossy picture (a basket of vegetables, a cup, an auto…) on a clay tile tinted with the
- * category's colour. Small tiles, and icons with no picture, keep the line icon.
+ * A category's tile: its 3D picture (a bowl of noodles, an auto rickshaw, a metro train…) on a soft tile that fades
+ * from the card colour into the category's, gently floating. Small tiles, and icons with no picture, keep the line
+ * icon. The float is off with "Remove animations", and staggered by icon so a list doesn't bob in step.
  */
 @Composable
 fun CategoryTile(category: Category?, size: Dp = 40.dp) {
     val color = Color(category?.color ?: 0xFF7F8682)
-    val art = GLOSSY[category?.icon ?: "others"]
+    val icon = category?.icon ?: "others"
+    val art = SOFT3D[icon]
     if (art == null || size < 28.dp) {
-        IconTile(Ic.forCategory(category?.icon ?: "others"), color, color.copy(alpha = 0.13f), size)
+        IconTile(Ic.forCategory(icon), color, color.copy(alpha = 0.13f), size)
         return
     }
-    val clay = com.owl.tracker.ui.theme.LocalBrand.current.clay
+    val surface = MaterialTheme.colorScheme.surface
+    val float = if (androidx.compose.ui.platform.LocalInspectionMode.current) 0f else {
+        val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "tile")
+        t.animateFloat(
+            0f, 1f,
+            androidx.compose.animation.core.infiniteRepeatable(
+                androidx.compose.animation.core.tween(1500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                androidx.compose.animation.core.RepeatMode.Reverse,
+                androidx.compose.animation.core.StartOffset((icon.hashCode() and 0x7fffffff) % 1500),
+            ),
+            label = "float",
+        ).value
+    }
     Box(
-        Modifier.size(size).clay(RoundedCornerShape(size * 0.32f), clay, color.copy(alpha = 0.16f).compositeOver(clay.surface), elevation = 3.dp),
+        Modifier.size(size)
+            .shadow(3.dp, RoundedCornerShape(size * 0.3f), clip = false, ambientColor = color.copy(alpha = 0.3f), spotColor = color.copy(alpha = 0.3f))
+            .clip(RoundedCornerShape(size * 0.3f))
+            .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(surface, color.copy(alpha = 0.16f).compositeOver(surface)))),
         contentAlignment = Alignment.Center,
     ) {
-        Image(painterResource(art), contentDescription = null, modifier = Modifier.size(size * 0.86f))
+        Image(
+            painterResource(art), contentDescription = null,
+            modifier = Modifier.size(size * 0.72f).graphicsLayer { translationY = -float * size.toPx() * 0.05f },
+        )
     }
 }
 

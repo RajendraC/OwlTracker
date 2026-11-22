@@ -114,7 +114,7 @@ fun MoreScreen(vm: AppViewModel) {
             runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
         }
         Text(
-            "Owl Tracker $version\nFont: Plus Jakarta Sans, under the SIL Open Font License 1.1\nCategory picture props: Noto Emoji by Google, under the Apache License 2.0",
+            "Owl Tracker $version\nFont: Plus Jakarta Sans, under the SIL Open Font License 1.1\nCategory icons: Fluent Emoji by Microsoft, under the MIT License\nCategory picture props: Noto Emoji by Google, under the Apache License 2.0",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
         )
         // Room for the raised Add button
