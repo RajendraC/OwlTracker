@@ -90,6 +90,7 @@ object Ic {
         "gift" to icon("M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-1.5-3-5-3-5-1s3 1 5 1zM12 7c1.5-3 5-3 5-1s-3 1-5 1z"),
         "pet" to icon("M12 13c-3 0-5 2.5-5 4.5S9 20 12 20s5-.5 5-2.5S15 13 12 13zM6 9.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM18 9.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM14.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"),
         // The finer categories (1.8)
+        "cabs" to icon("M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7a2 2 0 0 1 1.9 1.3L19 11M3.5 11h17v5.5h-17zM6.5 16.5v2M17.5 16.5v2M10 3h4v2.5h-4zM7 13.75h.01M17 13.75h.01"),
         "metro" to icon("M7 3h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM5 11h14M9.5 8.5 11 6l1 2 1-2 1.5 2.5M8.5 14h.01M15.5 14h.01M8 17l-2.5 4M16 17l2.5 4"),
         "commute" to icon("M7 3h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM5 10h14M8.5 13.5h.01M15.5 13.5h.01M8 17l-2.5 4M16 17l2.5 4"),
         "car" to icon("M5 16v-5l2-5h10l2 5v5M5 16h14M5 16v2.5M19 16v2.5M5 11h14M8 13.5h.01M16 13.5h.01"),
@@ -123,7 +124,7 @@ object Ic {
 
     val categoryChoices = listOf(
         "tag", "food", "coffee", "delivery", "groceries", "shopping", "fashion", "electronics", "furniture", "beauty", "jewellery",
-        "transport", "commute", "metro", "car", "fuel", "kids", "baby", "daycare", "school", "kids_sports", "kids_health", "toys", "kids_clothes", "bills", "utilities", "recharge",
+        "transport", "cabs", "commute", "metro", "car", "fuel", "kids", "baby", "daycare", "school", "kids_sports", "kids_health", "toys", "kids_clothes", "bills", "utilities", "recharge",
         "subscriptions", "home_help", "insurance", "health", "medicines", "doctor", "entertainment", "sports", "travel",
         "holiday", "education", "fun", "rent", "emi", "investments", "cash", "gift", "temple", "pet", "others",
     )

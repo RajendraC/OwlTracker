@@ -139,7 +139,7 @@ private val SOFT3D = mapOf(
     "shopping" to R.drawable.soft3d_shopping, "fashion" to R.drawable.soft3d_fashion,
     "electronics" to R.drawable.soft3d_electronics, "furniture" to R.drawable.soft3d_furniture,
     "beauty" to R.drawable.soft3d_beauty, "jewellery" to R.drawable.soft3d_jewellery,
-    "transport" to R.drawable.soft3d_transport, "commute" to R.drawable.soft3d_commute,
+    "transport" to R.drawable.soft3d_transport, "commute" to R.drawable.soft3d_commute, "cabs" to R.drawable.soft3d_cabs,
     "car" to R.drawable.soft3d_car, "metro" to R.drawable.soft3d_metro, "fuel" to R.drawable.soft3d_fuel,
     "kids" to R.drawable.soft3d_kids, "baby" to R.drawable.soft3d_baby, "daycare" to R.drawable.soft3d_daycare,
     "school" to R.drawable.soft3d_school, "kids_sports" to R.drawable.soft3d_kids_sports,

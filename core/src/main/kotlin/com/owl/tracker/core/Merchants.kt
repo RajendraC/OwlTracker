@@ -36,8 +36,11 @@ object Cat {
     const val JEWELLERY = "jewellery"
 
     // Getting around
-    /** Daily Commute: cabs, autos and buses. */
+    /** Daily Commute: buses, local trains and autos paid on the spot. */
     const val COMMUTE = "commute"
+
+    /** Cabs & Bike Taxis: Uber, Ola, Rapido, Namma Yatri and taxis (1.9.15). */
+    const val CABS = "cabs"
 
     /** Metro: metro rides, metro card and NCMC top-ups (1.9.13). */
     const val METRO = "metro"
@@ -126,7 +129,7 @@ object CategoryGroups {
     val GROUPS: List<String> = listOf(Cat.TRANSPORT, Cat.SHOPPING, Cat.FOOD, Cat.KIDS, Cat.BILLS, Cat.HEALTH, Cat.FUN, Cat.GIVING)
 
     val CHILDREN: Map<String, List<String>> = mapOf(
-        Cat.TRANSPORT to listOf(Cat.COMMUTE, Cat.METRO, Cat.FUEL, Cat.CAR_BIKE),
+        Cat.TRANSPORT to listOf(Cat.CABS, Cat.COMMUTE, Cat.METRO, Cat.FUEL, Cat.CAR_BIKE),
         Cat.SHOPPING to listOf(Cat.FASHION, Cat.ELECTRONICS, Cat.FURNITURE, Cat.BEAUTY, Cat.JEWELLERY),
         Cat.FOOD to listOf(Cat.FOOD_DELIVERY, Cat.DINING, Cat.GROCERIES),
         Cat.KIDS to listOf(Cat.BABY, Cat.DAYCARE, Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_HEALTH, Cat.KIDS_TOYS, Cat.KIDS_CARE),
@@ -330,10 +333,13 @@ object MerchantRegistry {
         m("huft", "Heads Up For Tails", null, Cat.PETS, "heads up for tails"),
         m("fnp", "Ferns N Petals", null, Cat.GIFTS, "ferns n petals", "fernsnpetals", "fnp$"),
         m("igp", "IGP", null, Cat.GIFTS, "igp.com", "indian gifts portal"),
-        m("uber", "Uber", "com.ubercab", Cat.COMMUTE, "uber"),
-        m("ola", "Ola", "com.olacabs.customer", Cat.COMMUTE, "olacabs", "ola cabs", "ani technologies", "ola money"),
-        m("rapido", "Rapido", "com.rapido.passenger", Cat.COMMUTE, "rapido", "roppen"),
-        m("nammayatri", "Namma Yatri", "in.juspay.nammayatri", Cat.COMMUTE, "namma yatri", "nammayatri"),
+        m("uber", "Uber", "com.ubercab", Cat.CABS, "uber"),
+        m("ola", "Ola", "com.olacabs.customer", Cat.CABS, "olacabs", "ola cabs", "ani technologies", "ola money"),
+        m("rapido", "Rapido", "com.rapido.passenger", Cat.CABS, "rapido", "roppen"),
+        m("nammayatri", "Namma Yatri", "in.juspay.nammayatri", Cat.CABS, "namma yatri", "nammayatri"),
+        m("blusmart", "BluSmart", null, Cat.CABS, "blusmart"),
+        m("indrive", "inDrive", null, Cat.CABS, "indrive", "indriver"),
+        m("meru", "Meru Cabs", null, Cat.CABS, "meru cab", "meru travel"),
         m("irctc", "IRCTC", "cris.org.in.prs.ima", Cat.TRAVEL, "irctc"),
         m("redbus", "redBus", "in.redbus.android", Cat.TRAVEL, "redbus"),
         m("makemytrip", "MakeMyTrip", "com.makemytrip", Cat.TRAVEL, "makemytrip", "mmt"),

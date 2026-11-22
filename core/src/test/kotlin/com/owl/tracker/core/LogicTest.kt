@@ -152,7 +152,10 @@ class CategorizerTest {
     }
 
     @Test fun gettingAroundFoodBillsAndHealthAreSplitToo() {
-        assertEquals(Cat.COMMUTE, cat("UBER INDIA"))
+        assertEquals(Cat.CABS, cat("UBER INDIA"))
+        assertEquals(Cat.CABS, cat("RAPIDO"))
+        assertEquals(Cat.CABS, cat("Sri Sai Taxi Service"))
+        assertEquals(Cat.CABS, cat("BluSmart Mobility"))
         assertEquals(Cat.METRO, cat("BMRCL Metro"))
         assertEquals(Cat.METRO, cat("DMRC"))
         assertEquals(Cat.METRO, cat("Hyderabad Metro Rail"))

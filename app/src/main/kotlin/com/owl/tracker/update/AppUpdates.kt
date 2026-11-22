@@ -239,6 +239,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.15" to listOf(
+            Item("Cabs & Bike Taxis", "Uber, Ola, Rapido, Namma Yatri, BluSmart, inDrive and taxis now have their own category in Getting around. Daily Commute keeps buses, local trains and autos."),
+        ),
         "1.9.14" to listOf(
             Item("Updates that always finish", "If Restart to finish can't install an update, Owl Tracker now says so and takes you to its Play Store page to finish there, instead of doing nothing."),
         ),

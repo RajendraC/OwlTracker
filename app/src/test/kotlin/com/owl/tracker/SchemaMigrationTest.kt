@@ -140,6 +140,8 @@ class SchemaMigrationTest {
                         removeAll(CategoryGroups.NEW_KIDS)
                         // nor Metro (1.9.13)
                         remove(Cat.METRO)
+                        // nor Cabs & Bike Taxis (1.9.15)
+                        remove(Cat.CABS)
                     }
                     old.forEachIndexed { i, id ->
                         val c = Schema.DEFAULT_CATEGORIES.first { it.id == id }
@@ -200,6 +202,8 @@ class SchemaMigrationTest {
             // Metro too, in Getting around
             assertEquals(Cat.TRANSPORT, cats.getValue(Cat.METRO).parent)
             assertEquals("metro", cats.getValue(Cat.METRO).icon)
+            assertEquals(Cat.TRANSPORT, cats.getValue(Cat.CABS).parent)
+            assertEquals(CategoryGroups.CHILDREN.getValue(Cat.TRANSPORT), repo.categories().filter { it.parent == Cat.TRANSPORT }.map { it.id })
             // and nothing else moved
             assertEquals(null, cats.getValue(Cat.SPORTS).parent)
         }

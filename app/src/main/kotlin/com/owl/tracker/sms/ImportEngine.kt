@@ -335,16 +335,10 @@ class ImportEngine(
                 moves.groupBy({ it.second }, { it.first }).forEach { (to, ids) -> moved += repo.moveTo(ids, to) }
             }
         }
-        if (s.categoriesVersion < 5) {
-            // Metro rides were in Daily Commute (or Others, before the metro systems were known)
-            val categorizer = Categorizer(repo.rules(), s.kids)
-            for (from in listOf(Cat.COMMUTE, Cat.OTHERS, Cat.TRAVEL)) {
-                val ids = repo.unsplitMoneyOutIn(from).filter { it.source == Source.SMS }.filter { t ->
-                    categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, knownOf(t), t.smsBody ?: "") == Cat.METRO
-                }.map { it.id }
-                if (ids.isNotEmpty()) moved += repo.moveTo(ids, Cat.METRO)
-            }
-        }
+        // Metro rides were in Daily Commute (or Others, before the metro systems were known)
+        if (s.categoriesVersion < 5) moved += moveOnceTo(Cat.METRO, listOf(Cat.COMMUTE, Cat.OTHERS, Cat.TRAVEL), s.kids)
+        // Uber, Ola, Rapido and taxis were in Daily Commute
+        if (s.categoriesVersion < 6) moved += moveOnceTo(Cat.CABS, listOf(Cat.COMMUTE, Cat.OTHERS, Cat.TRAVEL), s.kids)
         repo.updateSettings { it.copy(categoriesVersion = CATEGORIES_VERSION) }
         return moved
     }
@@ -450,11 +444,24 @@ class ImportEngine(
         )
     }
 
+    /** Moves the SMS payments in [from] that today's rules put in [to] (a new built-in category), once. */
+    private suspend fun moveOnceTo(to: String, from: List<String>, kids: Boolean): Int {
+        val categorizer = Categorizer(repo.rules(), kids)
+        var moved = 0
+        for (f in from) {
+            val ids = repo.unsplitMoneyOutIn(f).filter { it.source == Source.SMS }.filter { t ->
+                categorizer.categorize(t.merchantKey, t.merchantName, t.vpa, t.direction, t.kind, knownOf(t), t.smsBody ?: "") == to
+            }.map { it.id }
+            if (ids.isNotEmpty()) moved += repo.moveTo(ids, to)
+        }
+        return moved
+    }
+
     companion object {
         const val MAX_MONTHS = 12
 
-        /** See [AppSettings.categoriesVersion]: 2 since Holiday, 3 since groups (1.8), 4 since more Kids categories (1.9.12), 5 since Metro (1.9.13). */
-        const val CATEGORIES_VERSION = 5
+        /** See [AppSettings.categoriesVersion]: 2 since Holiday, 3 since groups (1.8), 4 since more Kids categories (1.9.12), 5 since Metro (1.9.13), 6 since Cabs & Bike Taxis (1.9.15). */
+        const val CATEGORIES_VERSION = 6
 
         /**
          * Where payments for the 1.9.12 Kids categories were before: FirstCry and toy shops in Kids' Shopping & Care,

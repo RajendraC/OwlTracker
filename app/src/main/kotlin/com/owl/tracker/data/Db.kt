@@ -81,6 +81,7 @@ class Db(
             if (oldVersion < 7) Schema.upgradeTo7(db)
             if (oldVersion < 8) Schema.upgradeTo8(db)
             if (oldVersion < 9) Schema.upgradeTo9(db)
+            if (oldVersion < 10) Schema.upgradeTo10(db)
         }
     }
 }
@@ -91,9 +92,9 @@ object Schema {
      * 3: pictures. 4: payments split across categories (transactions.parts). 5: Holiday.
      * 6: groups of categories (categories.parent): Shopping into Fashion & Clothing, Phones & Electronics and the rest.
      * 7: Sports & Fitness in Health instead of Fun & Travel. 8: more Kids categories (Baby Essentials and the rest).
-     * 9: Metro.
+     * 9: Metro. 10: Cabs & Bike Taxis.
      */
-    const val VERSION = 9
+    const val VERSION = 10
     const val OVERALL = "__overall__"
 
     val CREATE = listOf(
@@ -186,6 +187,7 @@ object Schema {
     /** In the order they're listed: each group, then its categories; then the ones on their own. */
     val DEFAULT_CATEGORIES = listOf(
         e(Cat.TRANSPORT, "Getting around", "transport", 0xFF2A6FB5),
+        e(Cat.CABS, "Cabs & Bike Taxis", "cabs", 0xFFD9A400, Cat.TRANSPORT),
         e(Cat.COMMUTE, "Daily Commute", "commute", 0xFF3B82C4, Cat.TRANSPORT),
         e(Cat.METRO, "Metro", "metro", 0xFF7A4FB5, Cat.TRANSPORT),
         e(Cat.FUEL, "Fuel", "fuel", 0xFF9A6B2F, Cat.TRANSPORT),
@@ -312,6 +314,11 @@ object Schema {
     /** Version 8 to 9 (1.9.13): Metro, in Getting around (hidden if that is). */
     fun upgradeTo9(db: SupportSQLiteDatabase) {
         addBuiltIns(db, Cat.TRANSPORT, listOf(Cat.METRO))
+    }
+
+    /** Version 9 to 10 (1.9.15): Cabs & Bike Taxis, in Getting around (hidden if that is). */
+    fun upgradeTo10(db: SupportSQLiteDatabase) {
+        addBuiltIns(db, Cat.TRANSPORT, listOf(Cat.CABS))
     }
 
     /**

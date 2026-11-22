@@ -68,7 +68,7 @@ object Scenes {
         "health" to "health", "travel" to "travel", "holiday" to "travel", "education" to "education", "rent" to "rent", "emi" to "emi",
         "investments" to "investments", "cash" to "cash", "transfer" to "transfers", "income" to "income",
         // The finer categories (1.8) borrow their group's picture
-        "commute" to "transport", "car" to "transport", "delivery" to "food", "fashion" to "shopping", "electronics" to "shopping",
+        "commute" to "transport", "cabs" to "transport", "car" to "transport", "delivery" to "food", "fashion" to "shopping", "electronics" to "shopping",
         "furniture" to "shopping", "beauty" to "shopping", "jewellery" to "shopping", "school" to "education",
         // The Kids categories have their own owl scenes (1.9.12)
         "metro" to "metro", "toys" to "toys", "baby" to "baby", "daycare" to "daycare", "kids_health" to "kids_health", "kids_clothes" to "kids_clothes",
