@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.shadow
@@ -179,8 +180,8 @@ fun CategoryTile(category: Category?, size: Dp = 40.dp) {
         val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "tile")
         t.animateFloat(
             0f, 1f,
-            androidx.compose.animation.core.infiniteRepeatable(
-                androidx.compose.animation.core.tween(1500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            androidx.compose.animation.core.infiniteRepeatable<Float>(
+                androidx.compose.animation.core.tween<Float>(1500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
                 androidx.compose.animation.core.RepeatMode.Reverse,
                 androidx.compose.animation.core.StartOffset((icon.hashCode() and 0x7fffffff) % 1500),
             ),
