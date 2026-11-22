@@ -181,18 +181,18 @@ object CategoryGroups {
 
     /**
      * Before 1.8, what each old category was split into: a payment there that today's rules put in one of these is
-     * moved once (Myntra from Shopping to Fashion & Clothing, Uber from Transport to Daily Commute). Payments in Others
+     * moved once (Myntra from Shopping to Fashion & Clothing, Uber from Transport to Cabs & Bike Taxis since 1.9.15). Payments in Others
      * may move into any of the new categories. Anything else stays where it is: the user may have put it there.
      */
     val SPLIT_FROM: Map<String, Set<String>> by lazy {
         val new = setOf(
-            Cat.FASHION, Cat.ELECTRONICS, Cat.FURNITURE, Cat.BEAUTY, Cat.JEWELLERY, Cat.COMMUTE, Cat.CAR_BIKE,
+            Cat.FASHION, Cat.ELECTRONICS, Cat.FURNITURE, Cat.BEAUTY, Cat.JEWELLERY, Cat.COMMUTE, Cat.CABS, Cat.METRO, Cat.CAR_BIKE,
             Cat.KIDS_EDUCATION, Cat.KIDS_ACTIVITIES, Cat.KIDS_CARE, Cat.FOOD_DELIVERY, Cat.DINING, Cat.UTILITIES,
             Cat.SUBSCRIPTIONS, Cat.HOME_HELP, Cat.INSURANCE, Cat.MEDICINES, Cat.DOCTOR, Cat.TEMPLE, Cat.GIFTS, Cat.PETS,
         )
         mapOf(
             Cat.SHOPPING to setOf(Cat.FASHION, Cat.ELECTRONICS, Cat.FURNITURE, Cat.BEAUTY, Cat.JEWELLERY, Cat.KIDS_CARE, Cat.SPORTS, Cat.EDUCATION, Cat.GIFTS, Cat.PETS),
-            Cat.TRANSPORT to setOf(Cat.COMMUTE, Cat.CAR_BIKE),
+            Cat.TRANSPORT to setOf(Cat.COMMUTE, Cat.CABS, Cat.METRO, Cat.CAR_BIKE),
             Cat.FOOD to setOf(Cat.FOOD_DELIVERY, Cat.DINING),
             Cat.BILLS to setOf(Cat.UTILITIES, Cat.RECHARGE, Cat.INSURANCE, Cat.HOME_HELP),
             Cat.RECHARGE to setOf(Cat.SUBSCRIPTIONS),
