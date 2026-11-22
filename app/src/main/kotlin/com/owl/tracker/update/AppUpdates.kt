@@ -97,6 +97,7 @@ class AppUpdates(private val manager: AppUpdateManager?, private val prefs: Shar
             InstallStatus.PENDING, InstallStatus.DOWNLOADING ->
                 UpdateUi.Downloading(UpdatePolicy.percent(s.bytesDownloaded(), s.totalBytesToDownload()))
             InstallStatus.DOWNLOADED -> UpdateUi.Downloaded
+            InstallStatus.INSTALLING -> UpdateUi.Installing
             InstallStatus.INSTALLED -> UpdateUi.None
             // Failed or cancelled: offer it again
             else -> (info?.let { UpdateUi.Ready(it.availableVersionCode(), it.totalBytesToDownload()) }) ?: UpdateUi.None
