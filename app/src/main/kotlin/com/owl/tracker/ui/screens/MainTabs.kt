@@ -276,7 +276,7 @@ fun HomeScreen(vm: AppViewModel) {
 
             // Under the budget card: a new version from Google Play, or What's new after updating
             if (appUpdate != com.owl.tracker.update.UpdateUi.None) item(key = "update") {
-                UpdateCard(appUpdate, vm::updateNow, vm::updateLater, vm::restartToUpdate, side)
+                UpdateCard(appUpdate, vm::updateNow, vm::updateLater, vm::restartToUpdate, side, onOpenPlay = vm::finishUpdateInPlay)
             }
             whatsNew?.let { v -> item(key = "whats_new") { WhatsNewCard(v, vm::closeWhatsNew, side) } }
 

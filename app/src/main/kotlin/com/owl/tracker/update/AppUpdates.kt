@@ -26,6 +26,15 @@ sealed interface UpdateUi {
 
     /** Downloaded; a restart installs it. */
     data object Downloaded : UpdateUi
+
+    /** Restart was tapped: Google Play is installing (the app closes and reopens). */
+    data object Installing : UpdateUi
+
+    /**
+     * Google Play couldn't finish the install from inside the app (it failed, or nothing happened): the update is
+     * finished from Owl Tracker's page in the Play Store instead.
+     */
+    data object FinishInPlay : UpdateUi
 }
 
 /** What to do with Google Play's answer. Pure, so it can be tested without Play. */
@@ -79,7 +88,12 @@ class AppUpdates(private val manager: AppUpdateManager?, private val prefs: Shar
     private var launcher: ActivityResultLauncher<IntentSenderRequest>? = null
 
     private val listener = InstallStateUpdatedListener { s ->
-        _state.value = when (s.installStatus()) {
+        val st = s.installStatus()
+        if (_state.value == UpdateUi.Installing && (st == InstallStatus.FAILED || st == InstallStatus.CANCELED)) {
+            finishInPlay("install ${s.installErrorCode()}")
+            return@InstallStateUpdatedListener
+        }
+        _state.value = when (st) {
             InstallStatus.PENDING, InstallStatus.DOWNLOADING ->
                 UpdateUi.Downloading(UpdatePolicy.percent(s.bytesDownloaded(), s.totalBytesToDownload()))
             InstallStatus.DOWNLOADED -> UpdateUi.Downloaded
@@ -89,15 +103,20 @@ class AppUpdates(private val manager: AppUpdateManager?, private val prefs: Shar
         }
     }
 
-    /** From the activity's onCreate: [launcher] opens Google Play's update screens. */
-    fun attach(launcher: ActivityResultLauncher<IntentSenderRequest>) {
+    /** Opens Owl Tracker's page in the Play Store (set by the activity). */
+    private var openStore: (() -> Unit)? = null
+
+    /** From the activity's onCreate: [launcher] opens Google Play's update screens, [openStore] the Play Store page. */
+    fun attach(launcher: ActivityResultLauncher<IntentSenderRequest>, openStore: () -> Unit = {}) {
         this.launcher = launcher
+        this.openStore = openStore
         runCatching { manager?.registerListener(listener) }
     }
 
     fun detach() {
         runCatching { manager?.unregisterListener(listener) }
         launcher = null
+        openStore = null
     }
 
     /** Asks Google Play whether there's a newer version. Each time the app comes to the front. */
@@ -117,10 +136,13 @@ class AppUpdates(private val manager: AppUpdateManager?, private val prefs: Shar
             versionCode = i.availableVersionCode(),
             putOffFor = prefs.getInt(PUT_OFF, -1),
         )
+        // A restart that didn't take for this version: don't offer the in-app steps again, finish in the Play Store
+        val failedHere = prefs.getInt(RESTART_FAILED, -1) == i.availableVersionCode()
         _state.value = when (action) {
-            UpdatePolicy.Action.DOWNLOADED -> UpdateUi.Downloaded
+            UpdatePolicy.Action.DOWNLOADED, UpdatePolicy.Action.CARD -> if (failedHere) UpdateUi.FinishInPlay
+                else if (action == UpdatePolicy.Action.DOWNLOADED) UpdateUi.Downloaded
+                else UpdateUi.Ready(i.availableVersionCode(), i.totalBytesToDownload())
             UpdatePolicy.Action.DOWNLOADING -> UpdateUi.Downloading(UpdatePolicy.percent(i.bytesDownloaded(), i.totalBytesToDownload()))
-            UpdatePolicy.Action.CARD -> UpdateUi.Ready(i.availableVersionCode(), i.totalBytesToDownload())
             UpdatePolicy.Action.FULL_SCREEN -> { start(AppUpdateType.IMMEDIATE); UpdateUi.None }
             UpdatePolicy.Action.NOTHING -> UpdateUi.None
         }
@@ -152,9 +174,31 @@ class AppUpdates(private val manager: AppUpdateManager?, private val prefs: Shar
         _state.value = UpdateUi.None
     }
 
-    /** Restart to finish: Google Play installs the download and opens the app again. */
+    /**
+     * Restart to finish: Google Play installs the download and opens the app again. If Play says no, or nothing has
+     * happened after [RESTART_WAIT_MS] (the app is still here), the update is finished in the Play Store instead,
+     * so the card never just sits there. (22 Nov 2026: a download from an older closed-testing build did nothing.)
+     */
     fun restart() {
-        runCatching { manager?.completeUpdate() }
+        val m = manager ?: return
+        _state.value = UpdateUi.Installing
+        val task = runCatching { m.completeUpdate() }.getOrElse { finishInPlay("completeUpdate threw: $it"); return }
+        task.addOnFailureListener { finishInPlay("completeUpdate failed: $it") }
+        main.postDelayed({ if (_state.value == UpdateUi.Installing) finishInPlay("nothing happened") }, RESTART_WAIT_MS)
+    }
+
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    private fun finishInPlay(why: String) {
+        android.util.Log.w("OwlUpdate", "Restart didn't finish the update ($why); finishing in the Play Store")
+        info?.let { prefs.edit().putInt(RESTART_FAILED, it.availableVersionCode()).apply() }
+        _state.value = UpdateUi.FinishInPlay
+        runCatching { openStore?.invoke() }
+    }
+
+    /** Open Google Play on the Finish in Google Play card. */
+    fun openPlay() {
+        runCatching { openStore?.invoke() }
     }
 
     /**
@@ -183,6 +227,8 @@ class AppUpdates(private val manager: AppUpdateManager?, private val prefs: Shar
     companion object {
         const val PREFS = "updates"
         private const val PUT_OFF = "put_off_version"
+        private const val RESTART_FAILED = "restart_failed_version"
+        const val RESTART_WAIT_MS = 8_000L
         private const val SEEN = "whats_new_seen"
     }
 }
@@ -192,6 +238,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.14" to listOf(
+            Item("Updates that always finish", "If Restart to finish can't install an update, Owl Tracker now says so and takes you to its Play Store page to finish there, instead of doing nothing."),
+        ),
         "1.9.13" to listOf(
             Item("New category pictures", "Every category has a new, softer 3D picture: an auto rickshaw for getting around, a barber pole for the salon, a cricket bat for sports and more."),
             Item("Metro", "Metro rides and metro card top-ups now have their own category in Getting around. Delhi, Namma, Mumbai, Hyderabad, Chennai, Kochi, Pune, Noida, Lucknow, Gujarat and Kolkata metros are sorted there by themselves."),

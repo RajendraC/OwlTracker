@@ -42,6 +42,7 @@ fun UpdateCard(
     onLater: () -> Unit,
     onRestart: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenPlay: () -> Unit = {},
 ) {
     if (state == UpdateUi.None) return
     val (title, line) = when (state) {
@@ -52,6 +53,8 @@ fun UpdateCard(
         }
         is UpdateUi.Downloading -> "Downloading the update…" to "${state.percent}% · you can keep using the app"
         UpdateUi.Downloaded -> "Update downloaded" to "Restart Owl Tracker to finish. It takes a few seconds and nothing is lost."
+        UpdateUi.Installing -> "Installing the update…" to "Owl Tracker will close and open again in a moment."
+        UpdateUi.FinishInPlay -> "Finish the update in Google Play" to "It couldn't finish from here. Tap Update on Owl Tracker's page in the Play Store; nothing is lost."
         UpdateUi.None -> return
     }
     Panel(modifier = modifier.testTag("update_card")) {
@@ -80,6 +83,10 @@ fun UpdateCard(
             UpdateUi.Downloaded -> {
                 Gap(10.dp)
                 Button(onClick = onRestart, modifier = Modifier.testTag("update_restart")) { Text("Restart to finish") }
+            }
+            UpdateUi.FinishInPlay -> {
+                Gap(10.dp)
+                Button(onClick = onOpenPlay, modifier = Modifier.testTag("update_open_play")) { Text("Open Google Play") }
             }
             else -> Unit
         }

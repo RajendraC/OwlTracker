@@ -66,6 +66,33 @@ class AppUpdateFlowTest {
     }
 
     @Test
+    fun aRestartThatFailsFinishesInGooglePlay() {
+        setUpManually()
+        play.setUpdateAvailable(152)
+        checkAgain()
+        with(compose) {
+            waitForTag("update_card")
+            tapTag("update_now")
+            waitUntil(5_000) { play.isConfirmationDialogVisible }
+            play.userAcceptsUpdate()
+            play.downloadStarts()
+            play.downloadCompletes()
+            waitForText("Update downloaded")
+            tapTag("update_restart")
+            waitForText("Installing the update…")
+            waitUntil(5_000) { play.isInstallSplashScreenVisible }
+            play.installFails()
+            waitForText("Finish the update in Google Play")
+            waitForTag("update_open_play")
+            // Opening the app again doesn't bring Restart back for this version
+            checkAgain()
+            waitForIdle()
+            waitForText("Finish the update in Google Play")
+            assertTrue(onAllNodesWithTag("update_restart").fetchSemanticsNodes().isEmpty())
+        }
+    }
+
+    @Test
     fun laterHidesItUntilTheNextVersion() {
         setUpManually()
         play.setUpdateAvailable(142)

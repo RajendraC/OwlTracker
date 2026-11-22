@@ -76,7 +76,12 @@ class MainActivity : FragmentActivity() {
             }
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(processObserver)
-        container.updates.attach(updateLauncher)
+        container.updates.attach(updateLauncher) {
+            // Owl Tracker's page in the Play Store app (or the web page if there's no Play Store)
+            val page = android.net.Uri.parse("market://details?id=$packageName")
+            runCatching { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, page).setPackage("com.android.vending")) }
+                .recoverCatching { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/apps/details?id=$packageName"))) }
+        }
         if (savedInstanceState == null) runCatching {
             @Suppress("DEPRECATION")
             val p = packageManager.getPackageInfo(packageName, 0)

@@ -190,6 +190,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun updateNow() = c.updates.update()
     fun updateLater() = c.updates.later()
     fun restartToUpdate() = c.updates.restart()
+    fun finishUpdateInPlay() = c.updates.openPlay()
     fun closeWhatsNew() = c.updates.closeWhatsNew()
     val timeZone: ZoneId get() = zone
     fun now(): Long = c.clock.millis()
