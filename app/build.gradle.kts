@@ -86,7 +86,7 @@ android {
                 it.systemProperty("robolectric.dependency.repo.id", "google-maven-central")
                 // A failing test's message and stack in the CI log, not just its class and line
                 it.testLogging {
-                    events("failed")
+                    events("failed", "standard_out")
                     exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
                 }
             }

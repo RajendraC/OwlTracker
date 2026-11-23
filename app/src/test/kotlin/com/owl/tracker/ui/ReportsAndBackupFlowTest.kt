@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
 import android.content.Intent
 import android.net.Uri
@@ -137,7 +138,8 @@ class ReportsAndBackupFlowTest {
             val bubble = onAllNodes(hasTestTagPrefix("orbit_")).fetchSemanticsNodes()
                 .map { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] }
                 .first { it != "orbit_owl" && it != "orbit_note" && it != "orbit_+more" }
-            onNodeWithTag(bubble).performClick()
+            println("orbit bubble tapped: $bubble")
+            onNodeWithTag(bubble).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
             waitForTag("owl_open")
             onAllNodesWithText("This month ·", substring = true).assertCountEquals(0)
             // The owl: back to the month
@@ -146,6 +148,7 @@ class ReportsAndBackupFlowTest {
             onAllNodesWithTag("owl_open").assertCountEquals(0)
 
             onNodeWithTag(bubble).performClick()
+            waitForTag("owl_open")
             tapTag("owl_open")
             waitForTag("ring_up")
             waitForTag("category_donut")
