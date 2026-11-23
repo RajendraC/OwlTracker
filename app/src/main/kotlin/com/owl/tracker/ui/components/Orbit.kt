@@ -167,7 +167,7 @@ fun OrbitOwlStage(
         val h = with(density) { stageH.toPx() }
         val cx = w / 2f
         val cy = h * 0.48f
-        val rx = w * 0.40f
+        val rx = w * 0.36f   // the biggest bubbles stay inside the stage, clear of the card beside it
         val ry = h * 0.21f
         val pedY = cy + ry * 0.55f
         val owlSize = 92.dp * k
