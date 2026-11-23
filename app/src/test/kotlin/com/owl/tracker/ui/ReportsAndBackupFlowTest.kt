@@ -134,10 +134,11 @@ class ReportsAndBackupFlowTest {
             waitForTag("owl")
             waitForText("This month ·")
             waitForTag("orbit_note")
-            // The biggest category's bubble
+            // The bubble nearest the front (the lowest on screen), clear of the owl
             val bubble = onAllNodes(hasTestTagPrefix("orbit_")).fetchSemanticsNodes()
-                .map { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] }
-                .first { it != "orbit_owl" && it != "orbit_note" && it != "orbit_+more" }
+                .filter { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] !in setOf("orbit_owl", "orbit_note", "orbit_+more") }
+                .maxBy { it.boundsInRoot.bottom }
+                .config[androidx.compose.ui.semantics.SemanticsProperties.TestTag]
             // A touch on the first bubble picks it, like the click action
             val where = (onAllNodes(hasTestTagPrefix("orbit")).fetchSemanticsNodes() + onAllNodes(hasTestTagPrefix("owl")).fetchSemanticsNodes()).joinToString("; ") {
                 (it.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.TestTag) { null } ?: "?") + " " + it.boundsInRoot

@@ -211,13 +211,19 @@ fun OrbitOwlStage(
                     drawOval(if (dark) Color(0xFF3A3029) else Color(0xFFF4E6D4), Offset(cx - pw / 2, pedY - pw * 0.13f), Size(pw, pw * 0.26f))
                 }
                 // The owl on its stand: tap it to go back to the month (or to replay its act)
+                // Only the owl's body takes the tap, so a bubble peeping out from behind it can still be tapped
                 Box(
                     Modifier
                         .offset { IntOffset((cx - owlPx / 2f).roundToInt(), (pedY - owlPx * 0.9f - owlLift * 8.dp.toPx()).roundToInt()) }
-                        .zIndex(50f)
-                        .clickable(remember { MutableInteractionSource() }, null, onClickLabel = "Back to the month") { onTap(RingHit.Middle) }
-                        .testTag("orbit_owl"),
-                ) { MoodOwl(say.mood, owlSize, dark = dark, playKey = actKey to say) }
+                        .zIndex(50f),
+                ) {
+                    MoodOwl(say.mood, owlSize, dark = dark, playKey = actKey to say)
+                    Box(
+                        Modifier.align(Alignment.Center).size(owlSize * 0.5f)
+                            .clickable(remember { MutableInteractionSource() }, null, onClickLabel = "Back to the month") { onTap(RingHit.Middle) }
+                            .testTag("orbit_owl"),
+                    )
+                }
 
                 bubbles.forEachIndexed { i, b ->
                     val a = i * 2f * PI.toFloat() / n + drift + spin.value
