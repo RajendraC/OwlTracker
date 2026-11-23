@@ -80,6 +80,10 @@ android {
             all {
                 it.maxHeapSize = "3g"
                 it.systemProperty("robolectric.logging", "stderr")
+                // Robolectric fetches its Android jars itself: from Google's Maven Central mirror too (Maven Central
+                // answers CI with 429 Too Many Requests)
+                it.systemProperty("robolectric.dependency.repo.url", "https://maven-central.storage-download.googleapis.com/maven2")
+                it.systemProperty("robolectric.dependency.repo.id", "google-maven-central")
                 // A failing test's message and stack in the CI log, not just its class and line
                 it.testLogging {
                     events("failed")
