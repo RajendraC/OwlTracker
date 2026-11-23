@@ -79,7 +79,7 @@ data class RingMerchant(val key: String, val name: String, val paise: Long)
  * Home's top level: the ring lies on the card in 3D with the owl in the middle, saying how the [month] is going,
  * or a category once its slice is tapped ([byCategory], by category id).
  */
-data class RingMoods(val month: OwlSay, val byCategory: Map<String, OwlSay>)
+data class RingMoods(val month: OwlSay, val byCategory: Map<String, OwlSay>, val use: Map<String, Float> = emptyMap())
 
 private data class Slice(val key: String, val name: String, val paise: Long, val share: Float, val color: Color)
 
@@ -133,8 +133,9 @@ fun DrillRingCard(
     /** Home, the whole month: a Paid by tab, the spending by card and account. */
     paidBy: PaidByTab? = null,
     /**
-     * Round 28 B6: the ring with the owl on the left and a card beside it, saying how the month is doing or, after a
-     * tap on a slice, showing that category's picture, amount and how it's doing.
+     * Round 28 B6: the owl on the left and a card beside it, saying how the month is doing or, after a tap on a
+     * category, showing that category's picture, amount and how it's doing. Since 1.9.17 the categories circle the
+     * owl as bubbles (OrbitOwlStage) instead of the 3D ring.
      */
     sideBySide: Boolean = false,
 ) {
@@ -226,6 +227,7 @@ fun DrillRingCard(
                         Text(title, style = MaterialTheme.typography.titleMedium)
                         Text(
                             if (paidShowing) "By card and account · tap one to see what it was used for"
+                            else if (moods != null && sideBySide) "Tap a bubble to see how it's doing · tap again to open it · swipe to spin"
                             else if (moods != null) "Tap a slice to see how it's doing · tap again to open it" else "Slide round the ring · tap a slice to open it",
                             style = MaterialTheme.typography.bodySmall, color = muted,
                         )
@@ -297,9 +299,9 @@ fun DrillRingCard(
         if (level == 0 && moods != null && sideBySide) {
             val say = chosenHere?.let { moods.byCategory[it] } ?: moods.month
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RingOwlStage(
-                    slices = categories.map { Ring3DSlice(it.id, it.color, it.paise.toFloat() / total) },
-                    description = "Spending by category: " + categories.joinToString { "${it.name} ${it.paise * 100 / total}%" },
+                // Option C (23 Nov 2026): the categories circle the owl
+                OrbitOwlStage(
+                    items = categories.map { OrbitItem(it.id, it.name, it.color, it.paise, catMap[it.id]?.icon, moods.use[it.id]) },
                     say = say,
                     picked = chosenHere,
                     actKey = act,
@@ -311,9 +313,7 @@ fun DrillRingCard(
                             RingHit.Outside -> Unit
                         }
                     },
-                    onOpen = null,
                     modifier = Modifier.weight(1.1f),
-                    showBubble = false,
                 )
                 SideCard(
                     say = say,

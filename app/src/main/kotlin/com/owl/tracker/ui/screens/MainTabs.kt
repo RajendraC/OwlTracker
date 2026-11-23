@@ -1473,7 +1473,11 @@ private fun ringMoods(dash: com.owl.tracker.ui.Dashboard, budgetOf: Map<String, 
             com.owl.tracker.ui.components.OwlMood.of(row?.spent ?: cs.paise, row?.limit), "${cs.category.name} · ${inr(cs.paise)}", line,
         )
     }
+    // How much of each category's own budget is used, for the ring round its bubble
+    val use = dash.byCategory.mapNotNull { cs ->
+        budgetOf[cs.category.id]?.takeIf { it.limit > 0 }?.let { cs.category.id to it.spent.toFloat() / it.limit }
+    }.toMap()
     return com.owl.tracker.ui.components.RingMoods(
-        com.owl.tracker.ui.components.OwlSay(com.owl.tracker.ui.components.OwlMood.of(dash.spent, dash.overall.takeIf { it > 0 }), month, monthLine), cats,
+        com.owl.tracker.ui.components.OwlSay(com.owl.tracker.ui.components.OwlMood.of(dash.spent, dash.overall.takeIf { it > 0 }), month, monthLine), cats, use,
     )
 }

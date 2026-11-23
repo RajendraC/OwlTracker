@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import androidx.compose.ui.test.performClick
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.test.assertCountEquals
@@ -122,33 +123,37 @@ class ReportsAndBackupFlowTest {
         }
     }
 
-    /** Home's 3D ring: a tap turns a slice to the front and the owl talks about it; the middle goes back to the month; Open opens it. */
+    /** Home's orbit: a tap brings a bubble to the front and the card talks about it; the owl goes back to the month; Open opens it. */
     @Test
-    fun theOwlTalksAboutTheTappedSliceAndOpenOpensIt() {
+    fun theOwlTalksAboutTheTappedBubbleAndOpenOpensIt() {
         setUpWithSms()
         with(compose) {
-            waitForTag("ring3d")
-            onNodeWithTag("ring3d").performScrollTo()
+            waitForTag("orbit")
+            onNodeWithTag("orbit").performScrollTo()
             waitForTag("owl")
             waitForText("This month ·")
-            val node = onNodeWithTag("ring3d").fetchSemanticsNode()
-            val g = Ring3DGeometry(node.size.width.toFloat(), node.size.height.toFloat(), density.density)
-            val front = g.project(0f, (g.r0 + g.r1) / 2f, 0f, 0f, RING_TILT)
-            val middle = g.project(0f, 0f, 0f, 0f, RING_TILT)
-
-            onNodeWithTag("ring3d").performTouchInput { click(front) }
+            waitForTag("orbit_note")
+            // The biggest category's bubble
+            val bubble = onAllNodes(hasTestTagPrefix("orbit_")).fetchSemanticsNodes()
+                .map { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] }
+                .first { it != "orbit_owl" && it != "orbit_note" && it != "orbit_+more" }
+            onNodeWithTag(bubble).performClick()
             waitForTag("owl_open")
             onAllNodesWithText("This month ·", substring = true).assertCountEquals(0)
-            // The owl's own spot, in the middle: back to the month
-            onNodeWithTag("ring3d").performTouchInput { click(middle) }
+            // The owl: back to the month
+            onNodeWithTag("orbit_owl").performClick()
             waitForText("This month ·")
             onAllNodesWithTag("owl_open").assertCountEquals(0)
 
-            onNodeWithTag("ring3d").performTouchInput { click(front) }
+            onNodeWithTag(bubble).performClick()
             tapTag("owl_open")
             waitForTag("ring_up")
             waitForTag("category_donut")
         }
+    }
+
+    private fun hasTestTagPrefix(prefix: String) = androidx.compose.ui.test.SemanticsMatcher("tag starts with $prefix") {
+        it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith(prefix) == true
     }
 
     /** Touching the ring opens a category, then a merchant's payments; Back goes up one level at a time, then leaves. */
