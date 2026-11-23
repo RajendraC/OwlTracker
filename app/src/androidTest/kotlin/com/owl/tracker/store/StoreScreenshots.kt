@@ -174,7 +174,7 @@ class StoreScreenshots {
             Thread.sleep(800)
             // The orbit with the owl: the month, then a bubble brought to the front
             runCatching {
-                scrollTo(hasTestTag("orbit_note"), below = 70f)
+                scrollTo(hasTestTag("orbit"), below = 150f, both = true)
                 Thread.sleep(3800)
                 shot("14_home_ring")
                 val tags = compose.onAllNodes(androidx.compose.ui.test.SemanticsMatcher("orbit bubble") {
