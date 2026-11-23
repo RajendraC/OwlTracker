@@ -278,16 +278,20 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         if (credit) {
             // Money in is shown, never spent: it can count as income on Income & expenses, or be left out.
             val counts = cat == null || cat.kind == com.owl.tracker.data.CategoryKind.INCOME || cat.kind == com.owl.tracker.data.CategoryKind.EXPENSE
+            // A card bill payment: money into the card from your own account, never income
+            val cardBill = tx.kind == com.owl.tracker.core.TxKind.CARD_BILL_PAYMENT || com.owl.tracker.ui.CardBills.saysPayment(tx.smsBody)
             SwitchRow(
                 "Count as income",
                 when {
-                    !counts -> "Transfers and savings coming back aren't income"
+                    !counts && cardBill -> "A credit card bill payment, so never income. It's your own money paying the card."
+                    !counts -> "${cat?.name ?: "Transfers"} aren't income. To count it, change the category to an income one."
                     tx.excluded -> "Left out of Income & expenses. Never counts as spending."
                     else -> "Counts as income in Reports. Never counts as spending."
                 },
                 tx.isIncome(cat),
                 { on -> if (counts) vm.setExcluded(tx.id, !on) },
                 modifier = Modifier.testTag("count_money_in"),
+                enabled = counts,
             )
         } else {
             SwitchRow(
@@ -295,6 +299,7 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                 if (cat?.countsAsSpend == false) "Transfers, savings and income never count" else if (tx.excluded) "Left out of your budget" else "Counts toward your budget",
                 tx.isSpending(cat),
                 { on -> if (cat?.countsAsSpend == false) Unit else vm.setExcluded(tx.id, !on) },
+                enabled = cat?.countsAsSpend != false,
             )
         }
     }

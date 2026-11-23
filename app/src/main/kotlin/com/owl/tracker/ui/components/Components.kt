@@ -285,20 +285,21 @@ fun NavRow(icon: ImageVector, title: String, subtitle: String? = null, iconTint:
 }
 
 @Composable
-fun SwitchRow(title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit, icon: ImageVector? = null, modifier: Modifier = Modifier) {
+fun SwitchRow(title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit, icon: ImageVector? = null, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Row(
         modifier.fillMaxWidth().heightIn(min = 56.dp)
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (icon != null) IconTile(icon, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.surfaceVariant, 36.dp)
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(title, style = MaterialTheme.typography.titleSmall, color = if (enabled) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant)
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = null)
+        // A locked switch looks locked: greyed, and a tap does nothing
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 
