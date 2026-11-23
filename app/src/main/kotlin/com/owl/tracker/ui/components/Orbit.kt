@@ -107,7 +107,10 @@ fun OrbitOwlStage(
     val dark = LocalDarkTheme.current
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
-    val still = remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    // Still with "Remove animations", and under tests (their taps and pictures need the bubbles in place)
+    val still = remember {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f || !com.owl.tracker.ui.AppViewModel.greetingsOn
+    }
     val shown = items.take(6)
     val more = items.size - shown.size
     val bubbles = shown + if (more > 0) listOf(OrbitItem(MORE, "+$more", Color(0xFF8C8F94), 0, null, null)) else emptyList()
