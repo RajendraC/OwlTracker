@@ -139,6 +139,18 @@ class ReportsAndBackupFlowTest {
                 .map { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] }
                 .first { it != "orbit_owl" && it != "orbit_note" && it != "orbit_+more" }
             println("orbit bubble tapped: $bubble")
+            onAllNodes(hasTestTagPrefix("orbit")).fetchSemanticsNodes().forEach {
+                println("orbit node " + it.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.TestTag) { null } + " " + it.boundsInRoot + " z? actions=" + it.config.contains(androidx.compose.ui.semantics.SemanticsActions.OnClick))
+            }
+            onAllNodes(hasTestTagPrefix("owl")).fetchSemanticsNodes().forEach {
+                println("owl node " + it.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.TestTag) { null } + " " + it.boundsInRoot)
+            }
+            // A touch on the first bubble: does it pick it?
+            onNodeWithTag(bubble).performClick()
+            waitForIdle()
+            println("after touch: open=" + onAllNodesWithTag("owl_open").fetchSemanticsNodes().size)
+            if (onAllNodesWithTag("owl_open").fetchSemanticsNodes().isNotEmpty()) onNodeWithTag("orbit_owl").performClick()
+            waitForIdle()
             onNodeWithTag(bubble).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
             waitForTag("owl_open")
             onAllNodesWithText("This month ·", substring = true).assertCountEquals(0)
