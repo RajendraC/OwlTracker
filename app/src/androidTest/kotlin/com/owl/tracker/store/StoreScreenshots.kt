@@ -178,7 +178,7 @@ class StoreScreenshots {
                 Thread.sleep(3800)
                 shot("14_home_ring")
                 val tags = compose.onAllNodes(androidx.compose.ui.test.SemanticsMatcher("orbit bubble") {
-                    it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.let { t -> t.startsWith("orbit_") && t != "orbit_owl" && t != "orbit_note" && t != "orbit_+more" } == true
+                    it.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.TestTag) { null }?.let { t -> t.startsWith("orbit_") && t != "orbit_owl" && t != "orbit_note" && t != "orbit_+more" } == true
                 }).fetchSemanticsNodes().map { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] }
                 compose.onNodeWithTag(tags[0]).performClick()
                 Thread.sleep(2600)

@@ -153,7 +153,7 @@ class ReportsAndBackupFlowTest {
     }
 
     private fun hasTestTagPrefix(prefix: String) = androidx.compose.ui.test.SemanticsMatcher("tag starts with $prefix") {
-        it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith(prefix) == true
+        it.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.TestTag) { null }?.startsWith(prefix) == true
     }
 
     /** Touching the ring opens a category, then a merchant's payments; Back goes up one level at a time, then leaves. */
