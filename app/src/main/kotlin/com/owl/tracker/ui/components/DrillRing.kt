@@ -629,7 +629,8 @@ private fun TopLine(month: OwlSay, spent: Long, budget: Long, category: RingCate
                     )
                     if (budget <= 0) Text(month.line, style = MaterialTheme.typography.bodySmall, color = muted)
                 } else {
-                    Text(c.name + (share?.let { " · $it%" } ?: ""), style = MaterialTheme.typography.labelLarge, fontWeight = xb, color = muted)
+                    // The category's note already starts with its share; say it once
+                    Text(c.name + (share?.takeIf { c.note?.startsWith("$it%") != true }?.let { " · $it%" } ?: ""), style = MaterialTheme.typography.labelLarge, fontWeight = xb, color = muted)
                     Text(Money.formatInr(c.paise), style = MaterialTheme.typography.headlineSmall, fontWeight = xb, modifier = Modifier.testTag("side_amount"))
                     c.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted) }
                 }
