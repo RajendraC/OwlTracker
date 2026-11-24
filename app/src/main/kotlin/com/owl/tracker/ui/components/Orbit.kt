@@ -206,7 +206,7 @@ fun OrbitOwlStage(
                     .testTag("orbit"),
             ) {
                 // The path the bubbles follow, and the owl's stand
-                Canvas(Modifier.fillMaxWidth().height(stageH).testTag("orbit_track")) {
+                Canvas(Modifier.fillMaxWidth().height(stageH).testTag("budget_track")) {
                     if (budgetUsed == null) drawOval(
                         trackColor, Offset(cx - rx, cy - ry), Size(rx * 2, ry * 2),
                         style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(1f, 7.dp.toPx()))),
