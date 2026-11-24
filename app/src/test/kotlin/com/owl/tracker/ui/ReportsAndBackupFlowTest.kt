@@ -132,7 +132,8 @@ class ReportsAndBackupFlowTest {
             waitForTag("orbit")
             onNodeWithTag("orbit").performScrollTo()
             waitForTag("owl")
-            waitForText("This month ·")
+            waitForTag("top_month")
+            waitForText("this month")
             waitForTag("orbit_note")
             // The bubble nearest the front (the lowest on screen), clear of the owl
             val bubble = onAllNodes(hasTestTagPrefix("orbit_")).fetchSemanticsNodes()
@@ -150,10 +151,11 @@ class ReportsAndBackupFlowTest {
             waitForIdle()
             onNodeWithTag(bubble).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
             waitForTag("owl_open")
-            onAllNodesWithText("This month ·", substring = true).assertCountEquals(0)
+            waitForTag("top_category")
+            onAllNodesWithTag("top_month").assertCountEquals(0)
             // The owl: back to the month
             onNodeWithTag("orbit_owl").performClick()
-            waitForText("This month ·")
+            waitForTag("top_month")
             onAllNodesWithTag("owl_open").assertCountEquals(0)
 
             onNodeWithTag(bubble).performClick()

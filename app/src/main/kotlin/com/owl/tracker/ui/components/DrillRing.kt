@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.owl.tracker.AppIcons
 import com.owl.tracker.core.Money
@@ -611,19 +612,26 @@ private fun TopLine(month: OwlSay, spent: Long, budget: Long, category: RingCate
     val xb = androidx.compose.ui.text.font.FontWeight.ExtraBold
     AnimatedContent(category?.id, transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(150)) }, label = "top_line") { id ->
         val c = category?.takeIf { it.id == id }
-        Row(Modifier.fillMaxWidth().padding(top = 10.dp).testTag("owl_bubble"), verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
+        // The two halves wrap onto two lines when the text is big, never breaking inside an amount
+        androidx.compose.foundation.layout.FlowRow(
+            Modifier.fillMaxWidth().padding(top = 10.dp).testTag(if (c == null) "top_month" else "top_category"),
+            horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Column(Modifier.padding(end = 12.dp)) {
                 if (c == null) {
                     Text(month.mood.says, color = month.mood.ink, style = MaterialTheme.typography.labelLarge, fontWeight = xb)
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(Money.formatInr(animatedPaise(spent, 450)), style = MaterialTheme.typography.headlineSmall, fontWeight = xb, modifier = Modifier.testTag("side_amount"))
-                        if (budget > 0) Text(" of ${Money.formatInr(budget)}", style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(bottom = 3.dp))
-                    }
+                    Text(
+                        androidx.compose.ui.text.buildAnnotatedString {
+                            withStyle(MaterialTheme.typography.headlineSmall.toSpanStyle().copy(fontWeight = xb)) { append(Money.formatInr(animatedPaise(spent, 450))) }
+                            if (budget > 0) withStyle(MaterialTheme.typography.bodyMedium.toSpanStyle().copy(color = muted)) { append(" of\u00A0" + Money.formatInr(budget)) }
+                        },
+                        modifier = Modifier.testTag("side_amount"),
+                    )
                     if (budget <= 0) Text(month.line, style = MaterialTheme.typography.bodySmall, color = muted)
                 } else {
-                    Text(c.name + (share?.let { " · $it%" } ?: ""), style = MaterialTheme.typography.labelLarge, fontWeight = xb, color = muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(c.name + (share?.let { " · $it%" } ?: ""), style = MaterialTheme.typography.labelLarge, fontWeight = xb, color = muted)
                     Text(Money.formatInr(c.paise), style = MaterialTheme.typography.headlineSmall, fontWeight = xb, modifier = Modifier.testTag("side_amount"))
-                    c.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    c.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted) }
                 }
             }
             if (c != null && onOpen != null) {
