@@ -239,6 +239,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.18" to listOf(
+            Item("The orbit is your budget", "Where it went is now one piece: how much went and what's left across the top, and the ring the bubbles ride on fills up as you spend your budget. Tap a bubble and the top shows that category, with Open."),
+        ),
         "1.9.17" to listOf(
             Item("Your categories circle the owl", "Where it went on Home is now an orbit: each category is a bubble circling the owl, bigger the more went there, with a ring showing its budget used. Over-budget ones glow red. Swipe to spin, tap one to see how it's doing, tap again to open it."),
             Item("Clearer locked switches", "On a card bill payment or a transfer, Count as income is greyed out and says why, instead of looking like it should switch."),

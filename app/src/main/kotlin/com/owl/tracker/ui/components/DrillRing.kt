@@ -79,7 +79,11 @@ data class RingMerchant(val key: String, val name: String, val paise: Long)
  * Home's top level: the ring lies on the card in 3D with the owl in the middle, saying how the [month] is going,
  * or a category once its slice is tapped ([byCategory], by category id).
  */
-data class RingMoods(val month: OwlSay, val byCategory: Map<String, OwlSay>, val use: Map<String, Float> = emptyMap())
+/** [spent] and [budget]: the period's (month, week or day), for the budget track the bubbles ride on. */
+data class RingMoods(
+    val month: OwlSay, val byCategory: Map<String, OwlSay>, val use: Map<String, Float> = emptyMap(),
+    val spent: Long = 0, val budget: Long = 0,
+)
 
 private data class Slice(val key: String, val name: String, val paise: Long, val share: Float, val color: Color)
 
@@ -297,34 +301,31 @@ fun DrillRingCard(
             Gap(12.dp)
         }
         if (level == 0 && moods != null && sideBySide) {
+            // Option B (24 Nov 2026): one piece. How the period is going across the top, then the orbit, whose track
+            // is the period's budget filling up; a tap on a bubble swaps the top line to that category.
             val say = chosenHere?.let { moods.byCategory[it] } ?: moods.month
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Option C (23 Nov 2026): the categories circle the owl
-                OrbitOwlStage(
-                    items = categories.map { OrbitItem(it.id, it.name, it.color, it.paise, catMap[it.id]?.icon, moods.use[it.id]) },
-                    say = say,
-                    picked = chosenHere,
-                    actKey = act,
-                    sweepKey = sweepKey,
-                    onTap = { hit ->
-                        when (hit) {
-                            is RingHit.Slice -> if (chosenHere == hit.id) onCategory(hit.id) else chosen = hit.id
-                            RingHit.Middle -> if (chosenHere != null) chosen = null else act++
-                            RingHit.Outside -> Unit
-                        }
-                    },
-                    modifier = Modifier.weight(1.1f),
-                )
-                SideCard(
-                    say = say,
-                    category = chosenHere?.let { id -> categories.firstOrNull { it.id == id } },
-                    art = chosenHere?.let { catMap[it] },
-                    onOpen = chosenHere?.let { id -> { onCategory(id) } },
-                    all = categories.map { it to catMap[it.id] },
-                    onPick = { id -> chosen = id },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            TopLine(
+                month = moods.month, spent = moods.spent, budget = moods.budget,
+                category = chosenHere?.let { id -> categories.firstOrNull { it.id == id } },
+                share = chosenHere?.let { id -> categories.firstOrNull { it.id == id }?.paise?.times(100)?.div(total) },
+                onOpen = chosenHere?.let { id -> { onCategory(id) } },
+            )
+            OrbitOwlStage(
+                items = categories.map { OrbitItem(it.id, it.name, it.color, it.paise, catMap[it.id]?.icon, moods.use[it.id]) },
+                say = say,
+                picked = chosenHere,
+                actKey = act,
+                sweepKey = sweepKey,
+                onTap = { hit ->
+                    when (hit) {
+                        is RingHit.Slice -> if (chosenHere == hit.id) onCategory(hit.id) else chosen = hit.id
+                        RingHit.Middle -> if (chosenHere != null) chosen = null else act++
+                        RingHit.Outside -> Unit
+                    }
+                },
+                budgetUsed = moods.budget.takeIf { it > 0 }?.let { moods.spent.toFloat() / it },
+                wide = true,
+            )
         } else if (level == 0 && moods != null) {
             RingOwlStage(
                 slices = categories.map { Ring3DSlice(it.id, it.color, it.paise.toFloat() / total) },
@@ -600,56 +601,49 @@ fun NotSortedTile(size: androidx.compose.ui.unit.Dp) {
 }
 
 /**
- * Beside the ring (Round 28 B6): the month's word from the owl, or, with a slice picked, that category's picture,
- * how much went there and how it's doing, with Open to see its merchants. Tinted with the owl's mood.
+ * Above the orbit: the period's mood, what went and against what budget, and what's left; after a tap on a bubble,
+ * that category's amount, share and how it's doing against its own budget, with Open.
  */
-private const val SIDE_TILES = 6
-
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun SideCard(
-    say: OwlSay, category: RingCategory?, art: Category?, onOpen: (() -> Unit)?,
-    all: List<Pair<RingCategory, Category?>>, onPick: (String) -> Unit, modifier: Modifier = Modifier,
-) {
-    val dark = LocalDarkTheme.current
-    val ink = say.mood.ink
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
-    Column(
-        modifier.clip(shape).background(ink.copy(alpha = if (dark) 0.22f else 0.12f)).padding(12.dp).testTag("owl_bubble"),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        if (category != null) {
-            CategoryTile(art, 44.dp)
-            Text(category.name.uppercase(), color = ink, style = MaterialTheme.typography.labelSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(Money.formatInr(category.paise), style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, modifier = Modifier.testTag("side_amount"))
-            category.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (category.warn) LocalStatusColors.current.overFg else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis) }
-        } else {
-            // To start with: how the month is going, and every category's picture to pick from
-            Text(say.mood.says, color = ink, style = MaterialTheme.typography.labelLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
-            FitText(say.title, style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, maxLines = 2, minScale = 0.8f)
-            if (all.isEmpty()) Text(say.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 4, overflow = TextOverflow.Ellipsis)
-            androidx.compose.foundation.layout.FlowRow(
-                Modifier.padding(top = 4.dp).testTag("side_categories"),
-                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                all.take(SIDE_TILES).forEach { (c, cat) ->
-                    Box(
-                        Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-                            .clickable(onClickLabel = "Show ${c.name}") { onPick(c.id) }
-                            .semantics { contentDescription = c.name }
-                            .testTag("side_cat_" + c.id),
-                    ) { CategoryTile(cat, 40.dp) }
+private fun TopLine(month: OwlSay, spent: Long, budget: Long, category: RingCategory?, share: Long?, onOpen: (() -> Unit)?) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val sc = LocalStatusColors.current
+    val xb = androidx.compose.ui.text.font.FontWeight.ExtraBold
+    AnimatedContent(category?.id, transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(150)) }, label = "top_line") { id ->
+        val c = category?.takeIf { it.id == id }
+        Row(Modifier.fillMaxWidth().padding(top = 10.dp).testTag("owl_bubble"), verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                if (c == null) {
+                    Text(month.mood.says, color = month.mood.ink, style = MaterialTheme.typography.labelLarge, fontWeight = xb)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(Money.formatInr(animatedPaise(spent, 450)), style = MaterialTheme.typography.headlineSmall, fontWeight = xb, modifier = Modifier.testTag("side_amount"))
+                        if (budget > 0) Text(" of ${Money.formatInr(budget)}", style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(bottom = 3.dp))
+                    }
+                    if (budget <= 0) Text(month.line, style = MaterialTheme.typography.bodySmall, color = muted)
+                } else {
+                    Text(c.name + (share?.let { " · $it%" } ?: ""), style = MaterialTheme.typography.labelLarge, fontWeight = xb, color = muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(Money.formatInr(c.paise), style = MaterialTheme.typography.headlineSmall, fontWeight = xb, modifier = Modifier.testTag("side_amount"))
+                    c.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (c.warn) sc.overFg else muted, maxLines = 2, overflow = TextOverflow.Ellipsis) }
                 }
             }
-        }
-        if (onOpen != null) {
-            Row(
-                Modifier.padding(top = 4.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).clickable(onClickLabel = "Open ${category?.name ?: ""}", onClick = onOpen)
-                    .background(ink.copy(alpha = 0.14f)).heightIn(min = 40.dp).padding(start = 10.dp, end = 4.dp).testTag("owl_open"),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Open", color = ink, style = MaterialTheme.typography.labelLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
-                Icon(Ic.chevR, contentDescription = null, tint = ink, modifier = Modifier.size(16.dp))
+            if (c != null && onOpen != null) {
+                Row(
+                    Modifier.clip(RoundedCornerShape(50)).clickable(onClickLabel = "Open ${c.name}", onClick = onOpen)
+                        .background(MaterialTheme.colorScheme.primary).heightIn(min = 40.dp).padding(start = 16.dp, end = 10.dp).testTag("owl_open"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Open", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge, fontWeight = xb)
+                    Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
+                }
+            } else if (c == null && budget > 0) {
+                Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 3.dp)) {
+                    val left = budget - spent
+                    Text(
+                        if (left >= 0) "${Money.formatInr(left)} left" else "${Money.formatInr(-left)} over",
+                        color = if (left >= 0) month.mood.ink else sc.overFg, style = MaterialTheme.typography.labelLarge, fontWeight = xb,
+                    )
+                    Text(month.title.substringBefore(" · ").lowercase(), style = MaterialTheme.typography.labelSmall, color = muted)
+                }
             }
         }
     }

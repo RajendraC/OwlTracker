@@ -103,6 +103,10 @@ fun OrbitOwlStage(
     sweepKey: Any?,
     onTap: (RingHit) -> Unit,
     modifier: Modifier = Modifier,
+    /** The period's spending over its budget: the track fills with it from the front, red past 1. Null: a dotted path. */
+    budgetUsed: Float? = null,
+    /** The whole card's width (Option B, 1.9.18): a wider, taller orbit. */
+    wide: Boolean = false,
 ) {
     val dark = LocalDarkTheme.current
     val haptics = LocalHapticFeedback.current
@@ -154,6 +158,8 @@ fun OrbitOwlStage(
     val owlLift by animateFloatAsState(if (picked != null) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = 300f), label = "lift")
     val overCount = shown.count { (it.use ?: 0f) > 1f }
     val budgeted = shown.count { it.use != null }
+    // With the budget on the track and the top line, the note only needs to speak up for categories over budget
+    val plain = budgeted == 0 || (wide && overCount == 0 && budgetUsed != null)
 
     BoxWithConstraints(
         modifier.fillMaxWidth().onGloballyPositioned {
@@ -162,13 +168,13 @@ fun OrbitOwlStage(
     ) {
         val density = LocalDensity.current
         val k = min(1f, maxWidth.value / 300f)
-        val stageH = 230.dp * k
+        val stageH = (if (wide) 250.dp else 230.dp) * k
         val w = with(density) { maxWidth.toPx() }
         val h = with(density) { stageH.toPx() }
         val cx = w / 2f
         val cy = h * 0.48f
-        val rx = w * 0.36f   // the biggest bubbles stay inside the stage, clear of the card beside it
-        val ry = h * 0.21f
+        val rx = w * (if (wide) 0.40f else 0.36f)   // the biggest bubbles stay inside the stage
+        val ry = h * (if (wide) 0.27f else 0.21f)
         val pedY = cy + ry * 0.55f
         val owlSize = 92.dp * k
         val owlPx = with(density) { owlSize.toPx() }
@@ -200,12 +206,26 @@ fun OrbitOwlStage(
                     .testTag("orbit"),
             ) {
                 // The path the bubbles follow, and the owl's stand
-                Canvas(Modifier.fillMaxWidth().height(stageH)) {
-                    drawOval(
+                Canvas(Modifier.fillMaxWidth().height(stageH).testTag("orbit_track")) {
+                    if (budgetUsed == null) drawOval(
                         trackColor, Offset(cx - rx, cy - ry), Size(rx * 2, ry * 2),
                         style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(1f, 7.dp.toPx()))),
                         alpha = e,
-                    )
+                    ) else {
+                        // The track is the budget: it fills from the front, clockwise, as the money goes
+                        val sw = 6.dp.toPx() * k
+                        drawOval(trackColor, Offset(cx - rx, cy - ry), Size(rx * 2, ry * 2), style = Stroke(sw), alpha = e)
+                        val over = budgetUsed > 1f
+                        val fill = when {
+                            over -> Color(0xFFE23B3B)
+                            budgetUsed > 0.85f -> Color(0xFFE0A030)
+                            else -> if (dark) Color(0xFF4C9A5B) else Color(0xFF6BB277)
+                        }
+                        drawArc(
+                            fill.copy(alpha = if (picked != null) 0.35f else 1f), 90f, 360f * budgetUsed.coerceIn(0f, 1f) * e, false,
+                            Offset(cx - rx, cy - ry), Size(rx * 2, ry * 2), style = Stroke(sw, cap = StrokeCap.Round),
+                        )
+                    }
                     val pw = owlPx * 1.05f
                     drawOval(if (dark) Color(0xFF2E251F) else Color(0xFFE9D7C2), Offset(cx - pw / 2, pedY - pw * 0.13f + 4.dp.toPx()), Size(pw, pw * 0.26f))
                     drawOval(if (dark) Color(0xFF3A3029) else Color(0xFFF4E6D4), Offset(cx - pw / 2, pedY - pw * 0.13f), Size(pw, pw * 0.26f))
@@ -285,13 +305,13 @@ fun OrbitOwlStage(
             }
             Text(
                 when {
-                    budgeted == 0 -> "Bigger bubble, bigger spend"
+                    plain -> "Bigger bubble, bigger spend"
                     overCount > 0 -> "$overCount of ${shown.size} glowing red · over budget"
                     else -> "All ${shown.size} within budget"
                 },
                 Modifier.fillMaxWidth().testTag("orbit_note"),
                 style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
-                color = if (overCount > 0) Color(0xFFD32F2F) else if (budgeted == 0) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF2E7D32),
+                color = if (overCount > 0) Color(0xFFD32F2F) else if (plain) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF2E7D32),
             )
         }
     }

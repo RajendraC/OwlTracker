@@ -1009,6 +1009,8 @@ private fun scopeMoods(
     }
     return com.owl.tracker.ui.components.RingMoods(
         com.owl.tracker.ui.components.OwlSay(com.owl.tracker.ui.components.OwlMood.of(spent, share.takeIf { it > 0 }), "$title · ${inr(spent)}", line), cats,
+        use = byCategory.mapNotNull { cs -> categoryShares[cs.category.id]?.takeIf { it > 0 }?.let { cs.category.id to cs.paise.toFloat() / it } }.toMap(),
+        spent = spent, budget = share.coerceAtLeast(0),
     )
 }
 
@@ -1479,5 +1481,6 @@ private fun ringMoods(dash: com.owl.tracker.ui.Dashboard, budgetOf: Map<String, 
     }.toMap()
     return com.owl.tracker.ui.components.RingMoods(
         com.owl.tracker.ui.components.OwlSay(com.owl.tracker.ui.components.OwlMood.of(dash.spent, dash.overall.takeIf { it > 0 }), month, monthLine), cats, use,
+        spent = dash.spent, budget = dash.overall.coerceAtLeast(0),
     )
 }
