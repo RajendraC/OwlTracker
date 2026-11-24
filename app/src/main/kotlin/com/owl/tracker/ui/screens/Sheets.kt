@@ -102,6 +102,7 @@ fun SheetHost(vm: AppViewModel) {
                 is Sheet.Split -> SplitSheet(vm, current.txId)
                 is Sheet.Rename -> RenameSheet(vm, current.txId)
                 is Sheet.MerchantIcon -> MerchantIconSheet(vm, current.txId)
+                is Sheet.AccountPick -> AccountPickSheet(vm, current.txId)
                 is Sheet.BudgetEdit -> BudgetEditSheet(vm, current.key)
                 is Sheet.CategoryEdit -> CategoryEditSheet(vm, current.id, current.inGroup)
                 Sheet.AddExpense -> AddExpenseSheet(vm)
@@ -159,7 +160,15 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             color = if (credit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.testTag("detail_amount"),
         )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        val pickable = tx.source == com.owl.tracker.data.Source.SMS
+        Row(
+            Modifier.then(
+                if (pickable) Modifier.clip(RoundedCornerShape(12.dp))
+                    .clickable(onClickLabel = "Choose the account") { vm.openSheet(Sheet.AccountPick(tx.id)) }.testTag("choose_account")
+                else Modifier,
+            ),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             // The bank's own app icon beside "Paid from", when that app is on the phone
             val bank = remember(tx.senderGroup) { vm.appIcons.bankApp(tx.senderGroup) }
             if (tx.source == com.owl.tracker.data.Source.SMS && bank != null) {
@@ -172,7 +181,13 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                     else -> (if (credit) "Credited to " else "Paid from ") + (tx.accountLabel ?: "an account")
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("paid_from"),
+                modifier = Modifier.weight(1f, fill = false).testTag("paid_from"),
+            )
+            // The SMS didn't say which card or account: ask, plainly
+            if (pickable) Text(
+                if (tx.accountLabel == null) "Which one?" else "Change",
+                color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
             )
         }
         // A card or account named by the SMS: what it is, as on Paid by, and a way to correct it
@@ -638,6 +653,106 @@ private fun RenameSheet(vm: AppViewModel, txId: Long) {
         enabled = name.isNotBlank() && name.trim() != tx.merchantName,
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("rename_save"),
     ) { Text("Save name") }
+}
+
+/**
+ * Which card or account a payment came from, for messages that don't say ("Paid from an account"): one already seen,
+ * cash, or a new one by bank and last four digits. Can be used for the bank's other such messages, and new ones.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AccountPickSheet(vm: AppViewModel, txId: Long) {
+    val txFlow = remember(txId) { vm.txnFlow(txId) }
+    val t by txFlow.collectAsStateWithLifecycle(initialValue = null)
+    val tx = t ?: return
+    val bankId = tx.senderGroup?.takeIf { it != com.owl.tracker.core.Institutions.UNRECOGNISED }
+    val bankName = bankId?.let { com.owl.tracker.core.Institutions.nameFor(it) }
+    val known by androidx.compose.runtime.produceState<List<com.owl.tracker.data.KnownAccount>?>(null, txId) { value = vm.knownAccounts() }
+    val missing by androidx.compose.runtime.produceState(0, bankId) { value = bankId?.let { vm.withoutAccount(it) } ?: 0 }
+    // This bank's cards and accounts first, then the rest; each label once
+    val choices = remember(known) {
+        known.orEmpty().sortedByDescending { it.senderGroup == bankId && bankId != null }.map { it.label }.distinct()
+            .filter { it != "Cash" } + "Cash"
+    }
+    var picked by rememberSaveable(txId) { mutableStateOf(tx.accountLabel) }
+    var adding by rememberSaveable(txId) { mutableStateOf(false) }
+    var newBank by rememberSaveable(txId) { mutableStateOf(bankName.orEmpty()) }
+    var digits by rememberSaveable(txId) { mutableStateOf("") }
+    var isCard by rememberSaveable(txId) { mutableStateOf(false) }
+    var forBank by rememberSaveable(txId) { mutableStateOf(true) }
+    val newLabel = if (newBank.isNotBlank() && digits.length == 4) (if (isCard) "${newBank.trim()} card ••$digits" else "${newBank.trim()} ••$digits") else null
+    val label = if (adding) newLabel else picked
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
+        SheetTitle(
+            "Which account?",
+            if (tx.accountLabel == null) "The ${bankName ?: "bank's"} message didn't say which card or account. Choose it and Owl Tracker remembers."
+            else "Choose the card or account this came from.",
+        )
+    }
+    Column(Modifier.fillMaxWidth().heightIn(max = 380.dp).verticalScroll(rememberScrollState())) {
+        choices.forEachIndexed { i, choice ->
+            val on = !adding && picked == choice
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                    .background(if (on) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                    .clickable { adding = false; picked = choice }.heightIn(min = 52.dp).padding(horizontal = 12.dp).testTag("account_pick_$i"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                androidx.compose.material3.RadioButton(selected = on, onClick = null)
+                Gap(10.dp)
+                Column(Modifier.weight(1f)) {
+                    Text(choice, style = MaterialTheme.typography.titleSmall)
+                    known?.filter { it.label == choice }?.sumOf { it.payments }?.takeIf { it > 0 }?.let {
+                        Text(if (it == 1) "1 payment" else "$it payments", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                .background(if (adding) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                .clickable { adding = true }.heightIn(min = 52.dp).padding(horizontal = 12.dp).testTag("account_new"),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            androidx.compose.material3.RadioButton(selected = adding, onClick = null)
+            Gap(10.dp)
+            Text("Another card or account", style = MaterialTheme.typography.titleSmall)
+        }
+        if (adding) Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = !isCard, onClick = { isCard = false }, label = { Text("Bank account") })
+                FilterChip(selected = isCard, onClick = { isCard = true }, label = { Text("Card") })
+            }
+            OutlinedTextField(
+                value = newBank, onValueChange = { newBank = it.take(30) }, label = { Text("Bank") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth().testTag("account_new_bank"),
+            )
+            OutlinedTextField(
+                value = digits, onValueChange = { v -> digits = v.filter { it.isDigit() }.take(4) },
+                label = { Text("Last 4 digits") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                modifier = Modifier.fillMaxWidth().testTag("account_new_digits"),
+            )
+        }
+    }
+    if (bankId != null && label != null && label != "Cash") {
+        val others = (missing - if (tx.accountLabel == null) 1 else 0).coerceAtLeast(0)
+        SwitchRow(
+            "Use it for $bankName messages that don't say",
+            if (others > 0) "$others more payments now, and new ones" else "New ones from $bankName",
+            forBank, { forBank = it }, modifier = Modifier.testTag("account_for_bank"),
+        )
+    }
+    Button(
+        onClick = { vm.setAccount(txId, label, forBank && label != "Cash") },
+        enabled = label != null && label != tx.accountLabel,
+        modifier = Modifier.fillMaxWidth().height(52.dp).testTag("account_save"),
+    ) { Text("Save") }
+    if (tx.accountLabel != null) androidx.compose.material3.TextButton(
+        onClick = { vm.setAccount(txId, null, false) }, modifier = Modifier.fillMaxWidth().testTag("account_clear"),
+    ) { Text("Not sure, clear it") }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

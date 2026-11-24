@@ -169,6 +169,7 @@ class ImportEngine(
         val deduper = Deduper(existing.map { Deduper.DedupeEntry(it.amountPaise, it.direction, it.occurredAt, it.accountLabel?.filter { ch -> ch.isDigit() }?.takeLast(4), it.refNo) })
         val categorizer = Categorizer(repo.rules(), repo.settings().kids)
         val chosenNames = repo.merchantOverrides()
+        val accountFor = repo.settings().accountFor
 
         var duplicates = 0
         val rows = ArrayList<NewTxn>()
@@ -176,7 +177,7 @@ class ImportEngine(
         for (c in chosen.sortedBy { it.tx.timestamp }) {
             if (c.smsId in known) continue
             if (!deduper.offer(Deduper.entryOf(c.tx))) { duplicates++; continue }
-            rows += c.toNewTxn(categorizer, chosenNames)
+            rows += c.toNewTxn(categorizer, chosenNames, accountFor)
         }
         var saved = 0
         val chunks = rows.chunked(100)
@@ -240,7 +241,8 @@ class ImportEngine(
             val deduper = Deduper(existing.map { Deduper.DedupeEntry(it.amountPaise, it.direction, it.occurredAt, it.accountLabel?.filter { ch -> ch.isDigit() }?.takeLast(4), it.refNo) })
             val categorizer = Categorizer(repo.rules(), repo.settings().kids)
             val chosenNames = repo.merchantOverrides()
-            val rows = fresh.sortedBy { it.tx.timestamp }.filter { deduper.offer(Deduper.entryOf(it.tx)) }.map { it.toNewTxn(categorizer, chosenNames) }
+            val accountFor = repo.settings().accountFor
+            val rows = fresh.sortedBy { it.tx.timestamp }.filter { deduper.offer(Deduper.entryOf(it.tx)) }.map { it.toNewTxn(categorizer, chosenNames, accountFor) }
             added = repo.insertAll(rows)
         }
         // Payments imported before this version learned their app (or before a bank app was installed)
@@ -411,14 +413,17 @@ class ImportEngine(
         }.filterValues { it != rule.categoryId }
     }
 
-    /** [chosen]: names and icons the user picked for merchants; they win over what the SMS says. */
-    private fun Candidate.toNewTxn(categorizer: Categorizer, chosen: Map<String, MerchantOverride>): NewTxn {
+    /**
+     * [chosen]: names and icons the user picked for merchants; they win over what the SMS says. [accountFor]: the card or
+     * account the user picked for a bank's messages that don't say which.
+     */
+    private fun Candidate.toNewTxn(categorizer: Categorizer, chosen: Map<String, MerchantOverride>, accountFor: Map<String, String> = emptyMap()): NewTxn {
         val t = tx
         val mine = chosen[merchantKey]
         val account = t.accountLast4?.let { last4 ->
             val prefix = t.institutionName ?: "Account"
             if (t.isCard) "$prefix card ••$last4" else "$prefix ••$last4"
-        }
+        } ?: accountFor[t.senderGroup]?.takeIf { t.senderGroup != com.owl.tracker.core.Institutions.UNRECOGNISED }
         return NewTxn(
             amountPaise = t.amountPaise,
             direction = t.direction,

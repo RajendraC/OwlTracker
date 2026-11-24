@@ -184,6 +184,9 @@ data class RuleInfo(
 )
 
 /** Everything that is not a transaction. Lives inside the encrypted database, not in plain preferences. */
+/** A card or account payments came from ([label] as shown), the bank whose messages named it, and how many payments. */
+data class KnownAccount(val label: String, val senderGroup: String?, val payments: Int)
+
 data class AppSettings(
     val onboarded: Boolean = false,
     val smsEnabled: Boolean = false,
@@ -224,6 +227,11 @@ data class AppSettings(
     val cardPayments: String = "{}",
     /** Card credits the user marked as a bill payment or a refund (JSON payment id → "payment"/"refund"). Not in backups. */
     val cardCreditKinds: String = "{}",
+    /**
+     * The card or account the user picked for a bank's messages that don't say which ("icici" to "ICICI Bank ••1234"),
+     * used for new ones. Holds account digits, so never in backups.
+     */
+    val accountFor: Map<String, String> = emptyMap(),
 ) {
     fun toMap(): Map<String, String> = mapOf(
         "onboarded" to onboarded.toString(),
@@ -245,6 +253,7 @@ data class AppSettings(
         "card_cycles" to cardCycles,
         "card_payments" to cardPayments,
         "card_credit_kinds" to cardCreditKinds,
+        "account_for" to org.json.JSONObject(accountFor as Map<*, *>).toString(),
     )
 
     companion object {
@@ -267,6 +276,9 @@ data class AppSettings(
             cardCycles = m["card_cycles"] ?: "{}",
             cardPayments = m["card_payments"] ?: "{}",
             cardCreditKinds = m["card_credit_kinds"] ?: "{}",
+            accountFor = m["account_for"]?.let { raw ->
+                runCatching { org.json.JSONObject(raw).let { o -> o.keys().asSequence().associateWith { k -> o.getString(k) } } }.getOrNull()
+            } ?: emptyMap(),
             categoriesVersion = m["categories_version"]?.toIntOrNull() ?: 1,
             keysVersion = m["keys_version"]?.toIntOrNull() ?: 0,
             kids = m["kids"] != "off",

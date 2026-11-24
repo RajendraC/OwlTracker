@@ -663,4 +663,28 @@ class ImportEngineTest {
         assertEquals("UPI 5666@ybl", month(c).first { it.smsId == 7102L }.merchantName)
     }
 
+
+    /** An ICICI SMS that doesn't say the account: the user picks one, and the bank's next such message gets it too. */
+    @Test
+    fun aPickedAccountIsUsedForTheBanksMessagesThatDontSay() = runBlocking {
+        val now = TEST_CLOCK.millis()
+        val body = "Rs 2,015.93 debited for Airtel payment on 24-Nov-26. UPI Ref 104536355899. Not you? Call 18002662 -ICICI Bank"
+        val inbox = mutableListOf(SmsMessage(9001, "AD-ICICIT-S", body, now - 3_600_000))
+        val c = testContainer(context, inbox = inbox)
+        val e = c.importEngine
+        e.commit(e.selectable(e.scan(), ImportFilters()), ImportFilters(), leftOut = 0, replaceRange = false)
+        val first = month(c).single()
+        assertNull(first.accountLabel)
+        assertEquals("icici", first.senderGroup)
+        assertEquals(1, c.repo.countWithoutAccount("icici"))
+
+        c.repo.setAccount(first.id, "ICICI Bank ••4321")
+        c.repo.updateSettings { it.copy(accountFor = it.accountFor + ("icici" to "ICICI Bank ••4321")) }
+        assertEquals("ICICI Bank ••4321", c.repo.knownAccounts().single().label)
+
+        inbox += SmsMessage(9002, "AD-ICICIT-S", body.replace("2,015.93", "499.00").replace("104536355899", "104536355900"), now - 60_000)
+        e.syncNew()
+        assertTrue(month(c).all { it.accountLabel == "ICICI Bank ••4321" })
+        assertEquals(0, c.repo.countWithoutAccount("icici"))
+    }
 }

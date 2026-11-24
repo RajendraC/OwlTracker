@@ -63,6 +63,8 @@ sealed interface Sheet {
     data class Split(val txId: Long) : Sheet
     data class Rename(val txId: Long) : Sheet
     data class MerchantIcon(val txId: Long) : Sheet
+    /** Which card or account a payment came from, when its SMS didn't say (or said wrong). */
+    data class AccountPick(val txId: Long) : Sheet
     data class BudgetEdit(val key: String) : Sheet
     /** [inGroup]: a new category starts in this group. */
     data class CategoryEdit(val id: String?, val inGroup: String? = null) : Sheet
@@ -1192,6 +1194,37 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun setNote(txId: Long, note: String) = viewModelScope.launch { if (editable()) repo.setNote(txId, note) }
+    suspend fun knownAccounts(): List<com.owl.tracker.data.KnownAccount> = repo.knownAccounts()
+    suspend fun withoutAccount(senderGroup: String): Int = repo.countWithoutAccount(senderGroup)
+
+    /**
+     * The card or account a payment came from ([label]; null: not sure). With [forBank], also every other payment from
+     * the same bank's messages that didn't say which, and new ones.
+     */
+    fun setAccount(txId: Long, label: String?, forBank: Boolean) = viewModelScope.launch {
+        if (!editable()) return@launch
+        val tx = repo.transaction(txId) ?: return@launch
+        val bank = tx.senderGroup?.takeIf { it != com.owl.tracker.core.Institutions.UNRECOGNISED }
+        repo.setAccount(txId, label)
+        var others = 0
+        if (bank != null) {
+            if (label != null && forBank) {
+                others = repo.setAccountWhereMissing(bank, label)
+                repo.updateSettings { s -> s.copy(accountFor = s.accountFor + (bank to label)) }
+            } else if (label == null || repo.settings().accountFor[bank] == tx.accountLabel) {
+                repo.updateSettings { s -> s.copy(accountFor = s.accountFor - bank) }
+            }
+        }
+        _sheet.value = Sheet.TxnDetail(txId)
+        say(
+            when {
+                label == null -> "Account cleared"
+                others > 0 -> "$label · this and $others more ${com.owl.tracker.core.Institutions.nameFor(bank)} payments"
+                else -> "Paid from $label"
+            },
+        )
+    }
+
     fun setExcluded(txId: Long, excluded: Boolean) = viewModelScope.launch { if (editable()) repo.setExcluded(txId, excluded) }
 
     fun confirmReview(txId: Long) = viewModelScope.launch {

@@ -239,6 +239,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.19" to listOf(
+            Item("Choose the account", "When a bank's message doesn't say which card or account paid, tap \"Paid from an account\" and pick it. Owl Tracker can use it for that bank's other such messages, and new ones."),
+        ),
         "1.9.18" to listOf(
             Item("The orbit is your budget", "Where it went is now one piece: how much went and what's left across the top, and the ring the bubbles ride on fills up as you spend your budget. Tap a bubble and the top shows that category, with Open."),
         ),

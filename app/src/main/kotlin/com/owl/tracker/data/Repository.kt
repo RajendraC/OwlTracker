@@ -442,6 +442,31 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         d.update("transactions", CONFLICT_REPLACE, contentValuesOf("note" to note.ifBlank { null }), "id = ?", arrayOf<Any?>(txId))
     }
 
+    /** Cards and accounts payments came from, with the bank whose messages named them, most used first. */
+    suspend fun knownAccounts(): List<KnownAccount> = read { d ->
+        d.query(
+            "SELECT account_label, sender_group, COUNT(*) FROM transactions WHERE account_label IS NOT NULL " +
+                "GROUP BY account_label, sender_group ORDER BY COUNT(*) DESC",
+        ).use { c -> buildList { while (c.moveToNext()) add(KnownAccount(c.getString(0), (if (c.isNull(1)) null else c.getString(1)), c.getInt(2))) } }
+    }
+
+    /** SMS payments from [senderGroup]'s messages that didn't say which card or account. */
+    suspend fun countWithoutAccount(senderGroup: String): Int =
+        count("SELECT COUNT(*) FROM transactions WHERE source = 'SMS' AND account_label IS NULL AND sender_group = ?", senderGroup)
+
+    /** The card or account a payment came from, picked by the user; null when they aren't sure. */
+    suspend fun setAccount(txId: Long, label: String?) = write { d ->
+        d.update("transactions", CONFLICT_REPLACE, contentValuesOf("account_label" to label), "id = ?", arrayOf<Any?>(txId))
+    }
+
+    /** [label] for every SMS payment from [senderGroup] that didn't say its card or account. Returns how many. */
+    suspend fun setAccountWhereMissing(senderGroup: String, label: String): Int = write { d ->
+        d.update(
+            "transactions", CONFLICT_REPLACE, contentValuesOf("account_label" to label),
+            "source = 'SMS' AND account_label IS NULL AND sender_group = ?", arrayOf<Any?>(senderGroup),
+        )
+    }
+
     suspend fun setExcluded(txId: Long, excluded: Boolean) = write { d ->
         d.update("transactions", CONFLICT_REPLACE, contentValuesOf("excluded" to if (excluded) 1 else 0), "id = ?", arrayOf<Any?>(txId))
     }
