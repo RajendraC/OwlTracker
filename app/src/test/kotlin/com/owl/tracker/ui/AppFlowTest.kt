@@ -7,9 +7,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import com.owl.tracker.TestApp
 import org.junit.Rule
@@ -134,12 +133,9 @@ class AppFlowTest {
             onAllNodes(androidx.compose.ui.test.hasContentDescription("Switch to text input mode")).onFirst()
                 .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
             waitForIdle()
-            onAllNodes(androidx.compose.ui.test.hasSetTextAction() and androidx.compose.ui.test.hasAnyAncestor(androidx.compose.ui.test.hasTestTag("add_date_picker"))).onFirst().performTextInput("10032026")
+            onAllNodes(androidx.compose.ui.test.hasSetTextAction() and androidx.compose.ui.test.hasAnyAncestor(androidx.compose.ui.test.hasTestTag("add_date_picker"))).onFirst().performTextReplacement("10032026")
             waitForIdle()
-            println("DBG-PICKER\n" + onNodeWithTag("add_date_picker").printToString(maxDepth = 6).take(5000))
             tapTag("add_date_ok")
-            waitForIdle()
-            println("DBG-CHIP\n" + onNodeWithTag("add_pick_date").printToString().take(1500))
             waitForText("Sat, 3 Oct 2026")
             tapTag("save_expense")
             waitForText("on 3 Oct 2026", substring = true)
