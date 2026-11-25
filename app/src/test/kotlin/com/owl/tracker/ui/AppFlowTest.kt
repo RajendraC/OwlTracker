@@ -128,7 +128,7 @@ class AppFlowTest {
             tapTag("add_pick_date")
             waitForTag("add_date_picker")
             // The day cell for the 3rd, named for screen readers like "Saturday, October 3, 2026"
-            onAllNodes(androidx.compose.ui.test.hasContentDescription("October 3, 2026", substring = true)).onFirst().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+            onAllNodes(androidx.compose.ui.test.hasContentDescription("October 3, 2026", substring = true) and androidx.compose.ui.test.hasClickAction()).onFirst().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
             waitForIdle()
             tapTag("add_date_ok")
             waitForText("Sat, 3 Oct 2026")
