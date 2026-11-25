@@ -424,6 +424,20 @@ class StoreScreenshots {
                 tapText("Groceries")
                 Thread.sleep(800)
                 shot("34c_one_or_all")
+                // Review and choose: the list, then one payment sent somewhere else; then back to "All"
+                tapTag("apply_review")
+                Thread.sleep(1200)
+                shot("34d_review_list")
+                runCatching {
+                    tapTag("apply_to_0")
+                    Thread.sleep(1000)
+                    shot("34e_review_pick")
+                    tapTag("apply_pick_${com.owl.tracker.core.Cat.MEDICINES}")
+                    Thread.sleep(800)
+                    shot("34f_review_changed")
+                }
+                tapText("Hide list")
+                Thread.sleep(600)
                 tapTag("apply_all")
                 Thread.sleep(1200)
                 withVm { it.closeSheet(); it.go(com.owl.tracker.ui.Screen.RULES) }
