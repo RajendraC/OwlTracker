@@ -1036,16 +1036,60 @@ private fun AddExpenseSheet(vm: AppViewModel) {
                 leadingIcon = { Icon(Ic.forCategory(c.icon), contentDescription = null, tint = Color(c.color), modifier = Modifier.size(18.dp)) })
         }
     }
+    // Today and yesterday in one tap; any other day from the calendar (never a future one)
+    var picking by rememberSaveable { mutableStateOf(false) }
+    Text("When", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(0 to "Today", 1 to "Yesterday", 2 to "2 days ago").forEach { (d, label) ->
-            FilterChip(selected = daysAgo == d, onClick = { daysAgo = d }, label = { Text(label) })
+        listOf(0 to "Today", 1 to "Yesterday").forEach { (d, label) ->
+            FilterChip(selected = daysAgo == d, onClick = { daysAgo = d }, label = { Text(label) }, modifier = Modifier.testTag("add_day_$d"))
         }
+        val other = daysAgo > 1
+        FilterChip(
+            selected = other, onClick = { picking = true },
+            label = { Text(if (other) vm.today().minusDays(daysAgo.toLong()).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.ENGLISH)) else "Pick a date") },
+            leadingIcon = { Icon(Ic.calendar, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            modifier = Modifier.testTag("add_pick_date"),
+        )
     }
+    if (picking) ExpenseDatePicker(
+        today = vm.today(), current = vm.today().minusDays(daysAgo.toLong()),
+        onPick = { d -> daysAgo = java.time.temporal.ChronoUnit.DAYS.between(d, vm.today()).toInt().coerceAtLeast(0); picking = false },
+        onDismiss = { picking = false },
+    )
     Button(
         onClick = { vm.addManual(rupees * 100, merchant.ifBlank { "Cash expense" }, cat, daysAgo) },
         enabled = rupees > 0,
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("save_expense"),
     ) { Text("Save expense") }
+}
+
+/** A calendar for when an expense happened: any day up to today. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ExpenseDatePicker(today: java.time.LocalDate, current: java.time.LocalDate, onPick: (java.time.LocalDate) -> Unit, onDismiss: () -> Unit) {
+    // The picker counts in UTC midnights
+    fun utc(d: java.time.LocalDate) = d.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+    val last = utc(today)
+    val state = androidx.compose.material3.rememberDatePickerState(
+        initialSelectedDateMillis = utc(current),
+        yearRange = (today.year - 10)..today.year,
+        selectableDates = object : androidx.compose.material3.SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= last
+            override fun isSelectableYear(year: Int) = year <= today.year
+        },
+    )
+    androidx.compose.material3.DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { state.selectedDateMillis?.let { onPick(java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()) } ?: onDismiss() },
+                modifier = Modifier.testTag("add_date_ok"),
+            ) { Text("OK") }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+    ) {
+        androidx.compose.material3.DatePicker(state = state, title = { Text("When was it?", modifier = Modifier.padding(start = 24.dp, top = 16.dp)) }, modifier = Modifier.testTag("add_date_picker"))
+    }
 }
 
 // ---------------- delete ----------------

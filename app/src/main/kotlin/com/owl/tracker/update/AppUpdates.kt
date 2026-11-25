@@ -239,6 +239,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.23" to listOf(
+            Item("Add expenses for any day", "Adding an expense by hand? Tap Pick a date and choose any day from the calendar, not just today or yesterday."),
+        ),
         "1.9.22" to listOf(
             Item("Pay once, keep it for life", "Owl Tracker is now ₹99 a year, or ₹999 once for a lifetime unlock with nothing more to pay. Already subscribed? You keep your price, and can switch to lifetime from More."),
         ),

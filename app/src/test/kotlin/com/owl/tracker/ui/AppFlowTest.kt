@@ -6,6 +6,8 @@ import android.os.Build
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import com.owl.tracker.TestApp
 import org.junit.Rule
@@ -110,6 +112,26 @@ class AppFlowTest {
             // Home has no Recent list: the new expense is in Activity
             tapTag("tab_activity")
             waitForText("Tea stall")
+        }
+    }
+
+    /** Any past day from the calendar: the test clock says 18 Oct 2026, so 3 Oct is picked. */
+    @Test
+    fun manualExpense_onAPickedDate() {
+        with(compose) {
+            tapTag("get_started")
+            tapTag("not_now")
+            tapTag("save_budget")
+            tapTag("add_expense")
+            typeInto("add_amount", "250")
+            typeInto("add_merchant", "Barber")
+            tapTag("add_pick_date")
+            waitForTag("add_date_picker")
+            onAllNodes(androidx.compose.ui.test.hasText("3") and androidx.compose.ui.test.hasClickAction()).onFirst().performClick()
+            tapTag("add_date_ok")
+            waitForText("Sat, 3 Oct 2026")
+            tapTag("save_expense")
+            waitForText("on 3 Oct 2026", substring = true)
         }
     }
 

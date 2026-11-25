@@ -1312,7 +1312,11 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         repo.addManual(ImportEngine.manual(amountPaise, merchant, categoryId, at))
         closeSheet()
         val name = categories.value.firstOrNull { it.id == categoryId }?.name ?: ""
-        say("Added ${Money.formatInr(amountPaise)} to $name")
+        say("Added ${Money.formatInr(amountPaise)} to $name" + when (daysAgo) {
+            0 -> ""
+            1 -> " for yesterday"
+            else -> " on " + day.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ENGLISH))
+        })
     }
 
     // ---------------- budgets & categories ----------------
