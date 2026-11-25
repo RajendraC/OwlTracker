@@ -41,16 +41,16 @@ def font(weight, size):
 SCREENS = [
     ("10_home", "Your expense tracker", "Bank, card and UPI spending, sorted from your SMS"),
     ("01_welcome", "No internet. No account.", "Your data stays on your phone, and you're in control"),
-    ("14_home_ring", "The owl shows how it's going", "Tap a category to see how it's doing"),
+    ("14_home_ring", "The orbit is your budget", "Categories circle the owl, and the ring fills as you spend"),
     ("15g_home_paid_by", "What each card paid for", "Spending by card and bank account, by its last 4 digits"),
-    ("15e_home_six_months", "Six months at a glance", "Every group's trend, against your budget"),
+    ("34f_review_changed", "Fix categories in one go", "Tick a payee's payments and choose where each one goes"),
     ("20_budgets", "Budgets by group", "Warned before you overspend"),
     ("50_reports_top", "Reports you can tap into", "Trends, categories and shops over 1 to 12 months"),
-    ("70_backup", "Your data, your control", "Back up to your own file. Delete or erase any time."),
+    ("57_share_report", "Share a report with family", "An interactive page or Excel file for any computer"),
 ]
 
 
-NAMES = ["home", "privacy", "owl", "paid-by", "six-months", "budgets", "reports", "backup"]
+NAMES = ["home", "privacy", "orbit", "paid-by", "review", "budgets", "reports", "share"]
 
 
 # ---------- drawing helpers ----------

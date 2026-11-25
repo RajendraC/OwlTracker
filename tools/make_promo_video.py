@@ -1,7 +1,11 @@
 """Builds the Google Play promo video (1920x1080, 30 fps, about 55 s, no sound) from the raw
 emulator captures, using the same phone frame and Mango & Cocoa colours as the listing screenshots.
 It leads with privacy (no internet access, no account, data only on the phone and under the user's
-control), then the app: the owl in Where it went, groups, six months, Paid by, budgets and reports.
+control), then the app: the orbit around the owl, Paid by, fixing categories in one go, adding an
+expense for any day, budgets, reports, and sharing a report that opens on a computer. It ends on the
+price (7 days free, then ₹99 a year or ₹999 once).
+
+CAPTURES_DIR also needs report_page_desktop.png: the shared report page as a browser shows it (1500x1000).
 
     python3 tools/make_promo_video.py CAPTURES_DIR OUT.mp4            # full render
     python3 tools/make_promo_video.py CAPTURES_DIR OUT_DIR --preview 2.0,5.1,14.5
@@ -32,8 +36,11 @@ CAPTIONS = {
     "phone": ("Stays on your phone, encrypted", "Stored only here, locked with a key in your phone's secure hardware."),
     "control": ("You're in full control", "Back up to your own file, delete by bank or by date, or erase it all."),
     "home": ("See where your money goes", "An expense tracker that fills itself in from your bank, card and UPI SMS."),
-    "owl": ("The owl shows how it's going", "Hops on track, thinks near a budget, sheds a tear when one goes over."),
-    "pick": ("Tap a category", "See its picture, how much went there and how it's doing."),
+    "orbit": ("The orbit is your budget", "Your categories circle the owl, and the ring fills as you spend."),
+    "pick": ("Tap a category", "See how much went there and how it's doing, then open it."),
+    "review": ("Fix categories in one go", "Moving a payment? Tick the payee's other payments and choose where each one goes."),
+    "anyday": ("Add cash for any day", "Pick the date from a calendar."),
+    "share": ("Share a report with family", "An interactive page that opens in any browser, or an Excel file."),
     "groups": ("Tap a group to go deeper", "Shopping into Fashion, Phones & Electronics and more, then each shop."),
     "six": ("Six months at a glance", "Every group's trend, against your budget."),
     "paid": ("See what each card paid for", "Spending by card and bank account, by its last 4 digits."),
@@ -109,8 +116,9 @@ class PhoneBody:
 class Kit:
     """Everything drawn once: background, phone body, scaled screens, caption and title layers."""
 
-    SCREENS = ["01_welcome", "02_disclosure", "05_import_done", "70_backup", "75b_settings_reset", "10_home", "14_home_ring", "15_home_ring_pick", "13b_home_group",
-               "15e_home_six_months", "15g_home_paid_by", "15i_home_paid_by_open", "20_budgets", "50_reports_top"]
+    SCREENS = ["01_welcome", "02_disclosure", "05_import_done", "70_backup", "75b_settings_reset", "10_home", "14_home_ring", "15_home_ring_pick",
+               "15g_home_paid_by", "15i_home_paid_by_open", "34c_one_or_all", "34d_review_list", "34f_review_changed",
+               "19c_add_expense_calendar", "20_budgets", "50_reports_top", "57_share_report"]
 
     def __init__(self, src):
         self.bg = mango(W, H)
@@ -122,6 +130,38 @@ class Kit:
         self.title = self._title_card("The expense tracker that reads your bank SMS")
         self.outro = self._title_card("The private expense tracker.")
         self.badges = [self._badge(t) for t in PROMISES]
+        self.price = self._line("7 days free, then ₹99 a year or ₹999 once", 44)
+        self.window = self._browser(Image.open(os.path.join(src, "report_page_desktop.png")).convert("RGB"), 960)
+
+    @staticmethod
+    def _line(text, size):
+        f = font("Bold", size)
+        w = int(ImageDraw.Draw(Image.new("RGBA", (1, 1))).textlength(text, font=f))
+        layer = Image.new("RGBA", (w + 4, size + 20), (0, 0, 0, 0))
+        ImageDraw.Draw(layer).text((2, 2), text, font=f, fill=COCOA_SOFT)
+        return layer
+
+    @staticmethod
+    def _browser(page, width):
+        """[page] in a plain browser window [width] px wide, with a soft shadow."""
+        from PIL import ImageFilter
+        bar, r, pad = 44, 22, 50
+        ph = round(page.height * width / page.width)
+        win = Image.new("RGBA", (width, ph + bar), (255, 255, 255, 255))
+        d = ImageDraw.Draw(win)
+        d.rectangle([0, 0, width, bar], fill=(236, 228, 218, 255))
+        for i, c in enumerate([(237, 106, 94), (245, 191, 79), (98, 197, 84)]):
+            d.ellipse([18 + i * 26, bar / 2 - 7, 32 + i * 26, bar / 2 + 7], fill=c + (255,))
+        d.rounded_rectangle([110, 9, width - 110, bar - 9], radius=13, fill=(255, 255, 255, 255))
+        d.text((128, 12), "owl-tracker-report.html", font=font("SemiBold", 18), fill=(120, 100, 85))
+        win.paste(page.resize((width, ph), Image.LANCZOS), (0, bar))
+        win.putalpha(rounded_mask(win.size, r))
+        out = Image.new("RGBA", (width + 2 * pad, ph + bar + 2 * pad), (0, 0, 0, 0))
+        sh = Image.new("RGBA", out.size, (0, 0, 0, 0))
+        ImageDraw.Draw(sh).rounded_rectangle([pad, pad + 18, pad + width, pad + ph + bar + 18], radius=r, fill=SHADOW + (110,))
+        out.alpha_composite(sh.filter(ImageFilter.GaussianBlur(24)))
+        out.alpha_composite(win, (pad, pad))
+        return out
 
     @staticmethod
     def scale(arr):
@@ -323,11 +363,46 @@ def scene_paid(kit, t):
     """Paid by, then the first card opened into what it was used for."""
     s = kit.small
     if t < 0.5:
-        screen = crossfade(s["15e_home_six_months"], s["15g_home_paid_by"], ramp(t, 0.0, 0.5))
+        screen = crossfade(s["15_home_ring_pick"], s["15g_home_paid_by"], ramp(t, 0.0, 0.5))
     else:
         screen = crossfade(ripple(s["15g_home_paid_by"], PAID_ROW[0], PAID_ROW[1], ramp(t, 2.1, 2.6)), s["15i_home_paid_by_open"], ramp(t, 2.45, 2.95))
     ca, cdy = caption_in(t)
-    return compose(kit, screen, "paid", ca, cdy, old="six", old_alpha=1 - ease(ramp(t, 0, 0.25)))
+    return compose(kit, screen, "paid", ca, cdy, old="pick", old_alpha=1 - ease(ramp(t, 0, 0.25)))
+
+
+def scene_review(kit, t):
+    """Move to Groceries: Review and choose opens the list, and one payment is sent to Medicines instead."""
+    s = kit.small
+    if t < 0.5:
+        screen = crossfade(s["15i_home_paid_by_open"], s["34c_one_or_all"], ramp(t, 0.0, 0.5))
+    elif t < 2.2:
+        screen = crossfade(ripple(s["34c_one_or_all"], *REVIEW_LINK, ramp(t, 1.2, 1.7)), s["34d_review_list"], ramp(t, 1.6, 2.1))
+    else:
+        screen = crossfade(ripple(s["34d_review_list"], *REVIEW_CHIP, ramp(t, 2.9, 3.4)), s["34f_review_changed"], ramp(t, 3.4, 3.9))
+    ca, cdy = caption_in(t)
+    return compose(kit, screen, "review", ca, cdy, old="paid", old_alpha=1 - ease(ramp(t, 0, 0.25)))
+
+
+REVIEW_LINK = (360, 1274)  # "Review and choose" in 34c_one_or_all
+REVIEW_CHIP = (480, 962)   # the first payment's "→ Groceries" chip in 34d_review_list
+SHARE_BTN = (790, 2228)    # Share in 57_share_report
+
+
+def scene_share(kit, t):
+    """The Share sheet; Share is tapped, the phone steps aside and the report opens in a browser."""
+    s = kit.small
+    screen = crossfade(s["50_reports_top"], s["57_share_report"], ramp(t, 0.0, 0.5))
+    screen = ripple(screen, *SHARE_BTN, ramp(t, 1.9, 2.4))
+    away = ease_in(ramp(t, 2.4, 3.1))
+    win_a = ease_out(ramp(t, 2.8, 3.6))
+    extra = None
+    if win_a > 0:
+        extra = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        w = kit.window
+        extra.alpha_composite(with_alpha(w, win_a), (1370 - w.width // 2, int(540 - w.height / 2 + 60 * (1 - win_a))))
+    ca, cdy = caption_in(t)
+    return compose(kit, screen if away < 0.999 else None, "share", ca, cdy, old="reports", old_alpha=1 - ease(ramp(t, 0, 0.25)),
+                   phone_dy=away * 1150, extra=extra)
 
 
 PAID_ROW = (540, 1110)  # the first card's row in 15g_home_paid_by
@@ -339,12 +414,20 @@ def zoom_at(t, t_in, t_out, z):
 
 
 def scene_outro(kit, t):
-    out = ease_in(ramp(t, 0.0, 0.7))
-    fade = 1 - ease(ramp(t, 0.0, 0.4))
+    """The report window and caption fade; the name, the three promises and the price."""
+    fade = 1 - ease(ramp(t, 0.0, 0.5))
     a = ease_out(ramp(t, 0.5, 1.3))
-    frame = compose(kit, kit.small["50_reports_top"], "reports", fade, 0, phone_dy=out * 1150, brand_alpha=fade) if t < 0.75 else kit.bg.copy()
+    frame = kit.bg.copy()
+    if fade > 0:
+        w = kit.window
+        frame.alpha_composite(with_alpha(w, fade), (1370 - w.width // 2, int(540 - w.height / 2)))
+        frame.alpha_composite(with_alpha(kit.captions["share"], fade), (CAP_X, int(540 - kit.captions["share"].height / 2)))
+        frame.alpha_composite(with_alpha(kit.brand, fade), (CAP_X, 84))
     frame.alpha_composite(with_alpha(kit.outro, a), (0, int(26 * (1 - a))))
     frame.alpha_composite(badges_layer(kit, t, [1.3, 1.7, 2.1]))
+    pa = ease_out(ramp(t, 2.6, 3.1))
+    if pa > 0:
+        frame.alpha_composite(with_alpha(kit.price, pa), ((W - kit.price.width) // 2, int(800 + 20 * (1 - pa))))
     return frame
 
 
@@ -357,14 +440,15 @@ def scenes(kit):
         ("04-phone", 4.4, lambda t: switch(kit, t, s["02_disclosure"], s["05_import_done"], "account", "phone")),
         ("05-control", 5.6, lambda t: scene_control(kit, t)),
         ("06-home", 4.2, lambda t: switch(kit, t, s["75b_settings_reset"], s["10_home"], "control", "home")),
-        ("06b-owl", 4.2, lambda t: switch(kit, t, s["10_home"], s["14_home_ring"], "home", "owl")),
-        ("06c-pick", 4.0, lambda t: switch(kit, t, s["14_home_ring"], s["15_home_ring_pick"], "owl", "pick")),
-        ("07-groups", 4.4, lambda t: switch(kit, t, s["15_home_ring_pick"], s["13b_home_group"], "pick", "groups")),
-        ("08-six", 4.2, lambda t: switch(kit, t, s["13b_home_group"], s["15e_home_six_months"], "groups", "six")),
+        ("07-orbit", 4.4, lambda t: switch(kit, t, s["10_home"], s["14_home_ring"], "home", "orbit")),
+        ("08-pick", 4.0, lambda t: switch(kit, t, s["14_home_ring"], s["15_home_ring_pick"], "orbit", "pick")),
         ("09-paid", 5.4, lambda t: scene_paid(kit, t)),
-        ("10-budgets", 4.0, lambda t: switch(kit, t, s["15i_home_paid_by_open"], s["20_budgets"], "paid", "budgets")),
-        ("11-reports", 4.0, lambda t: switch(kit, t, s["20_budgets"], s["50_reports_top"], "budgets", "reports")),
-        ("12-outro", 5.0, lambda t: scene_outro(kit, t)),
+        ("10-review", 5.6, lambda t: scene_review(kit, t)),
+        ("11-anyday", 4.2, lambda t: switch(kit, t, s["34f_review_changed"], s["19c_add_expense_calendar"], "review", "anyday")),
+        ("12-budgets", 4.0, lambda t: switch(kit, t, s["19c_add_expense_calendar"], s["20_budgets"], "anyday", "budgets")),
+        ("13-reports", 4.0, lambda t: switch(kit, t, s["20_budgets"], s["50_reports_top"], "budgets", "reports")),
+        ("14-share", 6.6, lambda t: scene_share(kit, t)),
+        ("15-outro", 6.0, lambda t: scene_outro(kit, t)),
     ]
 
 
