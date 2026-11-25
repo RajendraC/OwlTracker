@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import com.owl.tracker.TestApp
 import org.junit.Rule
@@ -127,8 +128,13 @@ class AppFlowTest {
             typeInto("add_merchant", "Barber")
             tapTag("add_pick_date")
             waitForTag("add_date_picker")
-            // The day cell for the 3rd, named for screen readers like "Saturday, October 3, 2026"
-            onAllNodes(androidx.compose.ui.test.hasContentDescription("October 3, 2026", substring = true) and androidx.compose.ui.test.hasClickAction()).onFirst().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+            // Typed in the picker's text mode (the calendar grid takes no taps in this test environment);
+            // Robolectric's locale writes dates as MM/DD/YYYY
+            onAllNodes(androidx.compose.ui.test.hasContentDescription("Switch to text input mode")).onFirst()
+                .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+            waitForIdle()
+            onAllNodes(androidx.compose.ui.test.hasSetTextAction() and androidx.compose.ui.test.hasAnyAncestor(androidx.compose.ui.test.hasTestTag("add_date_picker"))).onFirst().performTextInput("10032026")
+            waitForIdle()
             waitForIdle()
             tapTag("add_date_ok")
             waitForText("Sat, 3 Oct 2026")
