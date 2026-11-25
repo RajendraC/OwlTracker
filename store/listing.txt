@@ -4,7 +4,7 @@ Owl Tracker: Expense Manager
 SHORT DESCRIPTION (76/80)
 Offline expense tracker from bank & UPI SMS. No internet, no account needed.
 
-FULL DESCRIPTION (3704/4000)
+FULL DESCRIPTION (3786/4000)
 Owl Tracker is an expense tracker and budget planner that turns the bank, card and UPI SMS already on your phone into a clear picture of your spending. It works completely offline: the app has no internet permission, needs no account or user ID, and keeps your data only on your phone, where you are always in control of it.
 
 PRIVATE BY DESIGN

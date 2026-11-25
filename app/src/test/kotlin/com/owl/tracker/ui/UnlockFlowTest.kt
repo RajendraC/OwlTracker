@@ -66,7 +66,7 @@ class TrialRunningTest : LicenceUiTest(installedDaysAgo = 0) {
         with(compose) {
             waitForTag("trial_banner")
             waitForText("Free trial: 7 days left")
-            waitForText("Then ₹99.00 a year")
+            waitForText("Then ₹99.00 a year, or ₹999.00 once")
 
             tapTag("tab_more")
             tapText("Unlock Owl Tracker")

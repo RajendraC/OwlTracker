@@ -70,7 +70,7 @@ object UpdatePolicy {
 /**
  * New versions from Google Play, and What's new after one is installed.
  *
- * Talks to the Play Store app on the phone (like the ₹50 unlock); Owl Tracker itself still has no internet
+ * Talks to the Play Store app on the phone (like the payments); Owl Tracker itself still has no internet
  * access. [manager] is null where there is no Play (tests, or a copy not installed from Play): then nothing
  * is ever offered. Remembers in [prefs] (not the encrypted database, and not in backups): the version the
  * person put off with Later, and the last version whose What's new was seen.

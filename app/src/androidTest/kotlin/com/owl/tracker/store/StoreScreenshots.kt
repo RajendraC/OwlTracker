@@ -594,7 +594,7 @@ class StoreScreenshots {
                 shot("19_over_sheet")
                 withVm { it.closeSheet() }
             }
-            // The ₹50-a-year subscription: as a subscriber, then (forgetting it) after the trial
+            // The subscription (₹99 a year, or ₹999 once): as a subscriber, then (forgetting it) after the trial
             section("subscription") {
                 withVm { it.openUnlock() }
                 waitForTag("unlock_done", 20_000)

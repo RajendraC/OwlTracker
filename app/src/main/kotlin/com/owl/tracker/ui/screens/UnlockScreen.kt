@@ -67,7 +67,7 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 32.dp).testTag("unlock_screen"),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        ScreenHeader("Owl Tracker subscription", onBack = { vm.back() })
+        ScreenHeader("Unlock Owl Tracker", onBack = { vm.back() })
         val context = androidx.compose.ui.platform.LocalContext.current
         val manage = {
             runCatching {
@@ -131,12 +131,12 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
             )
             Access.TrialEnded -> StatusCard(
                 Ic.lock, sc.warnFg, sc.warnBg, "Your free trial has ended",
-                "Everything you've imported is still here to see. Subscribe to import new SMS again, add expenses and change budgets.",
+                "Everything you've imported is still here to see. Subscribe, or pay once, to import new SMS again, add expenses and change budgets.",
                 Modifier.testTag("unlock_ended"),
             )
             Access.Lapsed -> StatusCard(
                 Ic.lock, sc.warnFg, sc.warnBg, "Your subscription has ended",
-                "Everything is still here to see. Subscribe again to import new SMS, add expenses and change budgets.",
+                "Everything is still here to see. Subscribe again, or pay once for good, to import new SMS, add expenses and change budgets.",
                 Modifier.testTag("unlock_lapsed"),
             )
         }
@@ -166,7 +166,7 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
 
             if (store.pending) {
                 InfoNote(
-                    "Payment pending. Google Play will confirm it, which can take a few minutes with UPI. Your subscription starts by itself as soon as it does.",
+                    "Payment pending. Google Play will confirm it, which can take a few minutes with UPI. Owl Tracker unlocks by itself as soon as it does.",
                     icon = Ic.info, container = sc.warnBg, content = sc.warnFg,
                 )
             }

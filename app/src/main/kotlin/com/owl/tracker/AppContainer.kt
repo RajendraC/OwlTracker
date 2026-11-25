@@ -55,7 +55,7 @@ class AppContainer(
     // but must not restart the free trial or forget a purchase.
     private val licencePrefs = context.getSharedPreferences(TrialClock.PREFS, Context.MODE_PRIVATE)
 
-    /** The 7-day trial and the ₹50 unlock. */
+    /** The 7-day trial, the ₹99-a-year subscription and the ₹999 lifetime unlock. */
     val licence = Licence(
         store = unlockStore,
         trial = TrialClock(licencePrefs, clock, installedAt, TrialClock.isDebuggable(context)),

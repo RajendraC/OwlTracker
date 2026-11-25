@@ -110,7 +110,7 @@ import kotlinx.coroutines.launch
 
 /** A quiet reminder while the free trial runs. */
 @Composable
-private fun TrialBanner(daysLeft: Int, price: String, onUnlock: () -> Unit) {
+private fun TrialBanner(daysLeft: Int, price: String, lifePrice: String, onUnlock: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primaryContainer)
             .padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp).testTag("trial_banner"),
@@ -119,15 +119,15 @@ private fun TrialBanner(daysLeft: Int, price: String, onUnlock: () -> Unit) {
         Icon(Ic.calendar, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(20.dp))
         Column(Modifier.weight(1f)) {
             Text("Free trial: ${daysText(daysLeft)} left", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Text("Then $price a year", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("Then $price a year, or $lifePrice once", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
-        TextButton(onClick = onUnlock) { Text("Subscribe") }
+        TextButton(onClick = onUnlock) { Text("Unlock") }
     }
 }
 
-/** After the trial, or when the subscription ended: read-only until a subscription starts. */
+/** After the trial, or when the subscription ended: read-only until a subscription starts or lifetime is bought. */
 @Composable
-private fun TrialEndedBanner(price: String, lapsed: Boolean, onUnlock: () -> Unit) {
+private fun TrialEndedBanner(price: String, lifePrice: String, lapsed: Boolean, onUnlock: () -> Unit) {
     val sc = LocalStatusColors.current
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(sc.warnBg).padding(16.dp).testTag("trial_ended_banner")) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -135,13 +135,13 @@ private fun TrialEndedBanner(price: String, lapsed: Boolean, onUnlock: () -> Uni
             Column {
                 Text(if (lapsed) "Your subscription has ended" else "Your free trial has ended", style = MaterialTheme.typography.titleMedium, color = sc.warnFg)
                 Text(
-                    "You can still see everything here. Subscribe to import new SMS, add expenses and change budgets.",
+                    "You can still see everything here. Subscribe for $price a year, or pay $lifePrice once, to import new SMS, add expenses and change budgets.",
                     style = MaterialTheme.typography.bodySmall, color = sc.warnFg,
                 )
             }
         }
         Gap(10.dp)
-        Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth().testTag("trial_ended_unlock")) { Text("Subscribe for $price a year") }
+        Button(onClick = onUnlock, modifier = Modifier.fillMaxWidth().testTag("trial_ended_unlock")) { Text("See ways to unlock") }
     }
 }
 
@@ -281,8 +281,8 @@ fun HomeScreen(vm: AppViewModel) {
             whatsNew?.let { v -> item(key = "whats_new") { WhatsNewCard(v, vm::closeWhatsNew, side) } }
 
             when (val a = access) {
-                is Access.Trial -> item { Box(side) { TrialBanner(a.daysLeft, store.price ?: UnlockStore.FALLBACK_PRICE) { vm.openUnlock() } } }
-                Access.TrialEnded, Access.Lapsed -> item { Box(side) { TrialEndedBanner(store.price ?: UnlockStore.FALLBACK_PRICE, a == Access.Lapsed) { vm.openUnlock() } } }
+                is Access.Trial -> item { Box(side) { TrialBanner(a.daysLeft, store.price ?: UnlockStore.FALLBACK_PRICE, store.lifetimePrice ?: UnlockStore.FALLBACK_LIFETIME_PRICE) { vm.openUnlock() } } }
+                Access.TrialEnded, Access.Lapsed -> item { Box(side) { TrialEndedBanner(store.price ?: UnlockStore.FALLBACK_PRICE, store.lifetimePrice ?: UnlockStore.FALLBACK_LIFETIME_PRICE, a == Access.Lapsed) { vm.openUnlock() } } }
                 Access.Unlocked -> Unit
             }
 

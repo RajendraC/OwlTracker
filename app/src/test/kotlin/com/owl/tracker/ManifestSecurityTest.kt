@@ -40,7 +40,7 @@ class ManifestSecurityTest {
         assertEquals(emptySet<String>(), perms intersect forbidden)
     }
 
-    /** The ₹50 unlock talks to the Play Store app only; the billing library's INTERNET permission stays stripped. */
+    /** The payments talk to the Play Store app only; the billing library's INTERNET permission stays stripped. */
     @Test
     fun playBillingWithoutNetworkAccess() {
         val perms = info.requestedPermissions.orEmpty().toList()

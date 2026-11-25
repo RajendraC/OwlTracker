@@ -82,7 +82,7 @@ fun MoreScreen(vm: AppViewModel) {
                 com.owl.tracker.licence.Access.TrialEnded ->
                     NavRow(Ic.lock, "Unlock Owl Tracker", "Trial ended · read-only until you subscribe or pay once", iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
                 com.owl.tracker.licence.Access.Lapsed ->
-                    NavRow(Ic.lock, "Subscribe again", "Subscription ended · read-only until you subscribe", iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
+                    NavRow(Ic.lock, "Subscribe again", "Subscription ended · read-only until you subscribe or pay once", iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
                 com.owl.tracker.licence.Access.Unlocked -> if (lifetime) NavRow(Ic.check, "Lifetime unlock", "Paid once · yours for good", iconTint = sc.okFg, iconBg = sc.okBg) { vm.openUnlock() }
                 else
                     NavRow(
@@ -408,7 +408,7 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             val ended by vm.debugTrialEnded.collectAsStateWithLifecycle()
             SectionLabel("Testing (debug builds only)")
             Panel(padding = 12.dp) {
-                SwitchRow("End the free trial now", "See read-only mode and the subscription screen without waiting 7 days. Not in the Google Play version.", ended, { vm.setDebugTrialEnded(it) }, Ic.calendar)
+                SwitchRow("End the free trial now", "See read-only mode and the unlock screen without waiting 7 days. Not in the Google Play version.", ended, { vm.setDebugTrialEnded(it) }, Ic.calendar)
             }
         }
     }
