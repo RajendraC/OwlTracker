@@ -594,6 +594,20 @@ class StoreScreenshots {
                 shot("19_over_sheet")
                 withVm { it.closeSheet() }
             }
+            // Add expense: the When row, then the calendar for any past day
+            section("add_expense_date") {
+                nav(Screen.HOME)
+                withVm { it.openSheet(com.owl.tracker.ui.Sheet.AddExpense) }
+                waitForTag("add_pick_date", 20_000)
+                Thread.sleep(800)
+                shot("19b_add_expense")
+                tapTag("add_pick_date")
+                waitForTag("add_date_picker", 10_000)
+                Thread.sleep(800)
+                shot("19c_add_expense_calendar")
+                tapText("Cancel")
+                withVm { it.closeSheet() }
+            }
             // The subscription (₹99 a year, or ₹999 once): as a subscriber, then (forgetting it) after the trial
             section("subscription") {
                 withVm { it.openUnlock() }
