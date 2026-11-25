@@ -291,6 +291,31 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         }
     }
 
+    /** Every payment from this payment's merchant, newest first (at most 300), for choosing which ones to move. */
+    suspend fun sameMerchant(txId: Long): List<Txn> = read { d ->
+        d.query(
+            "SELECT $TX_COLS FROM transactions WHERE merchant_key = (SELECT merchant_key FROM transactions WHERE id = ?) ORDER BY occurred_at DESC LIMIT 300",
+            arrayOf<Any?>(txId),
+        ).use { c -> c.toTxns() }
+    }
+
+    /**
+     * Moves the payments chosen one by one ([moves]: payment to category; a split one becomes one category), and with
+     * [newOnesTo] remembers it for new payments from [txId]'s merchant. Returns how many moved.
+     */
+    suspend fun moveChosen(txId: Long, moves: Map<Long, String>, newOnesTo: String?): Int = write { d ->
+        if (newOnesTo != null) {
+            val key = merchantKeyOf(d, txId)
+            if (key != null) d.insert(
+                "rules", CONFLICT_REPLACE,
+                contentValuesOf("match_type" to RuleMatch.MERCHANT.name, "pattern" to key, "category_id" to newOnesTo, "created_at" to clock.millis()),
+            )
+        }
+        moves.entries.sumOf { (id, cat) ->
+            d.update("transactions", CONFLICT_REPLACE, contentValuesOf("category_id" to cat, "needs_review" to 0, "parts" to null), "id = ?", arrayOf<Any?>(id))
+        }
+    }
+
     // ---------------- merchant names and icons ----------------
 
     /** Names and icons the user chose, by merchant key. */

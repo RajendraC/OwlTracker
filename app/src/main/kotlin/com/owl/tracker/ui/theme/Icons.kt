@@ -32,6 +32,7 @@ object Ic {
     val back = icon("M15 5l-7 7 7 7", 2f)
     val chevL = icon("M14.5 6 8.5 12l6 6", 2f)
     val chevR = icon("M9.5 6l6 6-6 6", 2f)
+    val chevDown = icon("M6 9.5l6 6 6-6", 2f)
     val close = icon("M6 6l12 12M18 6 6 18", 2f)
     val check = icon("M5 12.5l4.5 4.5L19 7", 2.4f)
     val lock = icon("M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3")

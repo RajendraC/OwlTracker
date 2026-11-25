@@ -1110,6 +1110,21 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     fun sameMerchantCount(txId: Long): Flow<Int> = repo.observeSameMerchantCount(txId)
 
+    suspend fun sameMerchant(txId: Long): List<Txn> = repo.sameMerchant(txId)
+
+    /** The payments ticked in "Review and choose", each to its own category; [newOnesTo]: also for new ones. */
+    fun moveChosen(txId: Long, moves: Map<Long, String>, newOnesTo: String?) = viewModelScope.launch {
+        if (!editable()) return@launch
+        val t = repo.transaction(txId) ?: return@launch
+        val n = repo.moveChosen(txId, moves, newOnesTo)
+        _sheet.value = Sheet.TxnDetail(txId)
+        val where = moves.values.distinct().map { categoryName(it) }
+        say(
+            (if (n == 1) "Moved 1 payment" else "Moved $n payments") + " to " + where.joinToString(" and ") +
+                (newOnesTo?.let { " · new ones from ${t.merchantName} too" } ?: ""),
+        )
+    }
+
     fun categoryName(id: String): String = categories.value.firstOrNull { it.id == id }?.name ?: "Others"
 
     // ---------------- splitting a payment ----------------

@@ -25,6 +25,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -420,11 +422,11 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
     }
     pending?.let { id ->
         val name = cats.firstOrNull { it.id == id }?.name ?: ""
-        OneOrAllDialog(
+        if (count > 1) MoveDialog(vm, tx, id, count, cats, onDone = { pending = null })
+        else OneOrAllDialog(
             title = "Move to $name",
-            text = if (count > 1) "Just this payment, or all $count payments from ${tx.merchantName}? All also sorts new ones from ${tx.merchantName} into $name."
-            else "Just this payment, or new payments from ${tx.merchantName} too?",
-            allLabel = if (count > 1) "All $count" else "This and new ones",
+            text = "Just this payment, or new payments from ${tx.merchantName} too?",
+            allLabel = "This and new ones",
             onOne = { pending = null; vm.setCategory(txId, id, false) },
             onAll = { pending = null; vm.setCategory(txId, id, true) },
             onDismiss = { pending = null },
@@ -1147,6 +1149,153 @@ private fun SkippedSheet(vm: AppViewModel) {
             if (list.size > 30) Text("\u2026and ${list.size - 30} more", style = MaterialTheme.typography.bodySmall)
         }
     }
+}
+
+/**
+ * "Move to X": just this payment, or all from the same payee (and new ones), or, after "Review and choose", the
+ * payments ticked in a list, each going to X or to a category picked for it alone. Tags as [OneOrAllDialog] with
+ * `apply`, plus `apply_review`, `apply_row_<i>`, `apply_to_<i>`, `apply_new_ones`, `apply_move`.
+ */
+@Composable
+private fun MoveDialog(vm: AppViewModel, tx: com.owl.tracker.data.Txn, target: String, count: Int, cats: List<com.owl.tracker.data.Category>, onDone: () -> Unit) {
+    val byId = remember(cats) { cats.associateBy { it.id } }
+    val name = byId[target]?.name ?: ""
+    var review by rememberSaveable(tx.id, target) { mutableStateOf(false) }
+    val others by androidx.compose.runtime.produceState<List<com.owl.tracker.data.Txn>?>(null, tx.id, review) {
+        if (review && value == null) value = vm.sameMerchant(tx.id)
+    }
+    // Ticked: this one, and those in the same category as it; each goes to the target unless picked otherwise
+    val ticked = androidx.compose.runtime.remember(tx.id, target) { androidx.compose.runtime.mutableStateMapOf<Long, Boolean>() }
+    val goesTo = androidx.compose.runtime.remember(tx.id, target) { androidx.compose.runtime.mutableStateMapOf<Long, String>() }
+    var newOnes by rememberSaveable(tx.id, target) { mutableStateOf(true) }
+    var choosingFor by remember(tx.id, target) { mutableStateOf<com.owl.tracker.data.Txn?>(null) }
+    fun on(p: com.owl.tracker.data.Txn) = ticked[p.id] ?: (p.id == tx.id || p.categoryId == tx.categoryId)
+    val list = others.orEmpty()
+    val chosen = list.filter { on(it) }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDone,
+        modifier = Modifier.testTag("apply_dialog"),
+        title = { Text("Move to $name") },
+        text = {
+            Column {
+                if (!review) {
+                    Text("Just this payment, or all $count payments from ${tx.merchantName}? All also sorts new ones from ${tx.merchantName} into $name.")
+                    Row(
+                        Modifier.padding(top = 12.dp).clip(RoundedCornerShape(12.dp)).clickable { review = true }
+                            .heightIn(min = 44.dp).padding(end = 8.dp).testTag("apply_review"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Review and choose", fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                        Icon(Ic.chevDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    }
+                } else {
+                    Text("Tick the payments from ${tx.merchantName} to move. Tap where one goes to send it somewhere else.", style = MaterialTheme.typography.bodyMedium)
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.TextButton(onClick = { review = false }) { Text("Hide list") }
+                        Spacer(Modifier.weight(1f))
+                        val all = list.isNotEmpty() && chosen.size == list.size
+                        androidx.compose.material3.TextButton(
+                            onClick = { list.forEach { ticked[it.id] = !all } }, modifier = Modifier.testTag("apply_select_all"),
+                        ) { Text(if (all) "Select none" else "Select all") }
+                    }
+                    if (others == null) Text("…", color = muted)
+                    Column(Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState())) {
+                        list.forEachIndexed { i, p ->
+                            val isOn = on(p)
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).toggleable(isOn, role = androidx.compose.ui.semantics.Role.Checkbox) { ticked[p.id] = it }
+                                    .padding(vertical = 6.dp).testTag("apply_row_$i"),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                androidx.compose.material3.Checkbox(checked = isOn, onCheckedChange = null)
+                                Gap(6.dp)
+                                CategoryTile(byId[p.categoryId], 34.dp)
+                                Gap(10.dp)
+                                Column(Modifier.weight(1f)) {
+                                    Row {
+                                        Text(
+                                            vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH)) + if (p.id == tx.id) " · this one" else "",
+                                            style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
+                                        )
+                                        Text(Money.formatInr(p.amountPaise), style = MaterialTheme.typography.titleSmall)
+                                    }
+                                    if (isOn) {
+                                        val to = goesTo[p.id] ?: target
+                                        Row(
+                                            Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50))
+                                                .background(if (to != target) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                                .clickable(onClickLabel = "Choose where this one goes") { choosingFor = p }
+                                                .heightIn(min = 32.dp).padding(horizontal = 10.dp).testTag("apply_to_$i"),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Text("→ ${byId[to]?.name ?: ""}", style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                                            Icon(Ic.chevDown, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        }
+                                    } else Text("Stays in ${byId[p.categoryId]?.name ?: ""}", style = MaterialTheme.typography.bodySmall, color = muted)
+                                }
+                            }
+                        }
+                    }
+                    SwitchRow(
+                        "Also new ones from ${tx.merchantName}", "Sorted into $name", newOnes, { newOnes = it },
+                        modifier = Modifier.testTag("apply_new_ones"),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (!review) Button(onClick = { onDone(); vm.setCategory(tx.id, target, false) }, modifier = Modifier.testTag("apply_one")) { Text("Just this one") }
+            else Button(
+                onClick = { onDone(); vm.moveChosen(tx.id, chosen.associate { it.id to (goesTo[it.id] ?: target) }, target.takeIf { newOnes }) },
+                enabled = chosen.isNotEmpty(), modifier = Modifier.testTag("apply_move"),
+            ) { Text("Move ${chosen.size}") }
+        },
+        dismissButton = {
+            if (!review) androidx.compose.material3.TextButton(onClick = { onDone(); vm.setCategory(tx.id, target, true) }, modifier = Modifier.testTag("apply_all")) { Text("All $count") }
+            else androidx.compose.material3.TextButton(onClick = onDone) { Text("Cancel") }
+        },
+    )
+    choosingFor?.let { p -> OneCategoryPicker(p, target, cats, vm, onPick = { goesTo[p.id] = it; choosingFor = null }, onDismiss = { choosingFor = null }) }
+}
+
+/** Where one payment in "Review and choose" goes: the move's category first ("For the rest"), then all others. */
+@Composable
+private fun OneCategoryPicker(p: com.owl.tracker.data.Txn, target: String, cats: List<com.owl.tracker.data.Category>, vm: AppViewModel, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val tree = remember(cats) { com.owl.tracker.data.CategoryTree(cats) }
+    val credit = p.direction == com.owl.tracker.core.Direction.CREDIT
+    val choices = remember(tree, credit, target) {
+        val ok = tree.pickable().filter { credit || it.id != Cat.INCOME }
+        ok.filter { it.id == target } + ok.filter { it.id == p.categoryId && it.id != target } + ok.filter { it.id != target && it.id != p.categoryId }
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("apply_pick_dialog"),
+        title = { Text("Where does ${vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))} · ${Money.formatInr(p.amountPaise)} go?") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                Text("Only this payment.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                choices.forEach { c ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(c.id) }.heightIn(min = 48.dp).padding(horizontal = 6.dp)
+                            .testTag("apply_pick_${c.id}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CategoryTile(c, 32.dp)
+                        Gap(10.dp)
+                        Text(c.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        when (c.id) {
+                            target -> Text("For the rest", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            p.categoryId -> Text("Now", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 /**

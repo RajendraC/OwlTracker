@@ -3,6 +3,7 @@ package com.owl.tracker.ui
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import com.owl.tracker.TestApp
 import org.junit.Rule
 import org.junit.Test
@@ -71,6 +72,33 @@ class SplitAndRulesFlowTest {
             tapTag("rule_delete_confirm")
             waitForText("Rule deleted · 2 payments put back")
             waitForTag("rules_empty")
+        }
+    }
+
+    /** "Review and choose": the payments from the same payee listed, one sent somewhere else, only the ticked ones moved. */
+    @Test
+    fun reviewAndChooseMovesTheTickedPaymentsEachWhereItGoes() {
+        setUpWithSms()
+        with(compose) {
+            tapTag("tab_activity")
+            tapText("Amazon")
+            waitForTag("delete_txn")
+            tapTag("change_category")
+            tapText("Groceries")
+            waitForTag("apply_dialog")
+            tapTag("apply_review")
+            waitForTag("apply_row_1")
+            waitForText("this one", substring = true)
+            // This one goes to Medicines instead
+            val mine = (0..1).first { i -> runCatching { onNodeWithTag("apply_row_$i").assert(androidx.compose.ui.test.hasAnyDescendant(androidx.compose.ui.test.hasText("this one", substring = true))) }.isSuccess }
+            tapTag("apply_to_$mine")
+            waitForTag("apply_pick_dialog")
+            tapTag("apply_pick_${com.owl.tracker.core.Cat.MEDICINES}")
+            waitForText("→ Medicines")
+            tapTag("apply_new_ones")  // not for new ones
+            tapTag("apply_move")
+            waitForText("Moved", substring = true)
+            waitForText("Medicines")
         }
     }
 
