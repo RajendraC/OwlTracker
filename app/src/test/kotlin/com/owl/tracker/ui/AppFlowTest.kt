@@ -7,7 +7,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.core.app.ApplicationProvider
 import com.owl.tracker.TestApp
 import org.junit.Rule
@@ -128,7 +128,7 @@ class AppFlowTest {
             tapTag("add_pick_date")
             waitForTag("add_date_picker")
             // The day cell for the 3rd, named for screen readers like "Saturday, October 3, 2026"
-            onAllNodes(androidx.compose.ui.test.hasContentDescription("October 3, 2026", substring = true)).onFirst().performClick()
+            onAllNodes(androidx.compose.ui.test.hasContentDescription("October 3, 2026", substring = true)).onFirst().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
             waitForIdle()
             tapTag("add_date_ok")
             waitForText("Sat, 3 Oct 2026")
