@@ -79,7 +79,7 @@ class AppFlowDeviceTest {
             waitForText("Free trial: 7 days left", timeoutMs = 20_000)
 
             tapTag("tab_more")
-            tapText("Subscribe to Owl Tracker")
+            tapText("Unlock Owl Tracker")
             waitForTag("unlock_trial", timeoutMs = 20_000)
 
             // Google Play must answer, or time out, with something to tell the person

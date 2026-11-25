@@ -64,6 +64,20 @@ class LicenceTest {
         assertTrue(l.current().canEdit)
     }
 
+    /** Lifetime is kept with no time limit while Play can't be asked; a refund (Play says it's gone) locks again. */
+    @Test fun lifetimeIsForGoodUntilRefunded() {
+        val store = FakeUnlockStore()
+        licence(store, installedAt = now - 30 * DAY_MS).also { store.mutable.update { s -> s.copy(owned = true, lifetime = true) }; it.current() }
+        // A year later, with Play unreachable: still unlocked (the yearly one would have lapsed after 30 days offline)
+        val offline = FakeUnlockStore(StoreState(status = StoreState.Status.UNAVAILABLE))
+        val later = licence(offline, clockMs = now + 365 * DAY_MS, installedAt = now - 30 * DAY_MS)
+        assertEquals(Access.Unlocked, later.current())
+        assertTrue(later.lifetime.value)
+        // Refunded: Play now lists no purchase
+        offline.mutable.update { it.copy(status = StoreState.Status.READY, owned = false, lifetime = false) }
+        assertEquals(Access.Lapsed, later.current())
+    }
+
     @Test fun staysUnlockedWhenGooglePlayCantBeReached() {
         val store = FakeUnlockStore()
         licence(store, installedAt = now - 30 * DAY_MS).also { store.mutable.update { s -> s.copy(owned = true) }; it.current() }

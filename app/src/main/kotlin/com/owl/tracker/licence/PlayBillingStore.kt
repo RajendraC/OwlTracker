@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * The ₹50-a-year subscription through Google Play Billing.
+ * The ₹99-a-year subscription and the ₹999 one-time lifetime unlock, through Google Play Billing.
  *
  * Everything goes through the Play Store app on the phone (Android IPC); Owl Tracker itself still
  * has no internet permission. The Play Store app does the network part, takes the payment and
@@ -39,6 +39,11 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
     override val state: StateFlow<StoreState> = _state.asStateFlow()
 
     @Volatile private var product: ProductDetails? = null
+    @Volatile private var lifetimeProduct: ProductDetails? = null
+
+    // Each kind of purchase as Play last listed it (null: not answered yet), so neither answer hides the other
+    @Volatile private var subs: List<Purchase>? = null
+    @Volatile private var once: List<Purchase>? = null
     @Volatile private var connecting = false
 
     private val client: BillingClient = BillingClient.newBuilder(appContext)
@@ -103,18 +108,13 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
     }
 
     private fun loadProduct() {
-        val params = QueryProductDetailsParams.newBuilder()
-            .setProductList(
-                listOf(
-                    QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(UnlockStore.PRODUCT_ID)
-                        .setProductType(BillingClient.ProductType.SUBS)
-                        .build(),
-                ),
-            )
-            .build()
-        client.queryProductDetailsAsync(params) { result, details ->
-            val found = details.productDetailsList.firstOrNull { it.productId == UnlockStore.PRODUCT_ID }
+        fun query(id: String, type: String, done: (BillingResult, ProductDetails?) -> Unit) {
+            val params = QueryProductDetailsParams.newBuilder()
+                .setProductList(listOf(QueryProductDetailsParams.Product.newBuilder().setProductId(id).setProductType(type).build()))
+                .build()
+            client.queryProductDetailsAsync(params) { result, details -> done(result, details.productDetailsList.firstOrNull { it.productId == id }) }
+        }
+        query(UnlockStore.PRODUCT_ID, BillingClient.ProductType.SUBS) { result, found ->
             if (result.responseCode == BillingResponseCode.OK && found != null) {
                 product = found
                 _state.update { it.copy(price = priceOf(found)) }
@@ -125,30 +125,44 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
                 _state.update { it.copy(message = errorText(result)) }
             }
         }
-    }
-
-    private fun loadPurchases() {
-        val params = QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()
-        client.queryPurchasesAsync(params) { result, purchases ->
-            if (result.responseCode == BillingResponseCode.OK) apply(purchases, definitive = true)
-            else _state.update { it.copy(busy = false) }
+        query(UnlockStore.LIFETIME_ID, BillingClient.ProductType.INAPP) { result, found ->
+            // Not on sale (yet): the lifetime choice just shows the expected price, and says so if tapped
+            if (result.responseCode == BillingResponseCode.OK && found != null) {
+                lifetimeProduct = found
+                _state.update { it.copy(lifetimePrice = found.oneTimePurchaseOfferDetailsList?.firstOrNull()?.formattedPrice) }
+            }
         }
     }
 
-    override fun buy(activity: Activity) {
-        val details = product
-        if (!client.isReady || details == null) {
+    private fun loadPurchases() {
+        client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()) { result, purchases ->
+            if (result.responseCode == BillingResponseCode.OK) { subs = purchases; apply() } else _state.update { it.copy(busy = false) }
+        }
+        client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()) { result, purchases ->
+            if (result.responseCode == BillingResponseCode.OK) { once = purchases; apply() } else _state.update { it.copy(busy = false) }
+        }
+    }
+
+    override fun buy(activity: Activity, plan: UnlockStore.Plan) {
+        val details = if (plan == UnlockStore.Plan.LIFETIME) lifetimeProduct else product
+        if (!client.isReady || (details == null && _state.value.status != Status.READY)) {
             // Keep a real problem (e.g. "not on sale yet") rather than hiding it behind "loading".
             _state.update { it.copy(message = it.message ?: "Google Play is still loading the price. Try again in a moment.") }
             refresh()
             return
         }
-        val offerToken = yearlyOffer(details)?.offerToken
-        if (offerToken == null) {
-            _state.update { it.copy(message = "The subscription isn't on sale in Google Play yet. Please try again later.") }
+        val offerToken = when {
+            details == null -> null
+            plan == UnlockStore.Plan.LIFETIME -> details.oneTimePurchaseOfferDetailsList?.firstOrNull()?.offerToken ?: ""
+            else -> yearlyOffer(details)?.offerToken
+        }
+        if (details == null || offerToken == null) {
+            _state.update { it.copy(message = if (plan == UnlockStore.Plan.LIFETIME) "The lifetime unlock isn't on sale in Google Play yet. Please try again later." else "The subscription isn't on sale in Google Play yet. Please try again later.") }
+            refresh()
             return
         }
-        val productParams = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(details).setOfferToken(offerToken)
+        val productParams = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(details)
+        if (offerToken.isNotEmpty()) productParams.setOfferToken(offerToken)
         val flow = BillingFlowParams.newBuilder().setProductDetailsParamsList(listOf(productParams.build())).build()
         val result = client.launchBillingFlow(activity, flow)
         _state.update {
@@ -159,7 +173,14 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {
         when (result.responseCode) {
-            BillingResponseCode.OK -> apply(purchases.orEmpty(), definitive = false)
+            BillingResponseCode.OK -> {
+                // Only the new purchase is listed: add it to what Play listed before, then ask Play for the full list
+                val fresh = purchases.orEmpty()
+                subs = (subs.orEmpty().filter { p -> fresh.none { it.purchaseToken == p.purchaseToken } } + fresh.filter { UnlockStore.PRODUCT_ID in it.products }).takeIf { subs != null || it.isNotEmpty() }
+                once = (once.orEmpty().filter { p -> fresh.none { it.purchaseToken == p.purchaseToken } } + fresh.filter { UnlockStore.LIFETIME_ID in it.products }).takeIf { once != null || it.isNotEmpty() }
+                apply()
+                loadPurchases()
+            }
             BillingResponseCode.USER_CANCELED -> _state.update { it.copy(busy = false) }
             BillingResponseCode.ITEM_ALREADY_OWNED -> {
                 _state.update { it.copy(busy = false, message = null) }
@@ -170,32 +191,39 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
     }
 
     /**
-     * [definitive]: this is the full list of the account's purchases (from queryPurchasesAsync), so
-     * "not in the list" means not owned. A purchase-flow update only lists the new purchase.
+     * Works out the state from the purchases Play listed for each kind. A kind Play hasn't answered for yet (null)
+     * doesn't count as "not bought", so a slow answer never locks the app for a moment.
      */
-    private fun apply(purchases: List<Purchase>, definitive: Boolean) {
-        val mine = purchases.filter { UnlockStore.PRODUCT_ID in it.products }
-        val genuine = mine.filter { PurchaseVerifier.verify(licenceKey, it.originalJson, it.signature) }
+    private fun apply() {
+        val all = subs.orEmpty().filter { UnlockStore.PRODUCT_ID in it.products } + once.orEmpty().filter { UnlockStore.LIFETIME_ID in it.products }
+        val genuine = all.filter { PurchaseVerifier.verify(licenceKey, it.originalJson, it.signature) }
         val bought = genuine.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
         val pending = genuine.any { it.purchaseState == Purchase.PurchaseState.PENDING }
         // Google refunds purchases that aren't acknowledged within 3 days. Retried on every refresh.
         bought.filter { !it.isAcknowledged }.forEach { acknowledge(it) }
+        val boughtSub = bought.filter { UnlockStore.PRODUCT_ID in it.products }
+        val boughtLife = bought.any { UnlockStore.LIFETIME_ID in it.products }
         _state.update {
             it.copy(
                 owned = when {
                     bought.isNotEmpty() -> true
-                    definitive -> false
+                    subs != null && once != null -> false
                     else -> it.owned
                 },
+                lifetime = when {
+                    boughtLife -> true
+                    once != null -> false
+                    else -> it.lifetime
+                },
                 renewing = when {
-                    bought.isNotEmpty() -> bought.any { p -> p.isAutoRenewing }
-                    definitive -> null
+                    boughtSub.isNotEmpty() -> boughtSub.any { p -> p.isAutoRenewing }
+                    subs != null -> null
                     else -> it.renewing
                 },
                 pending = bought.isEmpty() && pending,
                 busy = false,
                 message = when {
-                    mine.isNotEmpty() && genuine.isEmpty() -> "Google Play reported a purchase that Owl Tracker couldn't verify. Please contact support."
+                    all.isNotEmpty() && genuine.isEmpty() -> "Google Play reported a purchase that Owl Tracker couldn't verify. Please contact support."
                     bought.isNotEmpty() || pending -> null
                     else -> it.message // e.g. "not on sale yet" from the product lookup, which may answer first
                 },
@@ -235,7 +263,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
     private fun errorText(result: BillingResult): String = when (result.responseCode) {
         BillingResponseCode.SERVICE_UNAVAILABLE, BillingResponseCode.SERVICE_DISCONNECTED, BillingResponseCode.NETWORK_ERROR ->
             "Google Play can't be reached. Check your phone is online, then try again."
-        BillingResponseCode.ITEM_UNAVAILABLE -> "The subscription isn't on sale in Google Play yet. Please try again later."
+        BillingResponseCode.ITEM_UNAVAILABLE -> "That isn't on sale in Google Play yet. Please try again later."
         BillingResponseCode.BILLING_UNAVAILABLE -> "Google Play can't take payments with this account. Check your payment methods in the Play Store."
         else -> "Google Play couldn't finish the payment (code ${result.responseCode}). Please try again."
     }

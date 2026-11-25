@@ -71,18 +71,20 @@ fun MoreScreen(vm: AppViewModel) {
     val access by vm.access.collectAsStateWithLifecycle()
     val store by vm.store.collectAsStateWithLifecycle()
     val price = store.price ?: com.owl.tracker.licence.UnlockStore.FALLBACK_PRICE
+    val lifetime by vm.lifetime.collectAsStateWithLifecycle()
     val sc = LocalStatusColors.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         ScreenHeader("More")
         Panel(padding = 8.dp, modifier = Modifier.testTag("more_unlock")) {
             when (val a = access) {
                 is com.owl.tracker.licence.Access.Trial ->
-                    NavRow(Ic.unlock, "Subscribe to Owl Tracker", "Free trial: ${daysText(a.daysLeft)} left · then $price a year") { vm.openUnlock() }
+                    NavRow(Ic.unlock, "Unlock Owl Tracker", "Free trial: ${daysText(a.daysLeft)} left · then $price a year, or pay once") { vm.openUnlock() }
                 com.owl.tracker.licence.Access.TrialEnded ->
-                    NavRow(Ic.lock, "Subscribe to Owl Tracker", "Trial ended · read-only until you subscribe", iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
+                    NavRow(Ic.lock, "Unlock Owl Tracker", "Trial ended · read-only until you subscribe or pay once", iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
                 com.owl.tracker.licence.Access.Lapsed ->
                     NavRow(Ic.lock, "Subscribe again", "Subscription ended · read-only until you subscribe", iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
-                com.owl.tracker.licence.Access.Unlocked ->
+                com.owl.tracker.licence.Access.Unlocked -> if (lifetime) NavRow(Ic.check, "Lifetime unlock", "Paid once · yours for good", iconTint = sc.okFg, iconBg = sc.okBg) { vm.openUnlock() }
+                else
                     NavRow(
                         Ic.check, "Subscribed", if (store.renewing == false) "Cancelled · stops at the end of the paid year" else "$price a year · manage or cancel",
                         iconTint = sc.okFg, iconBg = sc.okBg,
@@ -425,9 +427,9 @@ fun PrivacyScreen(vm: AppViewModel) {
         PrivacyPara("What it shares", "Nothing. Owl Tracker has no internet permission, no analytics, no ads and no crash-reporting service. Your data is excluded from Android cloud backup and device-to-device transfer.")
         PrivacyPara("Your choices", "You choose which senders and transactions to import, and can change that any time. You can delete single transactions, delete by age or by bank, or reset the app, which erases everything and destroys the encryption key. You can also remove SMS access in Android settings; the app keeps working with manual entries.")
         PrivacyPara("Backups", "A backup file is made only when you ask for one (More \u2192 Backup & restore), and goes only where you send it: Owl Tracker never sends it anywhere itself. It holds amounts, dates, merchant names, the merchant names and icons you chose, categories, notes, budgets and category rules. It never holds SMS text, sender IDs, account or card numbers, UPI IDs or bank references, and long numbers inside merchant names are masked. With a password, the file is encrypted (AES-256-GCM) and can't be read without it.")
-        PrivacyPara("Payments", "Owl Tracker is free for 7 days, then a ₹50-a-year subscription through Google Play, which you can cancel there any time. Google Play takes the payment under its own terms and privacy policy. Owl Tracker never sees your card, UPI or bank details: the Play Store app on your phone only tells it whether your subscription is active and renewing. The trial is counted on your phone. Nothing about the subscription is sent anywhere by Owl Tracker.")
+        PrivacyPara("Payments", "Owl Tracker is free for 7 days, then a ₹99-a-year subscription or a one-time ₹999 lifetime unlock through Google Play; the subscription can be cancelled there any time. Google Play takes the payment under its own terms and privacy policy. Owl Tracker never sees your card, UPI or bank details: the Play Store app on your phone only tells it whether you have paid (an active, renewing subscription or the lifetime unlock). The trial is counted on your phone. Nothing about your payment is sent anywhere by Owl Tracker.")
         PrivacyPara("Sample data", "If you choose Explore with sample data, Owl Tracker imports 21 built-in example messages instead of reading your inbox. Reset removes them.")
-        PrivacyPara("Contact", "Questions or requests: rajendra.chandrasekhar@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 7 November 2026.")
+        PrivacyPara("Contact", "Questions or requests: rajendra.chandrasekhar@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 25 November 2026.")
     }
 }
 

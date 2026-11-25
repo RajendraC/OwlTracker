@@ -854,6 +854,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     /** Google Play's side: price, pending payment, problems. */
     val store: StateFlow<StoreState> = c.licence.store.state
 
+    /** The lifetime unlock is bought (Play said so, now or before). */
+    val lifetime: StateFlow<Boolean> = c.licence.lifetime
+
     fun openUnlock() = go(Screen.UNLOCK)
 
     /** "Restore purchase": asks Google Play again which purchases this account has. */

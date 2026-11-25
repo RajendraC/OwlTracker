@@ -168,8 +168,8 @@ class MainActivity : FragmentActivity() {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         }
 
-        override fun buyUnlock() {
-            (application as OwlTrackerApp).container.licence.buy(this@MainActivity)
+        override fun buyUnlock(plan: com.owl.tracker.licence.UnlockStore.Plan) {
+            (application as OwlTrackerApp).container.licence.buy(this@MainActivity, plan)
         }
 
         override fun shareFile(file: java.io.File, mime: String, subject: String, chooser: String) {
@@ -204,7 +204,7 @@ interface Platform {
     fun openAppSettings()
 
     /** Opens Google Play's payment sheet for the yearly subscription. */
-    fun buyUnlock()
+    fun buyUnlock(plan: com.owl.tracker.licence.UnlockStore.Plan = com.owl.tracker.licence.UnlockStore.Plan.YEARLY)
 
     /** Opens the share sheet for a backup file (WhatsApp, Drive, Quick Share...). */
     fun shareBackup(file: java.io.File)

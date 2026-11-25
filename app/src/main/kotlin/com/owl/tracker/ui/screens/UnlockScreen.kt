@@ -1,6 +1,9 @@
 package com.owl.tracker.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,6 +58,9 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
     val access by vm.access.collectAsStateWithLifecycle()
     val store by vm.store.collectAsStateWithLifecycle()
     val price = store.price ?: UnlockStore.FALLBACK_PRICE
+    val lifePrice = store.lifetimePrice ?: UnlockStore.FALLBACK_LIFETIME_PRICE
+    val lifetime by vm.lifetime.collectAsStateWithLifecycle()
+    var plan by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(UnlockStore.Plan.YEARLY) }
     val sc = LocalStatusColors.current
 
     Column(
@@ -74,7 +80,23 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
         }
 
         when (val a = access) {
-            Access.Unlocked -> {
+            Access.Unlocked -> if (lifetime) {
+                StatusCard(
+                    Ic.check, sc.okFg, sc.okBg, "Lifetime · paid once",
+                    "Thank you! Owl Tracker is yours for good on this Google account, including on a new phone. Nothing more to pay.",
+                    Modifier.testTag("unlock_lifetime_done"),
+                )
+                // Bought lifetime while subscribed: the subscription would keep charging until cancelled
+                if (store.renewing == true) {
+                    InfoNote(
+                        "You also have the yearly subscription. Cancel it in Google Play so it doesn't renew; you don't need it any more.",
+                        icon = Ic.info, container = sc.warnBg, content = sc.warnFg,
+                    )
+                    OutlinedButton(onClick = manage, modifier = Modifier.fillMaxWidth().testTag("unlock_manage")) {
+                        Text("Cancel the subscription in Google Play")
+                    }
+                }
+            } else {
                 StatusCard(
                     Ic.check, sc.okFg, sc.okBg,
                     if (store.renewing == false) "Subscribed · won't renew" else "Subscribed · $price a year",
@@ -84,6 +106,20 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
                 )
                 OutlinedButton(onClick = manage, modifier = Modifier.fillMaxWidth().testTag("unlock_manage")) {
                     Text("Manage or cancel in Google Play")
+                }
+                // A subscriber can move to paying once
+                Panel {
+                    Text("Rather pay once?", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "$lifePrice once and Owl Tracker is yours for good. After buying it, cancel the yearly subscription in Google Play.",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Gap(10.dp)
+                    OutlinedButton(
+                        onClick = { platform.buyUnlock(UnlockStore.Plan.LIFETIME) },
+                        enabled = !store.busy && !store.pending && store.status != StoreState.Status.UNAVAILABLE,
+                        modifier = Modifier.fillMaxWidth().testTag("unlock_switch_lifetime"),
+                    ) { Text("Pay $lifePrice once") }
                 }
             }
             is Access.Trial -> StatusCard(
@@ -106,10 +142,20 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
         }
 
         if (access != Access.Unlocked) {
+            PlanCard(
+                plan == UnlockStore.Plan.YEARLY, "$price a year", "Yearly subscription",
+                "Renews every year. Cancel anytime in Google Play.", null,
+                Modifier.testTag("unlock_plan_yearly").testTag("unlock_price"),
+            ) { plan = UnlockStore.Plan.YEARLY }
+            PlanCard(
+                plan == UnlockStore.Plan.LIFETIME, "$lifePrice once", "Lifetime",
+                "Pay once, yours for good. No renewals, nothing more to pay.", "Pay once",
+                Modifier.testTag("unlock_plan_lifetime"),
+            ) { plan = UnlockStore.Plan.LIFETIME }
             Panel {
-                Text("$price a year", style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("unlock_price"))
-                Text("Cancel anytime in Google Play. No ads, no account.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Gap(12.dp)
+                Text("Both include", style = MaterialTheme.typography.titleSmall)
+                Text("No ads, no account.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Gap(8.dp)
                 INCLUDED.forEach { line ->
                     Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Ic.check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
@@ -136,27 +182,62 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
 
             val available = store.status != StoreState.Status.UNAVAILABLE
             Button(
-                onClick = { if (available) platform.buyUnlock() else vm.restorePurchase() },
+                onClick = { if (available) platform.buyUnlock(plan) else vm.restorePurchase() },
                 enabled = !store.busy && !store.pending,
                 modifier = Modifier.fillMaxWidth().height(56.dp).testTag("unlock_buy"),
             ) {
-                Text(if (available) "Subscribe for $price a year" else "Try Google Play again", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    when {
+                        !available -> "Try Google Play again"
+                        plan == UnlockStore.Plan.LIFETIME -> "Pay $lifePrice once"
+                        else -> "Subscribe for $price a year"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
             }
             Text(
-                "Renews automatically every year at $price until you cancel in Google Play (Play Store › Payments & subscriptions). " +
+                if (plan == UnlockStore.Plan.LIFETIME) "One payment of $lifePrice through Google Play. It stays with your Google account, so it works on a new phone too."
+                else "Renews automatically every year at $price until you cancel in Google Play (Play Store › Payments & subscriptions). " +
                     "If you cancel, you keep it until the end of the year you paid for.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("unlock_terms"),
             )
             TextButton(onClick = { vm.restorePurchase() }, modifier = Modifier.fillMaxWidth().testTag("unlock_restore")) {
-                Text("Already subscribed? Restore")
+                Text("Already paid? Restore")
             }
         }
 
         InfoNote(
             "Google Play takes the payment. Owl Tracker never sees your card or UPI details, and it still has no internet access: " +
-                "the Play Store app on your phone confirms the subscription to it.",
+                "the Play Store app on your phone confirms the purchase to it.",
             icon = Ic.noNet, container = MaterialTheme.colorScheme.surfaceVariant, content = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/** One way to pay: a big price, a name, a line, and a badge; picked like a radio button. */
+@Composable
+private fun PlanCard(on: Boolean, price: String, name: String, line: String, badge: String?, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+            .background(if (on) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .then(if (on) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(20.dp)) else Modifier)
+            .selectable(selected = on, role = androidx.compose.ui.semantics.Role.RadioButton, onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.material3.RadioButton(selected = on, onClick = null)
+        Gap(12.dp)
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (badge != null) Text(
+                    badge, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary).padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
+            Text(price, style = MaterialTheme.typography.titleLarge)
+            Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

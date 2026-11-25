@@ -21,7 +21,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /*
- * The 7-day free trial and the ₹50 unlock, through the real UI with a fake Google Play.
+ * The 7-day free trial and the ₹99 subscription and ₹999 lifetime unlock, through the real UI with a fake Google Play.
  */
 
 /** Starts the app as if installed [installedDaysAgo] days ago, with its own fake Google Play. */
@@ -66,12 +66,12 @@ class TrialRunningTest : LicenceUiTest(installedDaysAgo = 0) {
         with(compose) {
             waitForTag("trial_banner")
             waitForText("Free trial: 7 days left")
-            waitForText("Then ₹50.00 a year")
+            waitForText("Then ₹99.00 a year")
 
             tapTag("tab_more")
-            tapText("Subscribe to Owl Tracker")
+            tapText("Unlock Owl Tracker")
             waitForTag("unlock_trial")
-            waitForText("₹50.00 a year")
+            waitForText("₹99.00 a year")
             waitForTag("unlock_terms")
             tapTag("unlock_buy")
             waitForTag("unlock_done")
@@ -116,6 +116,24 @@ class TrialEndedTest : LicenceUiTest(installedDaysAgo = 8) {
             waitForTag("home")
             tapTag("tab_activity")
             waitForText("Tea stall")
+        }
+    }
+
+    /** Paying once: the lifetime choice, Google Play's sheet for it, then "Lifetime · paid once". */
+    @Test
+    fun payOnceForLifetime() {
+        setUpManually()
+        with(compose) {
+            tapTag("trial_ended_unlock")
+            waitForText("₹999.00 once")
+            tapTag("unlock_plan_lifetime")
+            waitForText("Pay ₹999.00 once")
+            tapTag("unlock_buy")
+            waitForTag("unlock_lifetime_done")
+            assertEquals(com.owl.tracker.licence.UnlockStore.Plan.LIFETIME, store.lastPlan)
+            goBack()
+            tapTag("tab_more")
+            waitForText("Lifetime unlock")
         }
     }
 

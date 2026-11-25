@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.update
  * which leaves the purchase waiting the way a slow UPI payment does.
  */
 class FakeUnlockStore(
-    initial: StoreState = StoreState(status = StoreState.Status.READY, price = "₹50.00", owned = false),
+    initial: StoreState = StoreState(status = StoreState.Status.READY, price = "₹99.00", lifetimePrice = "₹999.00", owned = false, lifetime = false),
 ) : UnlockStore {
     val mutable = MutableStateFlow(initial)
     override val state: StateFlow<StoreState> = mutable.asStateFlow()
@@ -26,11 +26,15 @@ class FakeUnlockStore(
         refreshes++
     }
 
-    override fun buy(activity: Activity) {
+    var lastPlan: UnlockStore.Plan? = null
+        private set
+
+    override fun buy(activity: Activity, plan: UnlockStore.Plan) {
         buys++
+        lastPlan = plan
         mutable.update {
             if (nextBuyPending) it.copy(pending = true, busy = false)
-            else it.copy(owned = true, pending = false, busy = false)
+            else it.copy(owned = true, lifetime = if (plan == UnlockStore.Plan.LIFETIME) true else it.lifetime, pending = false, busy = false)
         }
     }
 

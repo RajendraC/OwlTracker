@@ -45,10 +45,17 @@ sealed interface Access {
 /** Google Play's side of the unlock, as last reported by the Play Store app on this phone. */
 data class StoreState(
     val status: Status = Status.CONNECTING,
-    /** Price as Google Play shows it, e.g. "₹50.00". Null until Play has answered. */
+    /** The yearly price as Google Play shows it, e.g. "₹99.00". Null until Play has answered. */
     val price: String? = null,
-    /** Play's answer to "does this Google account have an active subscription?". Null when Play hasn't answered yet. */
+    /** The one-time lifetime price as Google Play shows it, e.g. "₹999.00". Null until Play has answered. */
+    val lifetimePrice: String? = null,
+    /**
+     * Play's answer to "is Owl Tracker paid for on this Google account?": an active subscription or the lifetime
+     * purchase. Null when Play hasn't answered yet.
+     */
     val owned: Boolean? = null,
+    /** Play's answer to "did this account buy the lifetime unlock?". Null when Play hasn't answered yet. */
+    val lifetime: Boolean? = null,
     /** The subscription renews by itself (false: cancelled, and it stops at the end of the paid year). Null when unknown. */
     val renewing: Boolean? = null,
     /** A purchase is waiting for payment (UPI and some cards can take a while). */
@@ -68,20 +75,30 @@ interface UnlockStore {
     /** Connects if needed, then re-reads the price and the purchase. Safe to call often. */
     fun refresh()
 
-    /** Opens Google Play's payment sheet for the yearly subscription. */
-    fun buy(activity: Activity)
+    /** Opens Google Play's payment sheet for the yearly subscription, or for the one-time lifetime unlock. */
+    fun buy(activity: Activity, plan: Plan = Plan.YEARLY)
+
+    enum class Plan { YEARLY, LIFETIME }
 
     companion object {
         /**
          * The subscription in Play Console (Monetize with Play → Products → Subscriptions), with one auto-renewing
-         * base plan [BASE_PLAN] of ₹50 a year. (Until 1.9.5 this was the one-time product `owl_tracker_unlock`,
-         * bought only by licence testers in Closed testing; it is no longer sold or honoured.)
+         * base plan [BASE_PLAN], ₹99 a year from 1.9.22 (₹50 before; existing subscribers keep the price they joined
+         * at unless moved in Play Console). (Until 1.9.5 this was the one-time product `owl_tracker_unlock`, bought
+         * only by licence testers in Closed testing; it is no longer sold or honoured.)
          */
         const val PRODUCT_ID = "owl_tracker_yearly"
         const val BASE_PLAN = "yearly"
 
-        /** Shown until Google Play reports the real price. */
-        const val FALLBACK_PRICE = "₹50"
+        /**
+         * The one-time "pay once, keep it for life" unlock, ₹999 (Play Console → Monetize with Play → Products →
+         * One-time products). Not consumed: once bought it stays with the Google account.
+         */
+        const val LIFETIME_ID = "owl_tracker_lifetime"
+
+        /** Shown until Google Play reports the real prices. */
+        const val FALLBACK_PRICE = "₹99"
+        const val FALLBACK_LIFETIME_PRICE = "₹999"
 
         /** Where a subscriber manages or cancels it: the Play Store app's subscription page. */
         fun manageUrl(packageName: String) =
@@ -164,7 +181,11 @@ class Licence(
         runCatching { store.refresh() }
     }
 
-    fun buy(activity: Activity) = store.buy(activity)
+    fun buy(activity: Activity, plan: UnlockStore.Plan = UnlockStore.Plan.YEARLY) = store.buy(activity, plan)
+
+    /** The lifetime unlock is bought (Play said so, now or before). */
+    val lifetime: StateFlow<Boolean> = combine(store.state, tick) { s, _ -> compute(s); prefs.getBoolean(KEY_LIFETIME, false) }
+        .stateIn(scope, SharingStarted.Eagerly, prefs.getBoolean(KEY_LIFETIME, false))
 
     /** Debug builds only. */
     fun setDebugTrialEnded(ended: Boolean) {
@@ -174,6 +195,14 @@ class Licence(
 
     private fun compute(s: StoreState): Access {
         val now = trial.now()
+        // Lifetime is for good: once Play confirms it, it's remembered with no time limit. Only Play saying it's gone
+        // (a refund) takes it away.
+        when (s.lifetime) {
+            true -> if (!prefs.getBoolean(KEY_LIFETIME, false)) prefs.edit().putBoolean(KEY_LIFETIME, true).putBoolean(KEY_EVER, true).apply()
+            false -> if (prefs.getBoolean(KEY_LIFETIME, false)) prefs.edit().putBoolean(KEY_LIFETIME, false).apply()
+            null -> Unit
+        }
+        if (prefs.getBoolean(KEY_LIFETIME, false)) return Access.Unlocked
         when (s.owned) {
             true -> prefs.edit().putLong(KEY_CONFIRMED_AT, now).putBoolean(KEY_EVER, true).apply()
             false -> if (prefs.getLong(KEY_CONFIRMED_AT, 0L) != 0L) prefs.edit().putLong(KEY_CONFIRMED_AT, 0L).apply()
@@ -193,6 +222,7 @@ class Licence(
         const val OFFLINE_DAYS = 30
         private const val KEY_CONFIRMED_AT = "subscription_confirmed_at"
         private const val KEY_EVER = "ever_subscribed"
+        private const val KEY_LIFETIME = "lifetime_unlocked"
     }
 }
 
@@ -222,5 +252,5 @@ object PurchaseVerifier {
 class NoStore(message: String = "Google Play isn't available here") : UnlockStore {
     override val state: StateFlow<StoreState> = MutableStateFlow(StoreState(status = StoreState.Status.UNAVAILABLE, message = message))
     override fun refresh() = Unit
-    override fun buy(activity: Activity) = Unit
+    override fun buy(activity: Activity, plan: UnlockStore.Plan) = Unit
 }
