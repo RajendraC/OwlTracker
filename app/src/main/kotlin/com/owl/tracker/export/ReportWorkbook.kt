@@ -45,7 +45,7 @@ object ReportWorkbook {
         val summary = Sheet("Summary", listOf(30.0, 18.0, 12.0)).apply {
             rows += listOf(t("Owl Tracker report", TITLE))
             rows += listOf(t("${d.from.format(ReportExport.DAY)} to ${d.to.format(ReportExport.DAY)}"))
-            rows += listOf()
+            rows.add(emptyList())
             rows += listOf(t("Spent", BOLD), money(spent, true))
             rows += listOf(t("Money in", BOLD), money(income, true))
             if (d.monthlyBudget > 0) {
@@ -53,12 +53,12 @@ object ReportWorkbook {
                 rows += listOf(t(if (d.monthlyBudget * months.size >= spent) "Left" else "Over", BOLD), money(kotlin.math.abs(d.monthlyBudget * months.size - spent), true))
             }
             rows += listOf(t("Payments", BOLD), Num(d.rows.size.toDouble()))
-            rows += listOf()
+            rows.add(emptyList())
             rows += listOf(t("Biggest categories", HEADER), t("Spent", HEADER), t("Share", HEADER))
             spend.groupBy { it.category?.name ?: "Other" }.mapValues { e -> e.value.sumOf { it.paise } }.entries.sortedByDescending { it.value }.take(12).forEach { (n, v) ->
                 rows += listOf(t(n), money(v), t("${if (spent > 0) Math.round(v * 100.0 / spent) else 0}%"))
             }
-            rows += listOf()
+            rows.add(emptyList())
             rows += listOf(t("Made on the phone by Owl Tracker." + if (d.accountsHidden) " Card and account numbers are left out." else ""))
         }
 
