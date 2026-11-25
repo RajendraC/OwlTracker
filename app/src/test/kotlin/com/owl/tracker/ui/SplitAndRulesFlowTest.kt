@@ -90,7 +90,13 @@ class SplitAndRulesFlowTest {
             waitForTag("apply_row_1")
             waitForText("this one", substring = true)
             // This one goes to Medicines instead
-            val mine = (0..1).first { i -> runCatching { onNodeWithTag("apply_row_$i").assert(androidx.compose.ui.test.hasAnyDescendant(androidx.compose.ui.test.hasText("this one", substring = true))) }.isSuccess }
+            val mine = (0..1).first { i ->
+                onAllNodes(
+                    androidx.compose.ui.test.hasTestTag("apply_row_$i") and
+                        androidx.compose.ui.test.hasAnyDescendant(androidx.compose.ui.test.hasText("this one", substring = true)),
+                    useUnmergedTree = true,
+                ).fetchSemanticsNodes().isNotEmpty()
+            }
             tapTag("apply_to_$mine")
             waitForTag("apply_pick_dialog")
             tapTag("apply_pick_${com.owl.tracker.core.Cat.MEDICINES}")
