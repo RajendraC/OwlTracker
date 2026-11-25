@@ -7,7 +7,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import com.owl.tracker.TestApp
@@ -128,12 +127,10 @@ class AppFlowTest {
             typeInto("add_merchant", "Barber")
             tapTag("add_pick_date")
             waitForTag("add_date_picker")
-            println("PICKER-TREE\n" + onNodeWithTag("add_date_picker").printToString(maxDepth = 30).take(6000))
-            // The day cell for the 3rd (its text node; the tap lands on the cell around it)
-            onAllNodes(androidx.compose.ui.test.hasText("3"), useUnmergedTree = true).onFirst().performClick()
+            // The day cell for the 3rd, named for screen readers like "Saturday, October 3, 2026"
+            onAllNodes(androidx.compose.ui.test.hasContentDescription("October 3, 2026", substring = true)).onFirst().performClick()
             waitForIdle()
             tapTag("add_date_ok")
-            println("AFTER-OK\n" + onAllNodes(androidx.compose.ui.test.hasTestTag("add_pick_date")).onFirst().printToString().take(1500))
             waitForText("Sat, 3 Oct 2026")
             tapTag("save_expense")
             waitForText("on 3 Oct 2026", substring = true)
