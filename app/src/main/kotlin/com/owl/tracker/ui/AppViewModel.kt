@@ -65,6 +65,8 @@ sealed interface Sheet {
     data class MerchantIcon(val txId: Long) : Sheet
     /** Which card or account a payment came from, when its SMS didn't say (or said wrong). */
     data class AccountPick(val txId: Long) : Sheet
+    /** Share a report: period, page or Excel, with or without card and account numbers. */
+    data object ShareReport : Sheet
     data class BudgetEdit(val key: String) : Sheet
     /** [inGroup]: a new category starts in this group. */
     data class CategoryEdit(val id: String?, val inGroup: String? = null) : Sheet
@@ -705,6 +707,52 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
                 say("Backup saved")
             }
             .onFailure { backupUi.update { it.copy(working = null, error = "Couldn't save there. Try another folder.") } }
+    }
+
+    // ---------------- sharing a report ----------------
+
+    /** A report made for the share sheet or a file: [file] is ready, or [error] says why not. */
+    data class ReportShare(val file: java.io.File, val format: com.owl.tracker.export.ReportFormat)
+
+    val reportShares = MutableSharedFlow<ReportShare>(extraBufferCapacity = 1)
+    val reportWorking = MutableStateFlow(false)
+    private var reportBytes: ByteArray? = null
+
+    private suspend fun makeReport(period: com.owl.tracker.export.ReportPeriod, format: com.owl.tracker.export.ReportFormat, showAccounts: Boolean): Pair<ByteArray, String>? {
+        reportWorking.value = true
+        return try {
+            val d = c.reports.collect(period, showAccounts)
+            val bytes = if (format == com.owl.tracker.export.ReportFormat.PAGE) c.reports.page(d) else c.reports.excel(d)
+            bytes to c.reports.fileName(d, format)
+        } catch (e: Exception) {
+            say("Couldn't make the report. Please try again.")
+            null
+        } finally {
+            reportWorking.value = false
+        }
+    }
+
+    /** Makes the report and opens the share sheet (WhatsApp, email, Drive…). */
+    fun shareReport(period: com.owl.tracker.export.ReportPeriod, format: com.owl.tracker.export.ReportFormat, showAccounts: Boolean) = viewModelScope.launch {
+        val (bytes, name) = makeReport(period, format, showAccounts) ?: return@launch
+        runCatching { c.reports.writeForSharing(bytes, name) }
+            .onSuccess { reportShares.tryEmit(ReportShare(it, format)) }
+            .onFailure { say("Couldn't prepare the report for sharing.") }
+    }
+
+    /** The file name for "Save to a file", made ready before Android's picker opens. */
+    suspend fun prepareReport(period: com.owl.tracker.export.ReportPeriod, format: com.owl.tracker.export.ReportFormat, showAccounts: Boolean): String? {
+        val (bytes, name) = makeReport(period, format, showAccounts) ?: return null
+        reportBytes = bytes
+        return name
+    }
+
+    /** [uri]: the file the person just created in Android's picker. */
+    fun saveReport(uri: android.net.Uri) = viewModelScope.launch {
+        val bytes = reportBytes ?: return@launch
+        runCatching { c.reports.write(uri, bytes) }
+            .onSuccess { reportBytes = null; say("Report saved") }
+            .onFailure { say("Couldn't save there. Try another folder.") }
     }
 
     /** "Share": makes a copy and opens the share sheet. */

@@ -105,6 +105,7 @@ fun SheetHost(vm: AppViewModel) {
                 is Sheet.Rename -> RenameSheet(vm, current.txId)
                 is Sheet.MerchantIcon -> MerchantIconSheet(vm, current.txId)
                 is Sheet.AccountPick -> AccountPickSheet(vm, current.txId)
+                Sheet.ShareReport -> ShareReportSheet(vm)
                 is Sheet.BudgetEdit -> BudgetEditSheet(vm, current.key)
                 is Sheet.CategoryEdit -> CategoryEditSheet(vm, current.id, current.inGroup)
                 Sheet.AddExpense -> AddExpenseSheet(vm)
@@ -655,6 +656,72 @@ private fun RenameSheet(vm: AppViewModel, txId: Long) {
         enabled = name.isNotBlank() && name.trim() != tx.merchantName,
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("rename_save"),
     ) { Text("Save name") }
+}
+
+/**
+ * Share a report with family, or open it on a computer: how much it covers, an interactive page or an Excel workbook,
+ * and whether card and account numbers show (off: only the bank's name). Shared, or saved to a file.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ShareReportSheet(vm: AppViewModel) {
+    var period by rememberSaveable { mutableStateOf(com.owl.tracker.export.ReportPeriod.THIS_MONTH) }
+    var format by rememberSaveable { mutableStateOf(com.owl.tracker.export.ReportFormat.PAGE) }
+    var accounts by rememberSaveable { mutableStateOf(false) }
+    val working by vm.reportWorking.collectAsStateWithLifecycle()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val savePage = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/html")) { uri -> if (uri != null) vm.saveReport(uri) }
+    val saveExcel = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument(com.owl.tracker.export.ReportFormat.EXCEL.mime),
+    ) { uri -> if (uri != null) vm.saveReport(uri) }
+
+    SheetTitle("Share a report", "For your family, or to look through on a computer. It's made here on the phone and works without internet.")
+    Text("How much", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 4.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        com.owl.tracker.export.ReportPeriod.entries.forEach { p ->
+            FilterChip(selected = period == p, onClick = { period = p }, label = { Text(p.label) }, modifier = Modifier.testTag("report_period_${p.name}"))
+        }
+    }
+    Text("As", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
+    listOf(
+        Triple(com.owl.tracker.export.ReportFormat.PAGE, "Interactive page", "Opens in any browser, on a phone or computer: charts, a calendar, filters by category, date and account, search, and every payment."),
+        Triple(com.owl.tracker.export.ReportFormat.EXCEL, "Excel workbook", "Summary, every payment with filters, and spending by category and by month, for your own sums."),
+    ).forEach { (f, title, sub) ->
+        val on = format == f
+        Row(
+            Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(16.dp))
+                .background(if (on) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .clickable { format = f }.padding(12.dp).testTag("report_format_${f.name}"),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            androidx.compose.material3.RadioButton(selected = on, onClick = null)
+            Gap(10.dp)
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+    SwitchRow(
+        "Show card and account numbers",
+        if (accounts) "Like \"HDFC Bank card ••3643\"" else "Only the bank, like \"HDFC Bank card\"",
+        accounts, { accounts = it }, modifier = Modifier.padding(top = 6.dp).testTag("report_accounts"),
+    )
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        OutlinedButton(
+            onClick = {
+                scope.launch {
+                    val name = vm.prepareReport(period, format, accounts) ?: return@launch
+                    if (format == com.owl.tracker.export.ReportFormat.PAGE) savePage.launch(name) else saveExcel.launch(name)
+                }
+            },
+            enabled = !working, modifier = Modifier.weight(1f).height(52.dp).testTag("report_save"),
+        ) { Text("Save to a file") }
+        Button(
+            onClick = { vm.shareReport(period, format, accounts) },
+            enabled = !working, modifier = Modifier.weight(1f).height(52.dp).testTag("report_share"),
+        ) { Text(if (working) "Making it…" else "Share") }
+    }
 }
 
 /**

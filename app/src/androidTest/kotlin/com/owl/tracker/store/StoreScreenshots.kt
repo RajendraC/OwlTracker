@@ -527,6 +527,24 @@ class StoreScreenshots {
                 shot("55_reports_weekdays")
                 runCatching { scrollTo(hasTestTag("report_payments")) }
                 shot("56_reports_payments")
+                // Share a report: the sheet, and the page and workbook it makes (kept beside the captures)
+                runCatching {
+                    tapTag("share_report")
+                    Thread.sleep(900)
+                    shot("57_share_report")
+                    tapTag("report_format_EXCEL")
+                    Thread.sleep(400)
+                    shot("57b_share_report_excel")
+                    withVm { it.closeSheet() }
+                }
+                runCatching {
+                    runBlocking {
+                        val r = app.container.reports
+                        val d = r.collect(com.owl.tracker.export.ReportPeriod.LAST_3_MONTHS, showAccounts = false)
+                        File(out, "report.html").writeBytes(r.page(d))
+                        File(out, "report.xlsx").writeBytes(r.excel(d))
+                    }
+                }
             }
             section("categories") {
                 nav(Screen.CATEGORIES)

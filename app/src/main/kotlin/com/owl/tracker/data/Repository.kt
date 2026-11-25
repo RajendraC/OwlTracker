@@ -214,6 +214,15 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
         }
     }
 
+    suspend fun budgets(): Map<String, Long> = read { d ->
+        d.query("SELECT category_key, limit_paise FROM budgets").use { c -> buildMap { while (c.moveToNext()) put(c.getString(0), c.getLong(1)) } }
+    }
+
+    /** When the oldest payment happened, or null with none. */
+    suspend fun earliestTransaction(): Long? = read { d ->
+        d.query("SELECT MIN(occurred_at) FROM transactions").use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else null }
+    }
+
     suspend fun setBudget(key: String, limitPaise: Long?): Unit = write { d ->
         if (limitPaise == null || limitPaise <= 0) d.delete("budgets", "category_key = ?", arrayOf<Any?>(key))
         else d.insert("budgets", CONFLICT_REPLACE, contentValuesOf("category_key" to key, "limit_paise" to limitPaise))

@@ -90,6 +90,8 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
     val confirm by vm.confirm.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
 
+    LaunchedEffect(vm) { vm.reportShares.collect { r -> platform.shareFile(r.file, r.format.mime, "Owl Tracker report", "Share the report") } }
+
     LaunchedEffect(vm) {
         vm.messages.collect { m ->
             val r = snackbar.showSnackbar(m.text, m.actionLabel, withDismissAction = false, duration = if (m.action != null) SnackbarDuration.Long else SnackbarDuration.Short)

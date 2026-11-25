@@ -239,6 +239,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.21" to listOf(
+            Item("Share a report", "In Reports, tap Share to send your spending to family or open it on a computer: an interactive page with charts, a calendar and filters, or an Excel workbook. Card and account numbers are left out unless you choose."),
+        ),
         "1.9.20" to listOf(
             Item("Review and choose", "Moving a payment to another category? Tap Review and choose to see every payment from the same payee, tick the ones to move, and send any of them somewhere else."),
         ),

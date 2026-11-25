@@ -148,7 +148,13 @@ fun ReportsScreen(vm: AppViewModel) {
             val o = order++
             item(key = key) { Reveal(key, seen, o, openedAt, content) }
         }
-        item { ScreenHeader("Reports", subtitle = report?.title, onBack = { vm.back() }) }
+        item {
+            ScreenHeader("Reports", subtitle = report?.title, onBack = { vm.back() }) {
+                androidx.compose.material3.IconButton(onClick = { vm.openSheet(com.owl.tracker.ui.Sheet.ShareReport) }, modifier = Modifier.testTag("share_report")) {
+                    androidx.compose.material3.Icon(com.owl.tracker.ui.theme.Ic.share, contentDescription = "Share a report")
+                }
+            }
+        }
         item { RangeChips(range) { vm.setReportRange(it) } }
         val r = report
         if (r == null) {

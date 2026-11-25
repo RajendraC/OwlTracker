@@ -172,6 +172,14 @@ class MainActivity : FragmentActivity() {
             (application as OwlTrackerApp).container.licence.buy(this@MainActivity)
         }
 
+        override fun shareFile(file: java.io.File, mime: String, subject: String, chooser: String) {
+            val uri = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.backups", file)
+            val send = Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri).putExtra(Intent.EXTRA_SUBJECT, subject)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            send.clipData = android.content.ClipData.newRawUri(file.name, uri)
+            startActivity(Intent.createChooser(send, chooser))
+        }
+
         override fun shareBackup(file: java.io.File) {
             val uri = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.backups", file)
             val send = Intent(Intent.ACTION_SEND)
@@ -200,4 +208,6 @@ interface Platform {
 
     /** Opens the share sheet for a backup file (WhatsApp, Drive, Quick Share...). */
     fun shareBackup(file: java.io.File)
+    /** Hands [file] (in the shared cache folder) to an app the person picks. */
+    fun shareFile(file: java.io.File, mime: String, subject: String, chooser: String)
 }

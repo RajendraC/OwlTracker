@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Owl Tracker report</title>
+<style>
+:root{--bg:#F7EFE4;--card:#FFFDF8;--ink:#2A1408;--mut:#8A6A52;--line:#EBDCCB;--soft:#F1E4D4;--pri:#4E2716;--onpri:#fff;--good:#2E7D32;--warn:#E0A030;--bad:#D32F2F;--heat:76,154,91}
+@media (prefers-color-scheme:dark){:root{--bg:#1C1410;--card:#2A1F19;--ink:#F5E9DC;--mut:#B79C86;--line:#3E3029;--soft:#3A2D25;--pri:#F0C9A0;--onpri:#2A1408;--good:#7BC67E}}
+*{box-sizing:border-box}[hidden]{display:none!important}.show-s{display:none}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1500px;margin:0 auto;padding:22px 28px 40px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px}
+h1{margin:0;font-size:26px}
+.mut{color:var(--mut)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 16px}
+.chip{border:0;border-radius:20px;padding:7px 14px;background:var(--soft);font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip.on{background:var(--pri);color:var(--onpri)}
+.chip img{width:18px;height:18px}
+.inp{border:2px solid var(--line);border-radius:12px;padding:7px 12px;background:var(--card)}
+.grow{flex:1}
+.grid{display:grid;gap:16px}
+.tiles{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.6fr)}
+.main{grid-template-columns:minmax(0,440px) minmax(0,1fr);margin-top:16px;align-items:start}
+.card{background:var(--card);border-radius:20px;padding:18px 20px;box-shadow:0 3px 14px rgba(60,30,10,.07);min-width:0}
+.h{font-size:12px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.big{font-size:30px;font-weight:800}
+.prog{height:9px;border-radius:5px;background:var(--soft);margin-top:10px;overflow:hidden}.prog>div{height:100%;border-radius:5px}
+.months{display:flex;align-items:flex-end;gap:8px;height:120px}
+.months button{flex:1;border:0;background:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.months .b{width:100%;max-width:70px;border-radius:8px 8px 3px 3px;background:var(--line)}
+.months .on .b{background:var(--pri)}
+.months small{font-size:11px;font-weight:700;color:var(--mut);margin-top:4px;white-space:nowrap}
+.donut{display:flex;gap:18px;align-items:center}
+.legend{flex:1;min-width:0}
+.legend button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;padding:5px 6px;border-radius:8px;cursor:pointer;text-align:left}
+.legend button.on{background:var(--soft)}
+.legend .sw{width:11px;height:11px;border-radius:3px;flex:none}
+.legend b{flex:1;min-width:0;font-size:14px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:8px}
+.cal .wd{font-size:11px;font-weight:800;color:var(--mut);text-align:center}
+.cal button{border:0;border-radius:9px;min-height:50px;padding:4px 6px;text-align:left;background:var(--soft);cursor:pointer;font-size:12px;display:flex;flex-direction:column;justify-content:space-between}
+.cal button.on{outline:3px solid var(--pri);outline-offset:-3px}
+.cal button:disabled{opacity:.35;cursor:default}
+.cal small{font-size:11px;font-weight:700}
+.calhead{display:flex;align-items:center;gap:8px}
+.nav{border:0;background:var(--soft);border-radius:10px;width:32px;height:32px;cursor:pointer;font-weight:800}
+.payees div{display:flex;font-size:13px;margin-top:8px}.payees b{flex:1}
+.track{height:6px;background:var(--soft);border-radius:3px;margin-top:3px}.track>div{height:100%;border-radius:3px;background:rgb(var(--heat))}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;padding:8px;border-bottom:2px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--soft);vertical-align:middle}
+.r{text-align:right}
+td .sub{font-size:12px;color:var(--mut)}
+.ic{width:26px;height:26px;border-radius:8px;background:var(--soft);display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin-right:8px;flex:none}
+.ic img{width:19px;height:19px}
+.payee{display:flex;align-items:center}
+.in{color:var(--good)}
+.out-of{opacity:.55}
+.more{margin-top:10px}
+.empty{padding:30px;text-align:center;color:var(--mut)}
+.pill{display:inline-block;font-size:11px;font-weight:800;border-radius:10px;padding:1px 7px;background:var(--soft);color:var(--mut);margin-left:6px}
+footer{margin-top:24px;font-size:12px;color:var(--mut);text-align:center}
+@media (max-width:1100px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}.tiles .monthsCard{grid-column:1/-1}.main{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){.wrap{padding:14px}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.big{font-size:23px}.donut{flex-direction:column}
+ .hide-s{display:none}.show-s{display:block}table{font-size:13px}td,th{padding:7px 4px}}
+@media print{body{background:#fff}.bar,.nav,.more{display:none}.card{box-shadow:none;border:1px solid #ddd;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1 id="title">Owl Tracker report</h1><span class="mut" id="made"></span></header>
+  <div class="bar" id="bar">
+    <span id="presets"></span>
+    <input class="inp" type="date" id="from" aria-label="From"> <span class="mut">to</span> <input class="inp" type="date" id="to" aria-label="To">
+    <span class="grow"></span>
+    <input class="inp" type="search" id="q" placeholder="Search payee, category or note" aria-label="Search">
+    <select class="inp" id="acc" aria-label="Paid from"></select>
+    <button class="chip" id="csv">⬇ CSV</button>
+  </div>
+  <div class="bar" id="filters" hidden></div>
+  <section class="grid tiles">
+    <div class="card"><div class="h">Spent</div><div class="big" id="spent"></div><div class="mut" id="budgetLine"></div><div class="prog" id="budgetBar" hidden><div></div></div></div>
+    <div class="card"><div class="h">Money in</div><div class="big in" id="income"></div><div class="mut" id="incomeLine"></div></div>
+    <div class="card"><div class="h">Biggest</div><div class="big" id="biggest" style="font-size:22px"></div><div class="mut" id="biggestLine"></div></div>
+    <div class="card monthsCard"><div class="h">Month by month · tap one to see it</div><div class="months" id="months"></div></div>
+  </section>
+  <section class="grid main">
+    <div class="grid">
+      <div class="card"><div class="h" id="whereTitle">Where it went · tap to filter</div><div class="donut"><svg id="donut" width="160" height="160" style="flex:none" viewBox="0 0 190 190" role="img"></svg><div class="legend" id="legend"></div></div>
+        <div class="h" style="margin-top:14px">Categories</div><div id="cats"></div></div>
+      <div class="card"><div class="calhead"><div class="h grow" id="calTitle" style="margin:0"></div><button class="nav" id="prevM" aria-label="Previous month">‹</button><button class="nav" id="nextM" aria-label="Next month">›</button></div>
+        <div class="cal" id="cal"></div><div class="payees" id="payees"></div></div>
+    </div>
+    <div class="card"><div class="calhead"><div class="h grow" id="count" style="margin:0"></div><span class="mut" style="font-size:12px">Tap a column to sort</span></div>
+      <div style="overflow-x:auto"><table><thead><tr><th data-k="d">Date</th><th data-k="p">Payee</th><th data-k="c" class="hide-s">Category</th><th data-k="acc" class="hide-s">Paid from</th><th data-k="a" class="r">Amount</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div class="more" id="more"></div></div>
+  </section>
+  <footer id="foot"></footer>
+</div>
+<script id="owl-data" type="application/json">/*OWL_DATA*/</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("owl-data").textContent);
+const $ = id => document.getElementById(id);
+const el = (tag, props, ...kids) => { const e = document.createElement(tag); if (props) for (const k in props) { if (props[k] == null || props[k] === false) continue; if (k === "class") e.className = props[k]; else if (k === "style") e.style.cssText = props[k]; else if (k.startsWith("on")) e.addEventListener(k.slice(2), props[k]); else e.setAttribute(k, props[k]); } for (const c of kids) if (c != null) e.append(c); return e; };
+const svg = (tag, attrs) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function inr(paise, dec) { const neg = paise < 0; let v = Math.abs(paise) / 100; const whole = Math.floor(v + (dec ? 0 : 0.5)); let s = String(dec ? Math.floor(v) : whole); let out = s.slice(-3); s = s.slice(0, -3); while (s.length > 2) { out = s.slice(-2) + "," + out; s = s.slice(0, -2); } if (s) out = s + "," + out; if (dec) { const p = Math.round((v - Math.floor(v)) * 100); if (p) out += "." + String(p).padStart(2, "0"); } return (neg ? "−" : "") + "₹" + out; }
+const pd = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const nice = s => { const d = pd(s); return WD[d.getDay()] + ", " + d.getDate() + " " + MON[d.getMonth()] + (d.getFullYear() !== pd(D.to).getFullYear() ? " " + d.getFullYear() : ""); };
+const cat = Object.fromEntries(D.cats.map(c => [c.id, c])), grp = Object.fromEntries(D.groups.map(g => [g.id, g]));
+const groupOf = id => (cat[id] && cat[id].group) || id;
+const nameOf = id => (cat[id] || grp[id] || { name: id }).name;
+const colorOf = id => (grp[id] || cat[id] || {}).color || "#999";
+const picOf = id => (cat[id] && cat[id].pic) || (grp[id] && grp[id].pic) || "";
+
+// What's shown: a period, and optionally a group or category, an account, a search, a day
+const S = { from: D.from, to: D.to, sel: null, acc: "", q: "", day: null, sort: "d", desc: true, shown: 100, calMonth: null };
+
+function presets() {
+  const end = pd(D.to), list = [];
+  const m0 = new Date(end.getFullYear(), end.getMonth(), 1);
+  list.push(["This month", iso(m0), D.to]);
+  const m2 = new Date(end.getFullYear(), end.getMonth() - 2, 1);
+  if (m2 >= pd(D.from) || D.from <= iso(m0)) list.push(["Last 3 months", iso(m2 < pd(D.from) ? pd(D.from) : m2), D.to]);
+  const y0 = new Date(end.getFullYear(), 0, 1);
+  list.push(["This year", iso(y0 < pd(D.from) ? pd(D.from) : y0), D.to]);
+  list.push(["Everything", D.from, D.to]);
+  const seen = new Set();
+  return list.filter(p => { const k = p[1] + p[2]; if (seen.has(k)) return false; seen.add(k); return true; });
+}
+function inPeriod(t) { return t.d >= S.from && t.d <= S.to; }
+function matches(t, skipSel) {
+  if (S.acc && t.acc !== S.acc) return false;
+  if (S.q) { const q = S.q.toLowerCase(); if (!(t.p.toLowerCase().includes(q) || nameOf(t.c).toLowerCase().includes(q) || (t.n || "").toLowerCase().includes(q))) return false; }
+  if (!skipSel && S.sel) { if (S.sel.type === "group" ? groupOf(t.c) !== S.sel.id : t.c !== S.sel.id) return false; }
+  return true;
+}
+const sum = (rows, f) => rows.reduce((s, t) => s + (f(t) ? t.a : 0), 0);
+
+function render() {
+  const period = D.tx.filter(inPeriod);
+  const base = period.filter(t => matches(t, true));           // everything but the group/category pick
+  const picked = base.filter(t => matches(t, false));
+  const spentRows = picked.filter(t => t.s);
+  const spent = sum(spentRows, () => true), income = sum(picked, t => t.i);
+
+  // Presets and period inputs
+  const pr = $("presets"); pr.replaceChildren(...presets().map(([n, f, to]) => el("button", { class: "chip" + (S.from === f && S.to === to ? " on" : ""), onclick: () => { S.from = f; S.to = to; S.day = null; S.calMonth = null; S.shown = 100; render(); } }, n)));
+  $("from").value = S.from; $("to").value = S.to; $("from").min = $("to").min = D.from; $("from").max = $("to").max = D.to;
+
+  // Active filters
+  const fl = $("filters"), chips = [];
+  if (S.sel) chips.push(el("button", { class: "chip on", onclick: () => { S.sel = null; render(); } }, nameOf(S.sel.id) + " ✕"));
+  if (S.day) chips.push(el("button", { class: "chip on", onclick: () => { S.day = null; render(); } }, nice(S.day) + " ✕"));
+  if (S.acc) chips.push(el("button", { class: "chip on", onclick: () => { S.acc = ""; $("acc").value = ""; render(); } }, S.acc + " ✕"));
+  if (S.q) chips.push(el("button", { class: "chip on", onclick: () => { S.q = ""; $("q").value = ""; render(); } }, "“" + S.q + "” ✕"));
+  fl.hidden = !chips.length; fl.replaceChildren(el("span", { class: "mut" }, "Showing only:"), ...chips);
+
+  // Tiles
+  $("spent").textContent = inr(spent);
+  const months = monthsBetween(S.from, S.to);
+  if (D.budget > 0 && !S.sel && !S.q && !S.acc) {
+    const b = D.budget * months.length, u = spent / b;
+    $("budgetLine").textContent = "of " + inr(b) + " budget" + (months.length > 1 ? " (" + months.length + " months)" : "") + " · " + (b >= spent ? inr(b - spent) + " left" : inr(spent - b) + " over");
+    const bar = $("budgetBar"); bar.hidden = false; bar.firstChild.style.width = Math.min(100, u * 100) + "%"; bar.firstChild.style.background = u > 1 ? "var(--bad)" : u > .85 ? "var(--warn)" : "var(--good)";
+  } else { $("budgetLine").textContent = spentRows.length + " payments"; $("budgetBar").hidden = true; }
+  $("income").textContent = inr(income);
+  $("incomeLine").textContent = "Salary, refunds and other money in";
+  const byCat = totals(spentRows, t => t.c);
+  const top = byCat[0];
+  $("biggest").textContent = top ? nameOf(top[0]) : "—";
+  $("biggestLine").textContent = top ? inr(top[1]) + " · " + Math.round(top[1] * 100 / Math.max(1, spent)) + "% of spending" : "";
+
+  // Month by month (whole report, so you can move between months)
+  const all = monthsBetween(D.from, D.to).slice(-12);
+  const mTot = all.map(m => [m, sum(D.tx, t => t.s && t.d.startsWith(m) && matches(t, false))]);
+  const mMax = Math.max(1, ...mTot.map(x => x[1]));
+  $("months").replaceChildren(...mTot.map(([m, v]) => {
+    const [y, mm] = m.split("-").map(Number); const f = m + "-01", to = iso(new Date(y, mm, 0));
+    const on = months.includes(m);
+    return el("button", { class: on ? "on" : "", title: MON[mm - 1] + " " + y + ": " + inr(v), onclick: () => { S.from = f < D.from ? D.from : f; S.to = to > D.to ? D.to : to; S.day = null; S.calMonth = m; S.shown = 100; render(); } },
+      el("div", { class: "b", style: "height:" + Math.max(3, v / mMax * 80) + "px" }), el("small", null, MON[mm - 1] + (all.length > 6 ? "" : " " + String(y).slice(2))), el("small", { style: "color:var(--ink)" }, inr(v)));
+  }));
+
+  // Where it went: by group, or a group's categories when one is picked
+  const showCats = S.sel && S.sel.type === "group" ? S.sel.id : (S.sel && S.sel.type === "cat" ? groupOf(S.sel.id) : null);
+  const baseSpend = base.filter(t => t.s);
+  const slices = showCats ? totals(baseSpend.filter(t => groupOf(t.c) === showCats), t => t.c) : totals(baseSpend, t => groupOf(t.c));
+  const sTot = slices.reduce((s, x) => s + x[1], 0);
+  $("whereTitle").textContent = showCats ? nameOf(showCats) + " · its categories" : "Where it went · tap to filter";
+  const dn = $("donut"); dn.replaceChildren();
+  let a0 = -Math.PI / 2; const R = 95, cx = 95;
+  if (!sTot) dn.append(svg("circle", { cx, cy: cx, r: R, fill: "var(--soft)" }));
+  for (const [id, v] of slices) {
+    const a1 = a0 + 2 * Math.PI * v / sTot, large = a1 - a0 > Math.PI ? 1 : 0;
+    const p = slices.length === 1 ? svg("circle", { cx, cy: cx, r: R, fill: showCats ? colorOf(id) : colorOf(id) })
+      : svg("path", { d: `M${cx},${cx} L${cx + R * Math.cos(a0)},${cx + R * Math.sin(a0)} A${R},${R} 0 ${large} 1 ${cx + R * Math.cos(a1)},${cx + R * Math.sin(a1)} Z`, fill: colorOf(id) });
+    const isOn = S.sel && S.sel.id === id;
+    p.style.cursor = "pointer"; p.style.opacity = S.sel && !isOn && !(S.sel.type === "group" && S.sel.id === showCats) ? .45 : 1;
+    const ttl = svg("title", {}); ttl.textContent = nameOf(id) + ": " + inr(v); p.append(ttl);
+    p.addEventListener("click", () => pick(showCats ? "cat" : "group", id));
+    dn.append(p); a0 = a1;
+  }
+  dn.append(svg("circle", { cx, cy: cx, r: R * .62, fill: "var(--card)" }));
+  const t1 = svg("text", { x: cx, y: cx - 6, "text-anchor": "middle", "font-size": 12, fill: "var(--mut)", "font-weight": 700 }); t1.textContent = showCats ? nameOf(showCats) : "Spent";
+  const t2 = svg("text", { x: cx, y: cx + 18, "text-anchor": "middle", "font-size": 20, fill: "var(--ink)", "font-weight": 800 }); t2.textContent = inr(sTot);
+  dn.append(t1, t2);
+  const lg = [];
+  if (showCats) lg.push(el("button", { onclick: () => { S.sel = null; render(); } }, el("span", { class: "mut" }, "‹ All groups")));
+  for (const [id, v] of slices) lg.push(el("button", { class: S.sel && S.sel.id === id ? "on" : "", onclick: () => pick(showCats ? "cat" : "group", id) },
+    el("span", { class: "sw", style: "background:" + colorOf(id) }), el("b", null, nameOf(id)), el("span", null, inr(v)), el("span", { class: "mut", style: "width:38px;text-align:right" }, Math.round(v * 100 / Math.max(1, sTot)) + "%")));
+  $("legend").replaceChildren(...lg);
+  const catChips = totals(baseSpend, t => t.c).slice(0, 14);
+  $("cats").replaceChildren(...catChips.map(([id, v]) => el("button", { class: "chip" + (S.sel && S.sel.id === id ? " on" : ""), style: "margin:0 6px 7px 0", onclick: () => pick("cat", id) },
+    picOf(id) ? el("img", { src: picOf(id), alt: "" }) : null, nameOf(id) + " " + inr(v))));
+
+  // Calendar: one month of the period, each day's spending for what's picked
+  const calMonths = monthsBetween(S.from, S.to);
+  if (!S.calMonth || !calMonths.includes(S.calMonth)) S.calMonth = calMonths[calMonths.length - 1];
+  const [cy, cm] = S.calMonth.split("-").map(Number);
+  $("calTitle").textContent = (S.sel ? nameOf(S.sel.id) + " · " : "Every day · ") + MON[cm - 1] + " " + cy;
+  const ci = calMonths.indexOf(S.calMonth);
+  $("prevM").disabled = ci <= 0; $("nextM").disabled = ci >= calMonths.length - 1;
+  const days = {}; for (const t of picked) if (t.s && t.d.startsWith(S.calMonth)) days[t.d] = (days[t.d] || 0) + t.a;
+  const dMax = Math.max(1, ...Object.values(days));
+  const cells = WD.map(w => el("div", { class: "wd" }, w[0]));
+  const first = new Date(cy, cm - 1, 1), nDays = new Date(cy, cm, 0).getDate();
+  for (let i = 0; i < first.getDay(); i++) cells.push(el("div"));
+  for (let d = 1; d <= nDays; d++) {
+    const key = S.calMonth + "-" + String(d).padStart(2, "0"), v = days[key] || 0, out = key < S.from || key > S.to;
+    const a = v ? .15 + .75 * v / dMax : 0;
+    cells.push(el("button", { class: S.day === key ? "on" : "", disabled: out ? "" : null, title: nice(key) + (v ? ": " + inr(v) : ""), style: v ? "background:rgba(var(--heat)," + a.toFixed(2) + ");" + (a > .6 ? "color:#fff" : "") : "",
+      onclick: () => { S.day = S.day === key ? null : key; S.shown = 100; render(); } }, el("b", null, String(d)), el("small", null, v ? inr(v) : "")));
+  }
+  const cal = $("cal"); cal.replaceChildren(...cells);
+  const payees = totals(spentRows, t => t.p).slice(0, 4), pMax = Math.max(1, ...payees.map(x => x[1]));
+  $("payees").replaceChildren(...(payees.length ? [el("div", { class: "h", style: "margin-top:14px" }, "Top payees")] : []),
+    ...payees.flatMap(([p, v]) => [el("div", null, el("b", null, p), el("span", null, inr(v))), el("div", { class: "track" }, el("div", { style: "width:" + v * 100 / pMax + "%" }))]));
+
+  // Payments
+  let rows = picked.filter(t => !S.day || t.d === S.day);
+  const k = S.sort, dir = S.desc ? -1 : 1;
+  rows.sort((x, y) => { const a = k === "c" ? nameOf(x.c) : k === "a" ? (x.o ? x.a : -x.a) : x[k] || "", b = k === "c" ? nameOf(y.c) : k === "a" ? (y.o ? y.a : -y.a) : y[k] || ""; return (a < b ? -1 : a > b ? 1 : 0) * dir || (y.d < x.d ? -1 : 1); });
+  $("count").textContent = rows.length + (rows.length === 1 ? " payment" : " payments") + (S.day ? " on " + nice(S.day) : "");
+  const tb = $("rows");
+  tb.replaceChildren(...rows.slice(0, S.shown).map(t => el("tr", { class: t.s || t.i ? "" : "out-of", title: t.s ? "" : t.i ? "" : "Not counted in spending" },
+    el("td", { style: "white-space:nowrap" }, nice(t.d)),
+    el("td", null, el("div", { class: "payee" }, el("span", { class: "ic" }, picOf(t.c) ? el("img", { src: picOf(t.c), alt: "" }) : null), el("div", null, t.p, el("div", { class: "sub show-s" }, nameOf(t.c)), t.n ? el("div", { class: "sub" }, t.n) : null))),
+    el("td", { class: "hide-s" }, nameOf(t.c), t.sp ? el("span", { class: "pill" }, "part") : null, cat[t.c] && cat[t.c].group ? el("div", { class: "sub" }, nameOf(cat[t.c].group)) : null),
+    el("td", { class: "hide-s mut" }, t.acc || ""),
+    el("td", { class: "r" + (t.o ? "" : " in") }, el("b", null, (t.o ? "" : "+") + inr(t.a, true))))));
+  if (!rows.length) tb.replaceChildren(el("tr", null, el("td", { colspan: 5, class: "empty" }, "Nothing here. Try another period or clear a filter.")));
+  $("more").replaceChildren(rows.length > S.shown ? el("button", { class: "chip", onclick: () => { S.shown += 200; render(); } }, "Show more (" + (rows.length - S.shown) + " left)") : "");
+  for (const th of document.querySelectorAll("th")) th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (th.dataset.k === S.sort ? (S.desc ? " ▼" : " ▲") : "");
+}
+function pick(type, id) { S.sel = S.sel && S.sel.id === id ? null : { type, id }; S.day = null; S.shown = 100; render(); }
+function totals(rows, key) { const m = new Map(); for (const t of rows) m.set(key(t), (m.get(key(t)) || 0) + t.a); return [...m].sort((a, b) => b[1] - a[1]); }
+function monthsBetween(f, t) { const out = []; let d = pd(f.slice(0, 7) + "-01"); const end = pd(t); while (d <= end) { out.push(iso(d).slice(0, 7)); d = new Date(d.getFullYear(), d.getMonth() + 1, 1); } return out; }
+
+// Controls
+$("title").textContent = D.title;
+$("made").textContent = "Made " + nice(D.made) + " with Owl Tracker · " + nice(D.from) + " to " + nice(D.to);
+$("foot").textContent = "Made on the phone by Owl Tracker. This file works without internet and sends nothing anywhere." + (D.accountsHidden ? " Card and account numbers are left out." : "");
+const accs = [...new Set(D.tx.map(t => t.acc).filter(Boolean))].sort();
+$("acc").replaceChildren(el("option", { value: "" }, "All accounts"), ...accs.map(a => el("option", { value: a }, a)));
+$("acc").hidden = accs.length < 2;
+$("acc").onchange = e => { S.acc = e.target.value; render(); };
+let qt; $("q").oninput = e => { clearTimeout(qt); qt = setTimeout(() => { S.q = e.target.value.trim(); S.shown = 100; render(); }, 150); };
+$("from").onchange = e => { if (e.target.value) { S.from = e.target.value < D.from ? D.from : e.target.value; if (S.to < S.from) S.to = S.from; S.day = null; render(); } };
+$("to").onchange = e => { if (e.target.value) { S.to = e.target.value > D.to ? D.to : e.target.value; if (S.from > S.to) S.from = S.to; S.day = null; render(); } };
+$("prevM").onclick = () => { const ms = monthsBetween(S.from, S.to), i = ms.indexOf(S.calMonth); if (i > 0) { S.calMonth = ms[i - 1]; S.day = null; render(); } };
+$("nextM").onclick = () => { const ms = monthsBetween(S.from, S.to), i = ms.indexOf(S.calMonth); if (i < ms.length - 1) { S.calMonth = ms[i + 1]; S.day = null; render(); } };
+for (const th of document.querySelectorAll("th")) th.onclick = () => { const k = th.dataset.k; S.desc = S.sort === k ? !S.desc : k === "d" || k === "a"; S.sort = k; render(); };
+$("csv").onclick = () => {
+  const q = v => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  const safe = v => /^[=+\-@\t\r]/.test(v) ? "'" + v : v;   // a spreadsheet never runs a payee name as a formula
+  const lines = [["Date", "Payee", "Category", "Group", "Paid from", "Money out", "Money in", "Counts in spending", "Note"].join(",")];
+  for (const t of D.tx.filter(inPeriod).filter(x => matches(x, false)).filter(x => !S.day || x.d === S.day))
+    lines.push([t.d, q(safe(t.p)), q(safe(nameOf(t.c))), q(safe(cat[t.c] && cat[t.c].group ? nameOf(cat[t.c].group) : "")), q(safe(t.acc || "")), t.o ? (t.a / 100).toFixed(2) : "", t.o ? "" : (t.a / 100).toFixed(2), t.s ? "yes" : "no", q(safe(t.n || ""))].join(","));
+  const a = el("a", { href: URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv" })), download: "owl-tracker-" + S.from + "-to-" + S.to + ".csv" });
+  document.body.append(a); a.click(); a.remove();
+};
+// Opens on the latest month
+{ const p = presets()[0]; S.from = p[1]; S.to = p[2]; }
+render();
+</script>
+</body>
+</html>

@@ -47,6 +47,7 @@ class AppContainer(
     val repo: Repository = Repository(db, clock, appIcons::bankApp)
     val importEngine = ImportEngine(sms, repo, clock, bankApp = appIcons::bankApp)
     val backups = BackupManager(context, repo, clock)
+    val reports = com.owl.tracker.export.ReportExport(context, repo, clock)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
