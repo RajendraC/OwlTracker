@@ -172,10 +172,13 @@ class StoreScreenshots {
                 val tag = day?.config?.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.removePrefix("cal_amount_")
                 onAllNodes(hasTestTag("cal_day_$tag"))[0].performClick()
                 Thread.sleep(1200)
-                shot("12c_day_activity")
+                shot("12c_day_picked")
+                scrollTo(hasTestTag("where_day"), below = 40f)
+                Thread.sleep(1500)
+                shot("12d_day_where")
+                onAllNodes(hasTestTag("where_day"))[0].performClick()
+                Thread.sleep(800)
             }.onFailure { Log.w(TAG, "Calendar: not shown", it) }
-            runCatching { onAllNodes(hasTestTag("tab_home"))[0].performClick() }
-            Thread.sleep(800)
             // Home drill-down: tap the budget circle's biggest part, then come back up
             runCatching {
                 scrollTo(hasTestTag("budget_ring"))

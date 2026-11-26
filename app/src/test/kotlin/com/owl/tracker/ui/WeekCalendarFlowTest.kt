@@ -2,6 +2,7 @@ package com.owl.tracker.ui
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -36,7 +37,7 @@ class WeekCalendarFlowTest {
     }
 
     @Test
-    fun tappingADayInTheCalendarOpensItsPayments() {
+    fun tappingADayInTheCalendarShowsWhereItWentThatDay() {
         setUpWithSms()
         with(compose) {
             waitForTag("month_calendar")
@@ -45,16 +46,21 @@ class WeekCalendarFlowTest {
             waitForTag("cal_amount_2026-10-15")
             onNodeWithTag("cal_amount_2026-10-15", useUnmergedTree = true).assertTextEquals("₹3.5k")
             waitForText("the budget after EMIs and rent", substring = true)
-            // No card under the calendar: the day opens in Activity with only its payments
+            // Home stays: no card under the calendar, "Where it went" narrows to the day with a chip
             tapTag("cal_day_2026-10-15")
-            waitForTag("activity_day")
-            waitForText("Thu 15 Oct")
-            waitForText("Amazon")
-            onNodeWithTag("search").assertExists()
+            waitForTag("where_day")
             onAllNodesWithTag("day_filter").assertCountEquals(0)
-            // Clearing the day shows every day again
-            tapTag("activity_day")
-            onAllNodesWithTag("activity_day").assertCountEquals(0)
+            onAllNodesWithTag("search").assertCountEquals(0)
+            // The owl's line is the day's: ₹3,499 against the day's share
+            waitForTag("side_amount")
+            onNodeWithTag("side_amount", useUnmergedTree = true).assertTextContains("₹3,499", substring = true)
+            // ✕ on the chip, or the day again, shows the month
+            tapTag("where_day")
+            onAllNodesWithTag("where_day").assertCountEquals(0)
+            tapTag("cal_day_2026-10-15")
+            waitForTag("where_day")
+            tapTag("cal_day_2026-10-15")
+            onAllNodesWithTag("where_day").assertCountEquals(0)
         }
     }
 

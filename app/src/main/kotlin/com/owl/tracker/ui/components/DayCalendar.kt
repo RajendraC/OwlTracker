@@ -171,7 +171,7 @@ fun fullColor(full: Float): Color = when {
  * whole share, more went over and the ball is full and red). The same gloss and shadow as [DayCircle].
  */
 @Composable
-fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, future: Boolean, size: Dp, modifier: Modifier = Modifier, investedShare: Float = 0f) {
+fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, future: Boolean, size: Dp, modifier: Modifier = Modifier, investedShare: Float = 0f, picked: Boolean = false) {
     val brand = LocalBrand.current
     val glass = brand.clay.pressed
     val surface = brand.clay.surface
@@ -182,7 +182,8 @@ fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, futur
         modifier.size(size + 8.dp).drawBehind {
             val r = size.toPx() / 2f
             val c = center
-            if (today) drawCircle(MANGO.copy(alpha = 0.85f), r + 2.5.dp.toPx(), c, style = Stroke(1.75.dp.toPx()))
+            if (picked) drawCircle(MANGO, r + 3.dp.toPx(), c, style = Stroke(3.dp.toPx()))
+            else if (today) drawCircle(MANGO.copy(alpha = 0.85f), r + 2.5.dp.toPx(), c, style = Stroke(1.75.dp.toPx()))
             if (future) {
                 drawCircle(muted.copy(alpha = 0.55f), r - 1.dp.toPx(), c, style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))))
                 return@drawBehind
@@ -378,7 +379,7 @@ fun MonthCalendarCard(
     Panel(modifier = modifier.testTag("month_calendar"), padding = 12.dp) {
         Text("$title, week by week", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 4.dp).semantics { heading() })
         Text(
-            "Each day fills with what it spent · tap a day for its payments · tap a week's total to open the week", style = MaterialTheme.typography.bodySmall, color = muted,
+            "Each day fills with what it spent · tap a day to see where it went · tap a week's total to open the week", style = MaterialTheme.typography.bodySmall, color = muted,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
         )
         Gap(10.dp)
@@ -399,7 +400,7 @@ fun MonthCalendarCard(
                         Modifier.weight(1f).height(if (row.days.any { (it?.investedPaise ?: 0) > 0 }) 76.dp else 62.dp).clip(RoundedCornerShape(12.dp))
                             .then(
                                 if (d == null) Modifier
-                                else (if (future) Modifier else Modifier.clickable(onClickLabel = "See this day's payments") { onPick(date) })
+                                else (if (future) Modifier else Modifier.clickable(onClickLabel = if (date == picked) "Show the whole month" else "See where this day went") { onPick(date) })
                                     .semantics {
                                         contentDescription = dayDescription(d, share.fromBudget)
                                         selected = date == picked
@@ -412,7 +413,7 @@ fun MonthCalendarCard(
                         if (d != null) {
                             val full = com.owl.tracker.core.Weeks.fullness(d.everydayPaise, share.paise)
                             GlassDay(date, full, d.fixedPaise > 0, date == today, future, 32.dp,
-                                investedShare = if (d.everydayPaise > 0) d.investedPaise.toFloat() / d.everydayPaise else 0f)
+                                investedShare = if (d.everydayPaise > 0) d.investedPaise.toFloat() / d.everydayPaise else 0f, picked = date == picked)
                             // What went that day, under the ball; red when it went over its share
                             if (!future) FitText(
                                 if (d.everydayPaise > 0) Money.formatShort(d.everydayPaise) else "–",

@@ -206,7 +206,7 @@ fun HomeScreen(vm: AppViewModel) {
         changes != null && com.owl.tracker.core.Trends.biggestMoves(changes.byCategory.filterKeys { it in ok }).isNotEmpty()
     }
     // Where "Where it went" sits in the list, to scroll to it from the budget circle
-    val whereIndex = 1 + (if (calendar != null) 1 else 0) + (if (pickedTotal != null) 1 else 0) +
+    val whereIndex = 1 + (if (calendar != null) 1 else 0) + (if (pickedTotal != null && weekMode) 1 else 0) +
         (if (access is Access.Trial || !access.canEdit) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
         (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0)
@@ -339,12 +339,12 @@ fun HomeScreen(vm: AppViewModel) {
 
             // After the alerts, the month as a calendar, a row a week: tap a day for its payments, a week's total for the week
             if (calendar != null) item(key = "calendar") {
-                // A tap on a day opens Activity with that day's payments (no card under the calendar any more)
-                MonthCalendarCard(calendar.title, calendar.rows, calendar.share, null, today, { day -> vm.showActivityDay(day) }, { start -> vm.openWeek(start) }, side)
+                // A tap on a day narrows "Where it went" (owl, orbit and list) to that day; tap it again for the month
+                MonthCalendarCard(calendar.title, calendar.rows, calendar.share, picked, today, ::pick, { start -> vm.openWeek(start) }, side)
             }
 
             // One day picked: everything below is about that day
-            if (pickedTotal != null) item(key = "day_filter") {
+            if (pickedTotal != null && weekMode) item(key = "day_filter") {
                 DayFilterBar(
                     pickedTotal, txns.size, week?.share ?: calendar?.share, today, { pickedIso = null }, side,
                 )
@@ -370,6 +370,7 @@ fun HomeScreen(vm: AppViewModel) {
                     } else {
                         com.owl.tracker.ui.components.DrillRingCard(
                             title = when {
+                                picked != null && !weekMode -> "Where it went"
                                 picked != null -> "Where it went on ${com.owl.tracker.ui.components.dayTitle(picked)}"
                                 weekMode -> "Where it went this week".takeIf { week?.isCurrent == true } ?: "Where it went that week"
                                 else -> "Where it went"
@@ -429,10 +430,24 @@ fun HomeScreen(vm: AppViewModel) {
                             },
                             onMerchant = { k -> openMerchant = if (openMerchant == k) null else k },
                             onPayment = { t -> vm.openSheet(Sheet.TxnDetail(t.id)) },
-                            headerAction = { TextButton(onClick = { vm.showActivity() }) { Text("See all") } },
-                            moods = remember(dash, budgetOf, scopeCategories, picked, week) {
+                            headerAction = {
+                                // One day picked from the calendar: a chip says which, and ✕ goes back to the month
+                                if (picked != null && !weekMode) androidx.compose.material3.InputChip(
+                                    selected = true, onClick = { pickedIso = null },
+                                    label = { Text(com.owl.tracker.ui.components.dayTitle(picked), fontWeight = FontWeight.ExtraBold) },
+                                    trailingIcon = { Icon(Ic.close, contentDescription = "Show the whole month", modifier = Modifier.size(16.dp)) },
+                                    modifier = Modifier.testTag("where_day"),
+                                ) else TextButton(onClick = { vm.showActivity() }) { Text("See all") }
+                            },
+                            moods = remember(dash, budgetOf, scopeCategories, picked, week, calendar, pickedTotal) {
                                 when {
                                     wholeMonth -> ringMoods(dash, budgetOf)
+                                    // A day from the month's calendar: the owl weighs it like its glass, everyday spending
+                                    // (EMIs and rent left out) against the day's share after EMIs and rent
+                                    picked != null && calendar != null -> vm.dayShares(picked).let { (_, cats) ->
+                                        val everyday = pickedTotal?.everydayPaise ?: scopeSpent
+                                        scopeMoods(com.owl.tracker.ui.components.dayTitle(picked), everyday, scopeCategories, calendar.share.paise, cats, "the day")
+                                    }
                                     picked != null -> vm.dayShares(picked).let { (share, cats) ->
                                         scopeMoods(com.owl.tracker.ui.components.dayTitle(picked), scopeSpent, scopeCategories, share, cats, "the day")
                                     }
