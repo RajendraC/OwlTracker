@@ -36,31 +36,25 @@ class WeekCalendarFlowTest {
     }
 
     @Test
-    fun tappingADayInTheCalendarShowsOnlyThatDay() {
+    fun tappingADayInTheCalendarOpensItsPayments() {
         setUpWithSms()
         with(compose) {
             waitForTag("month_calendar")
             waitForText("October, week by week")
-            // Thursday the 15th: one ₹3,499 Amazon order, more than twice the day's ₹645 share
+            // Thursday the 15th: one ₹3,499 Amazon order, well over the day's share, so its amount is shown (in red)
+            waitForTag("cal_amount_2026-10-15")
+            onNodeWithTag("cal_amount_2026-10-15").assertTextEquals("₹3.5k")
+            waitForText("the budget after EMIs and rent", substring = true)
+            // No card under the calendar: the day opens in Activity with only its payments
             tapTag("cal_day_2026-10-15")
-            waitForTag("day_filter")
-            waitForText("Thu 15 Oct · ₹3,499")
-            waitForText("₹3,499 everyday · Very heavy")
-            waitForTag("day_filter_bar")
-            waitForText("1 payment")
-            onAllNodesWithTag("day_filter_fixed").assertCountEquals(0)
-            waitForText("Where it went on Thu 15 Oct")
-            waitForText("Payments on Thu 15 Oct")
+            waitForTag("activity_day")
+            waitForText("Thu 15 Oct")
             waitForText("Amazon")
-            // Tapping the day again, or ✕, shows every day again
-            tapTag("day_filter_clear")
+            onNodeWithTag("search").assertExists()
             onAllNodesWithTag("day_filter").assertCountEquals(0)
-            waitForText("Where it went")
-            // A day with nothing spent can be picked too
-            tapTag("cal_day_2026-10-13")
-            waitForText("Nothing on Tue 13 Oct")
-            tapTag("cal_day_2026-10-13")
-            onAllNodesWithTag("day_filter").assertCountEquals(0)
+            // Clearing the day shows every day again
+            tapTag("activity_day")
+            onAllNodesWithTag("activity_day").assertCountEquals(0)
         }
     }
 

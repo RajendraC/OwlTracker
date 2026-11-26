@@ -54,6 +54,11 @@ class WeeksTest {
         assertEquals(DayLevel.WITHIN, Weeks.level(rs(50000), 0))
         assertEquals(rs(3000), Weeks.dailyShare(rs(90000), 30))
         assertEquals(0L, Weeks.dailyShare(0, 30))
+        // EMIs and rent come off first: their budgets, or what they took if that's more
+        assertEquals(rs(69500), Weeks.everydayBudget(rs(99500), fixedBudgetPaise = rs(30000), fixedSpentPaise = rs(12000)))
+        assertEquals(rs(59500), Weeks.everydayBudget(rs(99500), fixedBudgetPaise = 0, fixedSpentPaise = rs(40000)))
+        assertEquals(0L, Weeks.everydayBudget(rs(20000), fixedBudgetPaise = 0, fixedSpentPaise = rs(25000)))
+        assertEquals(0.5f, Weeks.fullness(rs(1500), rs(3000)), 0.001f)
     }
 
     @Test

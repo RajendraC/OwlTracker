@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -155,6 +156,111 @@ fun DayCircle(date: LocalDate, level: DayLevel, fixed: Boolean, picked: Boolean,
     }
 }
 
+/** The liquid's colour: green up to half the day's share, mango up to all of it, red past it. */
+fun fullColor(full: Float): Color = when {
+    full <= 0.5f -> LIGHT
+    full <= 1f -> WITHIN
+    else -> VERY_HEAVY
+}
+
+/**
+ * A day as a glass ball that fills from the bottom with its everyday spending against its share ([full]: 1 is the
+ * whole share, more went over and the ball is full and red). The same gloss and shadow as [DayCircle].
+ */
+@Composable
+fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, future: Boolean, size: Dp, modifier: Modifier = Modifier) {
+    val brand = LocalBrand.current
+    val glass = brand.clay.pressed
+    val surface = brand.clay.surface
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val level = full.coerceIn(0f, 1f)
+    val color = fullColor(full)
+    Box(
+        modifier.size(size + 8.dp).drawBehind {
+            val r = size.toPx() / 2f
+            val c = center
+            if (today) drawCircle(MANGO.copy(alpha = 0.85f), r + 2.5.dp.toPx(), c, style = Stroke(1.75.dp.toPx()))
+            if (future) {
+                drawCircle(muted.copy(alpha = 0.55f), r - 1.dp.toPx(), c, style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))))
+                return@drawBehind
+            }
+            val light = c + Offset(-r * 0.32f, -r * 0.44f)
+            drawCircle(Color.Black.copy(alpha = 0.16f), r, c + Offset(0f, 2.dp.toPx()))
+            // The empty glass
+            drawCircle(Brush.radialGradient(0f to lerp(glass, Color.White, 0.6f), 0.6f to glass, 1f to lerp(glass, Color.Black, 0.1f), center = light, radius = r * 1.6f), r, c)
+            // The liquid, with a soft wave on top while it isn't full
+            if (level > 0f) {
+                val ball = androidx.compose.ui.graphics.Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r)) }
+                clipPath(ball) {
+                    val top = c.y + r - 2 * r * level
+                    val liquid = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(c.x - r, top)
+                        if (level < 1f) {
+                            val step = r / 2f
+                            var x = c.x - r
+                            var up = true
+                            while (x < c.x + r) {
+                                quadraticTo(x + step / 2f, top + if (up) -2.5.dp.toPx() else 2.5.dp.toPx(), x + step, top)
+                                x += step; up = !up
+                            }
+                        } else lineTo(c.x + r, top)
+                        lineTo(c.x + r, c.y + r); lineTo(c.x - r, c.y + r); close()
+                    }
+                    drawPath(liquid, Brush.radialGradient(0f to lerp(color, Color.White, 0.45f), 0.55f to color, 1f to lerp(color, Color.Black, 0.22f), center = light, radius = r * 1.6f))
+                }
+            }
+            // Gloss and rim, so it reads as glass
+            drawCircle(Brush.radialGradient(0f to Color.White.copy(alpha = 0.7f), 1f to Color.Transparent, center = light + Offset(0f, -2.dp.toPx()), radius = r * 0.62f), r, c)
+            drawCircle(brand.clay.shade, r - 0.5.dp.toPx(), c, style = Stroke(1.dp.toPx()))
+            if (fixed) {
+                val dc = c + Offset(r * 0.74f, -r * 0.74f)
+                drawCircle(surface, 6.dp.toPx(), dc)
+                drawCircle(FIXED_DOT, 4.dp.toPx(), dc)
+            }
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        CapFontScale(1.2f) {
+            FitText(
+                date.dayOfMonth.toString(),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = if (size < 36.dp) 13.sp else 14.sp),
+                color = when {
+                    future -> muted.copy(alpha = 0.8f)
+                    level > 0.62f && color == VERY_HEAVY -> Color.White
+                    level > 0.62f -> levelInk(if (color == LIGHT) DayLevel.LIGHT else DayLevel.WITHIN)
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
+                minScale = 0.7f,
+            )
+        }
+    }
+}
+
+/** The month card's key: the three liquids, the EMI dot, and what a day is measured against. */
+@Composable
+fun FillLegend(share: DayShare, modifier: Modifier = Modifier) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(LIGHT to "Up to half the day's share", WITHIN to "Most of it", VERY_HEAVY to "Over", FIXED_DOT to "EMI or rent").forEach { (c, label) ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Box(Modifier.size(if (c == FIXED_DOT) 9.dp else 12.dp).clip(CircleShape).background(c))
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted)
+                }
+            }
+        }
+        Text(
+            when {
+                share.paise <= 0 && share.fromBudget -> "EMIs and rent take the whole budget, so there's no everyday share left"
+                share.paise <= 0 -> "Set a monthly budget and each day fills against its share of it"
+                share.fromBudget -> "Each day fills with its spending against ${Money.formatInr(share.paise)} a day, the budget after EMIs and rent. Red amounts went over."
+                else -> "Each day fills against a usual ${Money.formatInr(share.paise)} day, EMIs and rent left out. Red amounts went over."
+            },
+            style = MaterialTheme.typography.bodySmall, color = muted,
+        )
+    }
+}
+
 private fun dayDescription(d: DayTotal, budgeted: Boolean): String =
     dayTitle(d.date) + when (d.level) {
         DayLevel.FUTURE -> ", still to come"
@@ -251,7 +357,7 @@ fun MonthCalendarCard(
     Panel(modifier = modifier.testTag("month_calendar"), padding = 12.dp) {
         Text("$title, week by week", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 4.dp).semantics { heading() })
         Text(
-            "Tap a day for its payments · tap a week's total to open the week", style = MaterialTheme.typography.bodySmall, color = muted,
+            "Each day fills with what it spent · tap a day for its payments · tap a week's total to open the week", style = MaterialTheme.typography.bodySmall, color = muted,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
         )
         Gap(10.dp)
@@ -268,11 +374,11 @@ fun MonthCalendarCard(
                 row.days.forEachIndexed { i, d ->
                     val date = row.weekStart.plusDays(i.toLong())
                     val future = d == null || d.level == DayLevel.FUTURE
-                    Box(
-                        Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(12.dp))
+                    Column(
+                        Modifier.weight(1f).height(62.dp).clip(RoundedCornerShape(12.dp))
                             .then(
                                 if (d == null) Modifier
-                                else (if (future) Modifier else Modifier.clickable(onClickLabel = if (date == picked) "Show the whole month" else "Show only this day") { onPick(date) })
+                                else (if (future) Modifier else Modifier.clickable(onClickLabel = "See this day's payments") { onPick(date) })
                                     .semantics {
                                         contentDescription = dayDescription(d, share.fromBudget)
                                         selected = date == picked
@@ -280,9 +386,19 @@ fun MonthCalendarCard(
                                     }
                                     .testTag("cal_day_$date"),
                             ),
-                        contentAlignment = Alignment.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        if (d != null) DayCircle(date, d.level, d.fixedPaise > 0, date == picked, date == today, 32.dp)
+                        if (d != null) {
+                            val full = com.owl.tracker.core.Weeks.fullness(d.everydayPaise, share.paise)
+                            GlassDay(date, full, d.fixedPaise > 0, date == today, future, 32.dp)
+                            // What went that day, under the ball; red when it went over its share
+                            if (!future) FitText(
+                                if (d.everydayPaise > 0) Money.formatShort(d.everydayPaise) else "–",
+                                Modifier.padding(horizontal = 1.dp).testTag("cal_amount_$date"),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 10.sp),
+                                color = if (full > 1f) VERY_HEAVY else muted, textAlign = TextAlign.Center, minScale = 0.6f,
+                            )
+                        }
                     }
                 }
                 val open = !row.weekStart.isAfter(thisWeek)
@@ -314,7 +430,7 @@ fun MonthCalendarCard(
         }
         } }
         Gap(8.dp)
-        LevelLegend(share, Modifier.padding(horizontal = 4.dp))
+        FillLegend(share, Modifier.padding(horizontal = 4.dp))
     }
 }
 

@@ -360,7 +360,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val today = today()
         val end = start.plusDays(7)
         val spends = spendsOf(window, catMap)
-        val overall = budgets[Schema.OVERALL] ?: 0L
+        // EMIs and rent are left out of the days, so their part of the budget is set aside before sharing it out
+        val overall = w.everydayBudget(budgets[Schema.OVERALL] ?: 0L, FIXED_CATEGORIES.sumOf { budgets[it] ?: 0L }, spends.filter { it.fixed }.sumOf { it.paise })
         val usual = w.usualDay(spends, start.minusDays(28), start).takeIf { it > 0 }
             ?: w.usualDay(spends, start, earlier(end, today.plusDays(1)))
         val share = if (overall > 0) DayShare(w.dailyShare(overall, BudgetMath.periodFor(earlier(end.minusDays(1), today), startDay).days), true) else DayShare(usual, false)
@@ -407,7 +408,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val today = today()
         val p = dash.period
         val spends = spendsOf(txns, catMap)
-        val share = if (dash.overall > 0) DayShare(w.dailyShare(dash.overall, p.days), true)
+        // EMIs and rent are left out of the days, so their part of the budget is set aside before sharing it out
+        val everyday = w.everydayBudget(dash.overall, FIXED_CATEGORIES.sumOf { budgets.value[it] ?: 0L }, spends.filter { it.fixed }.sumOf { it.paise })
+        val share = if (dash.overall > 0) DayShare(w.dailyShare(everyday, p.days), true)
         else DayShare(w.usualDay(spends, p.start, earlier(p.endExclusive, today.plusDays(1))), false)
         val title = if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)) else dash.label
         return MonthCalendar(w.calendar(p.start, p.endExclusive, spends, today) { share.paise }, share, title)
@@ -426,8 +429,10 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     val query = MutableStateFlow("")
     val activityFilter = MutableStateFlow(ActivityFilter.ALL)
     val categoryFilter = MutableStateFlow<String?>(null)
+    /** One day picked from Home's calendar: Activity shows only its payments. */
+    val dayFilter = MutableStateFlow<LocalDate?>(null)
 
-    val activity: StateFlow<List<Txn>> = combine(periodTxns, query, activityFilter, categoryFilter, categories) { txns, q, f, cf, cats ->
+    val activity: StateFlow<List<Txn>> = combine(combine(periodTxns, dayFilter) { t, d -> if (d == null) t else t.filter { dateOf(it.occurredAt) == d } }, query, activityFilter, categoryFilter, categories) { txns, q, f, cf, cats ->
         val names = cats.associate { it.id to it.name.lowercase() }
         val tree = com.owl.tracker.data.CategoryTree(cats)
         // A group picked: everything in it
@@ -443,7 +448,14 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Activity with only [day]'s payments, from a tap on Home's calendar. */
+    fun showActivityDay(day: LocalDate) {
+        showActivity()
+        dayFilter.value = day
+    }
+
     fun showActivity(category: String? = null, filter: ActivityFilter = ActivityFilter.ALL) {
+        dayFilter.value = null
         categoryFilter.value = category
         activityFilter.value = filter
         query.value = ""

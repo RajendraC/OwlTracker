@@ -42,6 +42,20 @@ object Weeks {
     /** The day's share of a month's budget: the budget spread evenly over the budget month's days. */
     fun dailyShare(budgetPaise: Long, periodDays: Int): Long = if (budgetPaise <= 0 || periodDays <= 0) 0L else budgetPaise / periodDays
 
+    /**
+     * The month's budget left for everyday spending: the days leave EMIs and rent out, so their part of the budget is
+     * set aside first. That part is what their own budgets allow, or what they actually took if that's more.
+     */
+    fun everydayBudget(overallPaise: Long, fixedBudgetPaise: Long, fixedSpentPaise: Long): Long =
+        if (overallPaise <= 0) 0L else (overallPaise - maxOf(fixedBudgetPaise, fixedSpentPaise)).coerceAtLeast(0L)
+
+    /** How full a day is: its everyday spending over its share (1 is the whole share; above 1 went over). */
+    fun fullness(everydayPaise: Long, sharePaise: Long): Float = when {
+        everydayPaise <= 0 -> 0f
+        sharePaise <= 0 -> 0.5f
+        else -> everydayPaise.toFloat() / sharePaise
+    }
+
     fun level(everydayPaise: Long, sharePaise: Long): DayLevel = when {
         everydayPaise <= 0 -> DayLevel.NONE
         sharePaise <= 0 -> DayLevel.WITHIN

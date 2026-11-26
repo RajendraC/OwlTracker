@@ -339,7 +339,8 @@ fun HomeScreen(vm: AppViewModel) {
 
             // After the alerts, the month as a calendar, a row a week: tap a day for its payments, a week's total for the week
             if (calendar != null) item(key = "calendar") {
-                MonthCalendarCard(calendar.title, calendar.rows, calendar.share, picked, today, ::pick, { start -> vm.openWeek(start) }, side)
+                // A tap on a day opens Activity with that day's payments (no card under the calendar any more)
+                MonthCalendarCard(calendar.title, calendar.rows, calendar.share, null, today, { day -> vm.showActivityDay(day) }, { start -> vm.openWeek(start) }, side)
             }
 
             // One day picked: everything below is about that day
@@ -1260,6 +1261,7 @@ fun ActivityScreen(vm: AppViewModel) {
     val q by vm.query.collectAsStateWithLifecycle()
     val filter by vm.activityFilter.collectAsStateWithLifecycle()
     val catFilter by vm.categoryFilter.collectAsStateWithLifecycle()
+    val dayFilter by vm.dayFilter.collectAsStateWithLifecycle()
     val cats by vm.categories.collectAsStateWithLifecycle()
     val d by vm.dashboard.collectAsStateWithLifecycle()
     val catMap = cats.associateBy { it.id }
@@ -1276,6 +1278,11 @@ fun ActivityScreen(vm: AppViewModel) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("search"),
         )
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            dayFilter?.let { day ->
+                InputChip(selected = true, onClick = { vm.dayFilter.value = null }, label = { Text(com.owl.tracker.ui.components.dayTitle(day)) },
+                    trailingIcon = { Icon(Ic.close, contentDescription = "Show every day", modifier = Modifier.size(16.dp)) },
+                    modifier = Modifier.testTag("activity_day"))
+            }
             catFilter?.let { id ->
                 InputChip(selected = true, onClick = { vm.categoryFilter.value = null }, label = { Text(catMap[id]?.name ?: "Category") },
                     trailingIcon = { Icon(Ic.close, contentDescription = "Remove category filter", modifier = Modifier.size(16.dp)) })

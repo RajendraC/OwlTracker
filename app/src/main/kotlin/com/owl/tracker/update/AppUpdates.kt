@@ -239,6 +239,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.24" to listOf(
+            Item("Days that fill up", "Each day in Home's calendar now fills like a glass with what you spent against your daily share, with the amount underneath (red if you went over). Tap a day to see its payments. The daily share now leaves out what EMIs and rent take."),
+        ),
         "1.9.23" to listOf(
             Item("Add expenses for any day", "Adding an expense by hand? Tap Pick a date and choose any day from the calendar, not just today or yesterday."),
         ),
