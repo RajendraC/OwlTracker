@@ -658,7 +658,9 @@ private fun TopLine(month: OwlSay, spent: Long, budget: Long, category: RingCate
                         if (left >= 0) "${Money.formatInr(left)} left" else "${Money.formatInr(-left)} over",
                         color = if (left >= 0) month.mood.ink else sc.overFg, style = MaterialTheme.typography.labelLarge, fontWeight = xb,
                     )
-                    Text(month.title.substringBefore(" · ").lowercase(), style = MaterialTheme.typography.labelSmall, color = muted)
+                    // "this month" / "this week", but a picked day keeps its capitals: "on Thu 5 Nov"
+                    val span = month.title.substringBefore(" · ")
+                    Text(if (span.startsWith("This")) span.lowercase() else "on $span", style = MaterialTheme.typography.labelSmall, color = muted)
                 }
             }
         }
