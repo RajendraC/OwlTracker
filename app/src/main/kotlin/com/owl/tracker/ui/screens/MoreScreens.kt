@@ -429,7 +429,7 @@ fun PrivacyScreen(vm: AppViewModel) {
         PrivacyPara("Backups", "A backup file is made only when you ask for one (More \u2192 Backup & restore), and goes only where you send it: Owl Tracker never sends it anywhere itself. It holds amounts, dates, merchant names, the merchant names and icons you chose, categories, notes, budgets and category rules. It never holds SMS text, sender IDs, account or card numbers, UPI IDs or bank references, and long numbers inside merchant names are masked. With a password, the file is encrypted (AES-256-GCM) and can't be read without it.")
         PrivacyPara("Payments", "Owl Tracker is free for 7 days, then a ₹99-a-year subscription or a one-time ₹999 lifetime unlock through Google Play; the subscription can be cancelled there any time. Google Play takes the payment under its own terms and privacy policy. Owl Tracker never sees your card, UPI or bank details: the Play Store app on your phone only tells it whether you have paid (an active, renewing subscription or the lifetime unlock). The trial is counted on your phone. Nothing about your payment is sent anywhere by Owl Tracker.")
         PrivacyPara("Sample data", "If you choose Explore with sample data, Owl Tracker imports 21 built-in example messages instead of reading your inbox. Reset removes them.")
-        PrivacyPara("Contact", "Questions or requests: rajendra.chandrasekhar@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 25 November 2026.")
+        PrivacyPara("Contact", "Questions or requests: sutra.apk@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 26 November 2026.")
     }
 }
 
