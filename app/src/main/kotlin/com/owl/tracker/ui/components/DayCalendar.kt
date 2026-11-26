@@ -446,7 +446,7 @@ fun MonthCalendarCard(
                         Column(horizontalAlignment = Alignment.End) {
                             FitText(Money.formatShort(row.paise), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp), textAlign = TextAlign.End, minScale = 0.6f)
                             val invested = row.days.sumOf { it?.investedPaise ?: 0L }
-                            if (invested > 0) FitText(Money.formatShort(invested) + " invested", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 10.sp), color = INVESTED, textAlign = TextAlign.End, minScale = 0.6f)
+                            if (invested > 0) FitText(Money.formatShort(invested) + " inv.", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 10.sp), color = INVESTED, textAlign = TextAlign.End, minScale = 0.6f)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 FitText("Week", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.primary, minScale = 0.7f)
                                 Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
