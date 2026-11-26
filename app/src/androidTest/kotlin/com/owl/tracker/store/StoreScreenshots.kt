@@ -163,6 +163,19 @@ class StoreScreenshots {
             shot("11_home_lower")
             runCatching { scrollTo(hasTestTag("saving_nudge")) }
             shot("12_saving_nudge")
+            // The month calendar, each day filled against its share; then a day opened in Activity
+            runCatching {
+                scrollTo(hasTestTag("month_calendar"), below = 40f)
+                Thread.sleep(600)
+                shot("12b_home_calendar")
+                val day = onAllNodes(hasTestTagStartingWith("cal_amount_"), useUnmergedTree = true).fetchSemanticsNodes().maxByOrNull { it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)?.joinToString()?.length ?: 0 }
+                val tag = day?.config?.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.removePrefix("cal_amount_")
+                onAllNodes(hasTestTag("cal_day_$tag"))[0].performClick()
+                Thread.sleep(1200)
+                shot("12c_day_activity")
+            }.onFailure { Log.w(TAG, "Calendar: not shown", it) }
+            runCatching { onAllNodes(hasTestTag("tab_home"))[0].performClick() }
+            Thread.sleep(800)
             // Home drill-down: tap the budget circle's biggest part, then come back up
             runCatching {
                 scrollTo(hasTestTag("budget_ring"))
@@ -944,4 +957,8 @@ class StoreScreenshots {
     companion object {
         private const val TAG = "OwlStoreShots"
     }
+}
+
+private fun hasTestTagStartingWith(prefix: String) = SemanticsMatcher("TestTag starts with $prefix") {
+    it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith(prefix) == true
 }
