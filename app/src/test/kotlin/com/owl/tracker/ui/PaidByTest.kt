@@ -93,9 +93,9 @@ class PaidByTest {
             tx(7_000, Cat.TRANSFERS, account), // between own accounts
             tx(800, Cat.DINING, account, excluded = true), // left out by the user
         ), cats)
-        // The split counts for its spending part only; the account has nothing that counts, so it isn't listed
+        // The split counts whole (investments go out of the budget too); the account has nothing that counts, so it isn't listed
         assertEquals(listOf(card), list.map { it.key })
-        assertEquals(600_00L, list[0].paise)
+        assertEquals(1_000_00L, list[0].paise)
         assertEquals(listOf(split.id), list[0].payments.map { it.id })
         assertEquals(emptyList<PaidAccount>(), PaidBy.build(emptyList(), cats))
     }

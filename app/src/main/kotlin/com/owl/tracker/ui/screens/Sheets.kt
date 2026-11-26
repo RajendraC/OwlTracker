@@ -314,7 +314,7 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         } else {
             SwitchRow(
                 "Count in spend",
-                if (cat?.countsAsSpend == false) "Transfers, savings and income never count" else if (tx.excluded) "Left out of your budget" else "Counts toward your budget",
+                if (cat?.countsAsSpend == false) "Transfers and income never count" else if (tx.excluded) "Left out of your budget" else "Counts toward your budget",
                 tx.isSpending(cat),
                 { on -> if (cat?.countsAsSpend == false) Unit else vm.setExcluded(tx.id, !on) },
                 enabled = cat?.countsAsSpend != false,

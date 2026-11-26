@@ -1208,9 +1208,20 @@ fun dayLabel(vm: AppViewModel, d: LocalDate): String = when (d) {
     else -> d.format(dayFmt)
 }
 
+/** A small purple tag on money put into investments: it went out of the budget, and it's still yours. */
+@Composable
+private fun InvestmentTag() {
+    Text(
+        "Investment",
+        Modifier.clip(RoundedCornerShape(50)).background(com.owl.tracker.ui.components.INVESTED.copy(alpha = 0.14f)).padding(horizontal = 8.dp, vertical = 2.dp).testTag("investment_tag"),
+        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = com.owl.tracker.ui.components.INVESTED, maxLines = 1,
+    )
+}
+
 @Composable
 fun TxnRow(vm: AppViewModel, t: Txn, category: Category?, showDay: Boolean) {
     val counted = t.isSpending(category)
+    val invested = t.isInvested(category)
     val credit = t.direction == Direction.CREDIT
     val whenText = if (showDay) dayLabel(vm, vm.dateOf(t.occurredAt))
     else java.time.Instant.ofEpochMilli(t.occurredAt).atZone(java.time.ZoneId.systemDefault()).format(timeFmt)
@@ -1224,6 +1235,7 @@ fun TxnRow(vm: AppViewModel, t: Txn, category: Category?, showDay: Boolean) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(t.merchantName, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (t.needsReview) UnsureBadge()
+                if (invested) InvestmentTag()
             }
             // A split payment names its parts; one part of it (in a category's list) says what it's part of
             val what = when {
@@ -1246,6 +1258,7 @@ fun TxnRow(vm: AppViewModel, t: Txn, category: Category?, showDay: Boolean) {
             style = MaterialTheme.typography.titleSmall,
             color = when {
                 credit -> MaterialTheme.colorScheme.primary
+                invested -> com.owl.tracker.ui.components.INVESTED
                 counted -> MaterialTheme.colorScheme.onSurface
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
@@ -1306,7 +1319,14 @@ fun ActivityScreen(vm: AppViewModel) {
                     val total = txns.filter { vm.counts(it, catMap) }.sumOf { it.amountPaise }
                     Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp)) {
                         Text(dayLabel(vm, day), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                        if (total > 0) Text("${Money.formatInr(total)} spent", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val invested = txns.filter { it.isInvested(catMap[it.categoryId]) }.sumOf { it.amountPaise }
+                        if (total > 0) Text(
+                            androidx.compose.ui.text.buildAnnotatedString {
+                                append(if (invested > 0) "${Money.formatInr(total)} out" else "${Money.formatInr(total)} spent")
+                                if (invested > 0) { pushStyle(androidx.compose.ui.text.SpanStyle(color = com.owl.tracker.ui.components.INVESTED)); append(" · ${Money.formatInr(invested)} invested"); pop() }
+                            },
+                            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
                 item(key = "g$day") {

@@ -128,8 +128,9 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             val kind = when {
                 currentKind == CategoryKind.INCOME -> CategoryKind.INCOME
                 home != null -> CategoryKind.EXPENSE
-                countsAsSpend -> CategoryKind.EXPENSE
-                currentKind == CategoryKind.EXPENSE -> CategoryKind.TRANSFER
+                // Investments stay investments while they count; turned off, they no longer go out of the budget
+                countsAsSpend -> if (currentKind == CategoryKind.SAVING) CategoryKind.SAVING else CategoryKind.EXPENSE
+                currentKind == CategoryKind.EXPENSE || currentKind == CategoryKind.SAVING -> CategoryKind.TRANSFER
                 else -> currentKind
             }
             val v = contentValuesOf("name" to name, "icon" to icon, "color" to color, "kind" to kind.name)

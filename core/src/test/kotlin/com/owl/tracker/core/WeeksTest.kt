@@ -59,6 +59,11 @@ class WeeksTest {
         assertEquals(rs(59500), Weeks.everydayBudget(rs(99500), fixedBudgetPaise = 0, fixedSpentPaise = rs(40000)))
         assertEquals(0L, Weeks.everydayBudget(rs(20000), fixedBudgetPaise = 0, fixedSpentPaise = rs(25000)))
         assertEquals(0.5f, Weeks.fullness(rs(1500), rs(3000)), 0.001f)
+        // An investment counts towards the day, and is kept apart to be shown in purple
+        val day = Weeks.totals(listOf(d(1)), listOf(DaySpend(d(1), rs(10000), false, invested = true), DaySpend(d(1), rs(1168), false)), d(30)) { rs(3833) }.single()
+        assertEquals(rs(11168), day.everydayPaise)
+        assertEquals(rs(10000), day.investedPaise)
+        assertEquals(DayLevel.VERY_HEAVY, day.level)
     }
 
     @Test

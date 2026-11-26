@@ -307,6 +307,7 @@ fun DrillRingCard(
             val say = chosenHere?.let { moods.byCategory[it] } ?: moods.month
             TopLine(
                 month = moods.month, spent = moods.spent, budget = moods.budget,
+                invested = categories.filter { catMap[it.id]?.isInvestment == true }.sumOf { it.paise },
                 category = chosenHere?.let { id -> categories.firstOrNull { it.id == id } },
                 share = chosenHere?.let { id -> categories.firstOrNull { it.id == id }?.paise?.times(100)?.div(total) },
                 onOpen = chosenHere?.let { id -> { onCategory(id) } },
@@ -606,7 +607,7 @@ fun NotSortedTile(size: androidx.compose.ui.unit.Dp) {
  * that category's amount, share and how it's doing against its own budget, with Open.
  */
 @Composable
-private fun TopLine(month: OwlSay, spent: Long, budget: Long, category: RingCategory?, share: Long?, onOpen: (() -> Unit)?) {
+private fun TopLine(month: OwlSay, spent: Long, budget: Long, category: RingCategory?, share: Long?, onOpen: (() -> Unit)?, invested: Long = 0) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val sc = LocalStatusColors.current
     val xb = androidx.compose.ui.text.font.FontWeight.ExtraBold
@@ -626,6 +627,12 @@ private fun TopLine(month: OwlSay, spent: Long, budget: Long, category: RingCate
                             if (budget > 0) withStyle(MaterialTheme.typography.bodyMedium.toSpanStyle().copy(color = muted)) { append(" of\u00A0" + Money.formatInr(budget)) }
                         },
                         modifier = Modifier.testTag("side_amount"),
+                    )
+                    // Investments go out of the budget like spending; say how much of it they were
+                    if (invested > 0) Text(
+                        "${Money.formatInr(invested)} of it invested",
+                        style = MaterialTheme.typography.labelMedium, fontWeight = xb, color = com.owl.tracker.ui.components.INVESTED,
+                        modifier = Modifier.testTag("top_invested"),
                     )
                     if (budget <= 0) Text(month.line, style = MaterialTheme.typography.bodySmall, color = muted)
                 } else {

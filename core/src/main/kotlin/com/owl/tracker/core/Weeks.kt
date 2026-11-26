@@ -6,7 +6,7 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 /** One payment that counts as spending, reduced to what the week view and the calendar need. */
-data class DaySpend(val date: LocalDate, val paise: Long, val fixed: Boolean)
+data class DaySpend(val date: LocalDate, val paise: Long, val fixed: Boolean, val invested: Boolean = false)
 
 /**
  * How a day's everyday spending compares with the day's share of the month's budget: up to half of it is light, up to
@@ -15,7 +15,8 @@ data class DaySpend(val date: LocalDate, val paise: Long, val fixed: Boolean)
  */
 enum class DayLevel { FUTURE, NONE, LIGHT, WITHIN, HEAVY, VERY_HEAVY }
 
-data class DayTotal(val date: LocalDate, val paise: Long, val fixedPaise: Long, val level: DayLevel) {
+/** [investedPaise]: the part that went into investments. It counts like any spending, and is shown in purple. */
+data class DayTotal(val date: LocalDate, val paise: Long, val fixedPaise: Long, val level: DayLevel, val investedPaise: Long = 0) {
     val everydayPaise: Long get() = paise - fixedPaise
 }
 
@@ -72,7 +73,8 @@ object Weeks {
             val list = byDay[d].orEmpty()
             val paise = list.sumOf { it.paise }
             val fixed = list.filter { it.fixed }.sumOf { it.paise }
-            DayTotal(d, paise, fixed, if (d.isAfter(today)) DayLevel.FUTURE else level(paise - fixed, share(d)))
+            val invested = list.filter { it.invested && !it.fixed }.sumOf { it.paise }
+            DayTotal(d, paise, fixed, if (d.isAfter(today)) DayLevel.FUTURE else level(paise - fixed, share(d)), invested)
         }
     }
 

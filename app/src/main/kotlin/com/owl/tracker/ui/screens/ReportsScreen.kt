@@ -349,8 +349,8 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
 
         val apart = buildList {
             if (pl.savingsOut > 0 || pl.savingsIn > 0) add(
-                "Savings & investments: " + listOfNotNull(
-                    pl.savingsOut.takeIf { it > 0 }?.let { "${Money.formatInr(it)} put away" },
+                "Investments: " + listOfNotNull(
+                    pl.savingsOut.takeIf { it > 0 }?.let { "${Money.formatInr(it)} put in, counted in expenses" },
                     pl.savingsIn.takeIf { it > 0 }?.let { "${Money.formatInr(it)} back" },
                 ).joinToString(" · "),
             )

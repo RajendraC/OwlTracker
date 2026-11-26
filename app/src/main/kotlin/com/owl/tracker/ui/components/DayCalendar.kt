@@ -156,6 +156,9 @@ fun DayCircle(date: LocalDate, level: DayLevel, fixed: Boolean, picked: Boolean,
     }
 }
 
+/** Money put into investments: counted like spending, shown in purple. */
+val INVESTED = Color(0xFF7B5CD6)
+
 /** The liquid's colour: green up to half the day's share, mango up to all of it, red past it. */
 fun fullColor(full: Float): Color = when {
     full <= 0.5f -> LIGHT
@@ -168,7 +171,7 @@ fun fullColor(full: Float): Color = when {
  * whole share, more went over and the ball is full and red). The same gloss and shadow as [DayCircle].
  */
 @Composable
-fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, future: Boolean, size: Dp, modifier: Modifier = Modifier) {
+fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, future: Boolean, size: Dp, modifier: Modifier = Modifier, investedShare: Float = 0f) {
     val brand = LocalBrand.current
     val glass = brand.clay.pressed
     val surface = brand.clay.surface
@@ -207,6 +210,15 @@ fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, futur
                         lineTo(c.x + r, c.y + r); lineTo(c.x - r, c.y + r); close()
                     }
                     drawPath(liquid, Brush.radialGradient(0f to lerp(color, Color.White, 0.45f), 0.55f to color, 1f to lerp(color, Color.Black, 0.22f), center = light, radius = r * 1.6f))
+                    // What went into investments settles at the bottom, in purple
+                    if (investedShare > 0f) {
+                        val inv = level * investedShare.coerceIn(0f, 1f)
+                        val itop = c.y + r - 2 * r * inv
+                        drawRect(
+                            Brush.radialGradient(0f to lerp(INVESTED, Color.White, 0.45f), 0.55f to INVESTED, 1f to lerp(INVESTED, Color.Black, 0.22f), center = light, radius = r * 1.6f),
+                            topLeft = Offset(c.x - r, itop), size = androidx.compose.ui.geometry.Size(2 * r, c.y + r - itop),
+                        )
+                    }
                 }
             }
             // Gloss and rim, so it reads as glass
@@ -216,6 +228,15 @@ fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, futur
                 val dc = c + Offset(r * 0.74f, -r * 0.74f)
                 drawCircle(surface, 6.dp.toPx(), dc)
                 drawCircle(FIXED_DOT, 4.dp.toPx(), dc)
+            }
+            if (investedShare > 0f) {
+                // A purple badge with a rising line: some of this day went into investments
+                val bc = c + Offset(-r * 0.74f, -r * 0.74f)
+                drawCircle(surface, 7.dp.toPx(), bc)
+                drawCircle(INVESTED, 5.5.dp.toPx(), bc)
+                val u = 1.dp.toPx()
+                val up = androidx.compose.ui.graphics.Path().apply { moveTo(bc.x - 3 * u, bc.y + 2 * u); lineTo(bc.x - 0.5f * u, bc.y - 0.5f * u); lineTo(bc.x + 0.8f * u, bc.y + 0.8f * u); lineTo(bc.x + 3 * u, bc.y - 2.2f * u) }
+                drawPath(up, Color.White, style = Stroke(1.3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
             }
         },
         contentAlignment = Alignment.Center,
@@ -242,7 +263,7 @@ fun FillLegend(share: DayShare, modifier: Modifier = Modifier) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(LIGHT to "Up to half the day's share", WITHIN to "Most of it", VERY_HEAVY to "Over", FIXED_DOT to "EMI or rent").forEach { (c, label) ->
+            listOf(LIGHT to "Up to half the day's share", WITHIN to "Most of it", VERY_HEAVY to "Over", INVESTED to "Invested", FIXED_DOT to "EMI or rent").forEach { (c, label) ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     Box(Modifier.size(if (c == FIXED_DOT) 9.dp else 12.dp).clip(CircleShape).background(c))
                     Text(label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted)
@@ -253,7 +274,7 @@ fun FillLegend(share: DayShare, modifier: Modifier = Modifier) {
             when {
                 share.paise <= 0 && share.fromBudget -> "EMIs and rent take the whole budget, so there's no everyday share left"
                 share.paise <= 0 -> "Set a monthly budget and each day fills against its share of it"
-                share.fromBudget -> "Each day fills with its spending against ${Money.formatInr(share.paise)} a day, the budget after EMIs and rent. Red amounts went over."
+                share.fromBudget -> "Each day fills with its spending against ${Money.formatInr(share.paise)} a day, the budget after EMIs and rent. Investments count too, in purple. Red amounts went over."
                 else -> "Each day fills against a usual ${Money.formatInr(share.paise)} day, EMIs and rent left out. Red amounts went over."
             },
             style = MaterialTheme.typography.bodySmall, color = muted,
@@ -375,7 +396,7 @@ fun MonthCalendarCard(
                     val date = row.weekStart.plusDays(i.toLong())
                     val future = d == null || d.level == DayLevel.FUTURE
                     Column(
-                        Modifier.weight(1f).height(62.dp).clip(RoundedCornerShape(12.dp))
+                        Modifier.weight(1f).height(if (row.days.any { (it?.investedPaise ?: 0) > 0 }) 76.dp else 62.dp).clip(RoundedCornerShape(12.dp))
                             .then(
                                 if (d == null) Modifier
                                 else (if (future) Modifier else Modifier.clickable(onClickLabel = "See this day's payments") { onPick(date) })
@@ -390,13 +411,20 @@ fun MonthCalendarCard(
                     ) {
                         if (d != null) {
                             val full = com.owl.tracker.core.Weeks.fullness(d.everydayPaise, share.paise)
-                            GlassDay(date, full, d.fixedPaise > 0, date == today, future, 32.dp)
+                            GlassDay(date, full, d.fixedPaise > 0, date == today, future, 32.dp,
+                                investedShare = if (d.everydayPaise > 0) d.investedPaise.toFloat() / d.everydayPaise else 0f)
                             // What went that day, under the ball; red when it went over its share
                             if (!future) FitText(
                                 if (d.everydayPaise > 0) Money.formatShort(d.everydayPaise) else "–",
                                 Modifier.padding(horizontal = 1.dp).testTag("cal_amount_$date"),
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 10.sp),
                                 color = if (full > 1f) VERY_HEAVY else muted, textAlign = TextAlign.Center, minScale = 0.6f,
+                            )
+                            if (!future && d.investedPaise > 0) FitText(
+                                Money.formatShort(d.investedPaise) + " inv.",
+                                Modifier.padding(horizontal = 1.dp).testTag("cal_invested_$date"),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 9.sp),
+                                color = INVESTED, textAlign = TextAlign.Center, minScale = 0.6f,
                             )
                         }
                     }
@@ -417,6 +445,8 @@ fun MonthCalendarCard(
                     if (open) {
                         Column(horizontalAlignment = Alignment.End) {
                             FitText(Money.formatShort(row.paise), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp), textAlign = TextAlign.End, minScale = 0.6f)
+                            val invested = row.days.sumOf { it?.investedPaise ?: 0L }
+                            if (invested > 0) FitText(Money.formatShort(invested) + " invested", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 10.sp), color = INVESTED, textAlign = TextAlign.End, minScale = 0.6f)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 FitText("Week", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.primary, minScale = 0.7f)
                                 Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))

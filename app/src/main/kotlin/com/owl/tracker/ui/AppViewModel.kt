@@ -352,7 +352,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private fun spendsOf(txns: List<Txn>, catMap: Map<String, Category>) = txns.flatMap { it.portions() }.filter { counts(it, catMap) }
-        .map { com.owl.tracker.core.DaySpend(dateOf(it.occurredAt), it.amountPaise, it.categoryId in FIXED_CATEGORIES) }
+        .map { com.owl.tracker.core.DaySpend(dateOf(it.occurredAt), it.amountPaise, it.categoryId in FIXED_CATEGORIES, catMap[it.categoryId]?.isInvestment == true) }
 
     private fun buildWeekView(start: LocalDate, window: List<Txn>, cats: List<Category>, budgets: Map<String, Long>, startDay: Int): WeekView {
         val w = com.owl.tracker.core.Weeks

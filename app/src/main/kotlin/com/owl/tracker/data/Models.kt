@@ -25,7 +25,7 @@ enum class ThemeMode(val key: String, val label: String) {
 /** Where a transaction came from. BACKUP: restored from a backup file (originally an SMS, with the SMS details left out). */
 enum class Source { SMS, MANUAL, BACKUP }
 
-/** EXPENSE counts toward budgets. SAVING, TRANSFER and INCOME never do. */
+/** EXPENSE and SAVING (investments: money going out, flagged as invested) count toward budgets. TRANSFER and INCOME never do. */
 enum class CategoryKind { EXPENSE, SAVING, TRANSFER, INCOME }
 
 data class Category(
@@ -40,7 +40,9 @@ data class Category(
     /** The group this category sits in; null for a group, or a category on its own. */
     val parent: String? = null,
 ) {
-    val countsAsSpend: Boolean get() = kind == CategoryKind.EXPENSE
+    val countsAsSpend: Boolean get() = kind == CategoryKind.EXPENSE || kind == CategoryKind.SAVING
+    /** Money put into investments: it counts as money going out, and is shown in purple as invested. */
+    val isInvestment: Boolean get() = kind == CategoryKind.SAVING
 }
 
 /**
@@ -113,6 +115,9 @@ data class Txn(
      * Money in never does, not even a refund: it shows with a + and counts as income on Income & expenses.
      */
     fun isSpending(category: Category?): Boolean = direction == Direction.DEBIT && !excluded && (category?.countsAsSpend ?: true)
+
+    /** Money going out into investments: counted like spending, flagged as invested. */
+    fun isInvested(category: Category?): Boolean = isSpending(category) && category?.isInvestment == true
 
     /** Counts as income on Income & expenses: salary and other money in, refunds and money back. Transfers and savings coming back don't. */
     fun isIncome(category: Category?): Boolean =
