@@ -43,7 +43,7 @@ class WeekCalendarFlowTest {
             waitForText("October, week by week")
             // Thursday the 15th: one ₹3,499 Amazon order, well over the day's share, so its amount is shown (in red)
             waitForTag("cal_amount_2026-10-15")
-            onNodeWithTag("cal_amount_2026-10-15").assertTextEquals("₹3.5k")
+            onNodeWithTag("cal_amount_2026-10-15", useUnmergedTree = true).assertTextEquals("₹3.5k")
             waitForText("the budget after EMIs and rent", substring = true)
             // No card under the calendar: the day opens in Activity with only its payments
             tapTag("cal_day_2026-10-15")
