@@ -261,7 +261,7 @@ private fun MonthPicture(p: SharePicture.Month) {
         if (p.badges > 0) add("${p.badges}" to if (p.badges == 1) "owl badge earned" else "owl badges earned")
         if (isEmpty()) add("🦉" to "keeping an eye on every rupee")
     }.take(4)
-    Column(Modifier.fillMaxSize().padding(bottom = 40.dp)) {
+    Column(Modifier.fillMaxSize().padding(bottom = 54.dp)) {
         Text("MY MONTH", color = Rust, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
         Text(
             when (p.under) { true -> "${p.month}, done!"; false -> "${p.month}: a tough one"; null -> "My ${p.month}" },
@@ -272,8 +272,9 @@ private fun MonthPicture(p: SharePicture.Month) {
             color = Cocoa, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold,
         )
         // The owl in the middle, as big as the room allows
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            MoodOwl(if (p.under == true) OwlMood.CHEERING else OwlMood.HAPPY, 130.dp, dark = false, still = true)
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val side = minOf(maxHeight - 8.dp, 130.dp)
+            if (side > 40.dp) MoodOwl(if (p.under == true) OwlMood.CHEERING else OwlMood.HAPPY, side, dark = false, still = true)
         }
         tiles.chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
