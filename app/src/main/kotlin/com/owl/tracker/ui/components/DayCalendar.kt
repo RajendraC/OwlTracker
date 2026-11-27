@@ -61,6 +61,11 @@ private val LIGHT = Color(0xFF4CB86B)
 private val WITHIN = Color(0xFFFFB21A)
 private val HEAVY = Color(0xFFFF7A2E)
 private val VERY_HEAVY = Color(0xFFD63B41)
+
+/** The calendar's green, mango and red, for Home's budget ring. */
+internal val RING_GREEN get() = LIGHT
+internal val RING_MANGO get() = WITHIN
+internal val RING_RED get() = VERY_HEAVY
 /** EMI or rent paid that day: the EMI category's brown, lifted to show on both themes. */
 val FIXED_DOT = Color(0xFF9C6B52)
 private val MANGO = Color(0xFFFFB21A)

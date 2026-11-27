@@ -181,8 +181,11 @@ class StoreScreenshots {
             }.onFailure { Log.w(TAG, "Calendar: not shown", it) }
             // Home drill-down: tap the budget circle's biggest part, then come back up
             runCatching {
+                // The budget ring leads to "Where it went"; open its biggest category
                 scrollTo(hasTestTag("budget_ring"))
-                onAllNodes(hasTestTag("budget_ring"))[0].performTouchInput { click(androidx.compose.ui.geometry.Offset(centerX + 4f, 11.dp.toPx())) }
+                onAllNodes(hasTestTag("budget_ring"))[0].performClick()
+                Thread.sleep(900)
+                onAllNodes(hasTestTagStartingWith("cat_"))[0].performClick()
             }
             Thread.sleep(1500)
             shot("13_home_drill")

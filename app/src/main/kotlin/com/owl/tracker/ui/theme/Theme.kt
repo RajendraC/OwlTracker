@@ -227,17 +227,38 @@ private fun appFont(context: Context): FontFamily {
     )
 }
 
-private fun appTypography(family: FontFamily): Typography {
+/**
+ * Fraunces (SIL Open Font License, see assets/fonts/OFL-Fraunces.txt), a soft serif for headings and big amounts,
+ * cut to its soft, display style at two weights. Falls back to the body font if the phone can't read it.
+ */
+private fun displayFont(context: Context, body: FontFamily): FontFamily {
+    val ok = runCatching { context.resources.getFont(R.font.fraunces_bold) }.getOrNull() != null
+    if (!ok) return body
+    return FontFamily(
+        Font(R.font.fraunces_semibold, FontWeight.SemiBold),
+        Font(R.font.fraunces_bold, FontWeight.Bold),
+        Font(R.font.fraunces_bold, FontWeight.ExtraBold),
+        Font(R.font.fraunces_bold, FontWeight.Black),
+    )
+}
+
+/** Headings and big amounts: Fraunces; everything else (labels, lists, buttons): Plus Jakarta Sans. */
+val LocalDisplayFont = androidx.compose.runtime.staticCompositionLocalOf<FontFamily> { FontFamily.Default }
+
+private fun appTypography(family: FontFamily, display: FontFamily = family): Typography {
     val t = Typography()
     fun TextStyle.f(w: FontWeight? = null, spacing: Float? = null) =
         copy(fontFamily = family, fontWeight = w ?: fontWeight, letterSpacing = spacing?.sp ?: letterSpacing)
+    // Headings in the serif, a touch bigger than before so they lead the page
+    fun TextStyle.d(spacing: Float, grow: Float = 1.06f) =
+        copy(fontFamily = display, fontWeight = FontWeight.Bold, letterSpacing = spacing.sp, fontSize = fontSize * grow, lineHeight = lineHeight * grow)
     return t.copy(
-        displayLarge = t.displayLarge.f(FontWeight.ExtraBold), displayMedium = t.displayMedium.f(FontWeight.ExtraBold),
-        displaySmall = t.displaySmall.f(FontWeight.ExtraBold),
-        headlineLarge = t.headlineLarge.f(FontWeight.ExtraBold, -0.5f),
-        headlineMedium = t.headlineMedium.f(FontWeight.ExtraBold, -0.4f),
-        headlineSmall = t.headlineSmall.f(FontWeight.ExtraBold, -0.2f),
-        titleLarge = t.titleLarge.f(FontWeight.ExtraBold),
+        displayLarge = t.displayLarge.d(-0.5f, 1f), displayMedium = t.displayMedium.d(-0.5f, 1f),
+        displaySmall = t.displaySmall.d(-0.4f, 1f),
+        headlineLarge = t.headlineLarge.d(-0.6f),
+        headlineMedium = t.headlineMedium.d(-0.5f, 1.1f),
+        headlineSmall = t.headlineSmall.d(-0.3f),
+        titleLarge = t.titleLarge.d(-0.2f),
         titleMedium = t.titleMedium.f(FontWeight.Bold),
         titleSmall = t.titleSmall.f(FontWeight.Bold),
         bodyLarge = t.bodyLarge.f(), bodyMedium = t.bodyMedium.f(FontWeight.Medium), bodySmall = t.bodySmall.f(FontWeight.Medium),
@@ -255,8 +276,11 @@ val Numeric = TextStyle(fontFeatureSettings = "tnum")
 @Suppress("UNUSED_PARAMETER")
 fun OwlTrackerTheme(dark: Boolean = isSystemInDarkTheme(), dynamic: Boolean = false, content: @Composable () -> Unit) {
     val context = LocalContext.current
-    val typography = remember { appTypography(appFont(context)) }
+    val body = remember { appFont(context) }
+    val display = remember(body) { displayFont(context, body) }
+    val typography = remember(body, display) { appTypography(body, display) }
     CompositionLocalProvider(
+        LocalDisplayFont provides display,
         LocalStatusColors provides if (dark) DarkStatus else LightStatus,
         LocalBrand provides if (dark) DarkBrand else LightBrand,
         LocalDarkTheme provides dark,

@@ -487,7 +487,7 @@ fun DrillRingCard(
                                 )
                             }
                         },
-                        end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleSmall) },
+                        end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleMedium.copy(fontFamily = com.owl.tracker.ui.theme.LocalDisplayFont.current, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)) },
                     )
                     Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
                 }
@@ -523,7 +523,7 @@ fun DrillRingCard(
                                 )
                             }
                         },
-                        end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleSmall) },
+                        end = { Text(Money.formatInr(c.paise), style = MaterialTheme.typography.titleMedium.copy(fontFamily = com.owl.tracker.ui.theme.LocalDisplayFont.current, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)) },
                     )
                     Icon(Ic.chevR, contentDescription = null, tint = muted, modifier = Modifier.size(16.dp))
                 }
@@ -552,7 +552,7 @@ fun DrillRingCard(
                         end = {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text("${(s.share * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = muted)
-                                Text(Money.formatInr(s.paise), style = MaterialTheme.typography.titleSmall)
+                                Text(Money.formatInr(s.paise), style = MaterialTheme.typography.titleMedium.copy(fontFamily = com.owl.tracker.ui.theme.LocalDisplayFont.current, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
                             }
                         },
                     )

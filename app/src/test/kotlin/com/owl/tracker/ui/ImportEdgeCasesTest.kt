@@ -96,7 +96,7 @@ class SampleDataTest : FirstImportTest(emptyList()) {
             setMonthlyTotal("10000")
             tapTag("save_budget")
             waitForTag("sample_banner")
-            waitForText("over budget with")
+            waitForText("Over by ₹")
         }
     }
 }

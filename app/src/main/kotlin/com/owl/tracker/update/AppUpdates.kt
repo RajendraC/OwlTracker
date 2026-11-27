@@ -239,6 +239,10 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.26" to listOf(
+            Item("Spent, clear as day", "Home's budget card now shows what you spent as the big number. The ring goes round once for your budget; if you go past it, a red ring laps inside, and the middle says how many times over (like 1.3×) instead of a percentage."),
+            Item("A warmer look", "Headings and amounts use a new, softer typeface, so the numbers that matter stand out."),
+        ),
         "1.9.25" to listOf(
             Item("A day, right on Home", "Tap a day in the calendar and Where it went shows just that day: the orbit, the owl's mood and the list. Tap the day again, or ✕, for the whole month."),
         ),

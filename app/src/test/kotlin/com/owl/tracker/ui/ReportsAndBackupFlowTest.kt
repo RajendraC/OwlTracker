@@ -97,14 +97,19 @@ class ReportsAndBackupFlowTest {
         }
     }
 
-    /** Home: tapping the budget circle opens that category right below, with its picture; the ring opens a merchant's payments; Back goes up. */
+    /** Home: the budget ring leads to "Where it went"; a category opens right there, with its picture; the ring opens a merchant's payments; Back goes up. */
     @Test
     fun theBudgetCircleOnHomeDrillsDownRightThere() {
         setUpWithSms()
         with(compose) {
             waitForTag("budget_ring")
-            // The top of the circle is the biggest category's part
-            onNodeWithTag("budget_ring").performTouchInput { click(Offset(centerX + 4f, 11.dp.toPx())) }
+            onNodeWithTag("budget_ring").performClick()
+            // The biggest category, first in "Where it went"
+            val first = androidx.compose.ui.test.SemanticsMatcher("a category row") {
+                it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.TestTag)?.startsWith("cat_") == true
+            }
+            waitUntil(10_000) { onAllNodes(first).fetchSemanticsNodes().isNotEmpty() }
+            onAllNodes(first)[0].performScrollTo().performClick()
             waitForTag("ring_up")
             // The opened category's picture sits above its merchants (Home only)
             waitForTag("category_scene")

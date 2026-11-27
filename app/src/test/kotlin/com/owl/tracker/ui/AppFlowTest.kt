@@ -58,7 +58,7 @@ class AppFlowTest {
             // Budget ₹10,000 against ₹23,607 of spend (the ₹10,000 SIP counts) -> over budget by ₹13,607
             setMonthlyTotal("10000")
             tapTag("save_budget")
-            waitForText("₹13,607 over budget with")
+            waitForText("Over by ₹13,607")
             onNodeWithTag("budget_hero").assertIsDisplayed()
             waitForText("Over budget")
 
@@ -109,7 +109,7 @@ class AppFlowTest {
             typeInto("add_amount", "1500")
             typeInto("add_merchant", "Tea stall")
             tapTag("save_expense")
-            waitForText("₹500 over budget with")
+            waitForText("Over by ₹500")
             // Home has no Recent list: the new expense is in Activity
             tapTag("tab_activity")
             waitForText("Tea stall")

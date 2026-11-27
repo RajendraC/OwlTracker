@@ -52,6 +52,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -714,7 +718,11 @@ private fun PeriodSwitch(isWeek: Boolean, onMonth: () -> Unit, onWeek: () -> Uni
     }
 }
 
-/** The budget card: the circle split by category, what's left, how it's going, and three small figures. */
+/**
+ * The budget card. Spent is always the big number; the ring goes round once for the budget (green, mango from 80%)
+ * and, past it, laps on the inside in red, so it never shows more than 100%. The middle says how much is used, or how
+ * many times the budget went out ("2.8×"). A white tick marks where an even pace would be by today.
+ */
 @Composable
 private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, plan: com.owl.tracker.ui.SavingPlan?, onOpen: (String?) -> Unit, modifier: Modifier = Modifier) {
     val sc = LocalStatusColors.current
@@ -722,8 +730,9 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val status = dash.status
     val daysLeft = dash.period.days - dash.dayNumber
+    fun days(n: Int) = if (n == 1) "1 day" else "$n days"
     com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(36.dp), modifier.fillMaxWidth().testTag("budget_hero"), elevation = 18.dp) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             if (status == null) {
                 Column {
                     Text("Spent this month", style = MaterialTheme.typography.labelLarge, color = muted)
@@ -733,69 +742,112 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
                 Button(onClick = { vm.openSheet(Sheet.BudgetEdit(Schema.OVERALL)) }, modifier = Modifier.fillMaxWidth()) { Text("Set a monthly budget") }
                 return@Column
             }
-            // The ring and what's left, side by side; with big text (or a narrow phone) one under the other
-            val left = dash.overall - dash.spent
-            val heading = when { left < 0 -> "Over budget by"; dash.isCurrent -> "Left this month"; else -> "Left over" }
-            val amount = Money.formatInr(kotlin.math.abs(left))
-            val ofText = "of ${Money.formatInr(dash.overall)}"
+            val used = if (dash.overall > 0) dash.spent.toDouble() / dash.overall else 0.0
+            val over = dash.spent - dash.overall
+            val left = -over
+            val pace = if (dash.isCurrent && used < 1) dash.dayNumber.toFloat() / dash.period.days else null
+            val centre = if (used > 1) String.format(java.util.Locale.ROOT, "%.1f×", used) else "${(used * 100).toInt()}%"
+            val centreSub = if (used > 1) "the budget" else "used"
+            val chips: List<Pair<String, String>> = when {   // text to kind (ok, warn, over, plain)
+                over > 0 && dash.isCurrent -> listOf("Over by ${Money.formatInr(over)}" to "over")
+                over > 0 -> listOf("Went over by ${Money.formatInr(over)}" to "over")
+                !dash.isCurrent -> listOf("${Money.formatInr(left)} saved" to "ok")
+                else -> listOfNotNull(
+                    "${Money.formatInr(left)} left" to if (status.state == BudgetState.ON_TRACK) "ok" else "warn",
+                    status.safePerDayPaise.takeIf { it > 0 && daysLeft > 0 }?.let { "${Money.formatInr(it)} a day for ${days(daysLeft)}" to "plain" },
+                )
+            }
             val info: @Composable (Modifier, Alignment.Horizontal) -> Unit = { m, align ->
                 Column(m, horizontalAlignment = align) {
-                    Text(heading, style = MaterialTheme.typography.labelLarge, color = muted)
+                    Text("Spent", style = MaterialTheme.typography.labelLarge, color = muted)
+                    // The biggest number is always what went out; a tap shows those payments
                     com.owl.tracker.ui.components.FitText(
-                        amount, style = MaterialTheme.typography.headlineMedium, minScale = 0.6f,
-                        color = if (left < 0) sc.overFg else MaterialTheme.colorScheme.onSurface, modifier = Modifier.testTag("left_total"),
+                        Money.formatInr(dash.spent), style = MaterialTheme.typography.headlineMedium, minScale = 0.6f,
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                            .clickable(onClickLabel = "See this month's payments") { vm.showActivity(filter = com.owl.tracker.ui.ActivityFilter.SPENT) }
+                            .testTag("figure_spent"),
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(ofText, style = MaterialTheme.typography.bodySmall, color = muted)
+                        Text("budget ${Money.formatInr(dash.overall)}", style = MaterialTheme.typography.bodyMedium, color = muted)
                         IconButton(onClick = { vm.openSheet(Sheet.BudgetEdit(Schema.OVERALL)) }, modifier = Modifier.size(40.dp).testTag("edit_budget")) {
                             Icon(Ic.edit, contentDescription = "Edit the monthly budget", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         }
                     }
-                    StatusPill(status.state)
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        chips.forEachIndexed { i, (text, kind) ->
+                            val (bg, fg) = when (kind) {
+                                "ok" -> sc.okBg to sc.okFg
+                                "warn" -> sc.bg(BudgetState.HEADS_UP) to sc.fg(BudgetState.HEADS_UP)
+                                "over" -> sc.overBg to sc.overFg
+                                else -> brand.spentBg to MaterialTheme.colorScheme.onSurface
+                            }
+                            Text(
+                                text, color = fg, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
+                                modifier = Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 12.dp, vertical = 5.dp)
+                                    .then(if (i == 0) Modifier.testTag("left_total") else Modifier),
+                            )
+                        }
+                    }
                 }
             }
             val need = maxOf(
-                com.owl.tracker.ui.components.rememberTextWidth(heading, MaterialTheme.typography.labelLarge),
-                com.owl.tracker.ui.components.rememberTextWidth(amount, MaterialTheme.typography.headlineMedium) * 0.7f,
-                com.owl.tracker.ui.components.rememberTextWidth(ofText, MaterialTheme.typography.bodySmall) + 40.dp,
+                com.owl.tracker.ui.components.rememberTextWidth(Money.formatInr(dash.spent), MaterialTheme.typography.headlineMedium) * 0.7f,
+                com.owl.tracker.ui.components.rememberTextWidth("budget ${Money.formatInr(dash.overall)}", MaterialTheme.typography.bodyMedium) + 40.dp,
+                com.owl.tracker.ui.components.rememberTextWidth(chips.first().first, MaterialTheme.typography.labelLarge) + 24.dp,
             )
+            val ring: @Composable () -> Unit = {
+                LapRing(used, pace, !dash.isCurrent, centre, centreSub, dash.period.start, Modifier.clickable(onClickLabel = "See where it went") { onOpen(null) })
+            }
             androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
-                if (maxWidth - 140.dp - 16.dp >= need) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        BudgetDrillRing(status.fraction, dash.spent, dash.overall, dash.byCategory, dash.period.start, onOpen)
+                if (maxWidth - 132.dp - 14.dp >= need) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        ring()
                         info(Modifier.weight(1f), Alignment.Start)
                     }
                 } else {
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        BudgetDrillRing(status.fraction, dash.spent, dash.overall, dash.byCategory, dash.period.start, onOpen)
+                        ring()
                         info(Modifier.fillMaxWidth(), Alignment.CenterHorizontally)
                     }
                 }
             }
-            val line = when {
-                !dash.isCurrent && status.state == BudgetState.OVER -> "Finished ${Money.formatInr(dash.spent - dash.overall)} over budget"
-                !dash.isCurrent -> "Finished ${Money.formatInr(dash.overall - dash.spent)} under budget"
-                status.state == BudgetState.OVER -> "${Money.formatInr(dash.spent - dash.overall)} over budget with $daysLeft days left"
-                status.state == BudgetState.HEADS_UP && status.projectedPaise > dash.overall -> "At this pace you'll be ${Money.formatInr(status.projectedPaise - dash.overall)} over by month end"
-                status.state == BudgetState.HEADS_UP -> "You've used ${(status.fraction * 100).toInt()}% with $daysLeft days left"
-                else -> "${Money.formatInr(status.safePerDayPaise)} a day is safe to spend for the next $daysLeft days"
+            // What the ring's parts mean, quietly
+            Text(
+                if (used > 1) "Outer ring: the budget, once round · inner: what went past it"
+                else if (pace != null) "The white mark is where an even pace would be by today" else "The ring is the budget, once round",
+                style = MaterialTheme.typography.labelSmall, color = muted, modifier = Modifier.padding(horizontal = 4.dp),
+            )
+            val overRows = dash.categoryRows.filter { it.status.state == BudgetState.OVER }
+            val overNames = when (overRows.size) {
+                0 -> null
+                1 -> "${overRows[0].category.name} went over"
+                2 -> "${overRows[0].category.name} and ${overRows[1].category.name} went over"
+                else -> "${overRows[0].category.name}, ${overRows[1].category.name} and ${overRows.size - 2} more went over"
             }
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(sc.bg(status.state)).padding(horizontal = 14.dp, vertical = 10.dp),
+            val top2 = dash.byCategory.take(2).map { it.category.name }
+            val line: Pair<String, BudgetState>? = when {
+                over > 0 && dash.isCurrent -> "${days(daysLeft)} left · ${overNames ?: "no room left in the budget this month"}" to BudgetState.OVER
+                over > 0 -> "${dash.label} went over" + (if (top2.isNotEmpty()) ". ${top2.joinToString(" and ")} were most of it" else "") to BudgetState.OVER
+                !dash.isCurrent -> "${dash.label} came in ${Money.formatInr(left)} under budget" to BudgetState.ON_TRACK
+                status.state == BudgetState.HEADS_UP && status.projectedPaise > dash.overall && status.safePerDayPaise > 0 ->
+                    "Faster than usual: keep to ${Money.formatInr(status.safePerDayPaise)} a day to finish within budget" to BudgetState.HEADS_UP
+                status.state == BudgetState.HEADS_UP -> "Nearly there: ${Money.formatInr(left)} left for the last ${days(daysLeft)}" to BudgetState.HEADS_UP
+                else -> null
+            }
+            if (line != null) Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(sc.bg(line.second))
+                    .then(if (overRows.isNotEmpty() && line.second == BudgetState.OVER) Modifier.clickable(onClickLabel = "See the budgets that are over") { vm.openSheet(Sheet.OverBudget) } else Modifier)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Icon(if (status.state == BudgetState.ON_TRACK) Ic.check else Ic.alert, contentDescription = null, tint = sc.fg(status.state), modifier = Modifier.size(18.dp))
-                Text(line, color = sc.fg(status.state), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), modifier = Modifier.testTag("budget_line"))
+                Icon(if (line.second == BudgetState.ON_TRACK) Ic.check else Ic.alert, contentDescription = null, tint = sc.fg(line.second), modifier = Modifier.size(18.dp))
+                Text(line.first, color = sc.fg(line.second), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f).testTag("budget_line"))
             }
-            // Three small figures, each opening what it's about: spent → this month's payments; a budget that's over →
-            // that category (or Budgets); the biggest category when the month is over but no category budget is;
-            // what could be saved → Ways to save in Reports
-            val overRows = dash.categoryRows.filter { it.status.state == BudgetState.OVER }
+            // Two small figures (Spent is the big number now): a budget that's over, or the biggest category; and
+            // what could be saved, or the days left
             val biggest = dash.byCategory.firstOrNull()
-            val monthOver = status.state == BudgetState.OVER
+            val monthOver = over > 0
             val figures = buildList {
-                add(Figure("Spent", Money.formatInr(dash.spent), brand.spentBg, MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.soft3d_coins,
-                    "figure_spent", "See this month's payments") { vm.showActivity(filter = com.owl.tracker.ui.ActivityFilter.SPENT) })
                 when {
                     overRows.size == 1 -> add(Figure("Over budget", overRows[0].category.name, sc.overBg, sc.overFg,
                         com.owl.tracker.ui.components.categoryArt(overRows[0].category.icon), "figure_over", "Open ${overRows[0].category.name}") { onOpen(overRows[0].category.id) })
@@ -815,6 +867,60 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
                 }
             }
             Figures(figures)
+        }
+    }
+}
+
+/**
+ * The budget as a ring that laps: the outer ring fills once for the budget (green, then mango from 80%; green for a
+ * finished month that stayed within it); past the budget, an inner red ring laps once more, and again brighter past
+ * twice. [pace] puts a white tick where an even pace would be by today.
+ */
+@Composable
+private fun LapRing(used: Double, pace: Float?, finished: Boolean, centre: String, centreSub: String, period: LocalDate, modifier: Modifier = Modifier) {
+    val sc = LocalStatusColors.current
+    val track = sc.track
+    val green = com.owl.tracker.ui.components.RING_GREEN
+    val mango = com.owl.tracker.ui.components.RING_MANGO
+    val red = com.owl.tracker.ui.components.RING_RED
+    val redLight = Color(0xFFFF6B6B)
+    val tick = MaterialTheme.colorScheme.onSurface
+    val grow = com.owl.tracker.ui.components.growIn(period, 1100)
+    val outerColor = if (used < 0.8 || (finished && used <= 1)) green else mango
+    Box(
+        modifier.size(132.dp).clip(CircleShape).testTag("budget_ring").semantics {
+            contentDescription = if (used > 1) "Spent $centre the budget" else "$centre of the budget used"
+        }.drawBehind {
+            val ow = 15.dp.toPx()
+            val r = size.minDimension / 2f - ow / 2f - 2.dp.toPx()
+            val tl = Offset(center.x - r, center.y - r)
+            val sz = androidx.compose.ui.geometry.Size(2 * r, 2 * r)
+            drawArc(track, 0f, 360f, false, tl, sz, style = Stroke(ow))
+            val outer = (used.coerceIn(0.0, 1.0) * 360 * grow).toFloat()
+            if (outer > 0f) drawArc(outerColor, -90f, outer, false, tl, sz, style = Stroke(ow, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            if (used > 1) {
+                val iw = 11.dp.toPx()
+                val ir = r - ow / 2f - iw / 2f - 3.dp.toPx()
+                val itl = Offset(center.x - ir, center.y - ir)
+                val isz = androidx.compose.ui.geometry.Size(2 * ir, 2 * ir)
+                drawArc(track, 0f, 360f, false, itl, isz, style = Stroke(iw))
+                val past = (used - 1) * grow
+                if (past > 1) drawArc(red, 0f, 360f, false, itl, isz, style = Stroke(iw))
+                val lap = (if (past > 1) (past - 1).coerceAtMost(1.0) else past) * 360
+                drawArc(redLight, -90f, lap.toFloat().coerceAtMost(359.5f), false, itl, isz, style = Stroke(iw, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+            if (pace != null) {
+                val a = Math.toRadians((pace * 360 - 90).toDouble())
+                val r0 = r - ow / 2f - 3.dp.toPx(); val r1 = r + ow / 2f + 3.dp.toPx()
+                drawLine(tick, Offset(center.x + r0 * kotlin.math.cos(a).toFloat(), center.y + r0 * kotlin.math.sin(a).toFloat()),
+                    Offset(center.x + r1 * kotlin.math.cos(a).toFloat(), center.y + r1 * kotlin.math.sin(a).toFloat()), 2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            }
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(if (used > 1) 64.dp else 84.dp)) {
+            com.owl.tracker.ui.components.FitText(centre, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, minScale = 0.6f, modifier = Modifier.testTag("ring_centre_value"))
+            com.owl.tracker.ui.components.FitText(centreSub, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, minScale = 0.7f)
         }
     }
 }
@@ -1036,155 +1142,6 @@ private fun scopeMoods(
  * round it to see each one in the middle; tap one to open it in "Where it went" just below, or tap
  * the middle for the whole breakdown. Over budget, a red inner ring shows by how much.
  */
-@Composable
-private fun BudgetDrillRing(fraction: Double, spent: Long, budget: Long, byCategory: List<com.owl.tracker.ui.CategorySpend>, period: LocalDate, onOpen: (String?) -> Unit) {
-    val sc = LocalStatusColors.current
-    val brand = LocalBrand.current
-    val track = sc.track
-    val over = sc.overFg
-    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val parts = byCategory.filter { it.paise > 0 }
-    val sum = parts.sumOf { it.paise }.coerceAtLeast(1)
-    val filled = fraction.coerceIn(0.0, 1.0).toFloat() * 360f
-    // Each category's arc, in order round the circle: start and sweep in degrees from the top
-    val arcs = remember(parts, filled) {
-        var at = 0f
-        parts.map { p -> val sw = filled * p.paise / sum; (at to sw).also { at += sw } }
-    }
-    var hover by androidx.compose.runtime.remember(period) { androidx.compose.runtime.mutableStateOf<Int?>(null) }
-    val grow = com.owl.tracker.ui.components.growIn(period, 1100)
-    val pops = androidx.compose.runtime.key(parts.size, period) {
-        parts.indices.map { i ->
-            androidx.compose.animation.core.animateFloatAsState(
-                if (hover == i) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.55f, stiffness = 520f), label = "seg",
-            ).value
-        }
-    }
-    val focus = hover?.let { parts.getOrNull(it) }
-    Box(
-        Modifier.size(140.dp)
-            .pointerInput(arcs) {
-                val c = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
-                val outer = size.width / 2f
-                fun partAt(p: androidx.compose.ui.geometry.Offset): Int? {
-                    val angle = ((Math.toDegrees(kotlin.math.atan2((p.y - c.y).toDouble(), (p.x - c.x).toDouble())) + 90 + 360) % 360).toFloat()
-                    return arcs.indexOfFirst { (start, sw) -> angle >= start && angle < start + sw }.takeIf { it >= 0 }
-                }
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    val d = kotlin.math.hypot(down.position.x - c.x, down.position.y - c.y)
-                    if (d > outer) return@awaitEachGesture
-                    val inRing = d > outer * 0.62f
-                    hover = if (inRing) partAt(down.position) else null
-                    if (hover != null) haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                    var moved = false
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val ch = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!ch.pressed) break
-                        if ((ch.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
-                        if (moved) {
-                            ch.consume()
-                            val i = partAt(ch.position)
-                            if (i != hover) { hover = i; if (i != null) haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove) }
-                        }
-                    }
-                    val last = hover
-                    hover = null
-                    if (!moved) onOpen(if (inRing) last?.let { parts[it].category.id } else null)
-                }
-            }
-            .semantics {
-                contentDescription = "${(fraction * 100).toInt()}% of budget. " + parts.joinToString { "${it.category.name} ${Money.formatInr(it.paise)}" } +
-                    ". Tap a part to see where it went."
-            }
-            .testTag("budget_ring"),
-        contentAlignment = Alignment.Center,
-    ) {
-        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-            val stroke = size.minDimension * 0.12f
-            val pop = 5.dp.toPx()
-            val inset = stroke / 2 + pop
-            val arcSize = androidx.compose.ui.geometry.Size(size.width - inset * 2, size.height - inset * 2)
-            val tl = androidx.compose.ui.geometry.Offset(inset, inset)
-            val ringStroke = androidx.compose.ui.graphics.drawscope.Stroke(stroke)
-            // The dish the ring sits in: shaded at the top, where its rim hides the light
-            val dishR = arcSize.width / 2 - stroke / 2
-            drawCircle(brand.dish, dishR, center)
-            drawCircle(
-                androidx.compose.ui.graphics.Brush.verticalGradient(
-                    listOf(brand.clay.shade, Color.Transparent), center.y - dishR, center.y,
-                ),
-                dishR, center,
-            )
-            // The ring's shadow on the card, then the ring as a tube: the track, the categories, light on top, shade below
-            for (k in 1..3) {
-                drawArc(
-                    brand.clay.shadow.copy(alpha = 0.06f), 0f, 360f, false, tl + androidx.compose.ui.geometry.Offset(0f, k * 1.5f.dp.toPx()), arcSize,
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(stroke + k * 2.dp.toPx()),
-                )
-            }
-            drawArc(track, 0f, 360f, false, tl, arcSize, style = ringStroke)
-            // The spent part sweeps round, category after category
-            val shown = filled * grow
-            arcs.forEachIndexed { i, (start, sw) ->
-                val visible = (shown - start).coerceIn(0f, sw)
-                if (visible <= 0.4f) return@forEachIndexed
-                val p = pops.getOrElse(i) { 0f }
-                val mid = Math.toRadians((start - 90f + visible / 2).toDouble())
-                val shift = androidx.compose.ui.geometry.Offset((kotlin.math.cos(mid) * pop * p).toFloat(), (kotlin.math.sin(mid) * pop * p).toFloat())
-                val gap = if (arcs.size > 1) 1.5f else 0f
-                drawArc(
-                    Color(parts[i].category.color).copy(alpha = if (hover != null && hover != i) 0.35f else 1f),
-                    start - 90f + gap / 2, (visible - gap).coerceAtLeast(0.4f), false, tl + shift, arcSize,
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(stroke * (1f + 0.35f * p)),
-                )
-            }
-            drawArc(
-                androidx.compose.ui.graphics.Brush.verticalGradient(
-                    0f to Color.White.copy(alpha = 0.5f), 0.45f to Color.White.copy(alpha = 0.04f), 0.6f to Color.Transparent, 1f to Color(0x473A1C0C),
-                    startY = tl.y - stroke / 2, endY = tl.y + arcSize.height + stroke / 2,
-                ),
-                0f, 360f, false, tl, arcSize, style = ringStroke,
-            )
-            val rimOuter = androidx.compose.ui.geometry.Size(arcSize.width + stroke, arcSize.height + stroke)
-            val rimInner = androidx.compose.ui.geometry.Size(arcSize.width - stroke, arcSize.height - stroke)
-            drawArc(Color(0x1F3A1C0C), 0f, 360f, false, tl - androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2), rimOuter, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
-            drawArc(Color(0x1A3A1C0C), 0f, 360f, false, tl + androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2), rimInner, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
-            // A soft highlight on the upper left, so the ring looks glossy like the pictures
-            if (shown > 1f) drawArc(
-                Color.White.copy(alpha = 0.35f), -165f, 60f, false, tl + androidx.compose.ui.geometry.Offset(stroke * 0.12f, stroke * 0.12f),
-                androidx.compose.ui.geometry.Size(arcSize.width - stroke * 0.24f, arcSize.height - stroke * 0.24f),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(stroke * 0.3f, cap = androidx.compose.ui.graphics.StrokeCap.Round),
-            )
-            if (fraction > 1.0) {
-                val s2 = stroke * 0.55f
-                val inner = inset + stroke / 2 + s2
-                val innerSize = androidx.compose.ui.geometry.Size(size.width - inner * 2, size.height - inner * 2)
-                val innerSweep = ((fraction - 1.0).coerceIn(0.0, 1.0) * 360 * grow).toFloat()
-                drawArc(over, -90f, innerSweep, false, androidx.compose.ui.geometry.Offset(inner, inner), innerSize, style = androidx.compose.ui.graphics.drawscope.Stroke(s2, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-            }
-        }
-        // The hole is a fixed size: with big text its words grow a little, then get smaller to fit
-        com.owl.tracker.ui.components.CapFontScale(1.25f) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.size(84.dp), verticalArrangement = Arrangement.Center) {
-                val center = androidx.compose.ui.text.style.TextAlign.Center
-                if (focus == null) {
-                    com.owl.tracker.ui.components.FitText("${(fraction * 100).toInt()}%", style = MaterialTheme.typography.headlineSmall, textAlign = center, minScale = 0.6f)
-                    com.owl.tracker.ui.components.FitText("spent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = center)
-                } else {
-                    com.owl.tracker.ui.components.FitText(focus.category.name, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = center, minScale = 0.75f)
-                    com.owl.tracker.ui.components.FitText(Money.formatShort(focus.paise), style = MaterialTheme.typography.titleMedium, textAlign = center, minScale = 0.6f)
-                    com.owl.tracker.ui.components.FitText(
-                        "${(focus.paise * 100 / budget.coerceAtLeast(1))}% of budget", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = center, maxLines = 2, minScale = 0.75f,
-                    )
-                }
-            }
-        }
-    }
-}
-
 /** Home's nudge: how much could be saved a month, and the biggest way to do it. Hidden until next month with ×. */
 @Composable
 private fun SavingNudge(vm: AppViewModel, plan: com.owl.tracker.ui.SavingPlan) {
@@ -1270,7 +1227,7 @@ fun TxnRow(vm: AppViewModel, t: Txn, category: Category?, showDay: Boolean) {
         }
         Text(
             (if (credit) "+" else "−") + Money.formatInr(t.amountPaise),
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleMedium.copy(fontFamily = com.owl.tracker.ui.theme.LocalDisplayFont.current, fontWeight = FontWeight.Bold),
             color = when {
                 credit -> MaterialTheme.colorScheme.primary
                 invested -> com.owl.tracker.ui.components.INVESTED
