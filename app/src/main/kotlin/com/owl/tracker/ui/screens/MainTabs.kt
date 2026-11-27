@@ -1191,11 +1191,10 @@ private fun scopeMoods(
  * round it to see each one in the middle; tap one to open it in "Where it went" just below, or tap
  * the middle for the whole breakdown. Over budget, a red inner ring shows by how much.
  */
-/** Last month's report, ready to share (2nd to 7th). */
+/** Last month's report, ready to look through on a computer (2nd to 7th). */
 @Composable
 private fun ReportOfferCard(vm: AppViewModel, month: String, onShare: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val to = remember { com.owl.tracker.nudge.Nudges.reportTo(context) }
     val excel = remember { com.owl.tracker.nudge.Nudges.reportExcel(context) }
     com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(26.dp), modifier.fillMaxWidth().testTag("report_offer"), elevation = 10.dp) {
         Column(Modifier.padding(start = 16.dp, end = 6.dp, top = 12.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1204,14 +1203,16 @@ private fun ReportOfferCard(vm: AppViewModel, month: String, onShare: () -> Unit
                 Column(Modifier.weight(1f).padding(start = 10.dp)) {
                     Text("Your $month report is ready", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        (if (excel) "An Excel workbook" else "An interactive page that opens in any browser") + ", made on your phone. Share it with ${to ?: "your family"}.",
+                        "Dig into your spending on a computer: " +
+                            (if (excel) "an Excel workbook for your own sums." else "an interactive web page with charts, filters and every payment, in any browser.") +
+                            " Send it to yourself by email or Drive.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = onClose, modifier = Modifier.testTag("report_offer_close")) { Icon(Ic.close, contentDescription = "Not now") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onShare, modifier = Modifier.testTag("report_offer_share")) { Text(if (to != null) "Share with $to" else "Share") }
+                Button(onClick = onShare, modifier = Modifier.testTag("report_offer_share")) { Text("Get the report") }
                 TextButton(onClick = { vm.reportPreset = com.owl.tracker.export.ReportPeriod.LAST_MONTH; vm.openSheet(Sheet.ShareReport) }) { Text("More choices") }
             }
         }

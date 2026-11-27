@@ -89,12 +89,12 @@ class NudgesTest {
         val last = snap(rs(87560), at = LocalDate.of(2026, 11, 30))
         fun on(day: Int, hour: Int) = Nudges.due(
             MonthSnapshot(dec, LocalDate.of(2026, 12, day), 0, rs(99500), 0, rs(3000), 0, 0, emptyList(), null, false),
-            LocalDateTime.of(2026, 12, day, hour, 0), last, sendTo = "Priya",
+            LocalDateTime.of(2026, 12, day, hour, 0), last,
         ).filter { it.kind == Nudges.REPORT }
         assertTrue(on(1, 10).isEmpty())   // the 1st is the recap's
         val r = on(2, 10).single()
         assertEquals("Your November report is ready 📊", r.title)
-        assertEquals("Spent ₹87,560 · saved ₹11,940. Share it with Priya in one tap.", r.text)
+        assertEquals("Spent ₹87,560 · saved ₹11,940. Dig into it on a computer: an interactive page that opens in any browser.", r.text)
         assertTrue(on(2, 7).isEmpty())    // not before 9 am
         assertTrue(on(5, 10).isEmpty())
     }

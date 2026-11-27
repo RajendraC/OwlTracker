@@ -93,9 +93,9 @@ object Nudges {
      */
     fun due(
         s: MonthSnapshot, now: LocalDateTime, previous: MonthSnapshot?, bills: List<Pair<com.owl.tracker.core.RecurringBill, LocalDate>> = emptyList(),
-        sendTo: String? = null,
+        excel: Boolean = false,
     ): List<Nudge> = buildList {
-        // The month's report for the family, from the 2nd (the recap comes on the 1st)
+        // The month's report, to look through on a computer, from the 2nd (the recap comes on the 1st)
         if (previous != null && previous.spent > 0 && s.dayNumber in 2..4 && now.hour >= 9) {
             val p = previous
             val result = when {
@@ -104,7 +104,8 @@ object Nudges {
                 else -> ""
             }
             add(Nudge(REPORT, "report_${p.period.start}", "Your ${month(p)} report is ready 📊",
-                "Spent ${Money.formatInr(p.spent)}$result. Share it with ${sendTo ?: "family"} in one tap.", OPEN_REPORT))
+                "Spent ${Money.formatInr(p.spent)}$result. Dig into it on a computer: " +
+                    (if (excel) "an Excel workbook for your own sums." else "an interactive page that opens in any browser."), OPEN_REPORT))
         }
         // A bill due in the next two days (once per bill and date)
         bills.filter { java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), it.second) in 0..2 }.forEach { (b, d) ->
@@ -175,7 +176,7 @@ object Nudges {
         val previous = if (s.dayNumber <= 4) MonthSnapshot.load(app.container.repo, app.container.clock, s.period.start.minusDays(1)) else null
         val p = prefs(context)
         val bills = runCatching { upcomingBills(app, now.toLocalDate(), settings.ignoredBills) }.getOrDefault(emptyList())
-        val todo = due(s, now, previous, bills, reportTo(context)).filter { isOn(context, it.kind) && !p.getBoolean("shown_${it.key}", false) }
+        val todo = due(s, now, previous, bills, reportExcel(context)).filter { isOn(context, it.kind) && !p.getBoolean("shown_${it.key}", false) }
         if (todo.isEmpty() || !allowed(context)) return
         channels(context)
         val nm = NotificationManagerCompat.from(context)
@@ -200,7 +201,7 @@ object Nudges {
                 .setAutoCancel(true)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setPublicVersion(public)
-                .apply { if (share != null) addAction(0, "Share", share) }
+                .apply { if (share != null) addAction(0, "Get the report", share) }
                 .build()
             // allowed() was checked above; the permission can still be taken away in between
             try { nm.notify(n.kind.hashCode() + if (n.kind == ALERTS) n.key.hashCode() else 0, notification) } catch (_: SecurityException) { return }

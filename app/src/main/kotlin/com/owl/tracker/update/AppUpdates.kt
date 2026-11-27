@@ -240,7 +240,7 @@ object WhatsNew {
 
     private val NOTES: Map<String, List<Item>> = mapOf(
         "1.9.30" to listOf(
-            Item("A report for the family, every month", "On the 2nd, the owl gets last month's report ready (an interactive page or Excel) and you share it in one tap. Choose who it's for and the kind in Settings → Monthly report. Nothing is sent by itself."),
+            Item("Your month, on a bigger screen", "On the 2nd, the owl gets last month's report ready to dig into on a computer: an interactive web page for any browser, or an Excel workbook. Send it to yourself in one tap. Pick the kind in Settings → Monthly report."),
         ),
         "1.9.29" to listOf(
             Item("Bills coming up", "EMIs, rent and subscriptions are found from payments that repeat, with their next date. Home shows the next few, and the owl reminds you two days before."),

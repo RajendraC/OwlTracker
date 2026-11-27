@@ -645,7 +645,6 @@ class StoreScreenshots {
                 nav(com.owl.tracker.ui.Screen.SETTINGS)
                 waitForTag("theme_choice", 20_000)
                 runCatching { scrollTo(hasTestTag("report_settings"), below = 40f) }
-                onNode(hasTestTag("report_to")).performTextInput("Priya")
                 Thread.sleep(800)
                 shot("99c_settings_report")
                 nav(com.owl.tracker.ui.Screen.HOME)
