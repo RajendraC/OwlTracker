@@ -40,6 +40,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -274,7 +275,7 @@ private fun Jar(fraction: Float, size: androidx.compose.ui.unit.Dp) {
             val body = androidx.compose.ui.geometry.RoundRect(0f, lid * 1.3f, w, h, androidx.compose.ui.geometry.CornerRadius(w * 0.22f))
             val path = androidx.compose.ui.graphics.Path().apply { addRoundRect(body) }
             drawPath(path, glass)
-            androidx.compose.ui.graphics.drawscope.clipPath(path) {
+            clipPath(path) {
                 val top = h - (h - lid * 1.3f) * fraction
                 drawRect(Mango, Offset(0f, top), Size(w, h - top))
             }
