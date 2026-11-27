@@ -2,6 +2,7 @@ package com.owl.tracker.ui
 
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.getOrNull
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.test.assertCountEquals
