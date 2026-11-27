@@ -232,6 +232,10 @@ data class AppSettings(
     val cardPayments: String = "{}",
     /** Card credits the user marked as a bill payment or a refund (JSON payment id → "payment"/"refund"). Not in backups. */
     val cardCreditKinds: String = "{}",
+    /** Savings goals, as JSON (`Goals.fromJson`): name, picture, target, set aside, by when. Kept in backups. */
+    val goals: String = "[]",
+    /** Repeating payments the user stopped tracking (their merchant keys, JSON array). */
+    val ignoredBills: String = "[]",
     /**
      * The card or account the user picked for a bank's messages that don't say which ("icici" to "ICICI Bank ••1234"),
      * used for new ones. Holds account digits, so never in backups.
@@ -258,6 +262,8 @@ data class AppSettings(
         "card_cycles" to cardCycles,
         "card_payments" to cardPayments,
         "card_credit_kinds" to cardCreditKinds,
+        "goals" to goals,
+        "ignored_bills" to ignoredBills,
         "account_for" to org.json.JSONObject(accountFor as Map<*, *>).toString(),
     )
 
@@ -281,6 +287,8 @@ data class AppSettings(
             cardCycles = m["card_cycles"] ?: "{}",
             cardPayments = m["card_payments"] ?: "{}",
             cardCreditKinds = m["card_credit_kinds"] ?: "{}",
+            goals = m["goals"] ?: "[]",
+            ignoredBills = m["ignored_bills"] ?: "[]",
             accountFor = m["account_for"]?.let { raw ->
                 runCatching { org.json.JSONObject(raw).let { o -> o.keys().asSequence().associateWith { k -> o.getString(k) } } }.getOrNull()
             } ?: emptyMap(),

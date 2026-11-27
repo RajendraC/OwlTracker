@@ -869,6 +869,8 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             sampleData = if (replace) false else s.sampleData,
             // Payments from before groups are sorted into the groups' categories on the next start
             categoriesVersion = if (replace) b.categoriesVersion else minOf(s.categoriesVersion, b.categoriesVersion),
+            // Goals come back with a full restore; merging keeps the phone's own and adds any it doesn't have
+            goals = Goals.toJson(if (replace) Goals.fromJson(b.goals) else (Goals.fromJson(s.goals) + Goals.fromJson(b.goals)).distinctBy { it.id }),
         )
         next.toMap().forEach { (k, v) -> d.insert("settings", CONFLICT_REPLACE, contentValuesOf("key" to k, "value" to v)) }
         prunePictures(d)

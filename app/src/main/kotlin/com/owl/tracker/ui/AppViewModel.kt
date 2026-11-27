@@ -69,7 +69,7 @@ data class Recap(
 enum class Screen(val tab: Tab? = null) {
     WELCOME, DISCLOSURE, IMPORT_FILTERS, IMPORT_REVIEW, IMPORTING, BUDGET_SETUP,
     HOME(Tab.HOME), ACTIVITY(Tab.ACTIVITY), BUDGETS(Tab.BUDGETS), MORE(Tab.MORE),
-    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES, ADJUST_BUDGETS, STREAKS,
+    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES, ADJUST_BUDGETS, STREAKS, BILLS, GOALS,
 }
 
 sealed interface Sheet {
@@ -77,6 +77,12 @@ sealed interface Sheet {
     data class CategoryPick(val txId: Long) : Sheet
     /** "Was this right?" for a new payment: its category, or one of a few others, in one tap. */
     data class QuickCheck(val txId: Long) : Sheet
+    /** "Can I afford it?": what a purchase does to the rest of the month. */
+    data object Afford : Sheet
+    /** A new savings goal, or changing one ([id]). */
+    data class GoalEdit(val id: String?) : Sheet
+    /** Putting money into a goal's jar ([suggest]: an amount to offer, like last month's leftover). */
+    data class GoalAdd(val id: String, val suggest: Long = 0) : Sheet
     data class Split(val txId: Long) : Sheet
     data class Rename(val txId: Long) : Sheet
     data class MerchantIcon(val txId: Long) : Sheet
@@ -484,6 +490,120 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         Streak(info, badges)
     }.catch { emit(null) }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
+    // ---------------- Bills coming up ----------------
+
+    /** Repeating payments found in the last 400 days, minus the ones the user stopped tracking. */
+    val bills: StateFlow<List<com.owl.tracker.core.RecurringBill>> = combine(streakTxns, categories, settings) { txns, cats, s ->
+        val catMap = cats.associateBy { it.id }
+        val ignored = runCatching { org.json.JSONArray(s?.ignoredBills ?: "[]").let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } }.getOrDefault(emptySet())
+        val seen = txns.filter { it.isSpending(catMap[it.categoryId]) && it.parts.isEmpty() }
+            .map { com.owl.tracker.core.Seen(it.merchantKey, it.merchantName, dateOf(it.occurredAt), it.amountPaise, it.categoryId) }
+        com.owl.tracker.core.Recurring.detect(seen, today()).filter { it.key !in ignored }
+    }.catch { emit(emptyList()) }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    fun stopTrackingBill(key: String, name: String) = viewModelScope.launch {
+        repo.updateSettings { s ->
+            val a = runCatching { org.json.JSONArray(s.ignoredBills) }.getOrDefault(org.json.JSONArray())
+            s.copy(ignoredBills = a.put(key).toString())
+        }
+        say("$name won't be shown as a bill any more")
+    }
+
+    // ---------------- Can I afford it? ----------------
+
+    /** What spending [paise] today (in [categoryId], if given) would leave for the rest of the month. */
+    data class Afford(
+        val left: Long, val leftAfter: Long, val perDay: Long, val perDayAfter: Long, val daysLeft: Int, val budget: Long, val spent: Long,
+        val category: String?, val categoryLeft: Long?, val categoryLeftAfter: Long?,
+    ) {
+        val fine: Boolean get() = budget <= 0 || leftAfter >= 0
+    }
+
+    fun afford(paise: Long, categoryId: String?): Afford? {
+        val d = dashboard.value ?: return null
+        val daysLeft = (d.period.days - d.dayNumber + 1).coerceAtLeast(1)
+        val left = d.overall - d.spent
+        val row = categoryId?.let { id -> d.categoryRows.firstOrNull { it.category.id == com.owl.tracker.data.CategoryTree(categories.value).top(id) } }
+        return Afford(
+            left, left - paise, (left / daysLeft).coerceAtLeast(0), ((left - paise) / daysLeft).coerceAtLeast(0), daysLeft, d.overall, d.spent,
+            row?.category?.name, row?.let { it.limit - it.spent }, row?.let { it.limit - it.spent - paise },
+        )
+    }
+
+    /** An amount for the next Add expense sheet (from "Can I afford it?"), used once. */
+    var addPrefill: Pair<Long, String?>? = null
+
+    fun addFromAfford(paise: Long, categoryId: String?) {
+        addPrefill = paise / 100 to categoryId
+        openSheet(Sheet.AddExpense)
+    }
+
+    // ---------------- Savings goals ----------------
+
+    val goals: StateFlow<List<com.owl.tracker.data.Goal>> = settings.map { com.owl.tracker.data.Goals.fromJson(it?.goals) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private fun saveGoals(transform: (List<com.owl.tracker.data.Goal>) -> List<com.owl.tracker.data.Goal>) = viewModelScope.launch {
+        repo.updateSettings { s -> s.copy(goals = com.owl.tracker.data.Goals.toJson(transform(com.owl.tracker.data.Goals.fromJson(s.goals)))) }
+    }
+
+    fun saveGoal(id: String?, name: String, emoji: String, targetPaise: Long, by: LocalDate?) {
+        if (name.isBlank() || targetPaise <= 0) return
+        saveGoals { list ->
+            if (id == null) {
+                if (list.size >= com.owl.tracker.data.Goals.MAX) list
+                else list + com.owl.tracker.data.Goal(java.util.UUID.randomUUID().toString().take(12), name.trim().take(40), emoji, targetPaise, 0, by)
+            } else list.map { if (it.id == id) it.copy(name = name.trim().take(40), emoji = emoji, targetPaise = targetPaise, by = by) else it }
+        }
+        _sheet.value = null
+        say(if (id == null) "Goal added: ${name.trim()}" else "Goal saved")
+    }
+
+    fun addToGoal(id: String, paise: Long) {
+        if (paise <= 0) return
+        val g = goals.value.firstOrNull { it.id == id } ?: return
+        saveGoals { list -> list.map { if (it.id == id) it.copy(savedPaise = it.savedPaise + paise) else it } }
+        _sheet.value = null
+        val total = g.savedPaise + paise
+        say(if (total >= g.targetPaise) "🎉 ${g.name} is fully saved!" else "Added ${Money.formatInr(paise)} to ${g.name}")
+    }
+
+    fun deleteGoal(id: String) {
+        val g = goals.value.firstOrNull { it.id == id } ?: return
+        saveGoals { list -> list.filter { it.id != id } }
+        _sheet.value = null
+        say("Removed ${g.name}")
+    }
+
+    /**
+     * In the new month's first week: what was left of last month's budget, to offer to a goal (once). Null without
+     * goals, a budget, or anything left over.
+     */
+    fun leftoverOffer(s: AppSettings?, goals: List<com.owl.tracker.data.Goal>): Pair<BudgetPeriod, Long>? {
+        if (!homeOffersOn || s == null || goals.none { !it.done }) return null
+        val now = BudgetMath.periodFor(today(), s.budgetStartDay)
+        if (now.dayNumber(today()) > 7) return null
+        val last = now.previous(s.budgetStartDay)
+        if (nudgePrefs.getBoolean("leftover_seen_${last.start}", false)) return null
+        return last to (leftoverCache[last.start] ?: return null)
+    }
+
+    private val leftoverCache = java.util.concurrent.ConcurrentHashMap<LocalDate, Long>()
+
+    /** Works out last month's leftover once, for [leftoverOffer]. */
+    fun loadLeftover() = viewModelScope.launch {
+        val s = settings.value ?: return@launch
+        val last = BudgetMath.periodFor(today(), s.budgetStartDay).previous(s.budgetStartDay)
+        if (leftoverCache.containsKey(last.start)) return@launch
+        val overall = budgets.value[Schema.OVERALL] ?: return@launch
+        val catMap = categories.value.associateBy { it.id }
+        val spent = repo.transactions(startMs(last.start), startMs(last.endExclusive)).flatMap { it.portions() }.filter { counts(it, catMap) }.sumOf { it.amountPaise }
+        val left = overall - spent
+        if (left > 0 && spent > 0) leftoverCache[last.start] = left
+    }
+
+    fun dismissLeftover(p: BudgetPeriod) = nudgePrefs.edit().putBoolean("leftover_seen_${p.start}", true).apply()
+
     /** Yesterday, if nothing went out (for Home's little celebration), and not yet put away. */
     fun noSpendYesterday(st: Streak?): LocalDate? {
         if (!homeOffersOn || st == null) return null
@@ -676,6 +796,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             com.owl.tracker.nudge.Nudges.OPEN_ADD -> { go(Screen.HOME); openSheet(Sheet.AddExpense) }
             com.owl.tracker.nudge.Nudges.OPEN_RECAP -> { go(Screen.HOME); openRecap() }
             com.owl.tracker.nudge.Nudges.OPEN_ACTIVITY -> showActivity()
+            com.owl.tracker.nudge.Nudges.OPEN_BILLS -> go(Screen.BILLS)
             else -> go(Screen.HOME)
         }
     }

@@ -102,6 +102,9 @@ fun SheetHost(vm: AppViewModel) {
                 is Sheet.TxnDetail -> TxnDetailSheet(vm, current.id)
                 is Sheet.CategoryPick -> CategoryPickSheet(vm, current.txId)
                 is Sheet.QuickCheck -> QuickCheckSheet(vm, current.txId)
+                Sheet.Afford -> AffordSheet(vm)
+                is Sheet.GoalEdit -> GoalEditSheet(vm, current.id)
+                is Sheet.GoalAdd -> GoalAddSheet(vm, current.id, current.suggest)
                 is Sheet.Split -> SplitSheet(vm, current.txId)
                 is Sheet.Rename -> RenameSheet(vm, current.txId)
                 is Sheet.MerchantIcon -> MerchantIconSheet(vm, current.txId)
@@ -1011,9 +1014,11 @@ private fun CategoryEditSheet(vm: AppViewModel, id: String?, inGroup: String? = 
 @Composable
 private fun AddExpenseSheet(vm: AppViewModel) {
     val cats by vm.categories.collectAsStateWithLifecycle()
-    var amount by rememberSaveable { mutableStateOf("") }
+    // From "Can I afford it?": the amount and category already filled in
+    val prefill = remember { vm.addPrefill.also { vm.addPrefill = null } }
+    var amount by rememberSaveable { mutableStateOf(prefill?.first?.toString() ?: "") }
     var merchant by rememberSaveable { mutableStateOf("") }
-    var cat by rememberSaveable { mutableStateOf(Cat.DINING) }
+    var cat by rememberSaveable { mutableStateOf(prefill?.second ?: Cat.DINING) }
     var daysAgo by rememberSaveable { mutableIntStateOf(0) }
     val rupees = amount.toLongOrNull() ?: 0L
 

@@ -72,4 +72,14 @@ class NudgesTest {
         val later = now.copy(today = LocalDate.of(2026, 12, 4))
         assertTrue(Nudges.due(later, LocalDateTime.of(2026, 12, 4, 9, 0), last).none { it.kind == Nudges.RECAP })
     }
+
+    @Test
+    fun aBillDueSoonGetsANudge() {
+        val emi = com.owl.tracker.core.RecurringBill("hdfc emi", "HDFC EMI", "emi", rs(18500), 30, LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 1), 4, true)
+        val n = Nudges.due(snap(rs(50000)), LocalDateTime.of(2026, 11, 29, 10, 0), null, listOf(emi to LocalDate.of(2026, 12, 1)))
+        val b = n.single { it.key.startsWith("bill_") }
+        assertEquals("HDFC EMI: ₹18,500 due in 2 days", b.title)
+        // Three days out: not yet
+        assertTrue(Nudges.due(snap(rs(50000)), LocalDateTime.of(2026, 11, 28, 10, 0), null, listOf(emi to LocalDate.of(2026, 12, 1))).none { it.key.startsWith("bill_") })
+    }
 }

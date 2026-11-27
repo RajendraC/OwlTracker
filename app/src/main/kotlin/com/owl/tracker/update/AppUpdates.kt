@@ -239,6 +239,11 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.29" to listOf(
+            Item("Bills coming up", "EMIs, rent and subscriptions are found from payments that repeat, with their next date. Home shows the next few, and the owl reminds you two days before."),
+            Item("Can I afford it?", "Type an amount to see what it leaves for the rest of the month, the new amount a day, and the owl's verdict. On Home under Spent, and in More."),
+            Item("Savings goals", "Give what you're saving for a jar and fill it as you set money aside. At the start of a month, the owl offers what was left of the last one."),
+        ),
         "1.9.28" to listOf(
             Item("Streaks and owl badges", "See how many days in a row you've stayed within your daily share, right under the calendar. Tap it for your weeks, no-spend days and nine owl badges to earn."),
             Item("No-spend days", "A day when nothing went out gets a star on the calendar, and the owl celebrates it the next morning."),

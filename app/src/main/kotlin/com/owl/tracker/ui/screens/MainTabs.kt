@@ -204,6 +204,13 @@ fun HomeScreen(vm: AppViewModel) {
     var noSpendTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val noSpendYesterday = noSpendTick.let { vm.noSpendYesterday(streak) }
     val showStreak = streak != null && calendar != null && dash.isCurrent
+    val bills by vm.bills.collectAsStateWithLifecycle()
+    val goals by vm.goals.collectAsStateWithLifecycle()
+    val showBills = calendar != null && dash.isCurrent && com.owl.tracker.core.Recurring.upcoming(bills, today, 30).isNotEmpty()
+    val showGoals = calendar != null && dash.isCurrent && goals.isNotEmpty()
+    androidx.compose.runtime.LaunchedEffect(goals.size, settings?.budgetStartDay) { if (goals.isNotEmpty()) vm.loadLeftover() }
+    var leftoverTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val leftover = leftoverTick.let { vm.leftoverOffer(settings, goals) }
     var askNudges by remember(settings?.onboarded) { androidx.compose.runtime.mutableStateOf(vm.askForNudges(settings)) }
     val paidTab = wholeMonth && whereView == "paid" && openGroup == null && openCat == null
     androidx.activity.compose.BackHandler(enabled = paidTab && openPaid != null) { openPaid = null }
@@ -221,7 +228,7 @@ fun HomeScreen(vm: AppViewModel) {
         (if (access is Access.Trial || !access.canEdit) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
         (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0) + (if (recapOffer != null) 1 else 0) + (if (askNudges) 1 else 0) +
-        (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0)
+        (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0) + (if (showBills) 1 else 0) + (if (showGoals) 1 else 0) + (if (leftover != null) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
     // the status bar readable, and a card scrolled to stops just below it
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -293,6 +300,16 @@ fun HomeScreen(vm: AppViewModel) {
             whatsNew?.let { v -> item(key = "whats_new") { WhatsNewCard(v, vm::closeWhatsNew, side) } }
             // The month just ended, in a few cards (its first week only)
             recapOffer?.let { p -> item(key = "recap_offer") { RecapOfferCard(com.owl.tracker.nudge.Nudges.monthName(p), { vm.openRecap(p); recapTick++ }, { vm.dismissRecapOffer(p); recapTick++ }, side) } }
+            // Last month's leftover, offered to the first goal not yet full (once)
+            leftover?.let { (p, left) ->
+                val goal = goals.first { !it.done }
+                item(key = "leftover") {
+                    LeftoverCard(com.owl.tracker.nudge.Nudges.monthName(p), left, goal, {
+                        vm.dismissLeftover(p); leftoverTick++
+                        vm.openSheet(Sheet.GoalAdd(goal.id, minOf(left, goal.targetPaise - goal.savedPaise)))
+                    }, { vm.dismissLeftover(p); leftoverTick++ }, side)
+                }
+            }
             // Android 13+: ask once whether the owl may nudge
             if (askNudges) item(key = "nudge_ask") { NudgeAskCard({ vm.nudgeAskDone(); askNudges = false }, side) }
 
@@ -363,6 +380,9 @@ fun HomeScreen(vm: AppViewModel) {
             }
             // Under the calendar: days in a row within the share, and the badges
             streak?.takeIf { showStreak }?.let { st -> item(key = "streak") { StreakCard(st, { vm.go(Screen.STREAKS) }, side) } }
+            // Bills due in the next 30 days, and the goals
+            if (showBills) item(key = "bills") { BillsCard(vm, bills, side) }
+            if (showGoals) item(key = "goals") { GoalsRow(vm, goals, side) }
 
             // One day picked: everything below is about that day
             if (pickedTotal != null && weekMode) item(key = "day_filter") {
@@ -790,6 +810,11 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
                             Icon(Ic.edit, contentDescription = "Edit the monthly budget", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         }
                     }
+                    if (dash.isCurrent) Text(
+                        "Can I afford it? ›", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 6.dp).clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "See what a purchase does to the month") { vm.openSheet(Sheet.Afford) }
+                            .padding(vertical = 2.dp).testTag("afford_open"),
+                    )
                     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         chips.forEachIndexed { i, (text, kind) ->
                             val (bg, fg) = when (kind) {

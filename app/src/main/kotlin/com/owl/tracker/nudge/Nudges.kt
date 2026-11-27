@@ -51,6 +51,7 @@ object Nudges {
     const val OPEN_BUDGETS = "budgets"
     const val OPEN_RECAP = "recap"
     const val OPEN_ADD = "add"
+    const val OPEN_BILLS = "bills"
     const val OPEN_ACTIVITY = "activity"
     const val ACTION_CHECK_YES = "com.owl.tracker.CHECK_YES"
     const val EXTRA_TX = "tx"
@@ -82,7 +83,14 @@ object Nudges {
      * What the owl would say now, given the month: at most one evening line (after 7 pm), one week line on Sunday
      * evenings, budget alerts at any time, and the recap in the first three days of a new month.
      */
-    fun due(s: MonthSnapshot, now: LocalDateTime, previous: MonthSnapshot?): List<Nudge> = buildList {
+    fun due(s: MonthSnapshot, now: LocalDateTime, previous: MonthSnapshot?, bills: List<Pair<com.owl.tracker.core.RecurringBill, LocalDate>> = emptyList()): List<Nudge> = buildList {
+        // A bill due in the next two days (once per bill and date)
+        bills.filter { java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), it.second) in 0..2 }.forEach { (b, d) ->
+            val n = java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), d).toInt()
+            val whenText = when (n) { 0 -> "today"; 1 -> "tomorrow"; else -> "in $n days" }
+            add(Nudge(ALERTS, "bill_${b.key}_$d", "${b.name}: ${if (b.steady) "" else "about "}${Money.formatInr(b.paise)} due $whenText",
+                "It's ${b.cadence}. Keep it in mind before spending what's left.", OPEN_BILLS))
+        }
         val ps = s.period.start
         if (s.overall > 0) {
             val over = s.spent - s.overall
@@ -144,7 +152,8 @@ object Nudges {
         val s = MonthSnapshot.load(app.container.repo, app.container.clock, now.toLocalDate())
         val previous = if (s.dayNumber <= 3) MonthSnapshot.load(app.container.repo, app.container.clock, s.period.start.minusDays(1)) else null
         val p = prefs(context)
-        val todo = due(s, now, previous).filter { isOn(context, it.kind) && !p.getBoolean("shown_${it.key}", false) }
+        val bills = runCatching { upcomingBills(app, now.toLocalDate(), settings.ignoredBills) }.getOrDefault(emptyList())
+        val todo = due(s, now, previous, bills).filter { isOn(context, it.kind) && !p.getBoolean("shown_${it.key}", false) }
         if (todo.isEmpty() || !allowed(context)) return
         channels(context)
         val nm = NotificationManagerCompat.from(context)
@@ -170,6 +179,18 @@ object Nudges {
             p.edit().putBoolean("shown_${n.key}", true).apply()
         }
         prune(p, now.toLocalDate())
+    }
+
+    /** Repeating payments (the same rules as the Bills page) due in the next few days. */
+    private suspend fun upcomingBills(app: OwlTrackerApp, today: LocalDate, ignoredJson: String): List<Pair<com.owl.tracker.core.RecurringBill, LocalDate>> {
+        val zone = app.container.clock.zone
+        val repo = app.container.repo
+        val cats = repo.categories().associateBy { it.id }
+        val ignored = runCatching { org.json.JSONArray(ignoredJson).let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } }.getOrDefault(emptySet())
+        val txns = repo.transactions(today.minusDays(400).atStartOfDay(zone).toInstant().toEpochMilli(), today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+        val seen = txns.filter { it.isSpending(cats[it.categoryId]) && it.parts.isEmpty() }
+            .map { com.owl.tracker.core.Seen(it.merchantKey, it.merchantName, java.time.Instant.ofEpochMilli(it.occurredAt).atZone(zone).toLocalDate(), it.amountPaise, it.categoryId) }
+        return com.owl.tracker.core.Recurring.upcoming(com.owl.tracker.core.Recurring.detect(seen, today).filter { it.key !in ignored }, today, 3)
     }
 
     private fun publicLine(kind: String) = when (kind) {

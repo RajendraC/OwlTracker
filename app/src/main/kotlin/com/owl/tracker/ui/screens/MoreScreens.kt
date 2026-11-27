@@ -106,6 +106,12 @@ fun MoreScreen(vm: AppViewModel) {
             Divider()
             NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more") { vm.go(Screen.INSIGHTS) }
             Divider()
+            NavRow(Ic.jar, "Goals", "Jars for what you're saving towards", modifier = Modifier.testTag("open_goals")) { vm.go(Screen.GOALS) }
+            Divider()
+            NavRow(Ic.calendar, "Bills coming up", "EMIs, rent and subscriptions, found from repeating payments", modifier = Modifier.testTag("open_bills")) { vm.go(Screen.BILLS) }
+            Divider()
+            NavRow(Ic.wallet, "Can I afford it?", "What a purchase does to the rest of your month", modifier = Modifier.testTag("open_afford")) { vm.openSheet(com.owl.tracker.ui.Sheet.Afford) }
+            Divider()
             NavRow(Ic.share, "Backup & restore", "Save to a file or move to another phone") { vm.openBackup() }
             Divider()
             NavRow(Ic.sliders, "Settings", "App lock, SMS import, delete or reset") { vm.go(Screen.SETTINGS) }

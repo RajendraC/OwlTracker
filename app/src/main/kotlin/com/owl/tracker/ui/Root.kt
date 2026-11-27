@@ -148,6 +148,8 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
                 Screen.INSIGHTS -> ReportsScreen(vm)
                 Screen.PRIVACY -> PrivacyScreen(vm)
                 Screen.STREAKS -> com.owl.tracker.ui.screens.StreaksScreen(vm)
+                Screen.BILLS -> com.owl.tracker.ui.screens.BillsScreen(vm)
+                Screen.GOALS -> com.owl.tracker.ui.screens.GoalsScreen(vm)
                 Screen.DB_ERROR -> DbErrorScreen(vm)
                 Screen.UNLOCK -> UnlockScreen(vm, platform)
                 Screen.BACKUP -> BackupScreen(vm, platform)
