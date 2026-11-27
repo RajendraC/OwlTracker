@@ -1,9 +1,7 @@
 package com.owl.tracker.ui
 
-import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.lifecycle.ViewModelProvider
 import com.owl.tracker.TestApp
 import org.junit.Rule
@@ -59,7 +57,7 @@ class RecapAndNudgesFlowTest {
             tapText("Settings")
             waitForTag("nudge_settings")
             listOf("daily", "alerts", "weekly", "recap").forEach { waitForTag("nudge_$it") }
-            onNodeWithTag("nudge_settings").assertTextContains("Budget alerts", substring = true)
+            waitForText("Budget alerts")
         }
     }
 }
