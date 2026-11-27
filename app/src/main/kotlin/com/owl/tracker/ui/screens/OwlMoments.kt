@@ -241,7 +241,10 @@ private fun PictureCard(p: SharePicture) {
 @Composable
 private fun Footer(modifier: Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("🦉 Owl Tracker · works offline, no login", color = Brown, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text("🦉 Owl Tracker", color = Cocoa, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+            Text("Works offline · no login", color = Brown, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
         Text(
             "On Play Store", color = Color(0xFFFFF3E2), fontSize = 11.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.clip(RoundedCornerShape(50)).background(Cocoa).padding(horizontal = 9.dp, vertical = 4.dp),
@@ -258,40 +261,37 @@ private fun MonthPicture(p: SharePicture.Month) {
         if (p.badges > 0) add("${p.badges}" to if (p.badges == 1) "owl badge earned" else "owl badges earned")
         if (isEmpty()) add("🦉" to "keeping an eye on every rupee")
     }.take(4)
-    Column(Modifier.fillMaxSize().padding(bottom = 30.dp)) {
-        Row(verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f)) {
-                Text("MY MONTH", color = Rust, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                Text(
-                    when (p.under) { true -> "${p.month}, done!"; false -> "${p.month}: a tough one"; null -> "My ${p.month}" },
-                    color = Cocoa, style = MaterialTheme.typography.headlineMedium,
-                )
-                Text(
-                    when (p.under) { true -> "Stayed under budget"; false -> "A little over, but look at these wins"; null -> "Tracking every rupee, offline" },
-                    color = Cocoa, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold,
-                )
-            }
-            MoodOwl(if (p.under == true) OwlMood.CHEERING else OwlMood.HAPPY, 96.dp, dark = false, still = true)
+    Column(Modifier.fillMaxSize().padding(bottom = 40.dp)) {
+        Text("MY MONTH", color = Rust, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+        Text(
+            when (p.under) { true -> "${p.month}, done!"; false -> "${p.month}: a tough one"; null -> "My ${p.month}" },
+            color = Cocoa, style = MaterialTheme.typography.headlineMedium,
+        )
+        Text(
+            when (p.under) { true -> "Stayed under budget"; false -> "A little over, but look at these wins"; null -> "Tracking every rupee, offline" },
+            color = Cocoa, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold,
+        )
+        // The owl in the middle, as big as the room allows
+        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            MoodOwl(if (p.under == true) OwlMood.CHEERING else OwlMood.HAPPY, 130.dp, dark = false, still = true)
         }
-        Spacer(Modifier.weight(1f))
         tiles.chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (big, small) ->
                     Column(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(alpha = 0.7f)).padding(12.dp)) {
                         Text(big, color = Cocoa, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
-                        Text(small, color = Brown, fontSize = 12.sp, fontWeight = FontWeight.Bold, lineHeight = 15.sp)
+                        Text(small, color = Brown, fontSize = 12.sp, fontWeight = FontWeight.Bold, lineHeight = 15.sp, minLines = 2)
                     }
                 }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
-        Spacer(Modifier.weight(0.4f))
     }
 }
 
 @Composable
 private fun SquarePicture(label: String, name: String, line: String, emoji: String) {
-    Column(Modifier.fillMaxSize().padding(bottom = 26.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    Column(Modifier.fillMaxSize().padding(bottom = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Box(contentAlignment = Alignment.BottomEnd) {
             MoodOwl(OwlMood.CHEERING, 130.dp, dark = false, still = true)
             Box(Modifier.offset(x = 10.dp).rotate(-8f)) { Medal(emoji, 50) }
