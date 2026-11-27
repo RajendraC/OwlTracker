@@ -112,7 +112,7 @@ fun NoSpendCard(countThisMonth: Int, onClose: () -> Unit, modifier: Modifier = M
         Column(Modifier.weight(1f)) {
             Text("Yesterday was a no-spend day!", style = MaterialTheme.typography.titleMedium, color = Color(0xFF4A2F9A))
             Text(
-                "Nothing went out. That's ${ordinal(countThisMonth)} this month" + if (countThisMonth < 5) "; 5 earns the Zero day badge." else ".",
+                "Nothing went out. That's ${yourNth(countThisMonth)} this month" + if (countThisMonth < 5) "; 5 earns the Zero day badge." else ".",
                 style = MaterialTheme.typography.bodySmall, color = Color(0xFF5B4A7A),
             )
         }
@@ -120,7 +120,7 @@ fun NoSpendCard(countThisMonth: Int, onClose: () -> Unit, modifier: Modifier = M
     }
 }
 
-private fun ordinal(n: Int) = when {
+private fun yourNth(n: Int) = when {
     n % 100 in 11..13 -> "your ${n}th"
     n % 10 == 1 -> if (n == 1) "your first" else "your ${n}st"
     n % 10 == 2 -> "your ${n}nd"

@@ -46,8 +46,8 @@ class StreaksAndChecksFlowTest {
     fun wasThisRightConfirmsOrMoves() {
         setUpWithSms()
         with(compose) {
-            waitUntil(10_000) { vm.periodTxns.value.any { it.direction == com.owl.tracker.data.Direction.DEBIT } }
-            val t = vm.periodTxns.value.first { it.direction == com.owl.tracker.data.Direction.DEBIT && it.parts.isEmpty() }
+            waitUntil(10_000) { vm.periodTxns.value.any { it.direction == com.owl.tracker.core.Direction.DEBIT } }
+            val t = vm.periodTxns.value.first { it.direction == com.owl.tracker.core.Direction.DEBIT && it.parts.isEmpty() }
             compose.runOnUiThread { vm.openSheet(Sheet.QuickCheck(t.id)) }
             waitForTag("quick_check")
             waitForTag("quick_check_question")

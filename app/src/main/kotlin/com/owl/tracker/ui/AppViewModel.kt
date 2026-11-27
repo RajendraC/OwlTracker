@@ -1349,7 +1349,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val cats = categories.value.ifEmpty { repo.categories() }
         val byId = cats.associateBy { it.id }
         val recent = repo.transactions(startMs(today().minusDays(90)), startMs(today().plusDays(1)))
-        val used = recent.filter { it.direction == com.owl.tracker.data.Direction.DEBIT }.groupingBy { it.categoryId }.eachCount()
+        val used = recent.filter { it.direction == com.owl.tracker.core.Direction.DEBIT }.groupingBy { it.categoryId }.eachCount()
             .entries.sortedByDescending { it.value }.mapNotNull { byId[it.key] }
             .filter { it.id != t.categoryId && it.countsAsSpend && !it.archived }
         val fallback = com.owl.tracker.data.CategoryTree(cats).spendTops.filter { it.id != t.categoryId }
