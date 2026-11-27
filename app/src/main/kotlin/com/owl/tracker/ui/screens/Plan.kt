@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -71,11 +72,11 @@ private val dueFmt = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
 private fun dueWords(due: LocalDate, today: LocalDate): String = when (val n = ChronoUnit.DAYS.between(today, due).toInt()) {
     0 -> "today"
     1 -> "tomorrow"
-    in 2..6 -> "in $n days"
+    in 2..6 -> tr("in {0} days", n)
     else -> due.format(dueFmt)
 }
 
-private fun billAmount(b: RecurringBill) = (if (b.steady) "" else "about ") + Money.formatInr(b.paise)
+private fun billAmount(b: RecurringBill) = (if (b.steady) "" else tr("about ")) + Money.formatInr(b.paise)
 
 // ---------------- Bills coming up ----------------
 
@@ -93,7 +94,7 @@ private fun BillRow(b: RecurringBill, due: LocalDate, today: LocalDate, icon: St
         }
         Column(Modifier.weight(1f)) {
             Text(b.name, style = MaterialTheme.typography.titleSmall, maxLines = 1)
-            Text(b.cadence.replaceFirstChar { it.uppercase() } + " · ${b.times} so far", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(b.cadence.replaceFirstChar { it.uppercase() } + tr(" · {0} so far", b.times), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(billAmount(b), style = MaterialTheme.typography.titleMedium.copy(fontFamily = com.owl.tracker.ui.theme.LocalDisplayFont.current, fontWeight = FontWeight.Bold))
@@ -117,11 +118,11 @@ fun BillsCard(vm: AppViewModel, bills: List<RecurringBill>, modifier: Modifier =
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Coming up", style = MaterialTheme.typography.titleLarge)
-                    Text("${next.size} ${if (next.size == 1) "bill" else "bills"} in the next 30 days · ${Money.formatInr(next.sumOf { it.first.paise })}",
+                    Text(tr("Coming up"), style = MaterialTheme.typography.titleLarge)
+                    Text(tr("{0} {1} in the next 30 days · {2}", next.size, if (next.size == 1) tr("bill") else tr("bills"), Money.formatInr(next.sumOf { it.first.paise })),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                TextButton(onClick = { vm.go(Screen.BILLS) }, modifier = Modifier.testTag("bills_all")) { Text("All") }
+                TextButton(onClick = { vm.go(Screen.BILLS) }, modifier = Modifier.testTag("bills_all")) { Text(tr("All")) }
             }
             next.take(3).forEach { (b, due) -> BillRow(b, due, today, cats.firstOrNull { it.id == b.categoryId }?.icon) { vm.go(Screen.BILLS) } }
         }
@@ -137,10 +138,10 @@ fun BillsScreen(vm: AppViewModel) {
     val today = vm.today()
     var asking by remember { mutableStateOf<RecurringBill?>(null) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 32.dp).testTag("bills_screen"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        ScreenHeader("Bills coming up", "Found from payments that repeat", onBack = { vm.back() })
+        ScreenHeader(tr("Bills coming up"), tr("Found from payments that repeat"), onBack = { vm.back() })
         val all = com.owl.tracker.core.Recurring.upcoming(bills, today, 400)
         if (all.isEmpty()) {
-            Text("No repeating payments yet. Once an EMI, rent or subscription has been paid two or three times, it shows up here with its next date.", style = MaterialTheme.typography.bodyMedium)
+            Text(tr("No repeating payments yet. Once an EMI, rent or subscription has been paid two or three times, it shows up here with its next date."), style = MaterialTheme.typography.bodyMedium)
             return@Column
         }
         val month = dash?.period
@@ -150,20 +151,20 @@ fun BillsScreen(vm: AppViewModel) {
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("🦉", fontSize = 28.sp)
-            Text("Still to come this month: ${Money.formatInr(restOfMonth)} in bills. Keep it in mind before spending what's left.", style = MaterialTheme.typography.bodyMedium)
+            Text(tr("Still to come this month: {0} in bills. Keep it in mind before spending what's left.", Money.formatInr(restOfMonth)), style = MaterialTheme.typography.bodyMedium)
         }
         ClaySurface(RoundedCornerShape(26.dp), Modifier.fillMaxWidth(), elevation = 10.dp) {
             Column(Modifier.padding(12.dp)) { all.forEach { (b, due) -> BillRow(b, due, today, cats.firstOrNull { it.id == b.categoryId }?.icon) { asking = b } } }
         }
-        Text("Tap a bill to stop tracking it. Amounts that change (like electricity) are shown as \"about\".", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(tr("Tap a bill to stop tracking it. Amounts that change (like electricity) are shown as \"about\"."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     asking?.let { b ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { asking = null },
-            title = { Text("Stop tracking ${b.name}?") },
-            text = { Text("It won't be shown as a bill any more. Its payments stay as they are.") },
-            confirmButton = { TextButton(onClick = { vm.stopTrackingBill(b.key, b.name); asking = null }, modifier = Modifier.testTag("bill_stop")) { Text("Stop tracking") } },
-            dismissButton = { TextButton(onClick = { asking = null }) { Text("Keep") } },
+            title = { Text(tr("Stop tracking {0}?", b.name)) },
+            text = { Text(tr("It won't be shown as a bill any more. Its payments stay as they are.")) },
+            confirmButton = { TextButton(onClick = { vm.stopTrackingBill(b.key, b.name); asking = null }, modifier = Modifier.testTag("bill_stop")) { Text(tr("Stop tracking")) } },
+            dismissButton = { TextButton(onClick = { asking = null }) { Text(tr("Keep")) } },
         )
     }
 }
@@ -196,11 +197,11 @@ fun AffordSheet(vm: AppViewModel) {
     var amount by rememberSaveable { mutableStateOf("") }
     var cat by rememberSaveable { mutableStateOf<String?>(null) }
     val paise = (amount.toLongOrNull() ?: 0L) * 100
-    Text("Can I afford it?", style = MaterialTheme.typography.titleLarge)
-    Text("See what a purchase does to the rest of your month.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(tr("Can I afford it?"), style = MaterialTheme.typography.titleLarge)
+    Text(tr("See what a purchase does to the rest of your month."), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     OutlinedTextField(
         value = amount, onValueChange = { v -> amount = v.filter { it.isDigit() }.take(8) },
-        label = { Text("How much? (₹)") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        label = { Text(tr("How much? (₹)")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth().testTag("afford_amount"), textStyle = MaterialTheme.typography.headlineSmall,
     )
     // Categories with a budget, so the answer can say what it does to that one too
@@ -219,19 +220,19 @@ fun AffordSheet(vm: AppViewModel) {
     val a = if (paise > 0) vm.afford(paise, cat) else null
     if (a == null) return
     if (a.budget <= 0) {
-        Text("Set a monthly budget to see what this does to it.", style = MaterialTheme.typography.bodyMedium)
+        Text(tr("Set a monthly budget to see what this does to it."), style = MaterialTheme.typography.bodyMedium)
         return
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         MiniRing((a.spent + paise).toDouble() / a.budget, "after")
         Column {
-            Text("Left for ${a.daysLeft} ${if (a.daysLeft == 1) "day" else "days"}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr("Left for {0} {1}", a.daysLeft, if (a.daysLeft == 1) tr("day") else tr("days")), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(Money.formatInr(a.left), style = MaterialTheme.typography.bodyLarge.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(if (a.leftAfter >= 0) Money.formatInr(a.leftAfter) else "${Money.formatInr(-a.leftAfter)} over", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("afford_left"))
+            Text(if (a.leftAfter >= 0) Money.formatInr(a.leftAfter) else tr("{0} over", Money.formatInr(-a.leftAfter)), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("afford_left"))
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        listOf("A day, now" to a.perDay, "A day, after" to a.perDayAfter).forEach { (l, v) ->
+        listOf(tr("A day, now") to a.perDay, tr("A day, after") to a.perDayAfter).forEach { (l, v) ->
             Column(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp)) {
                 Text(l, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(Money.formatInr(v), style = MaterialTheme.typography.titleLarge)
@@ -239,13 +240,13 @@ fun AffordSheet(vm: AppViewModel) {
         }
     }
     val catLine = if (a.category != null && a.categoryLeftAfter != null) {
-        if (a.categoryLeftAfter >= 0) " ${a.category} would still have ${Money.formatInr(a.categoryLeftAfter)} of its budget."
-        else " ${a.category} would go ${Money.formatInr(-a.categoryLeftAfter)} over its own budget, though."
+        if (a.categoryLeftAfter >= 0) tr(" {0} would still have {1} of its budget.", a.category, Money.formatInr(a.categoryLeftAfter))
+        else tr(" {0} would go {1} over its own budget, though.", a.category, Money.formatInr(-a.categoryLeftAfter))
     } else ""
     val verdict = when {
-        a.leftAfter < 0 -> "Not this month: it would take you ${Money.formatInr(-a.leftAfter)} past your budget."
-        a.perDayAfter * 2 < a.perDay -> "You can, but it's tight: it would leave ${Money.formatInr(a.perDayAfter)} a day for the rest of the month."
-        else -> "Yes, you can. You'd still have ${Money.formatInr(a.leftAfter)} for the rest of the month."
+        a.leftAfter < 0 -> tr("Not this month: it would take you {0} past your budget.", Money.formatInr(-a.leftAfter))
+        a.perDayAfter * 2 < a.perDay -> tr("You can, but it's tight: it would leave {0} a day for the rest of the month.", Money.formatInr(a.perDayAfter))
+        else -> tr("Yes, you can. You'd still have {0} for the rest of the month.", Money.formatInr(a.leftAfter))
     } + catLine
     val sc = LocalStatusColors.current
     val state = when { a.leftAfter < 0 -> com.owl.tracker.core.BudgetState.OVER; a.perDayAfter * 2 < a.perDay || (a.categoryLeftAfter ?: 0) < 0 -> com.owl.tracker.core.BudgetState.HEADS_UP; else -> com.owl.tracker.core.BudgetState.ON_TRACK }
@@ -257,8 +258,8 @@ fun AffordSheet(vm: AppViewModel) {
         Text(verdict, color = sc.fg(state), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Button(onClick = { vm.addFromAfford(paise, cat) }, modifier = Modifier.testTag("afford_add")) { Text("Add it as an expense") }
-        TextButton(onClick = { vm.closeSheet() }) { Text("Just checking") }
+        Button(onClick = { vm.addFromAfford(paise, cat) }, modifier = Modifier.testTag("afford_add")) { Text(tr("Add it as an expense")) }
+        TextButton(onClick = { vm.closeSheet() }) { Text(tr("Just checking")) }
     }
 }
 
@@ -298,18 +299,18 @@ private fun GoalCard(vm: AppViewModel, g: Goal, today: LocalDate) {
                 Column(Modifier.weight(1f)) {
                     Text(g.emoji, fontSize = 26.sp)
                     Text(g.name, style = MaterialTheme.typography.titleLarge)
-                    Text("${Money.formatInr(g.savedPaise)} of ${Money.formatInr(g.targetPaise)}" + (g.by?.let { "\nby ${it.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))}" } ?: ""),
+                    Text(tr("{0} of {1}", Money.formatInr(g.savedPaise), Money.formatInr(g.targetPaise)) + (g.by?.let { tr("\nby {0}", it.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))) } ?: ""),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val per = g.perMonth(today)
                     when {
-                        g.done -> Text("🎉 Fully saved", color = sc.okFg, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
-                        per != null -> Text("${Money.formatInr(per)} a month to get there", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelLarge,
+                        g.done -> Text(tr("🎉 Fully saved"), color = sc.okFg, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
+                        per != null -> Text(tr("{0} a month to get there", Money.formatInr(per)), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 10.dp, vertical = 3.dp))
                     }
                 }
-                IconButton(onClick = { vm.openSheet(Sheet.GoalEdit(g.id)) }) { Icon(Ic.edit, contentDescription = "Change ${g.name}") }
+                IconButton(onClick = { vm.openSheet(Sheet.GoalEdit(g.id)) }) { Icon(Ic.edit, contentDescription = tr("Change {0}", g.name)) }
             }
-            if (!g.done) Button(onClick = { vm.openSheet(Sheet.GoalAdd(g.id)) }, modifier = Modifier.fillMaxWidth().testTag("goal_add_${g.id}")) { Text("Put money in") }
+            if (!g.done) Button(onClick = { vm.openSheet(Sheet.GoalAdd(g.id)) }, modifier = Modifier.fillMaxWidth().testTag("goal_add_${g.id}")) { Text(tr("Put money in")) }
         }
     }
 }
@@ -319,8 +320,8 @@ private fun GoalCard(vm: AppViewModel, g: Goal, today: LocalDate) {
 fun GoalsRow(vm: AppViewModel, goals: List<Goal>, modifier: Modifier = Modifier) {
     if (goals.isEmpty()) return
     ClaySurface(RoundedCornerShape(26.dp), modifier.fillMaxWidth(), elevation = 10.dp) {
-        Column(Modifier.clickable(onClickLabel = "See your goals") { vm.go(Screen.GOALS) }.padding(14.dp).testTag("goals_row"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Goals", style = MaterialTheme.typography.titleLarge)
+        Column(Modifier.clickable(onClickLabel = tr("See your goals")) { vm.go(Screen.GOALS) }.padding(14.dp).testTag("goals_row"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(tr("Goals"), style = MaterialTheme.typography.titleLarge)
             goals.take(3).forEach { g ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(g.emoji, fontSize = 22.sp)
@@ -344,11 +345,11 @@ fun LeftoverCard(month: String, left: Long, goal: Goal, onAdd: () -> Unit, onClo
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(goal.emoji, fontSize = 30.sp)
-                Text("$month left ${Money.formatInr(left)} of its budget. Put it in ${goal.name}?", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text(tr("{0} left {1} of its budget. Put it in {2}?", month, Money.formatInr(left), goal.name), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onAdd, modifier = Modifier.testTag("leftover_add")) { Text("Add ${Money.formatInr(minOf(left, goal.targetPaise - goal.savedPaise))}") }
-                TextButton(onClick = onClose) { Text("Not now") }
+                Button(onClick = onAdd, modifier = Modifier.testTag("leftover_add")) { Text(tr("Add {0}", Money.formatInr(minOf(left, goal.targetPaise - goal.savedPaise)))) }
+                TextButton(onClick = onClose) { Text(tr("Not now")) }
             }
         }
     }
@@ -360,12 +361,12 @@ fun GoalsScreen(vm: AppViewModel) {
     val goals by vm.goals.collectAsStateWithLifecycle()
     val today = vm.today()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 32.dp).testTag("goals_screen"), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        ScreenHeader("Goals", "Set money aside for something", onBack = { vm.back() })
-        if (goals.isEmpty()) Text("A trip, a phone, a deposit: give it a jar and fill it as you set money aside. At the start of each month the owl offers what's left of last month's budget.",
+        ScreenHeader(tr("Goals"), tr("Set money aside for something"), onBack = { vm.back() })
+        if (goals.isEmpty()) Text(tr("A trip, a phone, a deposit: give it a jar and fill it as you set money aside. At the start of each month the owl offers what's left of last month's budget."),
             style = MaterialTheme.typography.bodyMedium)
         goals.forEach { GoalCard(vm, it, today) }
-        if (goals.size < Goals.MAX) Button(onClick = { vm.openSheet(Sheet.GoalEdit(null)) }, modifier = Modifier.fillMaxWidth().testTag("goal_new")) { Text("+ New goal") }
-        Text("Goals are kept on your phone (and in your backups). The money stays in your bank; the jar tracks what you set aside.",
+        if (goals.size < Goals.MAX) Button(onClick = { vm.openSheet(Sheet.GoalEdit(null)) }, modifier = Modifier.fillMaxWidth().testTag("goal_new")) { Text(tr("+ New goal")) }
+        Text(tr("Goals are kept on your phone (and in your backups). The money stays in your bank; the jar tracks what you set aside."),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -377,7 +378,7 @@ fun GoalEditSheet(vm: AppViewModel, id: String?) {
     var emoji by rememberSaveable(id) { mutableStateOf(existing?.emoji ?: Goals.PICTURES.first()) }
     var target by rememberSaveable(id) { mutableStateOf(existing?.targetPaise?.div(100)?.toString() ?: "") }
     var months by rememberSaveable(id) { mutableStateOf(existing?.by?.let { ChronoUnit.MONTHS.between(vm.today().withDayOfMonth(1), it.withDayOfMonth(1)).toInt() } ?: 0) }
-    Text(if (id == null) "New goal" else "Change goal", style = MaterialTheme.typography.titleLarge)
+    Text(if (id == null) tr("New goal") else tr("Change goal"), style = MaterialTheme.typography.titleLarge)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Goals.PICTURES.forEach { e ->
             Box(
@@ -386,14 +387,14 @@ fun GoalEditSheet(vm: AppViewModel, id: String?) {
             ) { Text(e, fontSize = 22.sp) }
         }
     }
-    OutlinedTextField(name, { name = it.take(40) }, label = { Text("What for?") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("goal_name"))
+    OutlinedTextField(name, { name = it.take(40) }, label = { Text(tr("What for?")) }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("goal_name"))
     OutlinedTextField(
-        target, { v -> target = v.filter { it.isDigit() }.take(9) }, label = { Text("How much? (₹)") }, singleLine = true,
+        target, { v -> target = v.filter { it.isDigit() }.take(9) }, label = { Text(tr("How much? (₹)")) }, singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth().testTag("goal_target"),
     )
-    Text("By when?", style = MaterialTheme.typography.labelLarge)
+    Text(tr("By when?"), style = MaterialTheme.typography.labelLarge)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(0 to "No date", 3 to "3 months", 6 to "6 months", 12 to "1 year", 24 to "2 years").forEach { (m, l) ->
+        listOf(0 to tr("No date"), 3 to tr("3 months"), 6 to tr("6 months"), 12 to tr("1 year"), 24 to tr("2 years")).forEach { (m, l) ->
             Text(
                 l, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
                 color = if (months == m) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
@@ -405,23 +406,23 @@ fun GoalEditSheet(vm: AppViewModel, id: String?) {
     val t = (target.toLongOrNull() ?: 0) * 100
     val by = if (months > 0) vm.today().plusMonths(months.toLong()).withDayOfMonth(1) else null
     Button(onClick = { vm.saveGoal(id, name, emoji, t, by) }, enabled = name.isNotBlank() && t > 0, modifier = Modifier.fillMaxWidth().testTag("goal_save")) {
-        Text(if (id == null) "Add goal" else "Save")
+        Text(if (id == null) tr("Add goal") else tr("Save"))
     }
-    if (id != null) TextButton(onClick = { vm.deleteGoal(id) }, modifier = Modifier.fillMaxWidth()) { Text("Remove this goal") }
+    if (id != null) TextButton(onClick = { vm.deleteGoal(id) }, modifier = Modifier.fillMaxWidth()) { Text(tr("Remove this goal")) }
 }
 
 @Composable
 fun GoalAddSheet(vm: AppViewModel, id: String, suggest: Long) {
     val g = remember(id) { vm.goals.value.firstOrNull { it.id == id } } ?: return
     var amount by rememberSaveable(id) { mutableStateOf(if (suggest > 0) (suggest / 100).toString() else "") }
-    Text("Put money in ${g.name}", style = MaterialTheme.typography.titleLarge)
-    Text("${Money.formatInr(g.savedPaise)} of ${Money.formatInr(g.targetPaise)} so far. Note what you've set aside (in a savings account, an FD, anywhere).",
+    Text(tr("Put money in {0}", g.name), style = MaterialTheme.typography.titleLarge)
+    Text(tr("{0} of {1} so far. Note what you've set aside (in a savings account, an FD, anywhere).", Money.formatInr(g.savedPaise), Money.formatInr(g.targetPaise)),
         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     OutlinedTextField(
-        amount, { v -> amount = v.filter { it.isDigit() }.take(9) }, label = { Text("Amount (₹)") }, singleLine = true,
+        amount, { v -> amount = v.filter { it.isDigit() }.take(9) }, label = { Text(tr("Amount (₹)")) }, singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth().testTag("goal_add_amount"),
         textStyle = MaterialTheme.typography.headlineSmall,
     )
     val p = (amount.toLongOrNull() ?: 0) * 100
-    Button(onClick = { vm.addToGoal(id, p) }, enabled = p > 0, modifier = Modifier.fillMaxWidth().testTag("goal_add_save")) { Text("Add to the jar") }
+    Button(onClick = { vm.addToGoal(id, p) }, enabled = p > 0, modifier = Modifier.fillMaxWidth().testTag("goal_add_save")) { Text(tr("Add to the jar")) }
 }

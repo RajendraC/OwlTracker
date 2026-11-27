@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import com.owl.tracker.i18n.tr
 import com.owl.tracker.core.BudgetPeriod
 import com.owl.tracker.core.Cat
 import com.owl.tracker.core.Money
@@ -76,7 +77,7 @@ object SavingTips {
         val dates = HashMap<Long, LocalDate>()
         fun dateOf(t: Txn): LocalDate = dates.getOrPut(t.id) { Instant.ofEpochMilli(t.occurredAt).atZone(zone).toLocalDate() }
         fun spending(list: List<Txn>) = list.filter { it.isSpending(catMap[it.categoryId]) }
-        fun name(id: String) = catMap[id]?.name ?: "Others"
+        fun name(id: String) = catMap[id]?.name ?: tr("Others")
 
         val active = history.map { p -> txns.filter { p.contains(dateOf(it)) } }.filter { it.isNotEmpty() }
         val n = active.size
@@ -100,17 +101,17 @@ object SavingTips {
                 // Mostly one big payment (a flight, a repair): said, but not counted as something to cut back every month
                 tips += SavingTip(
                     "oneoff:$id", TipKind.ONE_OFF,
-                    "${name(id)}: one big payment this month",
-                    "${fmt(biggest.amountPaise)} to ${biggest.merchantName} on ${dateOf(biggest).format(DAY)} made ${name(id)} ${fmt(nice(soFar - u))} more than usual. " +
-                        "If it was a one-off, there's nothing to cut back.",
+                    tr("{0}: one big payment this month", name(id)),
+                    tr("{0} to {1} on {2} made {3} {4} more than usual. ", fmt(biggest.amountPaise), biggest.merchantName, dateOf(biggest).format(DAY), name(id), fmt(nice(soFar - u))) +
+                        tr("If it was a one-off, there's nothing to cut back."),
                     0, id,
                 )
             } else if (soFar > u) {
                 val over = nice(soFar - u)
                 if (soFar - u >= maxOf(30_000L, u / 10)) tips += SavingTip(
                     "above:$id", TipKind.ABOVE_USUAL,
-                    "${name(id)} is ${fmt(over)} over your usual month",
-                    "You usually spend ${fmt(nice(u))} a month here; this month it's ${fmt(soFar)} so far. Getting back to your usual saves ${fmt(over)}.",
+                    tr("{0} is {1} over your usual month", name(id), fmt(over)),
+                    tr("You usually spend {0} a month here; this month it's {1} so far. Getting back to your usual saves {2}.", fmt(nice(u)), fmt(soFar), fmt(over)),
                     over, id,
                 )
             } else if (elapsed in 0.33..0.9 && list.size >= 4) {
@@ -119,8 +120,8 @@ object SavingTips {
                     val over = nice(projected - u)
                     tips += SavingTip(
                         "above:$id", TipKind.ABOVE_USUAL,
-                        "${name(id)} is heading ${fmt(over)} over your usual",
-                        "${fmt(soFar)} so far, on course for about ${fmt(nice(projected))} against your usual ${fmt(nice(u))}. Slowing down now saves about ${fmt(over)}.",
+                        tr("{0} is heading {1} over your usual", name(id), fmt(over)),
+                        tr("{0} so far, on course for about {1} against your usual {2}. Slowing down now saves about {3}.", fmt(soFar), fmt(nice(projected)), fmt(nice(u)), fmt(over)),
                         over, id,
                     )
                 }
@@ -137,8 +138,8 @@ object SavingTips {
             val save = nice(u * TRIM_PCT / 100)
             tips += SavingTip(
                 "trim:$id", TipKind.TRIM,
-                "${name(id)}: one in five fewer saves ${fmt(save)} a month",
-                "You spend about ${fmt(nice(u))} a month here over ${count.roundToInt()} payments. Skipping one in five is ${fmt(save * 12)} a year.",
+                tr("{0}: one in five fewer saves {1} a month", name(id), fmt(save)),
+                tr("You spend about {0} a month here over {1} payments. Skipping one in five is {2} a year.", fmt(nice(u)), count.roundToInt(), fmt(save * 12)),
                 save, id,
             )
         }
@@ -159,16 +160,16 @@ object SavingTips {
         if (subs.size >= 2) {
             val total = subs.sumOf { it.second }
             val cheapest = subs.minOf { it.second }
-            val names = subs.take(4).joinToString(", ") { it.first } + if (subs.size > 4) " and ${subs.size - 4} more" else ""
+            val names = subs.take(4).joinToString(", ") { it.first } + if (subs.size > 4) tr(" and {0} more", subs.size - 4) else ""
             tips += SavingTip(
                 "subs", TipKind.SUBSCRIPTIONS,
-                "${subs.size} subscriptions cost ${fmt(total)} a month",
-                "$names. Dropping one you don't use saves at least ${fmt(cheapest)} a month (${fmt(cheapest * 12)} a year).",
+                tr("{0} subscriptions cost {1} a month", subs.size, fmt(total)),
+                tr("{0}. Dropping one you don't use saves at least {1} a month ({2} a year).", names, fmt(cheapest), fmt(cheapest * 12)),
                 cheapest,
             )
         } else if (subs.size == 1 && subs[0].second >= 19_900) {
             val (who, cost) = subs[0]
-            tips += SavingTip("subs", TipKind.SUBSCRIPTIONS, "$who costs ${fmt(cost)} a month", "Still using it? Cancelling saves ${fmt(cost * 12)} a year.", cost)
+            tips += SavingTip("subs", TipKind.SUBSCRIPTIONS, tr("{0} costs {1} a month", who, fmt(cost)), tr("Still using it? Cancelling saves {0} a year.", fmt(cost * 12)), cost)
         }
 
         // 4. The share of income saved, against a 20% goal
@@ -177,13 +178,13 @@ object SavingTips {
         val keep = if (income <= 0) null else {
             val pct = ((income - spent) * 100.0 / income).roundToInt()
             if (pct >= KEEP_PCT) {
-                SavingTip("keep", TipKind.KEEP, "You save $pct% of your income", "That's above a $KEEP_PCT% goal. Keep it up.", 0)
+                SavingTip("keep", TipKind.KEEP, tr("You save {0}% of your income", pct), tr("That's above a {0}% goal. Keep it up.", KEEP_PCT), 0)
             } else {
                 val cut = nice(spent - income * (100 - KEEP_PCT) / 100)
                 SavingTip(
                     "keep", TipKind.KEEP,
-                    if (pct >= 0) "You save $pct% of your income" else "You spend more than your income",
-                    "Usually ${fmt(nice(income))} comes in and ${fmt(nice(spent))} goes out a month. Saving $KEEP_PCT% means spending about ${fmt(cut)} less.",
+                    if (pct >= 0) tr("You save {0}% of your income", pct) else tr("You spend more than your income"),
+                    tr("Usually {0} comes in and {1} goes out a month. Saving {2}% means spending about {3} less.", fmt(nice(income)), fmt(nice(spent)), KEEP_PCT, fmt(cut)),
                     cut,
                 )
             }

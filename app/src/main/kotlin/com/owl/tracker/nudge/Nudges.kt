@@ -1,5 +1,6 @@
 package com.owl.tracker.nudge
 
+import com.owl.tracker.i18n.tr
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -99,63 +100,63 @@ object Nudges {
         if (previous != null && previous.spent > 0 && s.dayNumber in 2..4 && now.hour >= 9) {
             val p = previous
             val result = when {
-                p.overall > 0 && p.spent <= p.overall -> " · saved ${Money.formatInr(p.overall - p.spent)}"
-                p.overall > 0 -> " · ${Money.formatInr(p.spent - p.overall)} over"
+                p.overall > 0 && p.spent <= p.overall -> tr(" · saved {0}", Money.formatInr(p.overall - p.spent))
+                p.overall > 0 -> tr(" · {0} over", Money.formatInr(p.spent - p.overall))
                 else -> ""
             }
-            add(Nudge(REPORT, "report_${p.period.start}", "Your ${month(p)} report is ready 📊",
-                "Spent ${Money.formatInr(p.spent)}$result. Dig into it on a computer: " +
-                    (if (excel) "an Excel workbook for your own sums." else "an interactive page that opens in any browser."), OPEN_REPORT))
+            add(Nudge(REPORT, "report_${p.period.start}", tr("Your {0} report is ready 📊", month(p)),
+                tr("Spent {0}{1}. Dig into it on a computer: ", Money.formatInr(p.spent), result) +
+                    (if (excel) tr("an Excel workbook for your own sums.") else tr("an interactive page that opens in any browser.")), OPEN_REPORT))
         }
         // A bill due in the next two days (once per bill and date)
         bills.filter { java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), it.second) in 0..2 }.forEach { (b, d) ->
             val n = java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), d).toInt()
-            val whenText = when (n) { 0 -> "today"; 1 -> "tomorrow"; else -> "in $n days" }
-            add(Nudge(ALERTS, "bill_${b.key}_$d", "${b.name}: ${if (b.steady) "" else "about "}${Money.formatInr(b.paise)} due $whenText",
-                "It's ${b.cadence}. Keep it in mind before spending what's left.", OPEN_BILLS))
+            val whenText = when (n) { 0 -> "today"; 1 -> "tomorrow"; else -> tr("in {0} days", n) }
+            add(Nudge(ALERTS, "bill_${b.key}_$d", tr("{0}: {1}{2} due {3}", b.name, if (b.steady) "" else tr("about "), Money.formatInr(b.paise), whenText),
+                tr("It's {0}. Keep it in mind before spending what's left.", b.cadence), OPEN_BILLS))
         }
         val ps = s.period.start
         if (s.overall > 0) {
             val over = s.spent - s.overall
             when {
-                over > 0 -> add(Nudge(ALERTS, "100_$ps", "You've gone past ${month(s)}'s budget",
-                    "${Money.formatInr(over)} over, with ${days(s.daysLeft)} left." + (s.biggestCategory?.let { " $it is the biggest." } ?: ""), OPEN_HOME))
-                s.used >= 0.8 -> add(Nudge(ALERTS, "80_$ps", "${(s.used * 100).toInt()}% of ${month(s)}'s budget used",
-                    "${Money.formatInr(s.left)} left for ${days(s.daysLeft + 1)}, about ${Money.formatInr(s.perDayLeft)} a day." + (s.biggestCategory?.let { " $it is the biggest." } ?: ""), OPEN_HOME))
+                over > 0 -> add(Nudge(ALERTS, "100_$ps", tr("You've gone past {0}'s budget", month(s)),
+                    tr("{0} over, with {1} left.", Money.formatInr(over), days(s.daysLeft)) + (s.biggestCategory?.let { tr(" {0} is the biggest.", it) } ?: ""), OPEN_HOME))
+                s.used >= 0.8 -> add(Nudge(ALERTS, "80_$ps", tr("{0}% of {1}'s budget used", (s.used * 100).toInt(), month(s)),
+                    tr("{0} left for {1}, about {2} a day.", Money.formatInr(s.left), days(s.daysLeft + 1), Money.formatInr(s.perDayLeft)) + (s.biggestCategory?.let { tr(" {0} is the biggest.", it) } ?: ""), OPEN_HOME))
             }
         }
         s.overCategories.forEach { (name, sp, lim) ->
-            add(Nudge(ALERTS, "cat_${name}_$ps", "$name went over its budget", "${Money.formatInr(sp)} of ${Money.formatInr(lim)}. Tap to see where it went.", OPEN_BUDGETS))
+            add(Nudge(ALERTS, "cat_${name}_$ps", tr("{0} went over its budget", name), tr("{0} of {1}. Tap to see where it went.", Money.formatInr(sp), Money.formatInr(lim)), OPEN_BUDGETS))
         }
         if (now.hour >= 19) {
             if (now.dayOfWeek == DayOfWeek.SUNDAY) {
                 val diff = s.weekSpent - s.lastWeekSpent
                 val compare = when {
                     s.lastWeekSpent <= 0 -> ""
-                    diff < 0 -> "${Money.formatInr(-diff)} less than last week."
-                    diff > 0 -> "${Money.formatInr(diff)} more than last week."
-                    else -> "The same as last week."
+                    diff < 0 -> tr("{0} less than last week.", Money.formatInr(-diff))
+                    diff > 0 -> tr("{0} more than last week.", Money.formatInr(diff))
+                    else -> tr("The same as last week.")
                 }
-                add(Nudge(WEEKLY, "week_${now.toLocalDate()}", "Your week: ${Money.formatInr(s.weekSpent)}", "$compare Tap for the details.".trim(), OPEN_HOME))
+                add(Nudge(WEEKLY, "week_${now.toLocalDate()}", tr("Your week: {0}", Money.formatInr(s.weekSpent)), tr("{0} Tap for the details.", compare).trim(), OPEN_HOME))
             } else {
                 val text = when {
-                    s.dayShare <= 0 -> "Set a monthly budget and the owl will say how each day went."
-                    s.todaySpent == 0L -> "Nothing went out today. A no-spend day!"
-                    s.todaySpent <= s.dayShare -> "Within today's ${Money.formatInr(s.dayShare)} share." + if (s.overall > 0 && s.left > 0) " ${Money.formatInr(s.left)} left for ${days(s.daysLeft)}." else ""
-                    else -> "${Money.formatInr(s.todaySpent - s.dayShare)} over today's ${Money.formatInr(s.dayShare)} share."
+                    s.dayShare <= 0 -> tr("Set a monthly budget and the owl will say how each day went.")
+                    s.todaySpent == 0L -> tr("Nothing went out today. A no-spend day!")
+                    s.todaySpent <= s.dayShare -> tr("Within today's {0} share.", Money.formatInr(s.dayShare)) + if (s.overall > 0 && s.left > 0) tr(" {0} left for {1}.", Money.formatInr(s.left), days(s.daysLeft)) else ""
+                    else -> tr("{0} over today's {1} share.", Money.formatInr(s.todaySpent - s.dayShare), Money.formatInr(s.dayShare))
                 }
                 val mark = when { s.dayShare <= 0 -> ""; s.todaySpent <= s.dayShare -> " 👍"; else -> "" }
-                add(Nudge(DAILY, "day_${now.toLocalDate()}", "Today: ${Money.formatInr(s.todaySpent)}$mark", text, OPEN_HOME))
+                add(Nudge(DAILY, "day_${now.toLocalDate()}", tr("Today: {0}{1}", Money.formatInr(s.todaySpent), mark), text, OPEN_HOME))
             }
         }
         if (previous != null && s.dayNumber <= 3 && previous.spent > 0) {
             val p = previous
             val line = when {
-                p.overall > 0 && p.spent <= p.overall -> "You came in ${Money.formatInr(p.overall - p.spent)} under budget. See the highlights."
-                p.overall > 0 -> "Spent ${Money.formatInr(p.spent)}. See the highlights and what to watch."
-                else -> "Spent ${Money.formatInr(p.spent)}. See your biggest day, top merchant and more."
+                p.overall > 0 && p.spent <= p.overall -> tr("You came in {0} under budget. See the highlights.", Money.formatInr(p.overall - p.spent))
+                p.overall > 0 -> tr("Spent {0}. See the highlights and what to watch.", Money.formatInr(p.spent))
+                else -> tr("Spent {0}. See your biggest day, top merchant and more.", Money.formatInr(p.spent))
             }
-            add(Nudge(RECAP, "recap_${p.period.start}", "Your ${month(p)} recap is ready", line, OPEN_RECAP))
+            add(Nudge(RECAP, "recap_${p.period.start}", tr("Your {0} recap is ready", month(p)), line, OPEN_RECAP))
         }
     }
 
@@ -165,7 +166,7 @@ object Nudges {
     fun monthName(p: com.owl.tracker.core.BudgetPeriod): String =
         p.start.plusDays((p.days / 2).toLong()).month.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
 
-    private fun days(n: Int) = if (n == 1) "1 day" else "$n days"
+    private fun days(n: Int) = if (n == 1) tr("1 day") else tr("{0} days", n)
 
     /** Works out what's due and shows what hasn't been shown yet, if allowed and switched on. */
     suspend fun run(context: Context, now: LocalDateTime = LocalDateTime.now()) {
@@ -185,7 +186,7 @@ object Nudges {
             val pi = PendingIntent.getActivity(context, n.key.hashCode(), open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             // On the lock screen: only that there's a nudge, never the amounts
             val public = NotificationCompat.Builder(context, n.kind).setSmallIcon(R.drawable.ic_notify_owl)
-                .setContentTitle("Owl Tracker").setContentText(publicLine(n.kind)).build()
+                .setContentTitle(tr("Owl Tracker")).setContentText(publicLine(n.kind)).build()
             val share = if (n.kind == REPORT) PendingIntent.getActivity(
                 context, n.key.hashCode() + 1,
                 Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra(EXTRA_OPEN, OPEN_REPORT_SHARE),
@@ -201,7 +202,7 @@ object Nudges {
                 .setAutoCancel(true)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setPublicVersion(public)
-                .apply { if (share != null) addAction(0, "Get the report", share) }
+                .apply { if (share != null) addAction(0, tr("Get the report"), share) }
                 .build()
             // allowed() was checked above; the permission can still be taken away in between
             try { nm.notify(n.kind.hashCode() + if (n.kind == ALERTS) n.key.hashCode() else 0, notification) } catch (_: SecurityException) { return }
@@ -223,11 +224,11 @@ object Nudges {
     }
 
     private fun publicLine(kind: String) = when (kind) {
-        DAILY -> "Today's summary"
-        REPORT -> "Your monthly report is ready"
-        ALERTS -> "A budget alert"
-        WEEKLY -> "Your week"
-        else -> "Your month's recap is ready"
+        DAILY -> tr("Today's summary")
+        REPORT -> tr("Your monthly report is ready")
+        ALERTS -> tr("A budget alert")
+        WEEKLY -> tr("Your week")
+        else -> tr("Your month's recap is ready")
     }
 
     /** Forget "shown" marks older than three months, so the file stays small. */
@@ -267,26 +268,26 @@ object PaymentChecks {
             context, code, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra(Nudges.EXTRA_OPEN, what),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val public = NotificationCompat.Builder(context, Nudges.CHECK).setSmallIcon(R.drawable.ic_notify_owl).setContentTitle("Owl Tracker").setContentText("A new payment to check").build()
+        val public = NotificationCompat.Builder(context, Nudges.CHECK).setSmallIcon(R.drawable.ic_notify_owl).setContentTitle(tr("Owl Tracker")).setContentText(tr("A new payment to check")).build()
         val posts = if (fresh.size <= 3) fresh.map { t ->
-            val cat = cats[t.categoryId]?.name ?: "Not sorted yet"
+            val cat = cats[t.categoryId]?.name ?: tr("Not sorted yet")
             val time = java.time.Instant.ofEpochMilli(t.occurredAt).atZone(app.container.clock.zone).toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH))
             val yes = PendingIntent.getBroadcast(context, t.id.toInt(), Intent(context, CheckReceiver::class.java).setAction(Nudges.ACTION_CHECK_YES).putExtra(Nudges.EXTRA_TX, t.id),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             (CHECK_BASE + (t.id % 100_000).toInt()) to NotificationCompat.Builder(context, Nudges.CHECK)
                 .setSmallIcon(R.drawable.ic_notify_owl).setColor(0xFFFFB21A.toInt())
                 .setContentTitle("${t.merchantName} · ${Money.formatInr(t.amountPaise)} → $cat?")
-                .setContentText((t.accountLabel?.let { "$it · " } ?: "") + "$time. Was that right?")
+                .setContentText((t.accountLabel?.let { "$it · " } ?: "") + tr("{0}. Was that right?", time))
                 .setContentIntent(open("check:${t.id}", t.id.toInt()))
-                .addAction(0, "✓ Yes, $cat", yes)
-                .addAction(0, "Change", open("check:${t.id}", t.id.toInt() + 1))
+                .addAction(0, tr("✓ Yes, {0}", cat), yes)
+                .addAction(0, tr("Change"), open("check:${t.id}", t.id.toInt() + 1))
                 .setAutoCancel(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(public).setGroup("checks")
                 .build()
         } else listOf(
             CHECK_BASE to NotificationCompat.Builder(context, Nudges.CHECK)
                 .setSmallIcon(R.drawable.ic_notify_owl).setColor(0xFFFFB21A.toInt())
-                .setContentTitle("${fresh.size} new payments")
-                .setContentText("${Money.formatInr(fresh.sumOf { it.amountPaise })} in all. Tap to check their categories.")
+                .setContentTitle(tr("{0} new payments", fresh.size))
+                .setContentText(tr("{0} in all. Tap to check their categories.", Money.formatInr(fresh.sumOf { it.amountPaise })))
                 .setContentIntent(open(Nudges.OPEN_ACTIVITY, 7201))
                 .setAutoCancel(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(public)
                 .build()

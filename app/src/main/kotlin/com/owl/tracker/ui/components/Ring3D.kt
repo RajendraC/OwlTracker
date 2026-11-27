@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.components
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
@@ -470,7 +471,7 @@ private fun OwlBubble(say: OwlSay, onOpen: (() -> Unit)?, tailX: androidx.compos
                                 .testTag("owl_open"),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("Open", color = Color(0xFF4B2412), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold)
+                            Text(tr("Open"), color = Color(0xFF4B2412), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold)
                             Icon(Ic.chevR, contentDescription = null, tint = Color(0xFF4B2412), modifier = Modifier.size(16.dp))
                         }
                     }

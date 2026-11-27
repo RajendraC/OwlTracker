@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import com.owl.tracker.i18n.tr
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -52,7 +53,7 @@ fun LaunchGreeting(act: LaunchAct, onDone: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
             LaunchBadge(act, clock.value, 168.dp)
-            Text("Owl Tracker", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground)
+            Text(tr("Owl Tracker"), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground)
         }
     }
 }

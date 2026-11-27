@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.scene
 
+import com.owl.tracker.i18n.tr
 import com.owl.tracker.core.Money
 import com.owl.tracker.data.Category
 import kotlin.math.roundToInt
@@ -82,10 +83,10 @@ object Scenes {
     private data class Part(val id: String, val name: String, val words: List<String>)
 
     private val TRANSPORT = listOf(
-        Part("metro", "Metro", listOf("metro", "dmrc", "bmrcl", "namma", "mmrc", "mmrda", "kmrl", "hmrl", "cmrl", "lmrc", "nmrc")),
-        Part("bus", "Bus", listOf("bus", "bmtc", "best", "ksrtc", "msrtc", "tsrtc", "apsrtc", "dtc", "chalo", "upsrtc", "rsrtc")),
-        Part("scooter", "Scooter", listOf("rapido", "bike", "scooty", "yulu", "bounce", "vogo", "auto")),
-        Part("car", "Car", listOf("uber", "ola", "cab", "taxi", "blusmart", "meru", "savaari", "zoomcar")),
+        Part("metro", tr("Metro"), listOf("metro", "dmrc", "bmrcl", "namma", "mmrc", "mmrda", "kmrl", "hmrl", "cmrl", "lmrc", "nmrc")),
+        Part("bus", tr("Bus"), listOf("bus", "bmtc", "best", "ksrtc", "msrtc", "tsrtc", "apsrtc", "dtc", "chalo", "upsrtc", "rsrtc")),
+        Part("scooter", tr("Scooter"), listOf("rapido", "bike", "scooty", "yulu", "bounce", "vogo", "auto")),
+        Part("car", tr("Car"), listOf("uber", "ola", "cab", "taxi", "blusmart", "meru", "savaari", "zoomcar")),
     )
 
     private const val MAX_PARTS = 4
@@ -112,20 +113,20 @@ object Scenes {
         val fraction = spentPaise.toDouble() / whole
         val wholeText = Money.formatInr(whole)
         val pct = (fraction * 100).roundToInt()
-        val over = if (basis != SceneBasis.ALL_SPENDING && spentPaise > whole) "${Money.formatInr(spentPaise - whole)} over" else ""
+        val over = if (basis != SceneBasis.ALL_SPENDING && spentPaise > whole) tr("{0} over", Money.formatInr(spentPaise - whole)) else ""
         val sub = when {
-            basis == SceneBasis.ALL_SPENDING -> "of $wholeText all spending"
-            basis == SceneBasis.MONTH_BUDGET -> "of $wholeText month budget"
-            kind == "rent" -> "of $wholeText rent"
-            kind == "emi" -> "of $wholeText EMI"
-            else -> "of $wholeText budget"
+            basis == SceneBasis.ALL_SPENDING -> tr("of {0} all spending", wholeText)
+            basis == SceneBasis.MONTH_BUDGET -> tr("of {0} month budget", wholeText)
+            kind == "rent" -> tr("of {0} rent", wholeText)
+            kind == "emi" -> tr("of {0} EMI", wholeText)
+            else -> tr("of {0} budget", wholeText)
         }
         val chip = when {
             over.isNotEmpty() -> over
-            basis == SceneBasis.ALL_SPENDING -> "$pct% of all"
-            basis == SceneBasis.MONTH_BUDGET -> "$pct% of month"
-            kind == "rent" || kind == "emi" -> if (fraction >= 1) "Paid" else "$pct% paid"
-            else -> "$pct% used"
+            basis == SceneBasis.ALL_SPENDING -> tr("{0}% of all", pct)
+            basis == SceneBasis.MONTH_BUDGET -> tr("{0}% of month", pct)
+            kind == "rent" || kind == "emi" -> if (fraction >= 1) tr("Paid") else tr("{0}% paid", pct)
+            else -> tr("{0}% used", pct)
         }
         return SceneSpec(
             kind = kind,

@@ -20,6 +20,8 @@ open class OwlTrackerApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // The language, before anything shows or a notification is written
+        runCatching { com.owl.tracker.i18n.I18n.load(this) }
         if (scheduleBackgroundSync) {
             runCatching { SyncWorker.schedule(this) }
             runCatching { com.owl.tracker.nudge.NudgeWorker.schedule(this) }

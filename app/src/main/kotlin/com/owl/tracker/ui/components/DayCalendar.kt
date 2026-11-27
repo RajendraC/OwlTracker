@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.components
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -88,12 +89,12 @@ private fun levelInk(level: DayLevel): Color = when (level) {
 }
 
 fun levelName(level: DayLevel, budgeted: Boolean): String = when (level) {
-    DayLevel.LIGHT -> "Light"
-    DayLevel.WITHIN -> if (budgeted) "Within budget" else "About usual"
-    DayLevel.HEAVY -> "Heavy"
-    DayLevel.VERY_HEAVY -> "Very heavy"
-    DayLevel.NONE -> "Nothing spent"
-    DayLevel.FUTURE -> "Still to come"
+    DayLevel.LIGHT -> tr("Light")
+    DayLevel.WITHIN -> if (budgeted) tr("Within budget") else tr("About usual")
+    DayLevel.HEAVY -> tr("Heavy")
+    DayLevel.VERY_HEAVY -> tr("Very heavy")
+    DayLevel.NONE -> tr("Nothing spent")
+    DayLevel.FUTURE -> tr("Still to come")
 }
 
 private val DAY_LONG = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
@@ -287,11 +288,11 @@ fun FillLegend(share: DayShare, modifier: Modifier = Modifier, noSpendDays: Int 
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (noSpendDays > 0) Text(
-            "🌟 $noSpendDays no-spend ${if (noSpendDays == 1) "day" else "days"} this month",
+            tr("🌟 {0} no-spend {1} this month", noSpendDays, if (noSpendDays == 1) tr("day") else tr("days")),
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold), color = INVESTED, modifier = Modifier.testTag("no_spend_count"),
         )
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(LIGHT to "Up to half the day's share", WITHIN to "Most of it", VERY_HEAVY to "Over", INVESTED to "Invested", FIXED_DOT to "EMI or rent", Color(0xFFFFC21A) to "No-spend day").forEach { (c, label) ->
+            listOf(LIGHT to tr("Up to half the day's share"), WITHIN to tr("Most of it"), VERY_HEAVY to tr("Over"), INVESTED to tr("Invested"), FIXED_DOT to tr("EMI or rent"), Color(0xFFFFC21A) to tr("No-spend day")).forEach { (c, label) ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     Box(Modifier.size(if (c == FIXED_DOT) 9.dp else 12.dp).clip(CircleShape).background(c))
                     Text(label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted)
@@ -300,10 +301,10 @@ fun FillLegend(share: DayShare, modifier: Modifier = Modifier, noSpendDays: Int 
         }
         Text(
             when {
-                share.paise <= 0 && share.fromBudget -> "EMIs and rent take the whole budget, so there's no everyday share left"
-                share.paise <= 0 -> "Set a monthly budget and each day fills against its share of it"
-                share.fromBudget -> "Each day fills with its spending against ${Money.formatInr(share.paise)} a day, the budget after EMIs and rent. Investments count too, in purple. Red amounts went over."
-                else -> "Each day fills against a usual ${Money.formatInr(share.paise)} day, EMIs and rent left out. Red amounts went over."
+                share.paise <= 0 && share.fromBudget -> tr("EMIs and rent take the whole budget, so there's no everyday share left")
+                share.paise <= 0 -> tr("Set a monthly budget and each day fills against its share of it")
+                share.fromBudget -> tr("Each day fills with its spending against {0} a day, the budget after EMIs and rent. Investments count too, in purple. Red amounts went over.", Money.formatInr(share.paise))
+                else -> tr("Each day fills against a usual {0} day, EMIs and rent left out. Red amounts went over.", Money.formatInr(share.paise))
             },
             style = MaterialTheme.typography.bodySmall, color = muted,
         )
@@ -330,7 +331,7 @@ fun WeekDaysRow(days: List<DayTotal>, picked: LocalDate?, today: LocalDate, budg
             Column(
                 Modifier.weight(1f).clip(RoundedCornerShape(18.dp))
                     .then(if (on) Modifier.clay(RoundedCornerShape(18.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true) else Modifier)
-                    .then(if (future) Modifier else Modifier.clickable(onClickLabel = if (on) "Show the whole week" else "Show only this day") { onPick(d.date) })
+                    .then(if (future) Modifier else Modifier.clickable(onClickLabel = if (on) tr("Show the whole week") else tr("Show only this day")) { onPick(d.date) })
                     .semantics {
                         contentDescription = dayDescription(d, budgeted)
                         selected = on
@@ -370,7 +371,7 @@ fun LevelLegend(share: DayShare, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         // Two lines of swatches so they never squeeze
         val items = listOf(LIGHT to levelName(DayLevel.LIGHT, share.fromBudget), WITHIN to levelName(DayLevel.WITHIN, share.fromBudget),
-            HEAVY to "Heavy", VERY_HEAVY to "Very heavy", FIXED_DOT to "EMI or rent")
+            HEAVY to tr("Heavy"), VERY_HEAVY to tr("Very heavy"), FIXED_DOT to tr("EMI or rent"))
         // As many to a line as fit (three on most phones), the rest on the next
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items.forEach { (c, label) ->
@@ -382,9 +383,9 @@ fun LevelLegend(share: DayShare, modifier: Modifier = Modifier) {
         }
         Text(
             when {
-                share.paise <= 0 -> "Set a monthly budget and each day is coloured against its share of it"
-                share.fromBudget -> "Each day's spending, EMIs and rent left out, against its ${Money.formatInr(share.paise)} share of the budget"
-                else -> "Each day's spending, EMIs and rent left out, against a usual ${Money.formatInr(share.paise)} day"
+                share.paise <= 0 -> tr("Set a monthly budget and each day is coloured against its share of it")
+                share.fromBudget -> tr("Each day's spending, EMIs and rent left out, against its {0} share of the budget", Money.formatInr(share.paise))
+                else -> tr("Each day's spending, EMIs and rent left out, against a usual {0} day", Money.formatInr(share.paise))
             },
             style = MaterialTheme.typography.bodySmall, color = muted,
         )
@@ -408,7 +409,7 @@ fun MonthCalendarCard(
     Panel(modifier = modifier.testTag("month_calendar"), padding = 12.dp) {
         Text("$title, week by week", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 4.dp).semantics { heading() })
         Text(
-            "Each day fills with what it spent · tap a day to see where it went · tap a week's total to open the week", style = MaterialTheme.typography.bodySmall, color = muted,
+            tr("Each day fills with what it spent · tap a day to see where it went · tap a week's total to open the week"), style = MaterialTheme.typography.bodySmall, color = muted,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
         )
         Gap(10.dp)
@@ -418,7 +419,7 @@ fun MonthCalendarCard(
             listOf("S", "M", "T", "W", "T", "F", "S").forEach {
                 Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
             }
-            FitText("Week", Modifier.width(WEEK_COL).padding(end = 6.dp), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
+            FitText(tr("Week"), Modifier.width(WEEK_COL).padding(end = 6.dp), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
         }
         rows.forEach { row ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -429,7 +430,7 @@ fun MonthCalendarCard(
                         Modifier.weight(1f).height(if (row.days.any { (it?.investedPaise ?: 0) > 0 }) 76.dp else 62.dp).clip(RoundedCornerShape(12.dp))
                             .then(
                                 if (d == null) Modifier
-                                else (if (future) Modifier else Modifier.clickable(onClickLabel = if (date == picked) "Show the whole month" else "See where this day went") { onPick(date) })
+                                else (if (future) Modifier else Modifier.clickable(onClickLabel = if (date == picked) tr("Show the whole month") else tr("See where this day went")) { onPick(date) })
                                     .semantics {
                                         contentDescription = dayDescription(d, share.fromBudget)
                                         selected = date == picked
@@ -452,7 +453,7 @@ fun MonthCalendarCard(
                                 color = if (full > 1f) VERY_HEAVY else if (noSpend) INVESTED else muted, textAlign = TextAlign.Center, minScale = 0.6f,
                             )
                             if (!future && d.investedPaise > 0) FitText(
-                                Money.formatShort(d.investedPaise) + " inv.",
+                                Money.formatShort(d.investedPaise) + tr(" inv."),
                                 Modifier.padding(horizontal = 1.dp).testTag("cal_invested_$date"),
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 9.sp),
                                 color = INVESTED, textAlign = TextAlign.Center, minScale = 0.6f,
@@ -465,8 +466,8 @@ fun MonthCalendarCard(
                     Modifier.width(WEEK_COL).heightIn(min = 46.dp).padding(start = 2.dp)
                         .then(
                             if (open) Modifier.clay(RoundedCornerShape(14.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true)
-                                .clickable(onClickLabel = "Open this week") { onWeek(row.weekStart) }
-                                .semantics { contentDescription = "Week of ${dayTitle(row.weekStart)}, ${Money.formatInr(row.paise)} this month"; role = Role.Button }
+                                .clickable(onClickLabel = tr("Open this week")) { onWeek(row.weekStart) }
+                                .semantics { contentDescription = tr("Week of {0}, {1} this month", dayTitle(row.weekStart), Money.formatInr(row.paise)); role = Role.Button }
                             else Modifier,
                         )
                         .testTag("cal_week_${row.weekStart}")
@@ -477,14 +478,14 @@ fun MonthCalendarCard(
                         Column(horizontalAlignment = Alignment.End) {
                             FitText(Money.formatShort(row.paise), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.sp), textAlign = TextAlign.End, minScale = 0.6f)
                             val invested = row.days.sumOf { it?.investedPaise ?: 0L }
-                            if (invested > 0) FitText(Money.formatShort(invested) + " inv.", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 10.sp), color = INVESTED, textAlign = TextAlign.End, minScale = 0.6f)
+                            if (invested > 0) FitText(Money.formatShort(invested) + tr(" inv."), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 10.sp), color = INVESTED, textAlign = TextAlign.End, minScale = 0.6f)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                FitText("Week", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.primary, minScale = 0.7f)
+                                FitText(tr("Week"), Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.primary, minScale = 0.7f)
                                 Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(12.dp))
                             }
                         }
                     } else {
-                        FitText("to come", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted.copy(alpha = 0.7f), textAlign = TextAlign.End, minScale = 0.6f)
+                        FitText(tr("to come"), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted.copy(alpha = 0.7f), textAlign = TextAlign.End, minScale = 0.6f)
                     }
                 }
             }
@@ -513,7 +514,7 @@ fun DayFilterBar(day: DayTotal, payments: Int, share: DayShare?, today: LocalDat
                 if (day.level != DayLevel.NONE && day.level != DayLevel.FUTURE) {
                     Text(
                         androidx.compose.ui.text.buildAnnotatedString {
-                            append("${Money.formatInr(every)} everyday · ")
+                            append(tr("{0} everyday · ", Money.formatInr(every)))
                             pushStyle(androidx.compose.ui.text.SpanStyle(color = levelFill(day.level)?.let { darker(it) } ?: muted, fontWeight = FontWeight.ExtraBold))
                             append(levelName(day.level, budgeted))
                             pop()
@@ -525,7 +526,7 @@ fun DayFilterBar(day: DayTotal, payments: Int, share: DayShare?, today: LocalDat
                         Box(
                             Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(6.dp)).background(LocalBrand.current.clay.pressed)
                                 .testTag("day_filter_bar")
-                                .semantics { contentDescription = "${Money.formatInr(every)} of the day's ${Money.formatInr(share.paise)} share" },
+                                .semantics { contentDescription = tr("{0} of the day's {1} share", Money.formatInr(every), Money.formatInr(share.paise)) },
                         ) {
                             Box(Modifier.fillMaxWidth(part).fillMaxHeight().clip(RoundedCornerShape(6.dp)).background(levelFill(day.level) ?: muted))
                             // The day's share, half way along
@@ -536,7 +537,7 @@ fun DayFilterBar(day: DayTotal, payments: Int, share: DayShare?, today: LocalDat
                         Row(Modifier.fillMaxWidth()) {
                             Text("₹0", style = MaterialTheme.typography.labelSmall, color = muted, modifier = Modifier.weight(1f))
                             Text(
-                                (if (budgeted) "day's share " else "usual day ") + Money.formatInr(share.paise),
+                                (if (budgeted) tr("day's share ") else tr("usual day ")) + Money.formatInr(share.paise),
                                 style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.Center, modifier = Modifier.weight(2f),
                             )
                             Text("2×", style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
@@ -551,14 +552,14 @@ fun DayFilterBar(day: DayTotal, payments: Int, share: DayShare?, today: LocalDat
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Box(Modifier.size(9.dp).clip(CircleShape).background(FIXED_DOT))
-                        Text("+ EMI or rent · not in the colour", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f))
+                        Text(tr("+ EMI or rent · not in the colour"), style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f))
                         Text(Money.formatInr(day.fixedPaise), style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                     }
                 }
                 Text("$payments ${if (payments == 1) "payment" else "payments"}", style = MaterialTheme.typography.bodySmall, color = muted)
             }
             IconButton(onClick = onClear, modifier = Modifier.testTag("day_filter_clear")) {
-                Icon(Ic.close, contentDescription = "Show every day again", modifier = Modifier.size(20.dp))
+                Icon(Ic.close, contentDescription = tr("Show every day again"), modifier = Modifier.size(20.dp))
             }
         }
     }

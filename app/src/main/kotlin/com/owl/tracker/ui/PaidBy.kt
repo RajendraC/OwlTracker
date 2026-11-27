@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import com.owl.tracker.i18n.tr
 import com.owl.tracker.data.Category
 import com.owl.tracker.data.CategoryTree
 import com.owl.tracker.data.Source
@@ -7,11 +8,11 @@ import com.owl.tracker.data.Txn
 
 /** What a payment was made from, as far as the app can tell. In this order on Paid by. */
 enum class PaidKind(val key: String, val label: String, val heading: String) {
-    CREDIT_CARD("credit", "Credit card", "Credit cards"),
-    DEBIT_CARD("debit", "Debit card", "Debit cards"),
-    ACCOUNT("account", "Bank account", "Bank accounts"),
-    BY_HAND("by_hand", "No card or account", "Cash and added by hand"),
-    UNKNOWN("unknown", "The SMS didn't say which", "Not known"),
+    CREDIT_CARD("credit", tr("Credit card"), tr("Credit cards")),
+    DEBIT_CARD("debit", tr("Debit card"), tr("Debit cards")),
+    ACCOUNT("account", tr("Bank account"), tr("Bank accounts")),
+    BY_HAND("by_hand", tr("No card or account"), tr("Cash and added by hand")),
+    UNKNOWN("unknown", tr("The SMS didn't say which"), tr("Not known")),
     ;
 
     /** A card or account the user can say is one of the first three. */
@@ -67,7 +68,7 @@ object PaidBy {
      * with neither word is usually a credit card alert).
      */
     fun guess(label: String, bodies: List<String?>): PaidKind {
-        if (" card ••" !in label) return PaidKind.ACCOUNT
+        if (tr(" card ••") !in label) return PaidKind.ACCOUNT
         val texts = bodies.filterNotNull()
         val debit = texts.count { DEBIT.containsMatchIn(it) }
         val credit = texts.count { CREDIT.containsMatchIn(it) }
@@ -95,8 +96,8 @@ object PaidBy {
             PaidAccount(
                 key = key,
                 name = when (kind) {
-                    PaidKind.BY_HAND -> "Cash and added by hand"
-                    PaidKind.UNKNOWN -> "Card or account not known"
+                    PaidKind.BY_HAND -> tr("Cash and added by hand")
+                    PaidKind.UNKNOWN -> tr("Card or account not known")
                     else -> key
                 },
                 kind = kind,

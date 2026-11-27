@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -64,20 +65,20 @@ fun WelcomeScreen(vm: AppViewModel) {
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         com.owl.tracker.ui.components.OwlBadge(size = 72.dp)
-        Text("Your spending, sorted from your bank SMS", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
+        Text(tr("Your spending, sorted from your bank SMS"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
         Text(
-            "Owl Tracker turns bank, card and UPI alerts into a monthly dashboard, without sending anything anywhere.",
+            tr("Owl Tracker turns bank, card and UPI alerts into a monthly dashboard, without sending anything anywhere."),
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Promise(Ic.message, "Reads only bank, card and UPI SMS", "OTPs and personal messages are ignored")
-        Promise(Ic.noNet, "No internet permission", "Your data cannot leave this phone")
-        Promise(Ic.lock, "Encrypted and lockable", "Stored with a key held in your phone's secure hardware")
+        Promise(Ic.message, tr("Reads only bank, card and UPI SMS"), tr("OTPs and personal messages are ignored"))
+        Promise(Ic.noNet, tr("No internet permission"), tr("Your data cannot leave this phone"))
+        Promise(Ic.lock, tr("Encrypted and lockable"), tr("Stored with a key held in your phone's secure hardware"))
         Gap(8.dp)
         Button(onClick = { vm.go(com.owl.tracker.ui.Screen.DISCLOSURE) }, modifier = Modifier.fillMaxWidth().height(56.dp).testTag("get_started")) {
-            Text("Get started")
+            Text(tr("Get started"))
         }
         androidx.compose.material3.TextButton(onClick = { vm.openBackup() }, modifier = Modifier.fillMaxWidth().testTag("welcome_restore")) {
-            Text("Moving from another phone? Restore from a backup")
+            Text(tr("Moving from another phone? Restore from a backup"))
         }
     }
 }
@@ -108,27 +109,27 @@ fun DisclosureScreen(vm: AppViewModel, platform: Platform) {
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         IconTile(Ic.message, MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.primaryContainer, 56.dp)
-        Text("Read your bank SMS to track spending?", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
+        Text(tr("Read your bank SMS to track spending?"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Text(
-            "Owl Tracker reads messages from banks, cards and UPI apps to find your transactions. " +
-                "Everything is processed on this phone and never leaves it. The app has no internet access.",
+            tr("Owl Tracker reads messages from banks, cards and UPI apps to find your transactions. ") +
+                tr("Everything is processed on this phone and never leaves it. The app has no internet access."),
             style = MaterialTheme.typography.bodyLarge,
         )
         Panel {
-            Fact("WHAT WE READ", "Debit and credit alerts from bank, card and wallet senders such as VM-HDFCBK-S")
-            Fact("WHAT WE IGNORE", "OTPs, offers, reminders, and every message from a person")
-            Fact("WHAT WE KEEP", "Only the transactions you choose, encrypted on this phone")
+            Fact(tr("WHAT WE READ"), tr("Debit and credit alerts from bank, card and wallet senders such as VM-HDFCBK-S"))
+            Fact(tr("WHAT WE IGNORE"), tr("OTPs, offers, reminders, and every message from a person"))
+            Fact(tr("WHAT WE KEEP"), tr("Only the transactions you choose, encrypted on this phone"))
         }
         if (denied) {
             Panel {
-                Text("SMS access wasn't allowed", style = MaterialTheme.typography.titleSmall)
+                Text(tr("SMS access wasn't allowed"), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "If Android no longer shows the prompt, allow SMS in the app's settings: Permissions → SMS → Allow. " +
-                        "On some phones you first need ⋮ → Allow restricted settings.",
+                    tr("If Android no longer shows the prompt, allow SMS in the app's settings: Permissions → SMS → Allow. ") +
+                        tr("On some phones you first need ⋮ → Allow restricted settings."),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Gap(8.dp)
-                OutlinedButton(onClick = { platform.openAppSettings() }) { Text("Open app settings") }
+                OutlinedButton(onClick = { platform.openAppSettings() }) { Text(tr("Open app settings")) }
             }
         }
         Gap(8.dp)
@@ -138,12 +139,12 @@ fun DisclosureScreen(vm: AppViewModel, platform: Platform) {
                 else { launcher.launch(Manifest.permission.READ_SMS) }
             },
             modifier = Modifier.fillMaxWidth().height(56.dp).testTag("allow_sms"),
-        ) { Text("Allow SMS access") }
+        ) { Text(tr("Allow SMS access")) }
         TextButton(onClick = { vm.chooseManualMode() }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("not_now")) {
-            Text("Not now, add expenses manually")
+            Text(tr("Not now, add expenses manually"))
         }
         TextButton(onClick = { vm.startSampleImport() }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("try_sample")) {
-            Text("Explore with sample data first")
+            Text(tr("Explore with sample data first"))
         }
     }
 }
@@ -180,9 +181,9 @@ private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.
         Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text("Set a monthly budget", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
+        Text(tr("Set a monthly budget"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Text(
-            "Owl Tracker warns you early when you're spending faster than your budget allows. Change it any time.",
+            tr("Owl Tracker warns you early when you're spending faster than your budget allows. Change it any time."),
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         KidsQuestion(vm)
@@ -192,7 +193,7 @@ private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.
             }
         }
         if (manual) {
-            InfoNote("You're in manual mode: add expenses with + on the home screen. You can turn on SMS import later in Settings.")
+            InfoNote(tr("You're in manual mode: add expenses with + on the home screen. You can turn on SMS import later in Settings."))
         } else if (h == null) {
             SlidersComingNote()
         }
@@ -201,10 +202,10 @@ private fun OneTotalSetup(vm: AppViewModel, manual: Boolean, h: com.owl.tracker.
             onClick = { if (paise > 0) vm.finishOnboarding(paise) },
             enabled = paise > 0,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("save_budget"),
-        ) { com.owl.tracker.ui.components.FitText("Save budget · ${Money.formatInr(paise)} a month", minScale = 0.8f, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+        ) { com.owl.tracker.ui.components.FitText(tr("Save budget · {0} a month", Money.formatInr(paise)), minScale = 0.8f, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
         if (h != null) {
             androidx.compose.material3.TextButton(onClick = onByCategory, modifier = Modifier.fillMaxWidth().testTag("by_category")) {
-                Text("Set a budget for each category instead")
+                Text(tr("Set a budget for each category instead"))
             }
         }
     }
@@ -220,15 +221,15 @@ fun KidsQuestion(vm: AppViewModel, modifier: Modifier = Modifier) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val on = settings?.kids != false
     Panel(modifier = modifier.testTag("kids_question")) {
-        Text("Do you pay for children's school, classes or activities?", style = MaterialTheme.typography.titleSmall)
+        Text(tr("Do you pay for children's school, classes or activities?"), style = MaterialTheme.typography.titleSmall)
         Text(
-            if (on) "Yes: a Kids group keeps school fees, tuition and classes apart from yours."
-            else "No: no Kids categories. Turn them on any time in More › Categories.",
+            if (on) tr("Yes: a Kids group keeps school fees, tuition and classes apart from yours.")
+            else tr("No: no Kids categories. Turn them on any time in More › Categories."),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Gap(10.dp)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            listOf(true to "Yes", false to "No").forEachIndexed { i, (v, label) ->
+            listOf(true to tr("Yes"), false to tr("No")).forEachIndexed { i, (v, label) ->
                 SegmentedButton(
                     selected = on == v, onClick = { if (on != v) vm.setKids(v) },
                     shape = SegmentedButtonDefaults.itemShape(i, 2),
@@ -249,13 +250,13 @@ fun LockScreen(onUnlock: () -> Unit, canUseDeviceLock: Boolean, onFallbackUnlock
     ) {
         com.owl.tracker.ui.components.OwlBadge(size = 80.dp)
         Gap(16.dp)
-        Text("Owl Tracker is locked", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onPrimary)
-        Text("Use your fingerprint, face or screen lock to open", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f))
+        Text(tr("Owl Tracker is locked"), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onPrimary)
+        Text(tr("Use your fingerprint, face or screen lock to open"), color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f))
         Gap(32.dp)
         Button(onClick = { if (canUseDeviceLock) onUnlock() else onFallbackUnlock() }, modifier = Modifier.testTag("unlock")) {
             Icon(Ic.finger, contentDescription = null)
             Spacer(Modifier.size(8.dp))
-            Text("Unlock")
+            Text(tr("Unlock"))
         }
     }
 }
@@ -263,13 +264,13 @@ fun LockScreen(onUnlock: () -> Unit, canUseDeviceLock: Boolean, onFallbackUnlock
 @Composable
 fun DbErrorScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Your data can't be unlocked", style = MaterialTheme.typography.headlineSmall)
+        Text(tr("Your data can't be unlocked"), style = MaterialTheme.typography.headlineSmall)
         Text(
-            "The key that protects Owl Tracker's encrypted data isn't available on this phone any more. " +
-                "This can happen after restoring the phone or clearing its secure storage. Your SMS inbox is untouched, " +
-                "so you can reset Owl Tracker and import again.",
+            tr("The key that protects Owl Tracker's encrypted data isn't available on this phone any more. ") +
+                tr("This can happen after restoring the phone or clearing its secure storage. Your SMS inbox is untouched, ") +
+                tr("so you can reset Owl Tracker and import again."),
             style = MaterialTheme.typography.bodyLarge,
         )
-        Button(onClick = { vm.performReset() }) { Text("Reset and start again") }
+        Button(onClick = { vm.performReset() }) { Text(tr("Reset and start again")) }
     }
 }

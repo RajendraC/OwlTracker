@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -70,7 +71,7 @@ private val MangoEnd = Color(0xFFFFE9C9)
 
 /** What goes with every shared picture: who made it, that it's private, and where to get it. */
 const val SHARE_TEXT = "I'm keeping track of my spending with Owl Tracker 🦉 It works without internet and needs no login; " +
-    "everything stays on the phone.\nhttps://play.google.com/store/apps/details?id=com.owl.tracker"
+    tr("everything stays on the phone.\nhttps://play.google.com/store/apps/details?id=com.owl.tracker")
 
 /**
  * The owl's reaction after you add a payment, in place of the plain message: the owl (hopping, thinking or slumped)
@@ -126,14 +127,14 @@ fun CelebrationScreen(c: Celebration, still: Boolean, onShare: () -> Unit, onClo
                 ) {
                     Medal(c.emoji, 54)
                     Column {
-                        Text(if (c.share is SharePicture.GoalReached) "Goal" else "New badge", color = Brown, style = MaterialTheme.typography.labelMedium)
+                        Text(if (c.share is SharePicture.GoalReached) tr("Goal") else tr("New badge"), color = Brown, style = MaterialTheme.typography.labelMedium)
                         Text(c.badgeName, color = Cocoa, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
                     }
                 }
                 Spacer(Modifier.height(36.dp))
                 Row(Modifier.widthIn(max = 420.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Pill("Share", Color(0xFFFFE3B0), Cocoa, Modifier.weight(1f).testTag("celebration_share"), onShare)
-                    Pill("Yay!", Cocoa, Color(0xFFFFF3E2), Modifier.weight(1f).testTag("celebration_close"), onClose)
+                    Pill(tr("Share"), Color(0xFFFFE3B0), Cocoa, Modifier.weight(1f).testTag("celebration_share"), onShare)
+                    Pill(tr("Yay!"), Cocoa, Color(0xFFFFF3E2), Modifier.weight(1f).testTag("celebration_close"), onClose)
                 }
             }
         }
@@ -192,18 +193,18 @@ fun SharePictureDialog(p: SharePicture, platform: Platform, onClose: () -> Unit)
             Modifier.fillMaxSize().background(Color(0xF0201008)).statusBarsPadding().navigationBarsPadding().padding(20.dp).testTag("share_picture"),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
         ) {
-            Text("This is the picture that will be shared", color = Color(0xFFFFE3B0), style = MaterialTheme.typography.labelLarge)
+            Text(tr("This is the picture that will be shared"), color = Color(0xFFFFE3B0), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(12.dp))
             Box(
                 Modifier.widthIn(max = 440.dp).fillMaxWidth().aspectRatio(if (p is SharePicture.Month) 0.8f else 1f)
                     .drawWithContent { layer.record { this@drawWithContent.drawContent() }; drawLayer(layer) },
             ) { PictureCard(p) }
             Spacer(Modifier.height(10.dp))
-            Text("No amounts or percentages, just the wins.", color = Color(0xFFFFE3B0).copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
+            Text(tr("No amounts or percentages, just the wins."), color = Color(0xFFFFE3B0).copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(18.dp))
             Row(Modifier.widthIn(max = 440.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Pill("Not now", Color.White.copy(alpha = 0.16f), Color.White, Modifier.weight(1f).testTag("share_picture_close"), onClose)
-                Pill("Share…", Color(0xFFFFB21A), Cocoa, Modifier.weight(1f).testTag("share_picture_send")) {
+                Pill(tr("Not now"), Color.White.copy(alpha = 0.16f), Color.White, Modifier.weight(1f).testTag("share_picture_close"), onClose)
+                Pill(tr("Share…"), Color(0xFFFFB21A), Cocoa, Modifier.weight(1f).testTag("share_picture_send")) {
                     scope.launch {
                         runCatching {
                             val bmp = layer.toImageBitmap().asAndroidBitmap()
@@ -227,12 +228,12 @@ private fun PictureCard(p: SharePicture) {
         Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp))
             .background(Brush.linearGradient(listOf(MangoTop, MangoMid, MangoEnd), start = Offset.Zero, end = Offset(600f, 1400f)))
             .padding(20.dp)
-            .semantics { contentDescription = "The picture to share" },
+            .semantics { contentDescription = tr("The picture to share") },
     ) {
         when (p) {
             is SharePicture.Month -> MonthPicture(p)
-            is SharePicture.BadgeEarned -> SquarePicture("NEW BADGE", p.name, p.what, p.emoji)
-            is SharePicture.GoalReached -> SquarePicture("GOAL REACHED", p.name, "Saved up, bit by bit", p.emoji)
+            is SharePicture.BadgeEarned -> SquarePicture(tr("NEW BADGE"), p.name, p.what, p.emoji)
+            is SharePicture.GoalReached -> SquarePicture(tr("GOAL REACHED"), p.name, tr("Saved up, bit by bit"), p.emoji)
         }
         Footer(Modifier.align(Alignment.BottomCenter))
     }
@@ -242,11 +243,11 @@ private fun PictureCard(p: SharePicture) {
 private fun Footer(modifier: Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text("🦉 Owl Tracker", color = Cocoa, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
-            Text("Works offline · no login", color = Brown, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(tr("🦉 Owl Tracker"), color = Cocoa, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+            Text(tr("Works offline · no login"), color = Brown, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         }
         Text(
-            "On Play Store", color = Color(0xFFFFF3E2), fontSize = 11.sp, fontWeight = FontWeight.Bold,
+            tr("On Play Store"), color = Color(0xFFFFF3E2), fontSize = 11.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.clip(RoundedCornerShape(50)).background(Cocoa).padding(horizontal = 9.dp, vertical = 4.dp),
         )
     }
@@ -255,20 +256,20 @@ private fun Footer(modifier: Modifier) {
 @Composable
 private fun MonthPicture(p: SharePicture.Month) {
     val tiles = buildList {
-        if (p.daysWithinShare > 0) add("${p.daysWithinShare} of ${p.days}" to "days within my daily share")
-        if (p.noSpendDays > 0) add("${p.noSpendDays}" to if (p.noSpendDays == 1) "no-spend day" else "no-spend days")
-        if (p.lessThanBefore) add("Less" to "spent than in ${p.previousMonth}")
-        if (p.badges > 0) add("${p.badges}" to if (p.badges == 1) "owl badge earned" else "owl badges earned")
-        if (isEmpty()) add("🦉" to "keeping an eye on every rupee")
+        if (p.daysWithinShare > 0) add(tr("{0} of {1}", p.daysWithinShare, p.days) to tr("days within my daily share"))
+        if (p.noSpendDays > 0) add("${p.noSpendDays}" to if (p.noSpendDays == 1) tr("no-spend day") else tr("no-spend days"))
+        if (p.lessThanBefore) add(tr("Less") to tr("spent than in {0}", p.previousMonth))
+        if (p.badges > 0) add("${p.badges}" to if (p.badges == 1) tr("owl badge earned") else tr("owl badges earned"))
+        if (isEmpty()) add("🦉" to tr("keeping an eye on every rupee"))
     }.take(4)
     Column(Modifier.fillMaxSize().padding(bottom = 54.dp)) {
-        Text("MY MONTH", color = Rust, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+        Text(tr("MY MONTH"), color = Rust, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
         Text(
-            when (p.under) { true -> "${p.month}, done!"; false -> "${p.month}: a tough one"; null -> "My ${p.month}" },
+            when (p.under) { true -> "${p.month}, done!"; false -> tr("{0}: a tough one", p.month); null -> tr("My {0}", p.month) },
             color = Cocoa, style = MaterialTheme.typography.headlineMedium,
         )
         Text(
-            when (p.under) { true -> "Stayed under budget"; false -> "A little over, but look at these wins"; null -> "Tracking every rupee, offline" },
+            when (p.under) { true -> tr("Stayed under budget"); false -> tr("A little over, but look at these wins"); null -> tr("Tracking every rupee, offline") },
             color = Cocoa, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold,
         )
         // The owl in the middle, as big as the room allows

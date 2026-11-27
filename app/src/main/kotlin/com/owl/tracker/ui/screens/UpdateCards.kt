@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,15 +47,15 @@ fun UpdateCard(
 ) {
     if (state == UpdateUi.None) return
     val (title, line) = when (state) {
-        is UpdateUi.Ready -> "A new version is ready" to buildString {
-            append("Get it from Google Play")
-            if (state.bytes > 0) append(" (about ").append(sizeText(state.bytes)).append(")")
-            append(". Keep using the app while it downloads.")
+        is UpdateUi.Ready -> tr("A new version is ready") to buildString {
+            append(tr("Get it from Google Play"))
+            if (state.bytes > 0) append(tr(" (about ")).append(sizeText(state.bytes)).append(")")
+            append(tr(". Keep using the app while it downloads."))
         }
-        is UpdateUi.Downloading -> "Downloading the update…" to "${state.percent}% · you can keep using the app"
-        UpdateUi.Downloaded -> "Update downloaded" to "Restart Owl Tracker to finish. It takes a few seconds and nothing is lost."
-        UpdateUi.Installing -> "Installing the update…" to "Owl Tracker will close and open again in a moment."
-        UpdateUi.FinishInPlay -> "Finish the update in Google Play" to "It couldn't finish from here. Tap Update on Owl Tracker's page in the Play Store; nothing is lost."
+        is UpdateUi.Downloading -> tr("Downloading the update…") to tr("{0}% · you can keep using the app", state.percent)
+        UpdateUi.Downloaded -> tr("Update downloaded") to tr("Restart Owl Tracker to finish. It takes a few seconds and nothing is lost.")
+        UpdateUi.Installing -> tr("Installing the update…") to tr("Owl Tracker will close and open again in a moment.")
+        UpdateUi.FinishInPlay -> tr("Finish the update in Google Play") to tr("It couldn't finish from here. Tap Update on Owl Tracker's page in the Play Store; nothing is lost.")
         UpdateUi.None -> return
     }
     Panel(modifier = modifier.testTag("update_card")) {
@@ -76,17 +77,17 @@ fun UpdateCard(
             is UpdateUi.Ready -> {
                 Gap(10.dp)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onUpdate, modifier = Modifier.testTag("update_now")) { Text("Update") }
-                    TextButton(onClick = onLater, modifier = Modifier.testTag("update_later")) { Text("Later") }
+                    Button(onClick = onUpdate, modifier = Modifier.testTag("update_now")) { Text(tr("Update")) }
+                    TextButton(onClick = onLater, modifier = Modifier.testTag("update_later")) { Text(tr("Later")) }
                 }
             }
             UpdateUi.Downloaded -> {
                 Gap(10.dp)
-                Button(onClick = onRestart, modifier = Modifier.testTag("update_restart")) { Text("Restart to finish") }
+                Button(onClick = onRestart, modifier = Modifier.testTag("update_restart")) { Text(tr("Restart to finish")) }
             }
             UpdateUi.FinishInPlay -> {
                 Gap(10.dp)
-                Button(onClick = onOpenPlay, modifier = Modifier.testTag("update_open_play")) { Text("Open Google Play") }
+                Button(onClick = onOpenPlay, modifier = Modifier.testTag("update_open_play")) { Text(tr("Open Google Play")) }
             }
             else -> Unit
         }
@@ -95,7 +96,7 @@ fun UpdateCard(
 
 private fun sizeText(bytes: Long): String {
     val mb = bytes / 1_000_000.0
-    return if (mb >= 1) String.format(Locale.ENGLISH, "%.0f MB", mb.coerceAtLeast(1.0)) else "under 1 MB"
+    return if (mb >= 1) String.format(Locale.ENGLISH, "%.0f MB", mb.coerceAtLeast(1.0)) else tr("under 1 MB")
 }
 
 /** What's new, once after updating (board P4, Round 25). */
@@ -106,11 +107,11 @@ fun WhatsNewCard(versionName: String, onClose: () -> Unit, modifier: Modifier = 
     Panel(modifier = modifier.testTag("whats_new")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "What's new in $versionName", style = MaterialTheme.typography.titleMedium,
+                tr("What's new in {0}", versionName), style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f).semantics { heading() },
             )
             IconButton(onClick = onClose, modifier = Modifier.testTag("whats_new_close")) {
-                Icon(Ic.close, contentDescription = "Close What's new", modifier = Modifier.size(20.dp))
+                Icon(Ic.close, contentDescription = tr("Close What's new"), modifier = Modifier.size(20.dp))
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -125,6 +126,6 @@ fun WhatsNewCard(versionName: String, onClose: () -> Unit, modifier: Modifier = 
             }
         }
         Gap(10.dp)
-        Button(onClick = onClose, modifier = Modifier.testTag("whats_new_ok")) { Text("Got it") }
+        Button(onClick = onClose, modifier = Modifier.testTag("whats_new_ok")) { Text(tr("Got it")) }
     }
 }

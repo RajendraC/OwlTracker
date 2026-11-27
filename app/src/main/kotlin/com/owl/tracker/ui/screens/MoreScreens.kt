@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -83,47 +84,47 @@ fun MoreScreen(vm: AppViewModel) {
     val lifetime by vm.lifetime.collectAsStateWithLifecycle()
     val sc = LocalStatusColors.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        ScreenHeader("More")
+        ScreenHeader(tr("More"))
         Panel(padding = 8.dp, modifier = Modifier.testTag("more_unlock")) {
             when (val a = access) {
                 is com.owl.tracker.licence.Access.Trial ->
-                    NavRow(Ic.unlock, "Unlock Owl Tracker", "Free trial: ${daysText(a.daysLeft)} left · then $price a year, or pay once") { vm.openUnlock() }
+                    NavRow(Ic.unlock, tr("Unlock Owl Tracker"), tr("Free trial: {0} left · then {1} a year, or pay once", daysText(a.daysLeft), price)) { vm.openUnlock() }
                 com.owl.tracker.licence.Access.TrialEnded ->
-                    NavRow(Ic.lock, "Unlock Owl Tracker", "Trial ended · read-only until you subscribe or pay once", iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
+                    NavRow(Ic.lock, tr("Unlock Owl Tracker"), tr("Trial ended · read-only until you subscribe or pay once"), iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
                 com.owl.tracker.licence.Access.Lapsed ->
-                    NavRow(Ic.lock, "Subscribe again", "Subscription ended · read-only until you subscribe or pay once", iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
-                com.owl.tracker.licence.Access.Unlocked -> if (lifetime) NavRow(Ic.check, "Lifetime unlock", "Paid once · yours for good", iconTint = sc.okFg, iconBg = sc.okBg) { vm.openUnlock() }
+                    NavRow(Ic.lock, tr("Subscribe again"), tr("Subscription ended · read-only until you subscribe or pay once"), iconTint = sc.warnFg, iconBg = sc.warnBg) { vm.openUnlock() }
+                com.owl.tracker.licence.Access.Unlocked -> if (lifetime) NavRow(Ic.check, tr("Lifetime unlock"), tr("Paid once · yours for good"), iconTint = sc.okFg, iconBg = sc.okBg) { vm.openUnlock() }
                 else
                     NavRow(
-                        Ic.check, "Subscribed", if (store.renewing == false) "Cancelled · stops at the end of the paid year" else "$price a year · manage or cancel",
+                        Ic.check, tr("Subscribed"), if (store.renewing == false) tr("Cancelled · stops at the end of the paid year") else tr("{0} a year · manage or cancel", price),
                         iconTint = sc.okFg, iconBg = sc.okBg,
                     ) { vm.openUnlock() }
             }
         }
         InfoNote(
-            "Owl Tracker has no internet permission, so your messages and spending never leave this phone.",
+            tr("Owl Tracker has no internet permission, so your messages and spending never leave this phone."),
             icon = Ic.noNet, container = MaterialTheme.colorScheme.primaryContainer, content = MaterialTheme.colorScheme.onPrimaryContainer,
         )
         Panel(padding = 8.dp) {
-            NavRow(Ic.tag, "Categories", "${cats.count { !it.archived }} categories · add, edit, archive") { vm.go(Screen.CATEGORIES) }
+            NavRow(Ic.tag, tr("Categories"), tr("{0} categories · add, edit, archive", cats.count { !it.archived })) { vm.go(Screen.CATEGORIES) }
             Divider()
             val ruleCount by vm.ruleCount.collectAsStateWithLifecycle()
             NavRow(
-                Ic.sliders, "Rules", if (ruleCount == 0) "None yet · which category a merchant's payments go to" else "$ruleCount · see and delete them",
+                Ic.sliders, tr("Rules"), if (ruleCount == 0) tr("None yet · which category a merchant's payments go to") else tr("{0} · see and delete them", ruleCount),
                 modifier = Modifier.testTag("open_rules"),
             ) { vm.go(Screen.RULES) }
             Divider()
-            NavRow(Ic.chart, "Reports", "Income & expenses, ways to save, trends and more") { vm.go(Screen.INSIGHTS) }
+            NavRow(Ic.chart, tr("Reports"), tr("Income & expenses, ways to save, trends and more")) { vm.go(Screen.INSIGHTS) }
             Divider()
-            NavRow(Ic.jar, "Goals", "Jars for what you're saving towards", modifier = Modifier.testTag("open_goals")) { vm.go(Screen.GOALS) }
+            NavRow(Ic.jar, tr("Goals"), tr("Jars for what you're saving towards"), modifier = Modifier.testTag("open_goals")) { vm.go(Screen.GOALS) }
             Divider()
-            NavRow(Ic.calendar, "Bills coming up", "EMIs, rent and subscriptions, found from repeating payments", modifier = Modifier.testTag("open_bills")) { vm.go(Screen.BILLS) }
+            NavRow(Ic.calendar, tr("Bills coming up"), tr("EMIs, rent and subscriptions, found from repeating payments"), modifier = Modifier.testTag("open_bills")) { vm.go(Screen.BILLS) }
             Divider()
-            NavRow(Ic.wallet, "Can I afford it?", "What a purchase does to the rest of your month", modifier = Modifier.testTag("open_afford")) { vm.openSheet(com.owl.tracker.ui.Sheet.Afford) }
+            NavRow(Ic.wallet, tr("Can I afford it?"), tr("What a purchase does to the rest of your month"), modifier = Modifier.testTag("open_afford")) { vm.openSheet(com.owl.tracker.ui.Sheet.Afford) }
             Divider()
-            NavRow(Ic.share, "Backup & restore", "Save to a file or move to another phone") { vm.openBackup() }
+            NavRow(Ic.share, tr("Backup & restore"), tr("Save to a file or move to another phone")) { vm.openBackup() }
             Divider()
-            NavRow(Ic.sliders, "Settings", "App lock, SMS import, delete or reset") { vm.go(Screen.SETTINGS) }
+            NavRow(Ic.sliders, tr("Settings"), tr("App lock, SMS import, delete or reset")) { vm.go(Screen.SETTINGS) }
         }
         val context = androidx.compose.ui.platform.LocalContext.current
         val version = androidx.compose.runtime.remember {
@@ -131,7 +132,7 @@ fun MoreScreen(vm: AppViewModel) {
             runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
         }
         Text(
-            "Owl Tracker $version\nFonts: Plus Jakarta Sans and Fraunces, under the SIL Open Font License 1.1\nCategory icons: Fluent Emoji by Microsoft, under the MIT License\nCategory picture props: Noto Emoji by Google, under the Apache License 2.0",
+            tr("Owl Tracker {0}\nFonts: Plus Jakarta Sans and Fraunces, under the SIL Open Font License 1.1\nCategory icons: Fluent Emoji by Microsoft, under the MIT License\nCategory picture props: Noto Emoji by Google, under the Apache License 2.0", version),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
         )
         // Room for the raised Add button
@@ -156,15 +157,15 @@ fun RulesScreen(vm: AppViewModel) {
         Modifier.fillMaxSize().testTag("rules_list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { ScreenHeader("Rules", onBack = { vm.back() }) }
+        item { ScreenHeader(tr("Rules"), onBack = { vm.back() }) }
         item {
             Text(
-                "When a payment comes in, these decide its category. You make one with “Use for every …” when you change a payment's category.",
+                tr("When a payment comes in, these decide its category. You make one with “Use for every …” when you change a payment's category."),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp),
             )
         }
         if (rules.isEmpty()) item {
-            Panel { Text("No rules yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("rules_empty")) }
+            Panel { Text(tr("No rules yet."), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("rules_empty")) }
         }
         rules.forEach { r ->
             item(key = "rule_${r.id}") {
@@ -174,16 +175,16 @@ fun RulesScreen(vm: AppViewModel) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CategoryTile(cat)
                         Column(Modifier.weight(1f)) {
-                            Text("${r.name} → ${cat?.name ?: "Others"}", style = MaterialTheme.typography.titleSmall)
+                            Text("${r.name} → ${cat?.name ?: tr("Others")}", style = MaterialTheme.typography.titleSmall)
                             Text(
                                 listOfNotNull(
                                     when (r.match) {
                                         com.owl.tracker.core.RuleMatch.MERCHANT -> null
-                                        com.owl.tracker.core.RuleMatch.VPA -> "UPI ID"
-                                        com.owl.tracker.core.RuleMatch.KEYWORD -> "Names containing it"
+                                        com.owl.tracker.core.RuleMatch.VPA -> tr("UPI ID")
+                                        com.owl.tracker.core.RuleMatch.KEYWORD -> tr("Names containing it")
                                     },
                                     "${r.payments} ${if (r.payments == 1) "payment" else "payments"}",
-                                    "made " + java.time.Instant.ofEpochMilli(r.createdAt).atZone(java.time.ZoneId.systemDefault()).format(made),
+                                    tr("made ") + java.time.Instant.ofEpochMilli(r.createdAt).atZone(java.time.ZoneId.systemDefault()).format(made),
                                 ).joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -192,7 +193,7 @@ fun RulesScreen(vm: AppViewModel) {
                     if (mixed) {
                         Gap(8.dp)
                         InfoNote(
-                            "${r.name} sells many kinds of things; this rule puts all of it in ${cat?.name ?: "one category"}.",
+                            tr("{0} sells many kinds of things; this rule puts all of it in {1}.", r.name, cat?.name ?: tr("one category")),
                             icon = Ic.info, container = sc.warnBg, content = sc.warnFg,
                         )
                     }
@@ -203,7 +204,7 @@ fun RulesScreen(vm: AppViewModel) {
                         colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                     ) {
                         Icon(Ic.trash, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                        Text("Delete rule")
+                        Text(tr("Delete rule"))
                     }
                 }
             }
@@ -214,15 +215,15 @@ fun RulesScreen(vm: AppViewModel) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { plan = null },
             modifier = Modifier.testTag("rule_delete_dialog"),
-            title = { Text("Delete “${p.rule.name} → $catName”?") },
+            title = { Text(tr("Delete “{0} → {1}”?", p.rule.name, catName)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("New ${p.rule.name} payments will get their usual category again.")
+                    Text(tr("New {0} payments will get their usual category again.", p.rule.name))
                     if (p.moves.isNotEmpty()) {
                         val n = p.moves.size
                         SwitchRow(
-                            "Put $n ${if (n == 1) "payment" else "payments"} back in ${p.mainCategory ?: "their usual category"}",
-                            if (putBack) "You can still move any one of them, like a real grocery order" else "Off: they stay in $catName",
+                            tr("Put {0} {1} back in {2}", n, if (n == 1) tr("payment") else tr("payments"), p.mainCategory ?: tr("their usual category")),
+                            if (putBack) tr("You can still move any one of them, like a real grocery order") else tr("Off: they stay in {0}", catName),
                             putBack, { putBack = it },
                             modifier = Modifier.testTag("rule_put_back"),
                         )
@@ -233,9 +234,9 @@ fun RulesScreen(vm: AppViewModel) {
                 androidx.compose.material3.TextButton(
                     onClick = { vm.deleteRule(p, putBack); plan = null },
                     modifier = Modifier.testTag("rule_delete_confirm"),
-                ) { Text("Delete rule", color = MaterialTheme.colorScheme.error) }
+                ) { Text(tr("Delete rule"), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = { plan = null }) { Text("Keep it") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { plan = null }) { Text(tr("Keep it")) } },
         )
     }
 }
@@ -267,26 +268,26 @@ fun CategoriesScreen(vm: AppViewModel) {
                 Text(c.name, style = MaterialTheme.typography.titleSmall)
                 val kind = when (c.kind) {
                     com.owl.tracker.data.CategoryKind.EXPENSE -> ""
-                    com.owl.tracker.data.CategoryKind.INCOME -> "Income · "
-                    else -> "Not counted in spend · "
+                    com.owl.tracker.data.CategoryKind.INCOME -> tr("Income · ")
+                    else -> tr("Not counted in spend · ")
                 }
-                Text(kind + (spentBy[c.id]?.let { "${Money.formatInr(it)} this month" } ?: "Nothing this month"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(kind + (spentBy[c.id]?.let { tr("{0} this month", Money.formatInr(it)) } ?: tr("Nothing this month")), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(onClick = { vm.openSheet(Sheet.CategoryEdit(c.id)) }) { Icon(Ic.edit, contentDescription = "Edit ${c.name}") }
+            IconButton(onClick = { vm.openSheet(Sheet.CategoryEdit(c.id)) }) { Icon(Ic.edit, contentDescription = tr("Edit {0}", c.name)) }
         }
     }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            ScreenHeader("Categories", onBack = { vm.back() }) {
-                IconButton(onClick = { vm.openSheet(Sheet.CategoryEdit(null)) }, modifier = Modifier.testTag("add_category")) { Icon(Ic.plus, contentDescription = "Add category") }
+            ScreenHeader(tr("Categories"), onBack = { vm.back() }) {
+                IconButton(onClick = { vm.openSheet(Sheet.CategoryEdit(null)) }, modifier = Modifier.testTag("add_category")) { Icon(Ic.plus, contentDescription = tr("Add category")) }
             }
         }
         item {
             Text(
-                "Categories sit in groups: budgets and Home's ring are by group. Tap one to rename it, change its icon and colour " +
-                    "or move it to another group. When you recategorize a transaction, Owl Tracker can remember it as a rule" +
-                    if (rules > 0) " (you have $rules)." else ".",
+                tr("Categories sit in groups: budgets and Home's ring are by group. Tap one to rename it, change its icon and colour ") +
+                    tr("or move it to another group. When you recategorize a transaction, Owl Tracker can remember it as a rule") +
+                    if (rules > 0) tr(" (you have {0}).", rules) else ".",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp),
             )
         }
@@ -302,7 +303,7 @@ fun CategoriesScreen(vm: AppViewModel) {
                         Column(Modifier.weight(1f)) {
                             Text(g.name, style = MaterialTheme.typography.titleSmall)
                             Text(
-                                if (kidsOn) (spentBy[g.id]?.let { "${Money.formatInr(it)} this month" } ?: "On · nothing this month") else "Off · hidden everywhere",
+                                if (kidsOn) (spentBy[g.id]?.let { tr("{0} this month", Money.formatInr(it)) } ?: tr("On · nothing this month")) else tr("Off · hidden everywhere"),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -311,7 +312,7 @@ fun CategoriesScreen(vm: AppViewModel) {
                 } else CategoryLine(g, small = false)
                 if (kids && !kidsOn) {
                     Text(
-                        "Tuition and classes go to Courses & Books or Sports & Fitness instead. Turn on if you pay for children's school, classes or activities.",
+                        tr("Tuition and classes go to Courses & Books or Sports & Fitness instead. Turn on if you pay for children's school, classes or activities."),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(6.dp),
                     )
                 } else {
@@ -319,19 +320,19 @@ fun CategoriesScreen(vm: AppViewModel) {
                     Divider()
                     TextButton(onClick = { vm.openSheet(Sheet.CategoryEdit(null, g.id)) }, modifier = Modifier.testTag("add_to_${g.id}")) {
                         Icon(Ic.plus, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text("  Add a category to ${g.name}")
+                        Text(tr("  Add a category to {0}", g.name))
                     }
                 }
             }
         }
         item {
             Panel(padding = 8.dp, modifier = Modifier.testTag("category_group_alone")) {
-                Text("On their own", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(6.dp))
+                Text(tr("On their own"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(6.dp))
                 alone.forEach { c -> Divider(); CategoryLine(c, small = false) }
             }
         }
         item {
-            OutlinedButton(onClick = { vm.openSheet(Sheet.CategoryEdit(null)) }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Add category") }
+            OutlinedButton(onClick = { vm.openSheet(Sheet.CategoryEdit(null)) }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(tr("Add category")) }
         }
     }
 }
@@ -346,9 +347,9 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
     val sc = LocalStatusColors.current
     val granted = vm.smsPermissionGranted()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ScreenHeader("Settings", onBack = { vm.back() })
+        ScreenHeader(tr("Settings"), onBack = { vm.back() })
 
-        SectionLabel("Appearance")
+        SectionLabel(tr("Appearance"))
         Panel(padding = 12.dp) {
             PaletteChoice(com.owl.tracker.ui.theme.Palette.from(settings.palette)) { vm.setPalette(it) }
             Divider()
@@ -357,83 +358,83 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             OwlReactsChoice(settings.owlReacts) { vm.setOwlReacts(it) }
         }
 
-        SectionLabel("Owl nudges")
+        SectionLabel(tr("Owl nudges"))
         NudgeSettings()
 
-        SectionLabel("Monthly report")
+        SectionLabel(tr("Monthly report"))
         MonthlyReportSettings()
 
-        SectionLabel("Security")
+        SectionLabel(tr("Security"))
         Panel(padding = 12.dp) {
-            SwitchRow("App lock", "Fingerprint, face or screen lock · locks a minute after you leave", settings.appLock, { on ->
-                if (on) platform.authenticate("Turn on app lock", "Confirm it's you", onSuccess = { vm.setAppLock(true) }, onFail = { msg -> vm.messages.tryEmit(com.owl.tracker.ui.UiMessage(msg)) })
+            SwitchRow(tr("App lock"), tr("Fingerprint, face or screen lock · locks a minute after you leave"), settings.appLock, { on ->
+                if (on) platform.authenticate(tr("Turn on app lock"), tr("Confirm it's you"), onSuccess = { vm.setAppLock(true) }, onFail = { msg -> vm.messages.tryEmit(com.owl.tracker.ui.UiMessage(msg)) })
                 else vm.setAppLock(false)
             }, Ic.lock)
             Divider()
-            SwitchRow("Screen privacy", "Blocks screenshots and hides Owl Tracker in Recents", settings.screenPrivacy, { vm.setScreenPrivacy(it) }, Ic.eye)
+            SwitchRow(tr("Screen privacy"), tr("Blocks screenshots and hides Owl Tracker in Recents"), settings.screenPrivacy, { vm.setScreenPrivacy(it) }, Ic.eye)
             if (settings.appLock) {
                 Divider()
-                NavRow(Ic.finger, "Lock now") { vm.lockNow() }
+                NavRow(Ic.finger, tr("Lock now")) { vm.lockNow() }
             }
             Divider()
-            NavRow(Ic.shield, "Encryption key", "AES-256 \u00b7 key held in $keyProtection", trailing = {}) { }
+            NavRow(Ic.shield, tr("Encryption key"), tr("AES-256 \u00b7 key held in {0}", keyProtection), trailing = {}) { }
         }
 
-        SectionLabel("SMS import")
+        SectionLabel(tr("SMS import"))
         Panel(padding = 12.dp) {
             NavRow(
-                Ic.message, "SMS access",
+                Ic.message, tr("SMS access"),
                 when {
-                    settings.smsEnabled && granted -> "Allowed · last scan " + if (settings.lastSyncAt > 0) java.time.Instant.ofEpochMilli(settings.lastSyncAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM, h:mm a", Locale.ENGLISH)) else "never"
-                    settings.smsEnabled -> "Permission was removed in Android settings"
-                    else -> "Off · manual mode"
+                    settings.smsEnabled && granted -> tr("Allowed · last scan ") + if (settings.lastSyncAt > 0) java.time.Instant.ofEpochMilli(settings.lastSyncAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM, h:mm a", Locale.ENGLISH)) else "never"
+                    settings.smsEnabled -> tr("Permission was removed in Android settings")
+                    else -> tr("Off · manual mode")
                 },
             ) { if (settings.smsEnabled && granted) platform.openAppSettings() else vm.go(Screen.DISCLOSURE) }
             Divider()
             NavRow(
-                Ic.filter, "What to import",
-                "${f.rangeMonths} months · " + (if (f.disabledSenders.isEmpty()) "all senders" else "${f.disabledSenders.size} sender${if (f.disabledSenders.size == 1) "" else "s"} left out") +
-                    if (f.skipWords.isNotEmpty()) " · ${f.skipWords.size} skip words" else "",
+                Ic.filter, tr("What to import"),
+                tr("{0} months · ", f.rangeMonths) + (if (f.disabledSenders.isEmpty()) tr("all senders") else tr("{0} sender{1} left out", f.disabledSenders.size, if (f.disabledSenders.size == 1) "" else "s")) +
+                    if (f.skipWords.isNotEmpty()) tr(" · {0} skip words", f.skipWords.size) else "",
             ) { if (settings.smsEnabled && granted) vm.startImport(ImportMode.SETTINGS) else vm.go(Screen.DISCLOSURE) }
             Divider()
-            NavRow(Ic.refresh, "Rescan inbox", "Also runs when you open the app and every 6 hours", trailing = {}) { vm.rescan() }
+            NavRow(Ic.refresh, tr("Rescan inbox"), tr("Also runs when you open the app and every 6 hours"), trailing = {}) { vm.rescan() }
             storage.bySenderGroup.entries.sortedByDescending { it.value }.forEach { (g, n) ->
                 Divider()
-                NavRow(Ic.bank, Institutions.nameFor(g), (if (g in f.disabledSenders) "Paused" else "Importing") + " · $n stored", leading = { BankIcon(vm.appIcons, g, 36.dp) }, trailing = {}) { }
+                NavRow(Ic.bank, Institutions.nameFor(g), (if (g in f.disabledSenders) tr("Paused") else tr("Importing")) + tr(" · {0} stored", n), leading = { BankIcon(vm.appIcons, g, 36.dp) }, trailing = {}) { }
             }
         }
 
-        SectionLabel("Your data")
+        SectionLabel(tr("Your data"))
         Panel(padding = 12.dp) {
             NavRow(
                 Ic.database,
-                if (storage.total > 0) "${storage.total} transactions stored" else "Nothing stored yet",
-                storage.oldestMs?.let { "Since " + vm.dateOf(it).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)) + " · encrypted on this phone" } ?: "Import or add expenses to get started",
+                if (storage.total > 0) tr("{0} transactions stored", storage.total) else tr("Nothing stored yet"),
+                storage.oldestMs?.let { tr("Since ") + vm.dateOf(it).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)) + tr(" · encrypted on this phone") } ?: tr("Import or add expenses to get started"),
                 iconTint = MaterialTheme.colorScheme.onPrimaryContainer, iconBg = MaterialTheme.colorScheme.primaryContainer, trailing = {},
             ) { }
             Divider()
-            NavRow(Ic.trash, "Delete transactions", "By age, by bank or card, or everything from SMS", iconTint = sc.overFg, iconBg = sc.overBg) { vm.openDelete() }
+            NavRow(Ic.trash, tr("Delete transactions"), tr("By age, by bank or card, or everything from SMS"), iconTint = sc.overFg, iconBg = sc.overBg) { vm.openDelete() }
             Divider()
-            NavRow(Ic.reset, "Reset Owl Tracker", "Erase everything on this phone and start again", iconTint = sc.overFg, iconBg = sc.overBg, titleColor = sc.overFg) { vm.requestReset() }
+            NavRow(Ic.reset, tr("Reset Owl Tracker"), tr("Erase everything on this phone and start again"), iconTint = sc.overFg, iconBg = sc.overBg, titleColor = sc.overFg) { vm.requestReset() }
         }
 
-        SectionLabel("About")
+        SectionLabel(tr("About"))
         Panel(padding = 12.dp) {
-            NavRow(Ic.doc, "Privacy policy", "What Owl Tracker reads, keeps and never does") { vm.go(Screen.PRIVACY) }
+            NavRow(Ic.doc, tr("Privacy policy"), tr("What Owl Tracker reads, keeps and never does")) { vm.go(Screen.PRIVACY) }
             Divider()
             val context = androidx.compose.ui.platform.LocalContext.current
             val version = androidx.compose.runtime.remember {
                 @Suppress("DEPRECATION")
                 runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"
             }
-            NavRow(Ic.info, "Version", version, trailing = {}) { }
+            NavRow(Ic.info, tr("Version"), version, trailing = {}) { }
         }
 
         if (vm.canSimulateTrialEnd) {
             val ended by vm.debugTrialEnded.collectAsStateWithLifecycle()
-            SectionLabel("Testing (debug builds only)")
+            SectionLabel(tr("Testing (debug builds only)"))
             Panel(padding = 12.dp) {
-                SwitchRow("End the free trial now", "See read-only mode and the unlock screen without waiting 7 days. Not in the Google Play version.", ended, { vm.setDebugTrialEnded(it) }, Ic.calendar)
+                SwitchRow(tr("End the free trial now"), tr("See read-only mode and the unlock screen without waiting 7 days. Not in the Google Play version."), ended, { vm.setDebugTrialEnded(it) }, Ic.calendar)
             }
         }
     }
@@ -444,17 +445,17 @@ const val PRIVACY_URL = "https://rajendrac.github.io/OwlTracker/privacy.html"
 @Composable
 fun PrivacyScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        ScreenHeader("Privacy policy", onBack = { vm.back() })
-        PrivacyPara("What Owl Tracker reads", "With your permission, Owl Tracker reads SMS messages in your inbox to find bank, card, wallet and UPI transactions. It reads each message's sender, text and time. It does not read contacts, call logs, photos, location or any other data.")
-        PrivacyPara("Merchant logos", "To show a merchant's or bank's logo, Owl Tracker checks whether one of about 200 well-known apps (shopping, jewellery, clothing, delivery, streaming, books, travel, fuel, FASTag, insurance, UPI and banking apps such as Swiggy, Tanishq, FanCode, HP PAY, My FASTag, Policybazaar or YONO SBI) is installed, and if so shows that app's own icon. For a shop with no app, it picks a plain icon (jeweller, opticals, bakery, pharmacy…) from words in the shop's name, on your phone. When you choose a merchant's icon yourself, you can also pick any app on your phone that pays by UPI, or a picture through Android's photo picker, which gives Owl Tracker only the one picture you choose. A small copy of that picture (144 × 144 pixels) is kept in Owl Tracker's encrypted database and included in your backups. Owl Tracker never sees the full list of apps on your phone, and nothing about your apps or pictures leaves your phone.")
-        PrivacyPara("What it ignores", "Messages from people (phone-number senders), OTPs and verification codes, promotional messages, reminders and failed payments are skipped in memory and never stored.")
-        PrivacyPara("What it keeps", "The transactions you choose to import, with a copy of each original message so you can check it. They are stored in a database encrypted with AES-256. Its key is protected by Android Keystore and never leaves the phone.")
-        PrivacyPara("What it shares", "Nothing. Owl Tracker has no internet permission, no analytics, no ads and no crash-reporting service. Your data is excluded from Android cloud backup and device-to-device transfer.")
-        PrivacyPara("Your choices", "You choose which senders and transactions to import, and can change that any time. You can delete single transactions, delete by age or by bank, or reset the app, which erases everything and destroys the encryption key. You can also remove SMS access in Android settings; the app keeps working with manual entries.")
-        PrivacyPara("Backups", "A backup file is made only when you ask for one (More \u2192 Backup & restore), and goes only where you send it: Owl Tracker never sends it anywhere itself. It holds amounts, dates, merchant names, the merchant names and icons you chose, categories, notes, budgets and category rules. It never holds SMS text, sender IDs, account or card numbers, UPI IDs or bank references, and long numbers inside merchant names are masked. With a password, the file is encrypted (AES-256-GCM) and can't be read without it.")
-        PrivacyPara("Payments", "Owl Tracker is free for 7 days, then a ₹99-a-year subscription or a one-time ₹999 lifetime unlock through Google Play; the subscription can be cancelled there any time. Google Play takes the payment under its own terms and privacy policy. Owl Tracker never sees your card, UPI or bank details: the Play Store app on your phone only tells it whether you have paid (an active, renewing subscription or the lifetime unlock). The trial is counted on your phone. Nothing about your payment is sent anywhere by Owl Tracker.")
-        PrivacyPara("Sample data", "If you choose Explore with sample data, Owl Tracker imports 21 built-in example messages instead of reading your inbox. Reset removes them.")
-        PrivacyPara("Contact", "Questions or requests: sutra.apk@gmail.com. This policy is also published at $PRIVACY_URL. Last updated 26 November 2026.")
+        ScreenHeader(tr("Privacy policy"), onBack = { vm.back() })
+        PrivacyPara(tr("What Owl Tracker reads"), tr("With your permission, Owl Tracker reads SMS messages in your inbox to find bank, card, wallet and UPI transactions. It reads each message's sender, text and time. It does not read contacts, call logs, photos, location or any other data."))
+        PrivacyPara(tr("Merchant logos"), tr("To show a merchant's or bank's logo, Owl Tracker checks whether one of about 200 well-known apps (shopping, jewellery, clothing, delivery, streaming, books, travel, fuel, FASTag, insurance, UPI and banking apps such as Swiggy, Tanishq, FanCode, HP PAY, My FASTag, Policybazaar or YONO SBI) is installed, and if so shows that app's own icon. For a shop with no app, it picks a plain icon (jeweller, opticals, bakery, pharmacy…) from words in the shop's name, on your phone. When you choose a merchant's icon yourself, you can also pick any app on your phone that pays by UPI, or a picture through Android's photo picker, which gives Owl Tracker only the one picture you choose. A small copy of that picture (144 × 144 pixels) is kept in Owl Tracker's encrypted database and included in your backups. Owl Tracker never sees the full list of apps on your phone, and nothing about your apps or pictures leaves your phone."))
+        PrivacyPara(tr("What it ignores"), tr("Messages from people (phone-number senders), OTPs and verification codes, promotional messages, reminders and failed payments are skipped in memory and never stored."))
+        PrivacyPara(tr("What it keeps"), tr("The transactions you choose to import, with a copy of each original message so you can check it. They are stored in a database encrypted with AES-256. Its key is protected by Android Keystore and never leaves the phone."))
+        PrivacyPara(tr("What it shares"), tr("Nothing. Owl Tracker has no internet permission, no analytics, no ads and no crash-reporting service. Your data is excluded from Android cloud backup and device-to-device transfer."))
+        PrivacyPara(tr("Your choices"), tr("You choose which senders and transactions to import, and can change that any time. You can delete single transactions, delete by age or by bank, or reset the app, which erases everything and destroys the encryption key. You can also remove SMS access in Android settings; the app keeps working with manual entries."))
+        PrivacyPara(tr("Backups"), tr("A backup file is made only when you ask for one (More \u2192 Backup & restore), and goes only where you send it: Owl Tracker never sends it anywhere itself. It holds amounts, dates, merchant names, the merchant names and icons you chose, categories, notes, budgets and category rules. It never holds SMS text, sender IDs, account or card numbers, UPI IDs or bank references, and long numbers inside merchant names are masked. With a password, the file is encrypted (AES-256-GCM) and can't be read without it."))
+        PrivacyPara(tr("Payments"), tr("Owl Tracker is free for 7 days, then a ₹99-a-year subscription or a one-time ₹999 lifetime unlock through Google Play; the subscription can be cancelled there any time. Google Play takes the payment under its own terms and privacy policy. Owl Tracker never sees your card, UPI or bank details: the Play Store app on your phone only tells it whether you have paid (an active, renewing subscription or the lifetime unlock). The trial is counted on your phone. Nothing about your payment is sent anywhere by Owl Tracker."))
+        PrivacyPara(tr("Sample data"), tr("If you choose Explore with sample data, Owl Tracker imports 21 built-in example messages instead of reading your inbox. Reset removes them."))
+        PrivacyPara(tr("Contact"), tr("Questions or requests: sutra.apk@gmail.com. This policy is also published at {0}. Last updated 26 November 2026.", PRIVACY_URL))
     }
 }
 
@@ -473,17 +474,17 @@ private fun PrivacyPara(title: String, body: String) {
 @Composable
 private fun OwlReactsChoice(how: String, onPick: (String) -> Unit) {
     val c = MaterialTheme.colorScheme
-    val options = listOf("lively" to "Lively", "calm" to "Calm", "off" to "Off")
+    val options = listOf("lively" to tr("Lively"), "calm" to tr("Calm"), "off" to tr("Off"))
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             com.owl.tracker.ui.components.MoodOwl(com.owl.tracker.ui.components.OwlMood.HAPPY, 36.dp, dark = false, still = true)
             Column(Modifier.weight(1f)) {
-                Text("How the owl reacts", style = MaterialTheme.typography.titleSmall)
+                Text(tr("How the owl reacts"), style = MaterialTheme.typography.titleSmall)
                 Text(
                     when (how) {
-                        "calm" -> "Its face changes when you add a payment; nothing moves"
-                        "off" -> "Plain messages, and no milestone celebrations"
-                        else -> "Hops, thinks or slumps when you add a payment, and celebrates milestones"
+                        "calm" -> tr("Its face changes when you add a payment; nothing moves")
+                        "off" -> tr("Plain messages, and no milestone celebrations")
+                        else -> tr("Hops, thinks or slumps when you add a payment, and celebrates milestones")
                     },
                     style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
                 )
@@ -517,12 +518,12 @@ private fun ThemeChoice(mode: ThemeMode, onPick: (ThemeMode) -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconTile(Ic.moon, c.onSurfaceVariant, c.surfaceVariant, 36.dp)
             Column(Modifier.weight(1f)) {
-                Text("Theme", style = MaterialTheme.typography.titleSmall)
+                Text(tr("Theme"), style = MaterialTheme.typography.titleSmall)
                 Text(
                     when (mode) {
-                        ThemeMode.SYSTEM -> "Follows your phone's dark mode setting"
-                        ThemeMode.LIGHT -> "Always light"
-                        ThemeMode.DARK -> "Always dark"
+                        ThemeMode.SYSTEM -> tr("Follows your phone's dark mode setting")
+                        ThemeMode.LIGHT -> tr("Always light")
+                        ThemeMode.DARK -> tr("Always dark")
                     },
                     style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
                 )
@@ -563,18 +564,18 @@ private fun NudgeSettings() {
     val on = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>().apply { com.owl.tracker.nudge.Nudges.KINDS.forEach { put(it, com.owl.tracker.nudge.Nudges.isOn(context, it)) } } }
     Panel(padding = 12.dp, modifier = Modifier.testTag("nudge_settings")) {
         if (!allowed && android.os.Build.VERSION.SDK_INT >= 33) {
-            Text("Android needs your OK before the owl can nudge you. Everything is worked out on your phone; nothing is sent anywhere.",
+            Text(tr("Android needs your OK before the owl can nudge you. Everything is worked out on your phone; nothing is sent anywhere."),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-            androidx.compose.material3.Button(onClick = { ask.launch(android.Manifest.permission.POST_NOTIFICATIONS) }, modifier = Modifier.fillMaxWidth().padding(8.dp).testTag("nudge_allow")) { Text("Allow nudges") }
+            androidx.compose.material3.Button(onClick = { ask.launch(android.Manifest.permission.POST_NOTIFICATIONS) }, modifier = Modifier.fillMaxWidth().padding(8.dp).testTag("nudge_allow")) { Text(tr("Allow nudges")) }
             Divider()
         }
         val rows = listOf(
-            Triple(com.owl.tracker.nudge.Nudges.DAILY, "Evening: today's spending", "Around 9 pm, how today went against its share"),
-            Triple(com.owl.tracker.nudge.Nudges.ALERTS, "Budget alerts", "At 80% and 100% of the month, and when a category goes over"),
-            Triple(com.owl.tracker.nudge.Nudges.WEEKLY, "Sunday: your week", "The week's total, against the week before"),
-            Triple(com.owl.tracker.nudge.Nudges.RECAP, "Month recap", "On the 1st: your month in a few cards"),
-            Triple(com.owl.tracker.nudge.Nudges.CHECK, "New payments: was it right?", "Confirm or change a new payment's category from the nudge"),
-            Triple(com.owl.tracker.nudge.Nudges.REPORT, "Monthly report", "On the 2nd: last month's report, to look through on a computer"),
+            Triple(com.owl.tracker.nudge.Nudges.DAILY, tr("Evening: today's spending"), tr("Around 9 pm, how today went against its share")),
+            Triple(com.owl.tracker.nudge.Nudges.ALERTS, tr("Budget alerts"), tr("At 80% and 100% of the month, and when a category goes over")),
+            Triple(com.owl.tracker.nudge.Nudges.WEEKLY, tr("Sunday: your week"), tr("The week's total, against the week before")),
+            Triple(com.owl.tracker.nudge.Nudges.RECAP, tr("Month recap"), tr("On the 1st: your month in a few cards")),
+            Triple(com.owl.tracker.nudge.Nudges.CHECK, tr("New payments: was it right?"), tr("Confirm or change a new payment's category from the nudge")),
+            Triple(com.owl.tracker.nudge.Nudges.REPORT, tr("Monthly report"), tr("On the 2nd: last month's report, to look through on a computer")),
         )
         rows.forEachIndexed { i, (kind, title, sub) ->
             if (i > 0) Divider()
@@ -593,12 +594,12 @@ private fun MonthlyReportSettings() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var excel by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(com.owl.tracker.nudge.Nudges.reportExcel(context)) }
     Panel(padding = 12.dp, modifier = Modifier.testTag("report_settings")) {
-        Text("On the 2nd of each month, the owl gets last month's report ready to look through on a bigger screen: charts, a calendar, " +
-            "filters and every payment. Send it to yourself (email, Drive…) and open it on your computer. Nothing is sent by itself.",
+        Text(tr("On the 2nd of each month, the owl gets last month's report ready to look through on a bigger screen: charts, a calendar, ") +
+            tr("filters and every payment. Send it to yourself (email, Drive…) and open it on your computer. Nothing is sent by itself."),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
         // Chips that wrap onto a second line with big text, rather than breaking words
         androidx.compose.foundation.layout.FlowRow(Modifier.padding(horizontal = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            listOf(false to "Web page (any browser)", true to "Excel workbook").forEach { (x, label) ->
+            listOf(false to tr("Web page (any browser)"), true to tr("Excel workbook")).forEach { (x, label) ->
                 androidx.compose.material3.FilterChip(selected = excel == x, onClick = { excel = x; com.owl.tracker.nudge.Nudges.setReportExcel(context, x) },
                     label = { Text(label) }, modifier = Modifier.testTag(if (x) "report_kind_excel" else "report_kind_page"))
             }
@@ -611,15 +612,15 @@ private fun MonthlyReportSettings() {
 private fun PaletteChoice(picked: com.owl.tracker.ui.theme.Palette, onPick: (com.owl.tracker.ui.theme.Palette) -> Unit) {
     val c = MaterialTheme.colorScheme
     Column(Modifier.padding(8.dp).testTag("palette_choice"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Colours", style = MaterialTheme.typography.titleMedium)
-        Text("Pick the look you like. Each has a light and a dark version.", style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+        Text(tr("Colours"), style = MaterialTheme.typography.titleMedium)
+        Text(tr("Pick the look you like. Each has a light and a dark version."), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             com.owl.tracker.ui.theme.Palette.entries.forEach { p ->
                 val on = p == picked
                 val (bg, head, button, add) = p.swatch
                 Column(
                     Modifier.width(92.dp).clip(RoundedCornerShape(14.dp))
-                        .clickable(onClickLabel = "Use ${p.label}") { onPick(p) }
+                        .clickable(onClickLabel = tr("Use {0}", p.label)) { onPick(p) }
                         .semantics { selected = on }
                         .testTag("palette_${p.key}"),
                     horizontalAlignment = Alignment.CenterHorizontally,

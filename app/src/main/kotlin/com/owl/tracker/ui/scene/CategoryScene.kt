@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.scene
 
+import com.owl.tracker.i18n.tr
 import android.annotation.SuppressLint
 import android.content.Context
 import android.provider.Settings
@@ -71,15 +72,15 @@ fun CategoryScene(
             // Taps go to the picture as a whole (the page itself takes none)
             Box(
                 Modifier.matchParentSize()
-                    .clickable(onClickLabel = if (onClick == null) "Play it again" else "Open $categoryName") { if (onClick != null) onClick() else holder.replay() }
+                    .clickable(onClickLabel = if (onClick == null) tr("Play it again") else tr("Open {0}", categoryName)) { if (onClick != null) onClick() else holder.replay() }
                     .semantics { contentDescription = spoken },
             )
         }
         if (caption) Text(
             when (spec.basis) {
-                SceneBasis.CATEGORY_BUDGET -> "Against its own budget · tap the picture to play it again"
-                SceneBasis.MONTH_BUDGET -> "Against the month's budget · tap the picture to play it again"
-                SceneBasis.ALL_SPENDING -> "As a share of all spending · tap the picture to play it again"
+                SceneBasis.CATEGORY_BUDGET -> tr("Against its own budget · tap the picture to play it again")
+                SceneBasis.MONTH_BUDGET -> tr("Against the month's budget · tap the picture to play it again")
+                SceneBasis.ALL_SPENDING -> tr("As a share of all spending · tap the picture to play it again")
             },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -93,13 +94,13 @@ fun CategoryScene(
 internal fun describe(spec: SceneSpec, categoryName: String): String {
     val pct = (spec.fraction * 100).roundToInt()
     val how = when {
-        spec.over.isNotEmpty() -> "${spec.over} its budget"
-        spec.basis == SceneBasis.CATEGORY_BUDGET -> "$pct% of its budget used"
-        spec.basis == SceneBasis.MONTH_BUDGET -> "$pct% of the month's budget"
-        else -> "$pct% of all spending"
+        spec.over.isNotEmpty() -> tr("{0} its budget", spec.over)
+        spec.basis == SceneBasis.CATEGORY_BUDGET -> tr("{0}% of its budget used", pct)
+        spec.basis == SceneBasis.MONTH_BUDGET -> tr("{0}% of the month's budget", pct)
+        else -> tr("{0}% of all spending", pct)
     }
     val parts = spec.order.joinToString(", ") { it.second }
-    return "Picture of $categoryName, ${Money.formatInr(spec.spentRupees * 100)}: $how" + (if (parts.isEmpty()) "" else ". Shows $parts") + "."
+    return tr("Picture of {0}, {1}: {2}", categoryName, Money.formatInr(spec.spentRupees * 100), how) + (if (parts.isEmpty()) "" else tr(". Shows {0}", parts)) + "."
 }
 
 /** With animations turned off in the phone's settings, the picture shows its last frame without moving. */

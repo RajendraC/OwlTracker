@@ -1,5 +1,6 @@
 package com.owl.tracker.licence
 
+import com.owl.tracker.i18n.tr
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
@@ -120,7 +121,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
                 _state.update { it.copy(price = priceOf(found)) }
             } else if (result.responseCode == BillingResponseCode.OK) {
                 // Play answered but has no such product: it isn't set up (or active) in Play Console yet.
-                _state.update { it.copy(message = "The subscription isn't on sale in Google Play yet. Please try again later.") }
+                _state.update { it.copy(message = tr("The subscription isn't on sale in Google Play yet. Please try again later.")) }
             } else {
                 _state.update { it.copy(message = errorText(result)) }
             }
@@ -147,7 +148,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
         val details = if (plan == UnlockStore.Plan.LIFETIME) lifetimeProduct else product
         if (!client.isReady || (details == null && _state.value.status != Status.READY)) {
             // Keep a real problem (e.g. "not on sale yet") rather than hiding it behind "loading".
-            _state.update { it.copy(message = it.message ?: "Google Play is still loading the price. Try again in a moment.") }
+            _state.update { it.copy(message = it.message ?: tr("Google Play is still loading the price. Try again in a moment.")) }
             refresh()
             return
         }
@@ -157,7 +158,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
             else -> yearlyOffer(details)?.offerToken
         }
         if (details == null || offerToken == null) {
-            _state.update { it.copy(message = if (plan == UnlockStore.Plan.LIFETIME) "The lifetime unlock isn't on sale in Google Play yet. Please try again later." else "The subscription isn't on sale in Google Play yet. Please try again later.") }
+            _state.update { it.copy(message = if (plan == UnlockStore.Plan.LIFETIME) tr("The lifetime unlock isn't on sale in Google Play yet. Please try again later.") else tr("The subscription isn't on sale in Google Play yet. Please try again later.")) }
             refresh()
             return
         }
@@ -223,7 +224,7 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
                 pending = bought.isEmpty() && pending,
                 busy = false,
                 message = when {
-                    all.isNotEmpty() && genuine.isEmpty() -> "Google Play reported a purchase that Owl Tracker couldn't verify. Please contact support."
+                    all.isNotEmpty() && genuine.isEmpty() -> tr("Google Play reported a purchase that Owl Tracker couldn't verify. Please contact support.")
                     bought.isNotEmpty() || pending -> null
                     else -> it.message // e.g. "not on sale yet" from the product lookup, which may answer first
                 },
@@ -254,17 +255,17 @@ class PlayBillingStore(context: Context, private val licenceKey: String) : Unloc
 
     private fun unavailableText(result: BillingResult): String = when (result.responseCode) {
         BillingResponseCode.BILLING_UNAVAILABLE ->
-            "Google Play can't take payments on this phone right now. Check that the Play Store app is installed and you're signed in."
+            tr("Google Play can't take payments on this phone right now. Check that the Play Store app is installed and you're signed in.")
         BillingResponseCode.SERVICE_UNAVAILABLE, BillingResponseCode.SERVICE_DISCONNECTED, BillingResponseCode.NETWORK_ERROR ->
-            "Google Play can't be reached. Check your phone is online, then try again."
-        else -> "Google Play isn't available right now (code ${result.responseCode})."
+            tr("Google Play can't be reached. Check your phone is online, then try again.")
+        else -> tr("Google Play isn't available right now (code {0}).", result.responseCode)
     }
 
     private fun errorText(result: BillingResult): String = when (result.responseCode) {
         BillingResponseCode.SERVICE_UNAVAILABLE, BillingResponseCode.SERVICE_DISCONNECTED, BillingResponseCode.NETWORK_ERROR ->
-            "Google Play can't be reached. Check your phone is online, then try again."
-        BillingResponseCode.ITEM_UNAVAILABLE -> "That isn't on sale in Google Play yet. Please try again later."
-        BillingResponseCode.BILLING_UNAVAILABLE -> "Google Play can't take payments with this account. Check your payment methods in the Play Store."
-        else -> "Google Play couldn't finish the payment (code ${result.responseCode}). Please try again."
+            tr("Google Play can't be reached. Check your phone is online, then try again.")
+        BillingResponseCode.ITEM_UNAVAILABLE -> tr("That isn't on sale in Google Play yet. Please try again later.")
+        BillingResponseCode.BILLING_UNAVAILABLE -> tr("Google Play can't take payments with this account. Check your payment methods in the Play Store.")
+        else -> tr("Google Play couldn't finish the payment (code {0}). Please try again.", result.responseCode)
     }
 }

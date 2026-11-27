@@ -1,5 +1,6 @@
 package com.owl.tracker.licence
 
+import com.owl.tracker.i18n.tr
 import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
@@ -249,7 +250,7 @@ object PurchaseVerifier {
 }
 
 /** Used where Google Play Billing can't run at all. Reports Play as unavailable; the trial still works. */
-class NoStore(message: String = "Google Play isn't available here") : UnlockStore {
+class NoStore(message: String = tr("Google Play isn't available here")) : UnlockStore {
     override val state: StateFlow<StoreState> = MutableStateFlow(StoreState(status = StoreState.Status.UNAVAILABLE, message = message))
     override fun refresh() = Unit
     override fun buy(activity: Activity, plan: UnlockStore.Plan) = Unit

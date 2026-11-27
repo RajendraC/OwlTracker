@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import com.owl.tracker.i18n.tr
 import com.owl.tracker.core.BudgetPeriod
 import com.owl.tracker.core.Direction
 import com.owl.tracker.core.Money
@@ -16,10 +17,10 @@ import java.util.Locale
 
 /** How far back the Reports screen looks, in budget months. */
 enum class ReportRange(val months: Int, val label: String) {
-    ONE(1, "This month"), THREE(3, "3 months"), SIX(6, "6 months"), TWELVE(12, "12 months");
+    ONE(1, tr("This month")), THREE(3, tr("3 months")), SIX(6, tr("6 months")), TWELVE(12, tr("12 months"));
 
     /** How the previous period of the same length is described: "last month", "the previous 3 months". */
-    val previousText: String get() = if (months == 1) "last month" else "the previous $months months"
+    val previousText: String get() = if (months == 1) tr("last month") else tr("the previous {0} months", months)
 }
 
 /**
@@ -278,8 +279,8 @@ object ReportBuilder {
         val chips = buildList {
             bucket?.let { add(FilterKind.BUCKET to buckets[it].title) }
             day?.let { add(FilterKind.DAY to drillDays[it].title) }
-            f.categoryId?.let { add(FilterKind.CATEGORY to (catMap[it]?.name ?: "Category")) }
-            f.merchantKey?.let { k -> add(FilterKind.MERCHANT to (merchants.firstOrNull { it.key == k }?.name ?: inRange.firstOrNull { it.merchantKey == k }?.merchantName ?: "Merchant")) }
+            f.categoryId?.let { add(FilterKind.CATEGORY to (catMap[it]?.name ?: tr("Category"))) }
+            f.merchantKey?.let { k -> add(FilterKind.MERCHANT to (merchants.firstOrNull { it.key == k }?.name ?: inRange.firstOrNull { it.merchantKey == k }?.merchantName ?: tr("Merchant"))) }
             f.weekday?.let { add(FilterKind.WEEKDAY to plural(it)) }
         }
 
@@ -371,37 +372,37 @@ object ReportBuilder {
     ): List<String> = buildList {
         if (spent <= 0) return@buildList
         categories.firstOrNull()?.let {
-            add("${it.category.name} was your biggest spend: ${(it.share * 100).toInt()}% (${Money.formatInr(it.paise)}).")
+            add(tr("{0} was your biggest spend: {1}% ({2}).", it.category.name, (it.share * 100).toInt(), Money.formatInr(it.paise)))
         }
         if (changePct != null && previousSpent != null) {
             add(
                 when {
-                    changePct > 2 -> "You spent $changePct% more than ${range.previousText} (${Money.formatInr(previousSpent)})."
-                    changePct < -2 -> "You spent ${-changePct}% less than ${range.previousText} (${Money.formatInr(previousSpent)})."
-                    else -> "You spent about the same as ${range.previousText}."
+                    changePct > 2 -> tr("You spent {0}% more than {1} ({2}).", changePct, range.previousText, Money.formatInr(previousSpent))
+                    changePct < -2 -> tr("You spent {0}% less than {1} ({2}).", -changePct, range.previousText, Money.formatInr(previousSpent))
+                    else -> tr("You spent about the same as {0}.", range.previousText)
                 },
             )
         }
         weekdays.maxByOrNull { it.paise }?.takeIf { it.paise > 0 && weekdays.count { w -> w.paise > 0 } > 1 }?.let {
-            add("You spend most on ${plural(it.day)}: ${Money.formatInr(it.paise)} across ${it.count} ${if (it.count == 1) "payment" else "payments"}.")
+            add(tr("You spend most on {0}: {1} across {2} {3}.", plural(it.day), Money.formatInr(it.paise), it.count, if (it.count == 1) tr("payment") else tr("payments")))
         }
         spending.maxByOrNull { it.amountPaise }?.let {
-            add("Biggest payment: ${Money.formatInr(it.amountPaise)} to ${it.merchantName} on ${dateOf(it).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))}.")
+            add(tr("Biggest payment: {0} to {1} on {2}.", Money.formatInr(it.amountPaise), it.merchantName, dateOf(it).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))))
         }
         merchants.maxByOrNull { it.count }?.takeIf { it.count >= 3 }?.let {
-            add("Most frequent: ${it.name}, ${it.count} payments.")
+            add(tr("Most frequent: {0}, {1} payments.", it.name, it.count))
         }
         if (monthlyBudget > 0) {
             if (daily) {
                 val now = trend.lastOrNull { it.isNow }
                 if (now != null) {
-                    add("So far ${Money.formatInr(spent / daysSoFar.coerceAtLeast(1))} a day; your budget allows ${Money.formatInr(monthlyBudget / daysInMonth.coerceAtLeast(1))} a day.")
+                    add(tr("So far {0} a day; your budget allows {1} a day.", Money.formatInr(spent / daysSoFar.coerceAtLeast(1)), Money.formatInr(monthlyBudget / daysInMonth.coerceAtLeast(1))))
                 }
             } else {
                 val done = trend.filter { it.hasData && !it.isNow }
                 if (done.isNotEmpty()) {
                     val within = done.count { it.spent <= monthlyBudget }
-                    add("$within of ${done.size} finished ${if (done.size == 1) "month" else "months"} stayed within your ${Money.formatInr(monthlyBudget)} budget.")
+                    add(tr("{0} of {1} finished {2} stayed within your {3} budget.", within, done.size, if (done.size == 1) tr("month") else tr("months"), Money.formatInr(monthlyBudget)))
                 }
             }
         }

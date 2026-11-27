@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.components
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -107,7 +108,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 fun ScreenHeader(title: String, subtitle: String? = null, onBack: (() -> Unit)? = null, actions: @Composable RowScope.() -> Unit = {}) {
     Row(Modifier.fillMaxWidth().padding(start = if (onBack != null) 4.dp else 20.dp, end = 8.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         if (onBack != null) {
-            IconButton(onClick = onBack) { Icon(Ic.back, contentDescription = "Back") }
+            IconButton(onClick = onBack) { Icon(Ic.back, contentDescription = tr("Back")) }
         }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
@@ -310,9 +311,9 @@ fun Divider() = HorizontalDivider(color = MaterialTheme.colorScheme.outlineVaria
 fun StatusPill(state: BudgetState, modifier: Modifier = Modifier) {
     val sc = LocalStatusColors.current
     val (label, icon) = when (state) {
-        BudgetState.ON_TRACK -> "On track" to Ic.check
-        BudgetState.HEADS_UP -> "Heads-up" to Ic.alert
-        BudgetState.OVER -> "Over budget" to Ic.alert
+        BudgetState.ON_TRACK -> tr("On track") to Ic.check
+        BudgetState.HEADS_UP -> tr("Heads-up") to Ic.alert
+        BudgetState.OVER -> tr("Over budget") to Ic.alert
     }
     Row(
         modifier.clip(RoundedCornerShape(12.dp)).background(sc.bg(state)).padding(start = 8.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),

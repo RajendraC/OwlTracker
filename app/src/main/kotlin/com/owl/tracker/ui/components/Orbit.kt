@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.components
 
+import com.owl.tracker.i18n.tr
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -200,7 +201,7 @@ fun OrbitOwlStage(
                         }
                     }
                     .semantics {
-                        contentDescription = "Spending by category, circling the owl: " +
+                        contentDescription = tr("Spending by category, circling the owl: ") +
                             shown.joinToString { "${it.name} ${it.paise * 100 / total}%" }
                     }
                     .testTag("orbit"),
@@ -240,7 +241,7 @@ fun OrbitOwlStage(
                     MoodOwl(say.mood, owlSize, dark = dark, playKey = actKey to say)
                     Box(
                         Modifier.align(Alignment.Center).size(owlSize * 0.5f)
-                            .clickable(remember { MutableInteractionSource() }, null, onClickLabel = "Back to the month") { onTap(RingHit.Middle) }
+                            .clickable(remember { MutableInteractionSource() }, null, onClickLabel = tr("Back to the month")) { onTap(RingHit.Middle) }
                             .testTag("orbit_owl"),
                     )
                 }
@@ -263,12 +264,12 @@ fun OrbitOwlStage(
                             .zIndex(if (isPicked) 200f else if (depth > 0.5f) 100f + depth else depth * 40f)
                             .size(sizeDp.dp)
                             .graphicsLayer { alpha = ((0.55f + 0.45f * depth) * dim * e.coerceIn(0f, 1f)).coerceIn(0f, 1f) }
-                            .then(if (b.id == MORE) Modifier else Modifier.clickable(onClickLabel = if (isPicked) "Open ${b.name}" else "See how ${b.name} is doing", role = Role.Button) {
+                            .then(if (b.id == MORE) Modifier else Modifier.clickable(onClickLabel = if (isPicked) tr("Open {0}", b.name) else tr("See how {0} is doing", b.name), role = Role.Button) {
                                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onTap(RingHit.Slice(b.id))
                             })
                             .semantics {
-                                contentDescription = if (b.id == MORE) "$more more categories" else
+                                contentDescription = if (b.id == MORE) tr("{0} more categories", more) else
                                     b.name + ", " + Money.formatInr(b.paise) + when {
                                         b.use == null -> ""
                                         over -> ", over its budget"
@@ -305,9 +306,9 @@ fun OrbitOwlStage(
             }
             Text(
                 when {
-                    plain -> "Bigger bubble, bigger spend"
-                    overCount > 0 -> "$overCount of ${shown.size} glowing red · over budget"
-                    else -> "All ${shown.size} within budget"
+                    plain -> tr("Bigger bubble, bigger spend")
+                    overCount > 0 -> tr("{0} of {1} glowing red · over budget", overCount, shown.size)
+                    else -> tr("All {0} within budget", shown.size)
                 },
                 Modifier.fillMaxWidth().testTag("orbit_note"),
                 style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,

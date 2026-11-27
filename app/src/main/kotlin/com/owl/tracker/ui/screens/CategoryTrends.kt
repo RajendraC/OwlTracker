@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -68,12 +69,12 @@ fun trendPhrase(months: List<Long?>, labels: List<String>): Pair<String, TrendKi
     val last3 = known.takeLast(Trends.USUAL_OF)
     fun pct(a: Long, b: Long) = if (b <= 0) 0 else Math.round(Math.abs(a - b) * 100.0 / b).toInt()
     val text = when (kind) {
-        TrendKind.RISING -> "↑ Rising · ${pct(last3.last().second, last3.first().second)}% more than in ${last3.first().first}"
-        TrendKind.FALLING -> "↓ Falling · ${pct(last3.last().second, last3.first().second)}% less than in ${last3.first().first}"
-        TrendKind.STEADY -> "→ Steady"
-        TrendKind.UP_AND_DOWN -> "↕ Up and down · ${Money.formatShort(known.minOf { it.second })} to ${Money.formatShort(known.maxOf { it.second })}"
-        TrendKind.TOO_EARLY -> known.lastOrNull()?.let { "Only ${it.first} so far" } ?: "Nothing yet"
-        TrendKind.NONE -> "Nothing in these months"
+        TrendKind.RISING -> tr("↑ Rising · {0}% more than in {1}", pct(last3.last().second, last3.first().second), last3.first().first)
+        TrendKind.FALLING -> tr("↓ Falling · {0}% less than in {1}", pct(last3.last().second, last3.first().second), last3.first().first)
+        TrendKind.STEADY -> tr("→ Steady")
+        TrendKind.UP_AND_DOWN -> tr("↕ Up and down · {0} to {1}", Money.formatShort(known.minOf { it.second }), Money.formatShort(known.maxOf { it.second }))
+        TrendKind.TOO_EARLY -> known.lastOrNull()?.let { tr("Only {0} so far", it.first) } ?: tr("Nothing yet")
+        TrendKind.NONE -> tr("Nothing in these months")
     }
     return text to kind
 }
@@ -95,9 +96,9 @@ fun CategoryTrendsCard(h: MonthHistory, cats: List<Category>, picked: String?, v
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val labels = h.labels + MonthHistory.label(h.current)
     Panel(padding = 12.dp, modifier = Modifier.testTag("report_category_trends")) {
-        Text("Trend by category", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 4.dp))
+        Text(tr("Trend by category"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 4.dp))
         Text(
-            "The last ${h.months.size} months, and ${labels.last()} so far (lighter). Tap one to see its payments.",
+            tr("The last {0} months, and {1} so far (lighter). Tap one to see its payments.", h.months.size, labels.last()),
             style = MaterialTheme.typography.bodySmall, color = muted, modifier = Modifier.padding(horizontal = 4.dp),
         )
         Gap(8.dp)
@@ -121,7 +122,7 @@ fun CategoryTrendsCard(h: MonthHistory, cats: List<Category>, picked: String?, v
         }
         if (rows.size > SHOWN) {
             TextButton(onClick = { all = !all }, modifier = Modifier.testTag("trends_all")) {
-                Text(if (all) "Fewer categories" else "All ${rows.size} categories")
+                Text(if (all) tr("Fewer categories") else tr("All {0} categories", rows.size))
             }
         }
     }
@@ -134,7 +135,7 @@ private fun TrendRowView(r: TrendRow, h: MonthHistory, labels: List<String>, isP
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val (said, kind) = trendPhrase(r.months, h.labels)
     // Spent on only this month: say so rather than "nothing"
-    val phrase = if (kind == TrendKind.NONE && r.now > 0) "New in ${labels.last()}" else said
+    val phrase = if (kind == TrendKind.NONE && r.now > 0) tr("New in {0}", labels.last()) else said
     val color = when (kind) {
         TrendKind.RISING -> sc.overFg
         TrendKind.FALLING -> sc.okFg
@@ -143,7 +144,7 @@ private fun TrendRowView(r: TrendRow, h: MonthHistory, labels: List<String>, isP
     val spoken = buildString {
         append("${c.name}. $phrase. ")
         r.months.forEachIndexed { i, v -> if (v != null) append("${labels[i]} ${Money.formatInr(v)}, ") }
-        append("${labels.last()} so far ${Money.formatInr(r.now)}.")
+        append(tr("{0} so far {1}.", labels.last(), Money.formatInr(r.now)))
     }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
@@ -160,7 +161,7 @@ private fun TrendRowView(r: TrendRow, h: MonthHistory, labels: List<String>, isP
                 start = { Text(c.name, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold)) },
                 end = {
                     Text(
-                        if (r.usual > 0) "${Money.formatShort(r.usual)} a month" else "—",
+                        if (r.usual > 0) tr("{0} a month", Money.formatShort(r.usual)) else "—",
                         style = MaterialTheme.typography.titleSmall, modifier = Modifier.testTag("trend_usual_${c.id}"),
                     )
                 },
@@ -181,11 +182,11 @@ fun movePhrase(m: Move, months: List<Long?>, labels: List<String>): String {
     val latest = months.getOrNull(m.to) ?: 0L
     fun amt(p: Long) = if (p == 0L) "nothing" else Money.formatShort(p)
     return when (m.kind) {
-        MoveKind.NEW -> "New · ${Money.formatShort(m.change)} in ${labels.getOrElse(m.to) { "" }}"
-        MoveKind.RISING -> "↑ Rising · $pct% more than in ${labels.getOrElse(m.from) { "" }}"
-        MoveKind.FALLING -> "↓ Falling · $pct% less than in ${labels.getOrElse(m.from) { "" }}"
-        MoveKind.ABOVE -> "↑ Up · ${amt(latest)} in ${labels.getOrElse(m.to) { "" }}, usually ${amt(m.base)}"
-        MoveKind.BELOW -> "↓ Down · ${amt(latest)} in ${labels.getOrElse(m.to) { "" }}, usually ${amt(m.base)}"
+        MoveKind.NEW -> tr("New · {0} in {1}", Money.formatShort(m.change), labels.getOrElse(m.to) { "" })
+        MoveKind.RISING -> tr("↑ Rising · {0}% more than in {1}", pct, labels.getOrElse(m.from) { "" })
+        MoveKind.FALLING -> tr("↓ Falling · {0}% less than in {1}", pct, labels.getOrElse(m.from) { "" })
+        MoveKind.ABOVE -> tr("↑ Up · {0} in {1}, usually {2}", amt(latest), labels.getOrElse(m.to) { "" }, amt(m.base))
+        MoveKind.BELOW -> tr("↓ Down · {0} in {1}, usually {2}", amt(latest), labels.getOrElse(m.to) { "" }, amt(m.base))
     }
 }
 
@@ -207,10 +208,10 @@ fun WhatsChangingCard(h: MonthHistory, cats: List<Category>, budgets: Map<String
     Panel(modifier.testTag("whats_changing"), padding = 12.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
-                Text("What's changing", style = MaterialTheme.typography.titleMedium)
-                Text("Biggest moves over the last ${h.knownCount} months · tap one", style = MaterialTheme.typography.bodySmall, color = muted)
+                Text(tr("What's changing"), style = MaterialTheme.typography.titleMedium)
+                Text(tr("Biggest moves over the last {0} months · tap one", h.knownCount), style = MaterialTheme.typography.bodySmall, color = muted)
             }
-            TextButton(onClick = { vm.openCategoryTrends() }, modifier = Modifier.testTag("changes_all")) { Text("All ›") }
+            TextButton(onClick = { vm.openCategoryTrends() }, modifier = Modifier.testTag("changes_all")) { Text(tr("All ›")) }
         }
         moves.forEachIndexed { i, (id, mv) ->
             val c = catMap[id] ?: return@forEachIndexed
@@ -240,19 +241,19 @@ fun WhatsChangingCard(h: MonthHistory, cats: List<Category>, budgets: Map<String
                     BarsWithAmounts(months, now, labels, Color(c.color), budget, Modifier.fillMaxWidth().testTag("change_bars_$id"))
                     val known = Trends.known(months).size
                     val note = when {
-                        mv.kind == MoveKind.NEW && budget == null -> "Nothing on it before ${labels.getOrElse(mv.to) { "" }}. No budget on it yet."
-                        mv.kind == MoveKind.NEW -> "Nothing on it before ${labels.getOrElse(mv.to) { "" }}. Its budget: ${Money.formatInr(budget!!)}."
-                        budget == null -> "Usual month now ${Money.formatInr(h.usual(id))}. No budget on it yet."
+                        mv.kind == MoveKind.NEW && budget == null -> tr("Nothing on it before {0}. No budget on it yet.", labels.getOrElse(mv.to) { "" })
+                        mv.kind == MoveKind.NEW -> tr("Nothing on it before {0}. Its budget: {1}.", labels.getOrElse(mv.to) { "" }, Money.formatInr(budget!!))
+                        budget == null -> tr("Usual month now {0}. No budget on it yet.", Money.formatInr(h.usual(id)))
                         else -> {
                             val over = known - Trends.enoughIn(months, budget)
-                            "Over its ${Money.formatInr(budget)} budget in $over of the last $known ${if (known == 1) "month" else "months"}. Usual month now ${Money.formatInr(h.usual(id))}."
+                            tr("Over its {0} budget in {1} of the last {2} {3}. Usual month now {4}.", Money.formatInr(budget), over, known, if (known == 1) tr("month") else tr("months"), Money.formatInr(h.usual(id)))
                         }
                     }
                     Text(note, style = MaterialTheme.typography.bodySmall, color = muted)
                     androidx.compose.material3.Button(
                         onClick = { vm.openSheet(com.owl.tracker.ui.Sheet.BudgetEdit(id)) },
                         modifier = Modifier.testTag("change_budget_$id"),
-                    ) { Text(if (budget != null) "Change the budget" else "Set a budget") }
+                    ) { Text(if (budget != null) tr("Change the budget") else tr("Set a budget")) }
                 }
             }
         }

@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import com.owl.tracker.i18n.tr
 import com.owl.tracker.ui.components.LaunchAct
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -217,8 +218,8 @@ data class BackupUi(
     val passwordProblem: String?
         get() = when {
             !protect -> null
-            password.length < BackupCodec.MIN_PASSWORD -> "Use at least ${BackupCodec.MIN_PASSWORD} characters"
-            confirm != password -> "The two passwords don't match"
+            password.length < BackupCodec.MIN_PASSWORD -> tr("Use at least {0} characters", BackupCodec.MIN_PASSWORD)
+            confirm != password -> tr("The two passwords don't match")
             else -> null
         }
 }
@@ -427,9 +428,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val isCurrent = !today.isBefore(start) && today.isBefore(end)
         val mon = { d: LocalDate -> d.format(SHORT) }
         val title = when {
-            isCurrent -> "This week so far"
-            start == w.startOf(today).minusDays(7) -> "Last week"
-            else -> "Week of ${mon(start)}"
+            isCurrent -> tr("This week so far")
+            start == w.startOf(today).minusDays(7) -> tr("Last week")
+            else -> tr("Week of {0}", mon(start))
         }
         // What's left this budget month, as the month card would say it
         var monthLeft: Long? = null
@@ -450,7 +451,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             weekShare = if (overall > 0) overall * 7 / periodDays else 0L,
             categoryShares = budgets.filterKeys { it != Schema.OVERALL }.mapValues { it.value * 7 / periodDays },
             monthLeft = monthLeft, safePerDay = safe, daysLeft = daysLeft,
-            monthName = if (month.start.dayOfMonth == 1) month.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)) else "this budget month",
+            monthName = if (month.start.dayOfMonth == 1) month.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)) else tr("this budget month"),
         )
     }
 
@@ -507,15 +508,15 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val invested = counted.any { catMap[it.categoryId]?.isInvestment == true }
         val reviewLeft = txns.count { it.needsReview }
         val badges = listOf(
-            Badge("wise_start", "Wise start", "A month of tracking", "Track your spending for a month", first != null && !first.isAfter(today.minusDays(30))),
-            Badge("thrifty", "Thrifty owl", "7 days in a row within your share", "7 days in a row within your share", info.bestDays >= 7),
-            Badge("on_target", "On target", "3 weeks in a row within budget", "3 weeks in a row within budget", info.bestWeeks >= 3),
-            Badge("saver", "Saver", "A month under budget", "Finish a month under budget", under.any { it }),
-            Badge("zero_day", "Zero day", "5 no-spend days in a month", "5 no-spend days in one month", info.bestNoSpendMonth >= 5),
-            Badge("sorted", "Sorted owl", "Nothing left to sort", "Sort every payment", reviewLeft == 0 && txns.size >= 30),
-            Badge("steady", "Steady", "30 days in a row within your share", "30 days in a row within your share", info.bestDays >= 30),
-            Badge("two_months", "Two in a row", "Two months under budget in a row", "Two months under budget in a row", twoInARow),
-            Badge("investor", "Investor", "Put money into investments", "Put money into investments", invested),
+            Badge("wise_start", tr("Wise start"), tr("A month of tracking"), tr("Track your spending for a month"), first != null && !first.isAfter(today.minusDays(30))),
+            Badge("thrifty", tr("Thrifty owl"), tr("7 days in a row within your share"), tr("7 days in a row within your share"), info.bestDays >= 7),
+            Badge("on_target", tr("On target"), tr("3 weeks in a row within budget"), tr("3 weeks in a row within budget"), info.bestWeeks >= 3),
+            Badge("saver", tr("Saver"), tr("A month under budget"), tr("Finish a month under budget"), under.any { it }),
+            Badge("zero_day", tr("Zero day"), tr("5 no-spend days in a month"), tr("5 no-spend days in one month"), info.bestNoSpendMonth >= 5),
+            Badge("sorted", tr("Sorted owl"), tr("Nothing left to sort"), tr("Sort every payment"), reviewLeft == 0 && txns.size >= 30),
+            Badge("steady", tr("Steady"), tr("30 days in a row within your share"), tr("30 days in a row within your share"), info.bestDays >= 30),
+            Badge("two_months", tr("Two in a row"), tr("Two months under budget in a row"), tr("Two months under budget in a row"), twoInARow),
+            Badge("investor", tr("Investor"), tr("Put money into investments"), tr("Put money into investments"), invested),
         )
         Streak(info, badges)
     }.catch { emit(null) }.stateIn(viewModelScope, SharingStarted.Lazily, null)
@@ -536,7 +537,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             val a = runCatching { org.json.JSONArray(s.ignoredBills) }.getOrDefault(org.json.JSONArray())
             s.copy(ignoredBills = a.put(key).toString())
         }
-        say("$name won't be shown as a bill any more")
+        say(tr("{0} won't be shown as a bill any more", name))
     }
 
     // ---------------- Can I afford it? ----------------
@@ -587,7 +588,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             } else list.map { if (it.id == id) it.copy(name = name.trim().take(40), emoji = emoji, targetPaise = targetPaise, by = by) else it }
         }
         _sheet.value = null
-        say(if (id == null) "Goal added: ${name.trim()}" else "Goal saved")
+        say(if (id == null) tr("Goal added: {0}", name.trim()) else tr("Goal saved"))
     }
 
     fun addToGoal(id: String, paise: Long) {
@@ -597,15 +598,15 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         _sheet.value = null
         val total = g.savedPaise + paise
         if (total >= g.targetPaise && !g.done && settings.value?.owlReacts != "off") {
-            celebration.value = Celebration("${g.name}: done!", "You've set aside all ${Money.formatInr(g.targetPaise)}. Treat yourself.", "Goal reached", g.emoji, SharePicture.GoalReached(g.name, g.emoji))
-        } else say(if (total >= g.targetPaise) "🎉 ${g.name} is fully saved!" else "Added ${Money.formatInr(paise)} to ${g.name}")
+            celebration.value = Celebration(tr("{0}: done!", g.name), tr("You've set aside all {0}. Treat yourself.", Money.formatInr(g.targetPaise)), tr("Goal reached"), g.emoji, SharePicture.GoalReached(g.name, g.emoji))
+        } else say(if (total >= g.targetPaise) tr("🎉 {0} is fully saved!", g.name) else tr("Added {0} to {1}", Money.formatInr(paise), g.name))
     }
 
     fun deleteGoal(id: String) {
         val g = goals.value.firstOrNull { it.id == id } ?: return
         saveGoals { list -> list.filter { it.id != id } }
         _sheet.value = null
-        say("Removed ${g.name}")
+        say(tr("Removed {0}", g.name))
     }
 
     /**
@@ -737,11 +738,11 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             combine(repo.observeTransactions(startMs(months.first().start), startMs(current.endExclusive)), categories) { txns, cats ->
                 // One bad read shouldn't end the flow: the next change tries again
                 runCatching { MonthHistory.build(txns, cats, months, current, zone) }
-                    .onFailure { android.util.Log.w("OwlHistory", "Couldn't add up the months", it) }
+                    .onFailure { android.util.Log.w("OwlHistory", tr("Couldn't add up the months"), it) }
                     .getOrDefault(MonthHistory.EMPTY) as MonthHistory?
             }.flowOn(Dispatchers.Default)
         }
-        .catch { android.util.Log.w("OwlHistory", "Month history stopped", it); emit(MonthHistory.EMPTY) }
+        .catch { android.util.Log.w("OwlHistory", tr("Month history stopped"), it); emit(MonthHistory.EMPTY) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** First-time setup with the sliders: the month budget is the total of the categories; ₹0 means no budget. */
@@ -757,7 +758,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         if (!editable()) return@launch
         val total = writeBudgets(values)
         back()
-        say("Budgets saved · ${Money.formatInr(total)} a month")
+        say(tr("Budgets saved · {0} a month", Money.formatInr(total)))
     }
 
     private suspend fun writeBudgets(values: Map<String, Long>): Long {
@@ -773,7 +774,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun hideSavingTips() = viewModelScope.launch {
         val until = startMs(periodAt(settings.value?.budgetStartDay ?: 1, 0).endExclusive)
         repo.updateSettings { it.copy(tipsHiddenUntil = until) }
-        say("Saving tips hidden until next month. They're always in Reports.")
+        say(tr("Saving tips hidden until next month. They're always in Reports."))
     }
 
     /** Set by [openWaysToSave]: Reports scrolls to that card once, then clears it. */
@@ -899,7 +900,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             val m = CardBills.cyclesFromJson(s.cardCycles)
             s.copy(cardCycles = CardBills.cyclesToJson(if (cycle == null) m - label else m + (label to cycle)))
         }
-        say(if (cycle == null) "Billing cycle removed" else "Billing cycle saved: bill on ${cycle.dayWords}")
+        say(if (cycle == null) tr("Billing cycle removed") else tr("Billing cycle saved: bill on {0}", cycle.dayWords))
     }
 
     /** Takes back "paid in full" on a card's bill dated [bill]. */
@@ -915,7 +916,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             val list = m[label].orEmpty().filter { it.bill.isAfter(bill.minusYears(1)) } + CardPayment(bill, paise, now(), full)
             s.copy(cardPayments = CardBills.paymentsToJson(m + (label to list)))
         }
-        say(if (full) "Marked as paid in full" else "Payment of ${Money.formatInr(paise)} added")
+        say(if (full) tr("Marked as paid in full") else tr("Payment of {0} added", Money.formatInr(paise)))
     }
 
     /** Takes back a payment the user recorded ([index] in the card's list). */
@@ -936,7 +937,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             val m = CardBills.creditKindsFromJson(s.cardCreditKinds)
             s.copy(cardCreditKinds = CardBills.creditKindsToJson(if (payment == null) m - txnId else m + (txnId to payment)))
         }
-        say(when (payment) { true -> "Counted as a bill payment"; false -> "Counted as a refund"; null -> "Back to what the SMS says" })
+        say(when (payment) { true -> tr("Counted as a bill payment"); false -> tr("Counted as a refund"); null -> tr("Back to what the SMS says") })
     }
 
     /** Every payment from [from] to now, for a card's bills (they can reach back two months). */
@@ -949,7 +950,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
      */
     fun setPaidKind(label: String, kind: com.owl.tracker.ui.PaidKind?) = viewModelScope.launch {
         repo.updateSettings { s -> s.copy(paidKinds = if (kind == null) s.paidKinds - label else s.paidKinds + (label to kind.key)) }
-        say(if (kind == null) "$label: back to automatic" else "$label is now a ${kind.label.lowercase()}")
+        say(if (kind == null) tr("{0}: back to automatic", label) else tr("{0} is now a {1}", label, kind.label.lowercase()))
     }
 
     /** Home's "What's changing" → All: Reports, scrolled to the trend by category. */
@@ -1022,11 +1023,11 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val ui = backupUi.value
         if (ui.passwordProblem != null) return null
         val pw = if (ui.protect) ui.password.toCharArray() else null
-        backupUi.update { it.copy(working = if (pw != null) "Encrypting your backup\u2026" else "Preparing your backup\u2026", error = null, exported = null) }
+        backupUi.update { it.copy(working = if (pw != null) tr("Encrypting your backup\u2026") else tr("Preparing your backup\u2026"), error = null, exported = null) }
         return try {
             c.backups.build(pw)
         } catch (e: Exception) {
-            backupUi.update { it.copy(working = null, error = "Couldn't make the backup. Please try again.") }
+            backupUi.update { it.copy(working = null, error = tr("Couldn't make the backup. Please try again.")) }
             null
         } finally {
             pw?.fill(' ')
@@ -1038,10 +1039,10 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val bytes = buildBackup() ?: return@launch
         runCatching { c.backups.write(uri, bytes) }
             .onSuccess {
-                backupUi.update { it.copy(working = null, exported = "Backup saved. Keep it somewhere safe, or send it to your other phone.") }
-                say("Backup saved")
+                backupUi.update { it.copy(working = null, exported = tr("Backup saved. Keep it somewhere safe, or send it to your other phone.")) }
+                say(tr("Backup saved"))
             }
-            .onFailure { backupUi.update { it.copy(working = null, error = "Couldn't save there. Try another folder.") } }
+            .onFailure { backupUi.update { it.copy(working = null, error = tr("Couldn't save there. Try another folder.")) } }
     }
 
     // ---------------- sharing a report ----------------
@@ -1060,7 +1061,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             val bytes = if (format == com.owl.tracker.export.ReportFormat.PAGE) c.reports.page(d) else c.reports.excel(d)
             bytes to c.reports.fileName(d, format)
         } catch (e: Exception) {
-            say("Couldn't make the report. Please try again.")
+            say(tr("Couldn't make the report. Please try again."))
             null
         } finally {
             reportWorking.value = false
@@ -1099,7 +1100,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val (bytes, name) = makeReport(period, format, showAccounts) ?: return@launch
         runCatching { c.reports.writeForSharing(bytes, name) }
             .onSuccess { reportShares.tryEmit(ReportShare(it, format)) }
-            .onFailure { say("Couldn't prepare the report for sharing.") }
+            .onFailure { say(tr("Couldn't prepare the report for sharing.")) }
     }
 
     /** The file name for "Save to a file", made ready before Android's picker opens. */
@@ -1113,8 +1114,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun saveReport(uri: android.net.Uri) = viewModelScope.launch {
         val bytes = reportBytes ?: return@launch
         runCatching { c.reports.write(uri, bytes) }
-            .onSuccess { reportBytes = null; say("Report saved") }
-            .onFailure { say("Couldn't save there. Try another folder.") }
+            .onSuccess { reportBytes = null; say(tr("Report saved")) }
+            .onFailure { say(tr("Couldn't save there. Try another folder.")) }
     }
 
     /** "Share": makes a copy and opens the share sheet. */
@@ -1122,16 +1123,16 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val bytes = buildBackup() ?: return@launch
         runCatching { c.backups.writeForSharing(bytes) }
             .onSuccess { file ->
-                backupUi.update { it.copy(working = null, exported = "Choose where to send your backup.") }
+                backupUi.update { it.copy(working = null, exported = tr("Choose where to send your backup.")) }
                 shareRequests.tryEmit(file)
             }
-            .onFailure { backupUi.update { it.copy(working = null, error = "Couldn't prepare the backup for sharing.") } }
+            .onFailure { backupUi.update { it.copy(working = null, error = tr("Couldn't prepare the backup for sharing.")) } }
     }
 
     /** A file picked to restore from. A readable backup is checked straight away; an encrypted one waits for its password. */
     fun pickBackup(uri: android.net.Uri) = viewModelScope.launch {
         pickedBytes = null
-        backupUi.update { BackupUi(protect = it.protect, password = it.password, confirm = it.confirm, working = "Reading the file\u2026") }
+        backupUi.update { BackupUi(protect = it.protect, password = it.password, confirm = it.confirm, working = tr("Reading the file\u2026")) }
         val name = c.backups.displayName(uri)
         val bytes = try {
             c.backups.read(uri)
@@ -1139,7 +1140,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             backupUi.update { it.copy(working = null, fileName = name, error = backupProblemText(e.problem)) }
             return@launch
         } catch (e: Exception) {
-            backupUi.update { it.copy(working = null, fileName = name, error = "Couldn't open that file.") }
+            backupUi.update { it.copy(working = null, fileName = name, error = tr("Couldn't open that file.")) }
             return@launch
         }
         val header = try {
@@ -1162,7 +1163,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             backupUi.update { it.copy(error = backupProblemText(BackupException.Problem.NEEDS_PASSWORD)) }
             return@launch
         }
-        backupUi.update { it.copy(working = if (encrypted) "Unlocking\u2026" else "Checking the backup\u2026", error = null) }
+        backupUi.update { it.copy(working = if (encrypted) tr("Unlocking\u2026") else tr("Checking the backup\u2026"), error = null) }
         try {
             val content = withContext(Dispatchers.Default) { BackupCodec.decode(bytes, pw, now()) }
             backupUi.update { it.copy(working = null, content = content, restorePassword = "") }
@@ -1180,18 +1181,18 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val newPhone = s?.onboarded != true
         // A phone that's new, or only showing the built-in examples, gets the backup instead.
         val replace = backupUi.value.replace || newPhone || s?.sampleData == true
-        backupUi.update { it.copy(working = "Restoring\u2026", error = null) }
+        backupUi.update { it.copy(working = tr("Restoring\u2026"), error = null) }
         val result = try {
             repo.restore(content, replace = replace, finishOnboarding = newPhone)
         } catch (e: Exception) {
-            backupUi.update { it.copy(working = null, error = "Couldn't restore. Nothing was changed.") }
+            backupUi.update { it.copy(working = null, error = tr("Couldn't restore. Nothing was changed.")) }
             return@launch
         }
         pickedBytes = null
         backupUi.update { it.copy(working = null, content = null, header = null, fileName = null, restored = result) }
         say(
-            "Restored ${result.added} ${if (result.added == 1) "payment" else "payments"}" +
-                if (result.skipped > 0) " (${result.skipped} already here)" else "",
+            tr("Restored {0} {1}", result.added, if (result.added == 1) tr("payment") else tr("payments")) +
+                if (result.skipped > 0) tr(" ({0} already here)", result.skipped) else "",
         )
         if (newPhone) {
             history.clear()
@@ -1200,12 +1201,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     private fun backupProblemText(p: BackupException.Problem): String = when (p) {
-        BackupException.Problem.NOT_A_BACKUP -> "That file isn't an Owl Tracker backup."
-        BackupException.Problem.NEWER_VERSION -> "This backup was made by a newer Owl Tracker. Update the app, then try again."
-        BackupException.Problem.NEEDS_PASSWORD -> "This backup is password protected. Enter its password."
-        BackupException.Problem.WRONG_PASSWORD -> "That password doesn't open this backup."
-        BackupException.Problem.DAMAGED -> "This backup is damaged or was changed, so it can't be restored."
-        BackupException.Problem.TOO_LARGE -> "That file is too large to be an Owl Tracker backup."
+        BackupException.Problem.NOT_A_BACKUP -> tr("That file isn't an Owl Tracker backup.")
+        BackupException.Problem.NEWER_VERSION -> tr("This backup was made by a newer Owl Tracker. Update the app, then try again.")
+        BackupException.Problem.NEEDS_PASSWORD -> tr("This backup is password protected. Enter its password.")
+        BackupException.Problem.WRONG_PASSWORD -> tr("That password doesn't open this backup.")
+        BackupException.Problem.DAMAGED -> tr("This backup is damaged or was changed, so it can't be restored.")
+        BackupException.Problem.TOO_LARGE -> tr("That file is too large to be an Owl Tracker backup.")
     }
 
     // ---------------- free trial & unlock ----------------
@@ -1224,7 +1225,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     /** "Restore purchase": asks Google Play again which purchases this account has. */
     fun restorePurchase() {
         c.licence.refresh()
-        say("Checking Google Play for your purchase\u2026")
+        say(tr("Checking Google Play for your purchase\u2026"))
     }
 
     /** Debug builds only: end the trial now to see read-only mode and the unlock screen. */
@@ -1244,14 +1245,14 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         if (c.licence.current().canEdit) return true
         _sheet.value = null
         go(Screen.UNLOCK)
-        say("Unlock Owl Tracker to add or change anything")
+        say(tr("Unlock Owl Tracker to add or change anything"))
         return false
     }
 
     // ---------------- startup, lock, sync ----------------
 
     /** Where the database key lives, worked out once off the main thread (Keystore calls are slow). */
-    val keyProtection = MutableStateFlow("Checking\u2026")
+    val keyProtection = MutableStateFlow(tr("Checking\u2026"))
 
     init {
         viewModelScope.launch {
@@ -1261,7 +1262,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
                 _screen.value = Screen.DB_ERROR
                 return@launch
             }
-            launch(Dispatchers.IO) { keyProtection.value = runCatching { c.keyProtection() }.getOrDefault("Android Keystore") }
+            launch(Dispatchers.IO) { keyProtection.value = runCatching { c.keyProtection() }.getOrDefault(tr("Android Keystore")) }
             c.licence.refresh()
             launch { runCatching { c.backups.cleanUpShared() } }
             val s = repo.settings()
@@ -1295,7 +1296,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setAppLock(on: Boolean) = viewModelScope.launch {
         repo.updateSettings { it.copy(appLock = on) }
-        say(if (on) "App lock on. Owl Tracker locks a minute after you leave it." else "App lock off")
+        say(if (on) tr("App lock on. Owl Tracker locks a minute after you leave it.") else tr("App lock off"))
     }
 
     fun setScreenPrivacy(on: Boolean) = viewModelScope.launch { repo.updateSettings { it.copy(screenPrivacy = on) } }
@@ -1317,18 +1318,18 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val sorted = runCatching { engine.sortIntoNewCategories() }.getOrDefault(0)
         if (sorted > 0) say(
             when {
-                before >= 2 -> "$sorted ${if (sorted == 1) "payment" else "payments"} sorted into the new categories: Fashion & Clothing, Daily Commute and more"
-                sorted == 1 -> "1 payment moved to the new categories, like Holiday"
-                else -> "$sorted payments moved to the new categories, like Holiday"
+                before >= 2 -> tr("{0} {1} sorted into the new categories: Fashion & Clothing, Daily Commute and more", sorted, if (sorted == 1) tr("payment") else tr("payments"))
+                sorted == 1 -> tr("1 payment moved to the new categories, like Holiday")
+                else -> tr("{0} payments moved to the new categories, like Holiday", sorted)
             },
         )
         // And giving payments that named only a UPI ID their own payee, once (they were all named after the bank)
         val separated = runCatching { engine.separateUpiPayees() }.getOrDefault(0)
         if (separated > 0) say(
-            "$separated UPI ${if (separated == 1) "payment" else "payments"} with no shop name had been grouped under the bank's name. " +
-                "Each is now its own, so rename them one at a time.",
+            tr("{0} UPI {1} with no shop name had been grouped under the bank's name. ", separated, if (separated == 1) tr("payment") else tr("payments")) +
+                tr("Each is now its own, so rename them one at a time."),
         )
-        if (gone > 0) say(if (gone == 1) "Removed 1 payment reminder that was counted as spending" else "Removed $gone payment reminders that were counted as spending")
+        if (gone > 0) say(if (gone == 1) tr("Removed 1 payment reminder that was counted as spending") else tr("Removed {0} payment reminders that were counted as spending", gone))
         if (c.licence.current().canEdit) runCatching { engine.syncNew() }
         // Payments seen in the app aren't asked about later by a nudge
         runCatching { com.owl.tracker.nudge.PaymentChecks.markSeen(c.context) }
@@ -1337,10 +1338,10 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun rescan() = viewModelScope.launch {
         if (!editable()) return@launch
         val s = settings.value
-        if (s == null || !s.smsEnabled || !c.sms.hasPermission()) { say("Turn on SMS access first"); return@launch }
+        if (s == null || !s.smsEnabled || !c.sms.hasPermission()) { say(tr("Turn on SMS access first")); return@launch }
         val n = runCatching { engine.syncNew() }.getOrDefault(0)
         runCatching { com.owl.tracker.nudge.PaymentChecks.markSeen(c.context) }
-        say(if (n == 0) "Scanned your inbox: no new transactions" else "Added $n new ${if (n == 1) "transaction" else "transactions"}")
+        say(if (n == 0) tr("Scanned your inbox: no new transactions") else tr("Added {0} new {1}", n, if (n == 1) tr("transaction") else tr("transactions")))
     }
 
     fun smsPermissionGranted(): Boolean = c.sms.hasPermission()
@@ -1354,7 +1355,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val s = repo.settings()
         if (s.onboarded) {
             _screen.value = Screen.SETTINGS
-            say("SMS import is off. You can still add expenses yourself.")
+            say(tr("SMS import is off. You can still add expenses yourself."))
         } else {
             // No snackbar here: it would sit over the Save button. The budget screen explains manual mode.
             go(Screen.BUDGET_SETUP)
@@ -1397,8 +1398,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val ui = importUi.value
         val w = ui.wordInput.trim()
         when {
-            w.isEmpty() -> say("Type a word or phrase first")
-            ui.draft.skipWords.any { it.equals(w, ignoreCase = true) } -> say("“$w” is already on the list")
+            w.isEmpty() -> say(tr("Type a word or phrase first"))
+            ui.draft.skipWords.any { it.equals(w, ignoreCase = true) } -> say(tr("“{0}” is already on the list", w))
             else -> importUi.update { it.copy(draft = it.draft.copy(skipWords = it.draft.skipWords + w), wordInput = "") }
         }
     }
@@ -1426,7 +1427,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val items = skipped()
         val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
         return buildString {
-            append("Owl Tracker skipped ${items.size} messages\n")
+            append(tr("Owl Tracker skipped {0} messages\n", items.size))
             items.groupBy { it.reason }.toSortedMap(compareBy<com.owl.tracker.core.RejectReason> { SKIP_ORDER.indexOf(it) }).forEach { (reason, list) ->
                 append("\n== ${skipLabel(reason)} (${list.size})\n")
                 if (reason == com.owl.tracker.core.RejectReason.PERSONAL_SENDER) return@forEach
@@ -1435,13 +1436,13 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
                     sk.body?.let { append("\n  ").append(maskDigits(it.replace('\n', ' '))) }
                     append('\n')
                 }
-                if (list.size > 30) append("  …and ${list.size - 30} more\n")
+                if (list.size > 30) append(tr("  …and {0} more\n", list.size - 30))
             }
         }
     }
 
     fun toReview() {
-        if (selectable().isEmpty()) { say("Nothing to import yet. Scroll up to tick a sender, or continue without importing."); return }
+        if (selectable().isEmpty()) { say(tr("Nothing to import yet. Scroll up to tick a sender, or continue without importing.")); return }
         importUi.update { it.copy(chip = ReviewChip.ALL) }
         go(Screen.IMPORT_REVIEW)
     }
@@ -1472,7 +1473,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val ui = importUi.value
         val all = selectable()
         val chosen = chosenForImport(withReview)
-        if (chosen.isEmpty() && ui.mode == ImportMode.ONBOARDING) { say("Tick at least one transaction"); return }
+        if (chosen.isEmpty() && ui.mode == ImportMode.ONBOARDING) { say(tr("Tick at least one transaction")); return }
         importUi.update { it.copy(running = true, progress = 0f, result = null) }
         _screen.value = Screen.IMPORTING
         viewModelScope.launch {
@@ -1481,7 +1482,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
                     importUi.update { it.copy(progress = p) }
                 }
             }.getOrElse {
-                say("Import stopped: ${it.message ?: "unknown error"}")
+                say(tr("Import stopped: {0}", it.message ?: tr("unknown error")))
                 ImportEngine.Result(0, 0, 0, 0, 0, emptyMap())
             }
             importUi.update { it.copy(running = false, progress = 1f, result = result) }
@@ -1496,7 +1497,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         } else {
             history.addLast(Screen.MORE)
             _screen.value = Screen.SETTINGS
-            say("Re-import complete")
+            say(tr("Re-import complete"))
         }
     }
 
@@ -1505,7 +1506,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         repo.updateSettings { it.copy(filters = f) }
         history.clear(); history.addLast(Screen.MORE)
         _screen.value = Screen.SETTINGS
-        say("Saved. New messages will follow these filters.")
+        say(tr("Saved. New messages will follow these filters."))
     }
 
     fun finishOnboarding(budgetPaise: Long) = viewModelScope.launch {
@@ -1523,7 +1524,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val n = repo.setCategory(txId, categoryId, remember)
         val name = categories.value.firstOrNull { it.id == categoryId }?.name ?: "category"
         _sheet.value = Sheet.TxnDetail(txId)
-        say(if (remember) "Rule saved: ${t.merchantName} → $name" + (if (n > 1) " ($n updated)" else "") else "Moved to $name")
+        say(if (remember) tr("Rule saved: {0} → {1}", t.merchantName, name) + (if (n > 1) tr(" ({0} updated)", n) else "") else tr("Moved to {0}", name))
     }
 
     fun sameMerchantCount(txId: Long): Flow<Int> = repo.observeSameMerchantCount(txId)
@@ -1548,10 +1549,10 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val name = categories.value.firstOrNull { it.id == categoryId }?.name ?: "category"
         if (categoryId == t.categoryId && !remember) {
             repo.confirmReview(txId)
-            say("Thanks: ${t.merchantName} stays in $name")
+            say(tr("Thanks: {0} stays in {1}", t.merchantName, name))
         } else {
             val n = repo.setCategory(txId, categoryId, remember)
-            say(if (remember) "Done: ${t.merchantName} always goes to $name" + (if (n > 1) " ($n updated)" else "") else "Moved to $name")
+            say(if (remember) tr("Done: {0} always goes to {1}", t.merchantName, name) + (if (n > 1) tr(" ({0} updated)", n) else "") else tr("Moved to {0}", name))
         }
         _sheet.value = null
     }
@@ -1566,21 +1567,21 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         _sheet.value = Sheet.TxnDetail(txId)
         val where = moves.values.distinct().map { categoryName(it) }
         say(
-            (if (n == 1) "Moved 1 payment" else "Moved $n payments") + " to " + where.joinToString(" and ") +
-                (newOnesTo?.let { " · new ones from ${t.merchantName} too" } ?: ""),
+            (if (n == 1) tr("Moved 1 payment") else tr("Moved {0} payments", n)) + tr(" to ") + where.joinToString(tr(" and ")) +
+                (newOnesTo?.let { tr(" · new ones from {0} too", t.merchantName) } ?: ""),
         )
     }
 
-    fun categoryName(id: String): String = categories.value.firstOrNull { it.id == id }?.name ?: "Others"
+    fun categoryName(id: String): String = categories.value.firstOrNull { it.id == id }?.name ?: tr("Others")
 
     // ---------------- splitting a payment ----------------
 
     /** Splits a payment into [parts] (two or more, adding up to its amount). */
     fun saveSplit(txId: Long, parts: List<com.owl.tracker.data.TxnPart>) = viewModelScope.launch {
         if (!editable()) return@launch
-        if (!repo.setParts(txId, parts)) { say("The parts need to add up to the payment"); return@launch }
+        if (!repo.setParts(txId, parts)) { say(tr("The parts need to add up to the payment")); return@launch }
         _sheet.value = Sheet.TxnDetail(txId)
-        say("Split: " + parts.joinToString(" and ") { categoryName(it.categoryId) })
+        say(tr("Split: ") + parts.joinToString(tr(" and ")) { categoryName(it.categoryId) })
     }
 
     /** Joins a split payment back into one category (its biggest part's). */
@@ -1589,7 +1590,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         repo.setParts(txId, emptyList())
         _sheet.value = Sheet.TxnDetail(txId)
         val t = repo.transaction(txId)
-        say("Joined back into " + (t?.let { categoryName(it.categoryId) } ?: "one category"))
+        say(tr("Joined back into ") + (t?.let { categoryName(it.categoryId) } ?: tr("one category")))
     }
 
     // ---------------- rules ----------------
@@ -1611,8 +1612,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val before = repo.deleteRule(plan.rule, if (putBack) plan.moves else emptyMap())
         val label = "${plan.rule.name} → ${categoryName(plan.rule.categoryId)}"
         say(
-            if (before.isNotEmpty()) "Rule deleted · ${before.size} ${if (before.size == 1) "payment" else "payments"} put back" else "Deleted the rule $label",
-            "Undo",
+            if (before.isNotEmpty()) tr("Rule deleted · {0} {1} put back", before.size, if (before.size == 1) tr("payment") else tr("payments")) else tr("Deleted the rule {0}", label),
+            tr("Undo"),
         ) { viewModelScope.launch { repo.restoreRule(plan.rule, before) } }
     }
 
@@ -1620,10 +1621,10 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun renameTxn(txId: Long, name: String, all: Boolean) = viewModelScope.launch {
         if (!editable()) return@launch
         val clean = name.trim()
-        if (clean.isEmpty()) { say("Give it a name"); return@launch }
+        if (clean.isEmpty()) { say(tr("Give it a name")); return@launch }
         val n = repo.renameMerchant(txId, clean, all)
         _sheet.value = Sheet.TxnDetail(txId)
-        say(if (all && n > 1) "Renamed $n payments to $clean" else "Renamed to $clean")
+        say(if (all && n > 1) tr("Renamed {0} payments to {1}", n, clean) else tr("Renamed to {0}", clean))
     }
 
     /** Recognised apps installed on this phone, for choosing a merchant's icon. */
@@ -1633,12 +1634,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     /** A picture (a small square PNG) as the icon for this payment's merchant, now and for future payments. */
     fun setMerchantPicture(txId: Long, png: ByteArray) = viewModelScope.launch {
         if (!editable()) return@launch
-        val n = runCatching { repo.setMerchantPicture(txId, png) }.getOrElse { say("That picture couldn't be used"); return@launch }
+        val n = runCatching { repo.setMerchantPicture(txId, png) }.getOrElse { say(tr("That picture couldn't be used")); return@launch }
         _sheet.value = Sheet.TxnDetail(txId)
-        say(if (n > 1) "Picture set for $n payments" else "Picture set")
+        say(if (n > 1) tr("Picture set for {0} payments", n) else tr("Picture set"))
     }
 
-    fun pictureNotOpened() = say("That picture couldn't be opened. Try a PNG, JPEG or screenshot.")
+    fun pictureNotOpened() = say(tr("That picture couldn't be opened. Try a PNG, JPEG or screenshot."))
 
     /** [logo]: null = automatic, "" = no app icon, else a recognised app's package. */
     fun setMerchantIcon(txId: Long, logo: String?) = viewModelScope.launch {
@@ -1647,9 +1648,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         _sheet.value = Sheet.TxnDetail(txId)
         say(
             when (logo) {
-                null -> "Icon set to automatic"
-                "" -> "App icon removed"
-                else -> "Icon updated"
+                null -> tr("Icon set to automatic")
+                "" -> tr("App icon removed")
+                else -> tr("Icon updated")
             }
         )
     }
@@ -1679,9 +1680,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         _sheet.value = Sheet.TxnDetail(txId)
         say(
             when {
-                label == null -> "Account cleared"
-                others > 0 -> "$label · this and $others more ${com.owl.tracker.core.Institutions.nameFor(bank)} payments"
-                else -> "Paid from $label"
+                label == null -> tr("Account cleared")
+                others > 0 -> tr("{0} · this and {1} more {2} payments", label, others, com.owl.tracker.core.Institutions.nameFor(bank))
+                else -> tr("Paid from {0}", label)
             },
         )
     }
@@ -1691,13 +1692,13 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun confirmReview(txId: Long) = viewModelScope.launch {
         if (!editable()) return@launch
         repo.confirmReview(txId)
-        say("Confirmed")
+        say(tr("Confirmed"))
     }
 
     fun deleteTxn(txId: Long) = viewModelScope.launch {
         val t = repo.deleteTransaction(txId) ?: return@launch
         closeSheet()
-        say("Transaction deleted", "Undo") { viewModelScope.launch { repo.restoreTransaction(t); say("Transaction restored") } }
+        say(tr("Transaction deleted"), tr("Undo")) { viewModelScope.launch { repo.restoreTransaction(t); say(tr("Transaction restored")) } }
     }
 
     fun addManual(amountPaise: Long, merchant: String, categoryId: String, daysAgo: Int) = viewModelScope.launch {
@@ -1708,12 +1709,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val id = repo.addManual(ImportEngine.manual(amountPaise, merchant, categoryId, at))
         closeSheet()
         val name = categories.value.firstOrNull { it.id == categoryId }?.name ?: ""
-        val plain = "Added ${Money.formatInr(amountPaise)} to $name" + when (daysAgo) {
+        val plain = tr("Added {0} to {1}", Money.formatInr(amountPaise), name) + when (daysAgo) {
             0 -> ""
-            1 -> " for yesterday"
-            else -> " on " + day.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ENGLISH))
+            1 -> tr(" for yesterday")
+            else -> tr(" on ") + day.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ENGLISH))
         }
-        val undo: () -> Unit = { viewModelScope.launch { if (id > 0) repo.deleteTransaction(id); say("Removed ${Money.formatInr(amountPaise)} from $name") } }
+        val undo: () -> Unit = { viewModelScope.launch { if (id > 0) repo.deleteTransaction(id); say(tr("Removed {0} from {1}", Money.formatInr(amountPaise), name)) } }
         val reacts = settings.value?.owlReacts ?: "lively"
         if (daysAgo != 0 || reacts == "off") { say(plain); return@launch }
         val counted = categories.value.firstOrNull { it.id == categoryId }?.let { c -> c.countsAsSpend } ?: true
@@ -1725,18 +1726,18 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             strongShownToday = nudgePrefs.getBoolean(strongKey, false),
         )
         val still = reacts == "calm" || !motionOn()
-        val head = "Saved ${Money.formatInr(amountPaise)} · $name"
+        val head = tr("Saved {0} · {1}", Money.formatInr(amountPaise), name)
         val msg = when (kind) {
-            com.owl.tracker.core.OwlReaction.ON_TRACK -> UiMessage(head, "Undo", undo, com.owl.tracker.ui.components.OwlMood.CHEERING,
-                "Nice! ${Money.formatInr(share - after)} left of today's ${Money.formatInr(share)}", still)
-            com.owl.tracker.core.OwlReaction.BIG -> UiMessage("That's a big one · ${Money.formatInr(amountPaise)}", "Undo", undo, com.owl.tracker.ui.components.OwlMood.WORRIED,
-                "Most of today's ${Money.formatInr(share)} share in one go. ${Money.formatInr(share - after)} left today.", still)
+            com.owl.tracker.core.OwlReaction.ON_TRACK -> UiMessage(head, tr("Undo"), undo, com.owl.tracker.ui.components.OwlMood.CHEERING,
+                tr("Nice! {0} left of today's {1}", Money.formatInr(share - after), Money.formatInr(share)), still)
+            com.owl.tracker.core.OwlReaction.BIG -> UiMessage(tr("That's a big one · {0}", Money.formatInr(amountPaise)), tr("Undo"), undo, com.owl.tracker.ui.components.OwlMood.WORRIED,
+                tr("Most of today's {0} share in one go. {1} left today.", Money.formatInr(share), Money.formatInr(share - after)), still)
             com.owl.tracker.core.OwlReaction.OVER -> {
                 val p = BudgetMath.periodFor(today(), settings.value?.budgetStartDay ?: 1)
                 val left = p.days - p.dayNumber(today())
                 val each = com.owl.tracker.core.OwlReaction.lessEachDay(after - share, left)
-                UiMessage("${Money.formatInr(after - share)} over today's share", "Undo", undo, com.owl.tracker.ui.components.OwlMood.SAD,
-                    if (each > 0) "Spread over $left ${if (left == 1) "day" else "days"}, that's ${Money.formatInr(each)} less a day. Easy fix." else "A fresh budget month starts tomorrow.", still)
+                UiMessage(tr("{0} over today's share", Money.formatInr(after - share)), tr("Undo"), undo, com.owl.tracker.ui.components.OwlMood.SAD,
+                    if (each > 0) tr("Spread over {0} {1}, that's {2} less a day. Easy fix.", left, if (left == 1) tr("day") else tr("days"), Money.formatInr(each)) else tr("A fresh budget month starts tomorrow."), still)
             }
             com.owl.tracker.core.OwlReaction.PLAIN -> null
         }
@@ -1802,7 +1803,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         prefs.edit().putStringSet("celebrated_badges", known + fresh.id).apply()
         if (!celebrationsOn || settings.value?.owlReacts == "off" || settings.value?.sampleData == true) return
         celebration.value = Celebration(
-            title = when (fresh.id) { "thrifty" -> "7 days in a row!"; "steady" -> "30 days in a row!"; "saver" -> "A month under budget!"; "two_months" -> "Two months in a row!"; else -> "New badge!" },
+            title = when (fresh.id) { "thrifty" -> tr("7 days in a row!"); "steady" -> tr("30 days in a row!"); "saver" -> tr("A month under budget!"); "two_months" -> tr("Two months in a row!"); else -> tr("New badge!") },
             line = fresh.earnedText + ".", badgeName = fresh.name, emoji = badgeEmoji(fresh.id),
             share = SharePicture.BadgeEarned(fresh.name, badgeEmoji(fresh.id), fresh.earnedText),
         )
@@ -1824,8 +1825,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         if (!editable()) return@launch
         repo.setBudget(key, paise)
         closeSheet()
-        val what = if (key == Schema.OVERALL) "Budget" else "${categoryName(key)} budget"
-        say(if (paise == null || paise <= 0) "$what removed" else if (key == Schema.OVERALL) "Budget set to ${Money.formatInr(paise)}" else "$what: ${Money.formatInr(paise)} a month")
+        val what = if (key == Schema.OVERALL) tr("Budget") else tr("{0} budget", categoryName(key))
+        say(if (paise == null || paise <= 0) tr("{0} removed", what) else if (key == Schema.OVERALL) tr("Budget set to {0}", Money.formatInr(paise)) else tr("{0}: {1} a month", what, Money.formatInr(paise)))
     }
 
     /** From the month budget's sheet: every category with its slider. */
@@ -1837,10 +1838,10 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     /** [parent]: the group to put it in, or null for a category on its own. */
     fun saveCategory(id: String?, name: String, icon: String, color: Long, countsAsSpend: Boolean, parent: String? = null) = viewModelScope.launch {
         if (!editable()) return@launch
-        if (name.isBlank()) { say("Give the category a name"); return@launch }
+        if (name.isBlank()) { say(tr("Give the category a name")); return@launch }
         repo.saveCategory(id, name.trim(), icon, color, countsAsSpend, parent)
         closeSheet()
-        say(if (id == null) "${name.trim()} added" else "Category updated")
+        say(if (id == null) tr("{0} added", name.trim()) else tr("Category updated"))
     }
 
     /** Kids categories on or off (More › Categories, and the question at setup). */
@@ -1848,18 +1849,18 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         if (!editable()) return@launch
         val moved = repo.setKids(on)
         say(
-            if (on) "Kids categories are on"
-            else "Kids categories are off" + if (moved > 0) " · $moved ${if (moved == 1) "payment" else "payments"} moved" else "",
+            if (on) tr("Kids categories are on")
+            else tr("Kids categories are off") + if (moved > 0) tr(" · {0} {1} moved", moved, if (moved == 1) tr("payment") else tr("payments")) else "",
         )
     }
 
     fun archiveCategory(id: String) = viewModelScope.launch {
         if (!editable()) return@launch
-        if (id == com.owl.tracker.core.Cat.OTHERS || id == com.owl.tracker.core.Cat.INCOME) { say("This category can't be archived"); return@launch }
-        val name = categories.value.firstOrNull { it.id == id }?.name ?: "Category"
+        if (id == com.owl.tracker.core.Cat.OTHERS || id == com.owl.tracker.core.Cat.INCOME) { say(tr("This category can't be archived")); return@launch }
+        val name = categories.value.firstOrNull { it.id == id }?.name ?: tr("Category")
         val moved = repo.archiveCategory(id)
         closeSheet()
-        say("$name archived" + if (moved > 0) " · $moved moved to Others" else "")
+        say(tr("{0} archived", name) + if (moved > 0) tr(" · {0} moved to Others", moved) else "")
     }
 
     // ---------------- delete & reset ----------------
@@ -1890,7 +1891,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun setStopImporting(on: Boolean) = deleteUi.update { it.copy(stopImporting = on) }
 
     fun requestDelete() {
-        if (deleteUi.value.selectedCount == 0) { say("Nothing to delete for this choice"); return }
+        if (deleteUi.value.selectedCount == 0) { say(tr("Nothing to delete for this choice")); return }
         _confirm.value = ConfirmKind.DELETE
     }
 
@@ -1908,7 +1909,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         }
         _confirm.value = null
         closeSheet()
-        say("Deleted $n ${if (n == 1) "transaction" else "transactions"}")
+        say(tr("Deleted {0} {1}", n, if (n == 1) tr("transaction") else tr("transactions")))
     }
 
     fun requestReset() { _confirm.value = ConfirmKind.RESET }
@@ -1925,7 +1926,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         locked.value = false
         history.clear()
         _screen.value = Screen.WELCOME
-        say("Owl Tracker was reset. Everything it stored on this phone is gone.")
+        say(tr("Owl Tracker was reset. Everything it stored on this phone is gone."))
     }
 
     // ---------------- helpers ----------------
@@ -1966,12 +1967,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             CategoryBudgetRow(cat, sp, lim, BudgetMath.status(sp, lim, dayNumber, p.days))
         }.sortedByDescending { it.spent.toDouble() / it.limit }
         val unbudgeted = com.owl.tracker.data.CategoryTree(cats).spendTops.filter { budgets[it.id] == null }.map { CategorySpend(it, byCat[it.id] ?: 0L) }
-        val daysLeftText = if (isCurrent) "${p.days - dayNumber} days left this month" else "This budget month has ended"
+        val daysLeftText = if (isCurrent) tr("{0} days left this month", p.days - dayNumber) else tr("This budget month has ended")
         // Category budgets that are over. The month itself being over is said once, in the budget card's own line.
         val over = buildList {
             rows.filter { it.status.state == BudgetState.OVER }.forEach {
                 add(OverItem(
-                    "${Money.formatInr(it.spent - it.limit)} over on ${it.category.name}", "${Money.formatInr(it.spent)} spent of ${Money.formatInr(it.limit)} · $daysLeftText",
+                    tr("{0} over on {1}", Money.formatInr(it.spent - it.limit), it.category.name), tr("{0} spent of {1} · {2}", Money.formatInr(it.spent), Money.formatInr(it.limit), daysLeftText),
                     it.category.id, it.category.id, it.category.name, it.spent, it.limit, daysLeftText,
                 ))
             }
@@ -2017,15 +2018,15 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         )
 
         fun skipLabel(r: com.owl.tracker.core.RejectReason): String = when (r) {
-            com.owl.tracker.core.RejectReason.NO_AMOUNT -> "No amount found"
-            com.owl.tracker.core.RejectReason.NOT_A_TRANSACTION -> "No money moved (no debit or credit wording)"
-            com.owl.tracker.core.RejectReason.FUTURE_OR_REMINDER -> "Reminders and scheduled payments"
-            com.owl.tracker.core.RejectReason.REQUEST -> "Payment requests"
-            com.owl.tracker.core.RejectReason.FAILED -> "Failed or declined payments"
-            com.owl.tracker.core.RejectReason.PROMOTIONAL -> "Promotions and offers"
-            com.owl.tracker.core.RejectReason.GOVERNMENT -> "Government messages"
-            com.owl.tracker.core.RejectReason.OTP -> "OTPs and codes (text hidden)"
-            com.owl.tracker.core.RejectReason.PERSONAL_SENDER -> "Messages from people (never shown)"
+            com.owl.tracker.core.RejectReason.NO_AMOUNT -> tr("No amount found")
+            com.owl.tracker.core.RejectReason.NOT_A_TRANSACTION -> tr("No money moved (no debit or credit wording)")
+            com.owl.tracker.core.RejectReason.FUTURE_OR_REMINDER -> tr("Reminders and scheduled payments")
+            com.owl.tracker.core.RejectReason.REQUEST -> tr("Payment requests")
+            com.owl.tracker.core.RejectReason.FAILED -> tr("Failed or declined payments")
+            com.owl.tracker.core.RejectReason.PROMOTIONAL -> tr("Promotions and offers")
+            com.owl.tracker.core.RejectReason.GOVERNMENT -> tr("Government messages")
+            com.owl.tracker.core.RejectReason.OTP -> tr("OTPs and codes (text hidden)")
+            com.owl.tracker.core.RejectReason.PERSONAL_SENDER -> tr("Messages from people (never shown)")
         }
 
         private val LONG_DIGITS = Regex("""\d{4,}""")

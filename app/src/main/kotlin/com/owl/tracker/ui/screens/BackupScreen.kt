@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -47,8 +48,8 @@ import com.owl.tracker.ui.theme.LocalStatusColors
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val INCLUDED = listOf("Amounts and dates", "Merchant names, icons and categories", "Your notes", "Budgets and category rules")
-private val NEVER = listOf("SMS text and sender IDs", "Account and card numbers", "UPI IDs and bank references", "SMS import settings")
+private val INCLUDED = listOf(tr("Amounts and dates"), tr("Merchant names, icons and categories"), tr("Your notes"), tr("Budgets and category rules"))
+private val NEVER = listOf(tr("SMS text and sender IDs"), tr("Account and card numbers"), tr("UPI IDs and bank references"), tr("SMS import settings"))
 
 @Composable
 fun BackupScreen(vm: AppViewModel, platform: Platform) {
@@ -69,7 +70,7 @@ fun BackupScreen(vm: AppViewModel, platform: Platform) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 32.dp).testTag("backup_screen"),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        ScreenHeader(if (newPhone) "Restore from a backup" else "Backup & restore", onBack = { vm.back() })
+        ScreenHeader(if (newPhone) tr("Restore from a backup") else tr("Backup & restore"), onBack = { vm.back() })
 
         ui.working?.let { msg ->
             Column(Modifier.fillMaxWidth().testTag("backup_working")) {
@@ -85,8 +86,8 @@ fun BackupScreen(vm: AppViewModel, platform: Platform) {
         RestorePanel(vm, ui, newPhone, onPick = { open.launch(arrayOf("application/json", "application/octet-stream", "text/plain", "*/*")) })
 
         InfoNote(
-            "Owl Tracker never sends your backup anywhere. You decide where the file goes: a folder, Google Drive, WhatsApp, " +
-                "or Quick Share straight to your other phone.",
+            tr("Owl Tracker never sends your backup anywhere. You decide where the file goes: a folder, Google Drive, WhatsApp, ") +
+                tr("or Quick Share straight to your other phone."),
             icon = Ic.noNet, container = MaterialTheme.colorScheme.surfaceVariant, content = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -95,35 +96,35 @@ fun BackupScreen(vm: AppViewModel, platform: Platform) {
 @Composable
 private fun BackUpPanel(vm: AppViewModel, ui: BackupUi, onSave: () -> Unit) {
     Panel {
-        Text("Back up", style = MaterialTheme.typography.titleMedium)
+        Text(tr("Back up"), style = MaterialTheme.typography.titleMedium)
         Text(
-            "Save your spending history to a file you can keep or move to another phone.",
+            tr("Save your spending history to a file you can keep or move to another phone."),
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Gap(12.dp)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CheckList("Included", INCLUDED, Ic.check, MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-            CheckList("Never included", NEVER, Ic.close, LocalStatusColors.current.overFg, Modifier.weight(1f).testTag("backup_never"))
+            CheckList(tr("Included"), INCLUDED, Ic.check, MaterialTheme.colorScheme.primary, Modifier.weight(1f))
+            CheckList(tr("Never included"), NEVER, Ic.close, LocalStatusColors.current.overFg, Modifier.weight(1f).testTag("backup_never"))
         }
         Gap(8.dp)
         SwitchRow(
-            "Protect with a password",
-            if (ui.protect) "Recommended. The file is encrypted (AES-256) and useless without the password."
-            else "Anyone who gets the file can read your spending history.",
+            tr("Protect with a password"),
+            if (ui.protect) tr("Recommended. The file is encrypted (AES-256) and useless without the password.")
+            else tr("Anyone who gets the file can read your spending history."),
             ui.protect, { vm.setBackupProtect(it) }, Ic.lock,
         )
         if (ui.protect) {
             OutlinedTextField(
-                value = ui.password, onValueChange = vm::setBackupPassword, label = { Text("Password") }, singleLine = true,
+                value = ui.password, onValueChange = vm::setBackupPassword, label = { Text(tr("Password")) }, singleLine = true,
                 visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth().testTag("backup_password"),
             )
             Gap(8.dp)
             OutlinedTextField(
-                value = ui.confirm, onValueChange = vm::setBackupConfirm, label = { Text("Type it again") }, singleLine = true,
+                value = ui.confirm, onValueChange = vm::setBackupConfirm, label = { Text(tr("Type it again")) }, singleLine = true,
                 visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 isError = ui.confirm.isNotEmpty() && ui.passwordProblem != null,
-                supportingText = { Text(ui.passwordProblem ?: "Keep it safe: without it the backup can't be opened, not even by us.") },
+                supportingText = { Text(ui.passwordProblem ?: tr("Keep it safe: without it the backup can't be opened, not even by us.")) },
                 modifier = Modifier.fillMaxWidth().testTag("backup_confirm"),
             )
         }
@@ -132,11 +133,11 @@ private fun BackUpPanel(vm: AppViewModel, ui: BackupUi, onSave: () -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = onSave, enabled = ready, modifier = Modifier.weight(1f).height(48.dp).testTag("backup_save")) {
                 Icon(Ic.doc, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text("  Save to a file")
+                Text(tr("  Save to a file"))
             }
             OutlinedButton(onClick = { vm.shareBackup() }, enabled = ready, modifier = Modifier.weight(1f).height(48.dp).testTag("backup_share")) {
                 Icon(Ic.share, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text("  Share")
+                Text(tr("  Share"))
             }
         }
         ui.exported?.let {
@@ -149,31 +150,31 @@ private fun BackUpPanel(vm: AppViewModel, ui: BackupUi, onSave: () -> Unit) {
 @Composable
 private fun RestorePanel(vm: AppViewModel, ui: BackupUi, newPhone: Boolean, onPick: () -> Unit) {
     Panel {
-        Text("Restore", style = MaterialTheme.typography.titleMedium)
+        Text(tr("Restore"), style = MaterialTheme.typography.titleMedium)
         Text(
-            if (newPhone) "Bring your spending history over from your other phone. Make a backup there first (More → Backup & restore)."
-            else "Bring in a backup made on this phone or another one.",
+            if (newPhone) tr("Bring your spending history over from your other phone. Make a backup there first (More → Backup & restore).")
+            else tr("Bring in a backup made on this phone or another one."),
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Gap(12.dp)
         OutlinedButton(onClick = onPick, enabled = ui.working == null, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("restore_pick")) {
             Icon(Ic.doc, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(if (ui.header == null) "  Choose a backup file" else "  Choose a different file")
+            Text(if (ui.header == null) tr("  Choose a backup file") else tr("  Choose a different file"))
         }
 
         val header = ui.header
         if (header != null) {
             Gap(12.dp)
-            Text(ui.fileName ?: "Backup file", style = MaterialTheme.typography.titleSmall)
-            val made = if (header.createdAt > 0) "Made " + vm.dateOf(header.createdAt).format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)) else "Backup"
+            Text(ui.fileName ?: tr("Backup file"), style = MaterialTheme.typography.titleSmall)
+            val made = if (header.createdAt > 0) tr("Made ") + vm.dateOf(header.createdAt).format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)) else tr("Backup")
             Text(
-                made + if (header.encrypted) " · password protected" else "",
+                made + if (header.encrypted) tr(" · password protected") else "",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (header.encrypted && ui.content == null) {
                 Gap(8.dp)
                 OutlinedTextField(
-                    value = ui.restorePassword, onValueChange = vm::setRestorePassword, label = { Text("Backup password") }, singleLine = true,
+                    value = ui.restorePassword, onValueChange = vm::setRestorePassword, label = { Text(tr("Backup password")) }, singleLine = true,
                     visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth().testTag("restore_password"),
                 )
@@ -181,7 +182,7 @@ private fun RestorePanel(vm: AppViewModel, ui: BackupUi, newPhone: Boolean, onPi
                 Button(
                     onClick = { vm.unlockBackup() }, enabled = ui.restorePassword.isNotEmpty() && ui.working == null,
                     modifier = Modifier.fillMaxWidth().testTag("restore_unlock"),
-                ) { Text("Unlock") }
+                ) { Text(tr("Unlock")) }
             }
         }
 
@@ -190,20 +191,20 @@ private fun RestorePanel(vm: AppViewModel, ui: BackupUi, newPhone: Boolean, onPi
             Summary(vm, content)
             if (!newPhone) {
                 Gap(8.dp)
-                Choice("Add to what's here", "Payments already on this phone are skipped, and your categories and budgets are kept.", !ui.replace, "restore_add") { vm.setRestoreReplace(false) }
-                Choice("Replace everything here", "This phone's payments, categories, budgets and rules are replaced by the backup's.", ui.replace, "restore_replace") { vm.setRestoreReplace(true) }
+                Choice(tr("Add to what's here"), tr("Payments already on this phone are skipped, and your categories and budgets are kept."), !ui.replace, "restore_add") { vm.setRestoreReplace(false) }
+                Choice(tr("Replace everything here"), tr("This phone's payments, categories, budgets and rules are replaced by the backup's."), ui.replace, "restore_replace") { vm.setRestoreReplace(true) }
             }
             Gap(8.dp)
             Button(
                 onClick = { vm.restoreBackup() }, enabled = ui.working == null,
                 modifier = Modifier.fillMaxWidth().height(52.dp).testTag("restore_go"),
-            ) { Text(if (ui.replace && !newPhone) "Replace with this backup" else "Restore") }
+            ) { Text(if (ui.replace && !newPhone) tr("Replace with this backup") else tr("Restore")) }
         }
 
         ui.restored?.let { r ->
             Gap(10.dp)
             Text(
-                "Restored ${r.added} ${if (r.added == 1) "payment" else "payments"}" +
+                tr("Restored {0} {1}", r.added, if (r.added == 1) tr("payment") else tr("payments")) +
                     (if (r.skipped > 0) ", skipped ${r.skipped} already here" else "") +
                     (if (r.categoriesAdded > 0) ", added ${r.categoriesAdded} ${if (r.categoriesAdded == 1) "category" else "categories"}" else "") + ".",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.testTag("restore_done"),
@@ -215,11 +216,11 @@ private fun RestorePanel(vm: AppViewModel, ui: BackupUi, newPhone: Boolean, onPi
 @Composable
 private fun Summary(vm: AppViewModel, c: BackupContent) {
     val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
-    val span = if (c.firstAt != null && c.lastAt != null) "${vm.dateOf(c.firstAt!!).format(fmt)} – ${vm.dateOf(c.lastAt!!).format(fmt)}" else "no payments"
+    val span = if (c.firstAt != null && c.lastAt != null) "${vm.dateOf(c.firstAt!!).format(fmt)} – ${vm.dateOf(c.lastAt!!).format(fmt)}" else tr("no payments")
     Column(Modifier.testTag("restore_summary")) {
         Text("${c.transactions.size} ${if (c.transactions.size == 1) "payment" else "payments"} · $span", style = MaterialTheme.typography.titleSmall)
         Text(
-            "${c.categories.size} categories · ${c.budgets.size} budgets · ${c.rules.size} rules",
+            tr("{0} categories · {1} budgets · {2} rules", c.categories.size, c.budgets.size, c.rules.size),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.components
 
+import com.owl.tracker.i18n.tr
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -121,9 +122,9 @@ fun PictureCropDialog(source: Bitmap, onCancel: () -> Unit, onUse: (CropBox) -> 
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text("Fit the icon in the square", style = MaterialTheme.typography.titleLarge)
+                    Text(tr("Fit the icon in the square"), style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "Drag to move the picture. Pinch, or use the slider, to zoom in on the icon.",
+                        tr("Drag to move the picture. Pinch, or use the slider, to zoom in on the icon."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -133,7 +134,7 @@ fun PictureCropDialog(source: Bitmap, onCancel: () -> Unit, onUse: (CropBox) -> 
                         .clip(RoundedCornerShape(28.dp))
                         .background(Color.Black)
                         .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(28.dp))
-                        .semantics { contentDescription = "Picture to crop" }
+                        .semantics { contentDescription = tr("Picture to crop") }
                         .testTag("crop_area")
                         .pointerInput(source) {
                             detectTransformGestures { _, pan, zoom, _ ->
@@ -145,17 +146,17 @@ fun PictureCropDialog(source: Bitmap, onCancel: () -> Unit, onUse: (CropBox) -> 
                     Canvas(Modifier.fillMaxSize()) { drawCrop(image, box) }
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Zoom", style = MaterialTheme.typography.labelLarge)
+                    Text(tr("Zoom"), style = MaterialTheme.typography.labelLarge)
                     Slider(value = box.zoom, onValueChange = { box = box.withZoom(it) }, modifier = Modifier.weight(1f).testTag("crop_zoom"))
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     // How it will look in the lists
                     Canvas(Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).testTag("crop_preview")) { drawCrop(image, box) }
-                    Text("Preview", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    Text(tr("Preview"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                 }
                 Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f).testTag("crop_cancel")) { Text("Cancel") }
-                    Button(onClick = { onUse(box) }, modifier = Modifier.weight(1f).testTag("crop_use")) { Text("Use picture") }
+                    OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f).testTag("crop_cancel")) { Text(tr("Cancel")) }
+                    Button(onClick = { onUse(box) }, modifier = Modifier.weight(1f).testTag("crop_use")) { Text(tr("Use picture")) }
                 }
             }
         }

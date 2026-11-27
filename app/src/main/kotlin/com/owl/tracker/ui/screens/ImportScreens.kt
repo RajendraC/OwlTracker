@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -81,45 +82,45 @@ fun ImportFiltersScreen(vm: AppViewModel) {
 
     Column(Modifier.fillMaxSize().imePadding()) {
         ScreenHeader(
-            title = if (onboarding) "Choose what to import" else "Import filters",
-            subtitle = if (onboarding) "Only what you tick is read and saved." else "New messages follow these choices. Re-import to apply them to past messages too.",
+            title = if (onboarding) tr("Choose what to import") else tr("Import filters"),
+            subtitle = if (onboarding) tr("Only what you tick is read and saved.") else tr("New messages follow these choices. Re-import to apply them to past messages too."),
             onBack = { vm.back() },
         )
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (ui.sample) item {
                 InfoNote(
-                    "Sample data: 21 built-in example bank and UPI messages. Your SMS inbox isn't read. " +
-                        "Reset the app later to start with your own messages.",
+                    tr("Sample data: 21 built-in example bank and UPI messages. Your SMS inbox isn't read. ") +
+                        tr("Reset the app later to start with your own messages."),
                     icon = Ic.info,
                 )
             }
-            item { SectionLabel("How far back") }
+            item { SectionLabel(tr("How far back")) }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     listOf(3, 6, 12).forEach { m ->
                         FilterChip(
                             selected = f.rangeMonths == m,
                             onClick = { vm.updateDraft { it.copy(rangeMonths = m) } },
-                            label = { com.owl.tracker.ui.components.FitText("$m months", minScale = 0.7f, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
+                            label = { com.owl.tracker.ui.components.FitText(tr("{0} months", m), minScale = 0.7f, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
                             modifier = Modifier.weight(1f),
                         )
                     }
                 }
             }
-            item { SectionLabel("Senders found in your SMS") }
+            item { SectionLabel(tr("Senders found in your SMS")) }
             item {
                 Panel(padding = 4.dp) {
                     if (ui.scanning) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.5.dp)
-                            Text("Looking through your inbox…")
+                            Text(tr("Looking through your inbox…"))
                         }
                     } else if (senders.isEmpty()) {
                         Column(Modifier.padding(16.dp)) {
-                            Text("No bank, card or UPI transactions found in the last 12 months", style = MaterialTheme.typography.titleSmall)
+                            Text(tr("No bank, card or UPI transactions found in the last 12 months"), style = MaterialTheme.typography.titleSmall)
                             Text(
-                                "If your bank's messages are in your inbox, tap See what was skipped below to check why, " +
-                                    "or continue without importing and add expenses yourself.",
+                                tr("If your bank's messages are in your inbox, tap See what was skipped below to check why, ") +
+                                    tr("or continue without importing and add expenses yourself."),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -140,7 +141,7 @@ fun ImportFiltersScreen(vm: AppViewModel) {
                                     Text(g.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(g.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(
-                                        "$n ${if (n == 1) "transaction" else "transactions"}" + if (on) "" else " · left out",
+                                        "$n ${if (n == 1) "transaction" else "transactions"}" + if (on) "" else tr(" · left out"),
                                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
                                         color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -151,39 +152,39 @@ fun ImportFiltersScreen(vm: AppViewModel) {
                     }
                 }
             }
-            item { SectionLabel("What to include") }
+            item { SectionLabel(tr("What to include")) }
             item {
                 Panel(padding = 12.dp) {
-                    SwitchRow("Money out", "Spends, bills, transfers, ATM", f.includeOut, { v -> vm.updateDraft { it.copy(includeOut = v) } })
+                    SwitchRow(tr("Money out"), tr("Spends, bills, transfers, ATM"), f.includeOut, { v -> vm.updateDraft { it.copy(includeOut = v) } })
                     Divider()
-                    SwitchRow("Money in", "Refunds, salary, cashback", f.includeIn, { v -> vm.updateDraft { it.copy(includeIn = v) } })
+                    SwitchRow(tr("Money in"), tr("Refunds, salary, cashback"), f.includeIn, { v -> vm.updateDraft { it.copy(includeIn = v) } })
                     Divider()
                     Gap(8.dp)
-                    Text("Skip small amounts", style = MaterialTheme.typography.titleSmall)
-                    Text("Leaves out spends below the amount you pick", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("Skip small amounts"), style = MaterialTheme.typography.titleSmall)
+                    Text(tr("Leaves out spends below the amount you pick"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Gap(6.dp)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(0L, 1_000L, 5_000L, 10_000L).forEach { p ->
-                            FilterChip(selected = f.minAmountPaise == p, onClick = { vm.updateDraft { it.copy(minAmountPaise = p) } }, label = { Text(if (p == 0L) "Off" else "Under ${Money.formatInr(p)}") })
+                            FilterChip(selected = f.minAmountPaise == p, onClick = { vm.updateDraft { it.copy(minAmountPaise = p) } }, label = { Text(if (p == 0L) tr("Off") else tr("Under {0}", Money.formatInr(p))) })
                         }
                     }
                     Gap(8.dp)
                     Divider()
                     Gap(10.dp)
-                    Text("Skip messages containing", style = MaterialTheme.typography.titleSmall)
-                    Text("Checks the merchant and the message text", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("Skip messages containing"), style = MaterialTheme.typography.titleSmall)
+                    Text(tr("Checks the merchant and the message text"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Gap(6.dp)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = ui.wordInput,
                             onValueChange = vm::setWordInput,
-                            placeholder = { Text("e.g. wallet top-up, NEFT") },
+                            placeholder = { Text(tr("e.g. wallet top-up, NEFT")) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { vm.addSkipWord() }),
                             modifier = Modifier.weight(1f).testTag("skip_word"),
                         )
-                        FilledTonalButton(onClick = { vm.addSkipWord() }) { Text("Add") }
+                        FilledTonalButton(onClick = { vm.addSkipWord() }) { Text(tr("Add")) }
                     }
                     if (f.skipWords.isNotEmpty()) {
                         Gap(6.dp)
@@ -193,7 +194,7 @@ fun ImportFiltersScreen(vm: AppViewModel) {
                                     selected = false,
                                     onClick = { vm.removeSkipWord(w) },
                                     label = { Text(w) },
-                                    trailingIcon = { Icon(Ic.close, contentDescription = "Remove $w", modifier = Modifier.size(16.dp)) },
+                                    trailingIcon = { Icon(Ic.close, contentDescription = tr("Remove {0}", w), modifier = Modifier.size(16.dp)) },
                                 )
                             }
                         }
@@ -202,8 +203,8 @@ fun ImportFiltersScreen(vm: AppViewModel) {
             }
             item {
                 InfoNote(
-                    "Always skipped: OTPs, promotional (-P) messages and texts from people. " +
-                        "${vm.ignoredCount()} messages in this period are skipped and never stored.",
+                    tr("Always skipped: OTPs, promotional (-P) messages and texts from people. ") +
+                        tr("{0} messages in this period are skipped and never stored.", vm.ignoredCount()),
                     icon = Ic.shield, container = MaterialTheme.colorScheme.primaryContainer, content = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
@@ -211,13 +212,13 @@ fun ImportFiltersScreen(vm: AppViewModel) {
                 OutlinedButton(
                     onClick = { vm.openSheet(com.owl.tracker.ui.Sheet.Skipped) },
                     modifier = Modifier.fillMaxWidth().height(48.dp).testTag("see_skipped"),
-                ) { Text("See what was skipped (${vm.ignoredCount()})") }
+                ) { Text(tr("See what was skipped ({0})", vm.ignoredCount())) }
             }
         }
         Surface(tonalElevation = 3.dp) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    if (ui.scanning) "Scanning…" else if (selectable.isEmpty() && senders.isEmpty()) "No transactions found" else if (selectable.isEmpty()) "Nothing selected: tick a sender above" else "${selectable.size} transactions from $sendersOn of ${senders.size} senders",
+                    if (ui.scanning) tr("Scanning…") else if (selectable.isEmpty() && senders.isEmpty()) tr("No transactions found") else if (selectable.isEmpty()) tr("Nothing selected: tick a sender above") else tr("{0} transactions from {1} of {2} senders", selectable.size, sendersOn, senders.size),
                     style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("import_summary"),
                 )
@@ -225,23 +226,23 @@ fun ImportFiltersScreen(vm: AppViewModel) {
                 if (onboarding && !ui.scanning && selectable.isEmpty()) {
                     // Never a dead end: with nothing to import, carry on in manual mode.
                     Button(onClick = { vm.chooseManualMode() }, modifier = Modifier.fillMaxWidth().height(52.dp).testTag("continue_manual")) {
-                        Text("Continue without importing")
+                        Text(tr("Continue without importing"))
                     }
                     Text(
-                        "You can import later from More → Settings → What to import.",
+                        tr("You can import later from More → Settings → What to import."),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 } else if (onboarding) {
                     Button(onClick = { vm.toReview() }, enabled = !ui.scanning, modifier = Modifier.fillMaxWidth().height(52.dp).testTag("review_button")) {
-                        Text(if (selectable.isEmpty()) "Review transactions" else "Review ${selectable.size} transactions")
+                        Text(if (selectable.isEmpty()) tr("Review transactions") else tr("Review {0} transactions", selectable.size))
                     }
                     TextButton(onClick = { vm.runImport(withReview = false) }, enabled = !ui.scanning && selectable.isNotEmpty(), modifier = Modifier.fillMaxWidth().testTag("import_all")) {
-                        Text("Skip review and import all")
+                        Text(tr("Skip review and import all"))
                     }
                 } else {
-                    Button(onClick = { vm.saveFiltersOnly() }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Save filters") }
-                    TextButton(onClick = { vm.toReview() }, enabled = !ui.scanning, modifier = Modifier.fillMaxWidth()) { Text("Save and re-import past messages") }
+                    Button(onClick = { vm.saveFiltersOnly() }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(tr("Save filters")) }
+                    TextButton(onClick = { vm.toReview() }, enabled = !ui.scanning, modifier = Modifier.fillMaxWidth()) { Text(tr("Save and re-import past messages")) }
                 }
             }
         }
@@ -270,19 +271,19 @@ fun ImportReviewScreen(vm: AppViewModel) {
     val fmt = remember { DateTimeFormatter.ofPattern("EEE d MMM, h:mm a", Locale.ENGLISH) }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Review before importing", "$selected of ${all.size} selected · tap any to leave it out", onBack = { vm.back() })
+        ScreenHeader(tr("Review before importing"), tr("{0} of {1} selected · tap any to leave it out", selected, all.size), onBack = { vm.back() })
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(ui.chip == ReviewChip.ALL, { vm.setChip(ReviewChip.ALL) }, { Text("All") })
-            FilterChip(ui.chip == ReviewChip.OUT, { vm.setChip(ReviewChip.OUT) }, { Text("Money out") })
-            FilterChip(ui.chip == ReviewChip.IN, { vm.setChip(ReviewChip.IN) }, { Text("Money in") })
-            FilterChip(ui.chip == ReviewChip.UNSURE, { vm.setChip(ReviewChip.UNSURE) }, { Text("Unsure · $unsure") })
+            FilterChip(ui.chip == ReviewChip.ALL, { vm.setChip(ReviewChip.ALL) }, { Text(tr("All")) })
+            FilterChip(ui.chip == ReviewChip.OUT, { vm.setChip(ReviewChip.OUT) }, { Text(tr("Money out")) })
+            FilterChip(ui.chip == ReviewChip.IN, { vm.setChip(ReviewChip.IN) }, { Text(tr("Money in")) })
+            FilterChip(ui.chip == ReviewChip.UNSURE, { vm.setChip(ReviewChip.UNSURE) }, { Text(tr("Unsure · {0}", unsure)) })
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("${shown.size} shown", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text(tr("{0} shown", shown.size), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
             TextButton(onClick = {
                 vm.setReviewed(shown.map { it.smsId }, selected = !allShownOn)
                 if (!allShownOn) byMonth.keys.filter { it in ui.monthsOff }.forEach { vm.toggleMonth(it) }
-            }) { Text(if (allShownOn) "Clear all" else "Select all") }
+            }) { Text(if (allShownOn) tr("Clear all") else tr("Select all")) }
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
             byMonth.forEach { (month, monthItems) ->
@@ -331,12 +332,12 @@ fun ImportReviewScreen(vm: AppViewModel) {
                     }
                 }
             }
-            if (shown.isEmpty()) item { Text("Nothing here with this filter.", modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (shown.isEmpty()) item { Text(tr("Nothing here with this filter."), modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         Surface(tonalElevation = 3.dp) {
             Box(Modifier.fillMaxWidth().padding(16.dp)) {
                 Button(onClick = { vm.runImport(withReview = true) }, enabled = selected > 0 || ui.mode == ImportMode.SETTINGS, modifier = Modifier.fillMaxWidth().height(52.dp).testTag("import_selected")) {
-                    Text(if (selected > 0) "Import $selected transactions" else "Nothing selected")
+                    Text(if (selected > 0) tr("Import {0} transactions", selected) else tr("Nothing selected"))
                 }
             }
         }
@@ -347,7 +348,7 @@ fun ImportReviewScreen(vm: AppViewModel) {
 fun UnsureBadge() {
     val sc = com.owl.tracker.ui.theme.LocalStatusColors.current
     Text(
-        "Unsure",
+        tr("Unsure"),
         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
         color = sc.warnFg,
         modifier = Modifier.background(sc.warnBg, androidx.compose.foundation.shape.RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
@@ -367,32 +368,32 @@ fun ImportingScreen(vm: AppViewModel) {
         ) {
             Gap(24.dp)
             Text(
-                if (done) "All set" else if (ui.mode == ImportMode.ONBOARDING) "Importing your transactions" else "Re-importing past messages",
+                if (done) tr("All set") else if (ui.mode == ImportMode.ONBOARDING) tr("Importing your transactions") else tr("Re-importing past messages"),
                 style = MaterialTheme.typography.headlineMedium,
             )
             Text(
-                if (done) "Your transactions are saved, encrypted, on this phone." else "Reading only the messages you selected. Nothing leaves this phone.",
+                if (done) tr("Your transactions are saved, encrypted, on this phone.") else tr("Reading only the messages you selected. Nothing leaves this phone."),
                 style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Panel {
                 Row(Modifier.fillMaxWidth()) {
-                    Text(if (ui.running) "Saving…" else "Import complete", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                    Text(if (ui.running) tr("Saving…") else tr("Import complete"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                     Text("${(ui.progress * 100).toInt()}%", style = MaterialTheme.typography.titleSmall)
                 }
                 Gap(10.dp)
                 LinearProgressIndicator(progress = { ui.progress }, modifier = Modifier.fillMaxWidth())
                 if (r != null) {
                     Gap(14.dp)
-                    StatRow("Transactions saved", r.saved.toString())
-                    StatRow("Need a quick look", r.needsReview.toString())
-                    StatRow("Duplicates merged", r.duplicates.toString())
-                    StatRow("Left out by you", r.leftOut.toString())
-                    if (r.removed > 0) StatRow("Removed by new filters", r.removed.toString())
+                    StatRow(tr("Transactions saved"), r.saved.toString())
+                    StatRow(tr("Need a quick look"), r.needsReview.toString())
+                    StatRow(tr("Duplicates merged"), r.duplicates.toString())
+                    StatRow(tr("Left out by you"), r.leftOut.toString())
+                    if (r.removed > 0) StatRow(tr("Removed by new filters"), r.removed.toString())
                     if (r.byGroup.isNotEmpty()) {
                         Gap(10.dp)
                         Divider()
                         Gap(10.dp)
-                        Text("SAVED BY SENDER", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(tr("SAVED BY SENDER"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         r.byGroup.entries.sortedByDescending { it.value }.forEach { (g, n) -> StatRow(Institutions.nameFor(g), "$n") }
                     }
                 }
@@ -401,7 +402,7 @@ fun ImportingScreen(vm: AppViewModel) {
         if (done) {
             Surface(tonalElevation = 3.dp) {
                 Box(Modifier.fillMaxWidth().padding(16.dp)) {
-                    Button(onClick = { vm.finishImport() }, modifier = Modifier.fillMaxWidth().height(56.dp).testTag("import_continue")) { Text("Continue") }
+                    Button(onClick = { vm.finishImport() }, modifier = Modifier.fillMaxWidth().height(56.dp).testTag("import_continue")) { Text(tr("Continue")) }
                 }
             }
         }

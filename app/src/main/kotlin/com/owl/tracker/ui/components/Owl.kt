@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.components
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.clickable
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,13 +47,13 @@ import kotlin.math.sin
  * speech bubble; [ink] its colour there (dark enough to read on the bubble's cream or white).
  */
 enum class OwlMood(val label: String, val says: String, val ink: Color) {
-    CHEERING("cheering", "Yay, plenty left!", Color(0xFF1E7A34)),
-    HAPPY("happy", "Nicely on track", Color(0xFF3B6E12)),
-    WORRIED("worried", "Getting close…", Color(0xFF8A5600)),
-    SAD("sad", "A little over", Color(0xFFA84A12)),
-    UPSET("upset", "Well over budget", Color(0xFFB42318)),
-    CRYING("crying", "Way, way over!", Color(0xFFA8174F)),
-    CURIOUS("curious", "No budget yet", Color(0xFF1F5F96));
+    CHEERING("cheering", tr("Yay, plenty left!"), Color(0xFF1E7A34)),
+    HAPPY("happy", tr("Nicely on track"), Color(0xFF3B6E12)),
+    WORRIED("worried", tr("Getting close…"), Color(0xFF8A5600)),
+    SAD("sad", tr("A little over"), Color(0xFFA84A12)),
+    UPSET("upset", tr("Well over budget"), Color(0xFFB42318)),
+    CRYING("crying", tr("Way, way over!"), Color(0xFFA8174F)),
+    CURIOUS("curious", tr("No budget yet"), Color(0xFF1F5F96));
 
     companion object {
         /**
@@ -94,7 +95,7 @@ fun MoodOwl(mood: OwlMood, size: Dp, modifier: Modifier = Modifier, playKey: Any
     LaunchedEffect(mood, playKey, still) { if (!still) clock.animateTo(ACT, tween((ACT * 1000).toInt(), easing = LinearEasing)) }
     Canvas(
         modifier.size(size)
-            .semantics { contentDescription = "The owl looks ${mood.label}" }
+            .semantics { contentDescription = tr("The owl looks {0}", mood.label) }
             .testTag("owl"),
     ) {
                 // an 870-unit square around it, feet at the same height in the box as the old owl's (84 of 92)
@@ -479,8 +480,8 @@ fun IdleOwl(size: Dp, modifier: Modifier = Modifier, wander: Boolean = true) {
     }
     Canvas(
         modifier.size(size)
-            .clickable(onClickLabel = "Wave at the owl") { play(LaunchAct.HELLO) }
-            .semantics { contentDescription = "The owl" }
+            .clickable(onClickLabel = tr("Wave at the owl")) { play(LaunchAct.HELLO) }
+            .semantics { contentDescription = tr("The owl") }
             .testTag("header_owl"),
     ) {
         val s = this.size.width / 870f

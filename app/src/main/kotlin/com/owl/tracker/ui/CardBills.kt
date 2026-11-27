@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import com.owl.tracker.i18n.tr
 import com.owl.tracker.core.Direction
 import com.owl.tracker.core.TxKind
 import com.owl.tracker.data.Txn
@@ -34,7 +35,7 @@ data class CardCycle(val billDay: Int, val dueDays: Int = 20) {
     fun billBefore(bill: LocalDate): LocalDate = bill.minusMonths(1).let { billIn(it.year, it.monthValue) }
 
     /** "the 20th", "the last day" */
-    val dayWords: String get() = if (billDay == LAST_DAY) "the last day" else "the " + ordinal(billDay)
+    val dayWords: String get() = if (billDay == LAST_DAY) tr("the last day") else tr("the ") + ordinal(billDay)
 
     companion object {
         const val LAST_DAY = 31

@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -78,7 +79,7 @@ fun RecapStory(r: Recap, platform: Platform, onClose: () -> Unit, onShare: () ->
                     }
                     .testTag("recap_${card.tag}"),
             ) {
-                Text("Your ${r.month} · ${at + 1} of ${cards.size}", color = Cream, style = MaterialTheme.typography.titleSmall)
+                Text(tr("Your {0} · {1} of {2}", r.month, at + 1, cards.size), color = Cream, style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(14.dp))
                 Box(Modifier.weight(1f)) { card.content() }
             }
@@ -88,20 +89,20 @@ fun RecapStory(r: Recap, platform: Platform, onClose: () -> Unit, onShare: () ->
                     Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(if (i <= at) Color.White else Color.White.copy(alpha = 0.3f)))
                 }
                 IconButton(onClick = onClose, modifier = Modifier.size(36.dp).testTag("recap_close")) {
-                    Icon(Ic.close, contentDescription = "Close the recap", tint = Color.White)
+                    Icon(Ic.close, contentDescription = tr("Close the recap"), tint = Color.White)
                 }
             }
             Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Shares the month's wins as one picture, without amounts (the cards themselves stay on the phone)
                 Text(
-                    "Share my month", color = Color(0xFF3A1C0C), style = MaterialTheme.typography.titleMedium,
+                    tr("Share my month"), color = Color(0xFF3A1C0C), style = MaterialTheme.typography.titleMedium,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color.White)
                         .clickable(onClick = onShare)
                         .padding(vertical = 14.dp).testTag("recap_share"),
                 )
                 Text(
-                    if (at < cards.size - 1) "Next ›" else "Done", color = Color.White, style = MaterialTheme.typography.titleMedium,
+                    if (at < cards.size - 1) tr("Next ›") else tr("Done"), color = Color.White, style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.2f))
                         .clickable { if (at < cards.size - 1) at++ else onClose() }.padding(horizontal = 22.dp, vertical = 14.dp).testTag("recap_next"),
                 )
@@ -155,8 +156,8 @@ private fun recapCards(r: Recap): List<RecapCard> = buildList {
     val cocoa = Color(0xFF3A1C0C); val rust = Color(0xFF8A3E12); val mango = Color(0xFFE08A12)
     add(RecapCard("intro", cocoa, rust) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Big("Your ${r.month}, in a few cards")
-            Line("${r.payments} payments, ${Money.formatInr(r.spent)} in all. Here's what stood out.")
+            Big(tr("Your {0}, in a few cards", r.month))
+            Line(tr("{0} payments, {1} in all. Here's what stood out.", r.payments, Money.formatInr(r.spent)))
             Box(Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) { MoodOwl(OwlMood.HAPPY, 170.dp) }
         }
     })
@@ -165,25 +166,25 @@ private fun recapCards(r: Recap): List<RecapCard> = buildList {
         val under = r.spent <= r.budget
         add(RecapCard("budget", if (under) Color(0xFF1F4A2E) else cocoa, if (under) Color(0xFF3E8A55) else Color(0xFF9A2A22)) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Big(if (under) "You saved\n${Money.formatInr(r.budget - r.spent)}" else "You went over by\n${Money.formatInr(r.spent - r.budget)}")
-                Line("The budget was ${Money.formatInr(r.budget)} and you spent ${Money.formatInr(r.spent)}.")
+                Big(if (under) tr("You saved\n{0}", Money.formatInr(r.budget - r.spent)) else tr("You went over by\n{0}", Money.formatInr(r.spent - r.budget)))
+                Line(tr("The budget was {0} and you spent {1}.", Money.formatInr(r.budget), Money.formatInr(r.spent)))
                 Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
-                    RecapRing(used, if (used > 1) String.format(Locale.ROOT, "%.1f×", used) else "${(used * 100).toInt()}%", if (used > 1) "the budget" else "of budget")
+                    RecapRing(used, if (used > 1) String.format(Locale.ROOT, "%.1f×", used) else "${(used * 100).toInt()}%", if (used > 1) tr("the budget") else tr("of budget"))
                 }
             }
         })
     }
     if (r.biggestDay != null && r.biggestDayPaise > 0) add(RecapCard("biggest_day", rust, mango) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Biggest day", color = Cream, style = MaterialTheme.typography.titleMedium)
+            Text(tr("Biggest day"), color = Cream, style = MaterialTheme.typography.titleMedium)
             Big(r.biggestDay.format(dayFmt))
             Big(Money.formatInr(r.biggestDayPaise), 38)
-            r.biggestDayMerchant?.let { Line("Mostly $it.") }
+            r.biggestDayMerchant?.let { Line(tr("Mostly {0}.", it)) }
         }
     })
     if (r.topMerchant != null) add(RecapCard("top_merchant", Color(0xFF5A2A6E), Color(0xFFB0507A)) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Your top merchant", color = Cream, style = MaterialTheme.typography.titleMedium)
+            Text(tr("Your top merchant"), color = Cream, style = MaterialTheme.typography.titleMedium)
             Big(r.topMerchant)
             Line("${r.topMerchantCount} ${if (r.topMerchantCount == 1) "payment" else "payments"}, ${Money.formatInr(r.topMerchantPaise)} in all.")
         }
@@ -191,7 +192,7 @@ private fun recapCards(r: Recap): List<RecapCard> = buildList {
     r.topCategory?.let { c ->
         add(RecapCard("top_category", Color(0xFF1F3F5A), Color(0xFF3A7AA0)) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("Where most of it went", color = Cream, style = MaterialTheme.typography.titleMedium)
+                Text(tr("Where most of it went"), color = Cream, style = MaterialTheme.typography.titleMedium)
                 com.owl.tracker.ui.components.categoryArt(c.icon)?.let { Image(painterResource(it), null, Modifier.size(120.dp)) }
                 Big(c.name)
                 val pct = if (r.spent > 0) (r.topCategoryPaise * 100 / r.spent).toInt() else 0
@@ -201,11 +202,11 @@ private fun recapCards(r: Recap): List<RecapCard> = buildList {
     }
     if (r.days > 0 && (r.noSpendDays > 0 || r.daysWithinShare > 0)) add(RecapCard("good_days", Color(0xFF1F4A2E), Color(0xFF6BA84F)) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("The good days", color = Cream, style = MaterialTheme.typography.titleMedium)
-            if (r.daysWithinShare > 0) Big("${r.daysWithinShare} of ${r.days} days\nwithin your share")
+            Text(tr("The good days"), color = Cream, style = MaterialTheme.typography.titleMedium)
+            if (r.daysWithinShare > 0) Big(tr("{0} of {1} days\nwithin your share", r.daysWithinShare, r.days))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Tile("No-spend days", "${r.noSpendDays}", if (r.noSpendDays > 0) "nothing went out" else "try one this month", Modifier.weight(1f))
-                if (r.invested > 0) Tile("Invested", Money.formatInr(r.invested), "still yours", Modifier.weight(1f))
+                Tile(tr("No-spend days"), "${r.noSpendDays}", if (r.noSpendDays > 0) tr("nothing went out") else tr("try one this month"), Modifier.weight(1f))
+                if (r.invested > 0) Tile(tr("Invested"), Money.formatInr(r.invested), tr("still yours"), Modifier.weight(1f))
             }
         }
     })
@@ -213,12 +214,12 @@ private fun recapCards(r: Recap): List<RecapCard> = buildList {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             val diff = r.spent - r.previousSpent
             Big(when {
-                r.previousSpent <= 0 -> "That's ${r.month}"
-                diff < 0 -> "${Money.formatInr(-diff)} less than ${r.previousMonth}"
-                diff > 0 -> "${Money.formatInr(diff)} more than ${r.previousMonth}"
-                else -> "Just like ${r.previousMonth}"
+                r.previousSpent <= 0 -> tr("That's {0}", r.month)
+                diff < 0 -> tr("{0} less than {1}", Money.formatInr(-diff), r.previousMonth)
+                diff > 0 -> tr("{0} more than {1}", Money.formatInr(diff), r.previousMonth)
+                else -> tr("Just like {0}", r.previousMonth)
             }, 40)
-            Line(if (diff <= 0 || r.previousSpent <= 0) "Nicely done. The owl will keep an eye on the new month." else "A fresh month starts now. The owl will help you keep to it.")
+            Line(if (diff <= 0 || r.previousSpent <= 0) tr("Nicely done. The owl will keep an eye on the new month.") else tr("A fresh month starts now. The owl will help you keep to it."))
             Box(Modifier.fillMaxWidth().padding(top = 20.dp), contentAlignment = Alignment.Center) { MoodOwl(if (diff <= 0) OwlMood.CHEERING else OwlMood.HAPPY, 160.dp) }
         }
     })

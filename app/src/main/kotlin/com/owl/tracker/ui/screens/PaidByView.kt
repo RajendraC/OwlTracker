@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -117,16 +118,16 @@ fun PaidByView(vm: AppViewModel, accounts: List<PaidAccount>, opened: String?, c
     val open = accounts.getOrNull(index)
     Column(Modifier.fillMaxWidth().testTag("paid_by")) {
         if (accounts.isEmpty()) {
-            Text("Nothing spent yet. When there is, it's listed here by the card or account it was paid from.", style = MaterialTheme.typography.bodyMedium, color = muted)
+            Text(tr("Nothing spent yet. When there is, it's listed here by the card or account it was paid from."), style = MaterialTheme.typography.bodyMedium, color = muted)
             return@Column
         }
         if (open == null) {
             val named = accounts.count { it.kind.named }
             PaidRing(
                 accounts.mapIndexed { i, a -> colorOf(a, i) to a.paise },
-                "Spending by card and account: " + accounts.joinToString { "${it.name} ${it.paise * 100 / total}%" },
-                "Paid by", accounts.sumOf { it.paise },
-                if (named == 0) "no card or account named" else "$named ${if (named == 1) "card or account" else "cards and accounts"}",
+                tr("Spending by card and account: ") + accounts.joinToString { "${it.name} ${it.paise * 100 / total}%" },
+                tr("Paid by"), accounts.sumOf { it.paise },
+                if (named == 0) tr("no card or account named") else "$named ${if (named == 1) tr("card or account") else tr("cards and accounts")}",
             )
             Gap(8.dp)
             // The kinds' shares, then a section each: credit cards, debit cards, bank accounts, then the rest
@@ -139,7 +140,7 @@ fun PaidByView(vm: AppViewModel, accounts: List<PaidAccount>, opened: String?, c
                 Gap(10.dp)
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                        .clickable(onClickLabel = if (isShut) "Show ${kind.heading}" else "Hide ${kind.heading}") { shut = if (isShut) shut - kind.key else shut + kind.key }
+                        .clickable(onClickLabel = if (isShut) tr("Show {0}", kind.heading) else tr("Hide {0}", kind.heading)) { shut = if (isShut) shut - kind.key else shut + kind.key }
                         .padding(vertical = 8.dp, horizontal = 6.dp).testTag("paid_section_${kind.key}"),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -158,21 +159,21 @@ fun PaidByView(vm: AppViewModel, accounts: List<PaidAccount>, opened: String?, c
             }
             Gap(8.dp)
             Text(
-                "The digits are the last 4 in the bank's SMS. Money moved between your own accounts isn't counted.",
+                tr("The digits are the last 4 in the bank's SMS. Money moved between your own accounts isn't counted."),
                 style = MaterialTheme.typography.bodySmall, color = muted, modifier = Modifier.padding(horizontal = 6.dp),
             )
         } else {
             val color = colorOf(open, index)
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Back to all cards and accounts") { onOpen(null) }
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = tr("Back to all cards and accounts")) { onOpen(null) }
                     .padding(vertical = 4.dp).testTag("paid_up"),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Icon(Ic.back, contentDescription = "Back to all cards and accounts", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Icon(Ic.back, contentDescription = tr("Back to all cards and accounts"), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 AccountTile(vm, open, color, 36.dp)
                 Column(Modifier.weight(1f)) {
                     Text(open.name, style = MaterialTheme.typography.titleMedium)
-                    Text("${open.payments.size} ${if (open.payments.size == 1) "payment" else "payments"} · what it was used for", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Text(tr("{0} {1} · what it was used for", open.payments.size, if (open.payments.size == 1) tr("payment") else tr("payments")), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
             // What it is (credit card, debit card or bank account), and a way to correct it
@@ -190,8 +191,8 @@ fun PaidByView(vm: AppViewModel, accounts: List<PaidAccount>, opened: String?, c
             }
             PaidRing(
                 open.tops.map { Color(it.category.color) to it.paise },
-                "${open.name} by group: " + open.tops.joinToString { "${it.category.name} ${it.paise * 100 / open.paise.coerceAtLeast(1)}%" },
-                open.name, open.paise, "${open.paise * 100 / total}% of spending",
+                tr("{0} by group: ", open.name) + open.tops.joinToString { "${it.category.name} ${it.paise * 100 / open.paise.coerceAtLeast(1)}%" },
+                open.name, open.paise, tr("{0}% of spending", open.paise * 100 / total),
             )
             Gap(8.dp)
             var openTop by rememberSaveable(open.key) { mutableStateOf<String?>(null) }
@@ -201,7 +202,7 @@ fun PaidByView(vm: AppViewModel, accounts: List<PaidAccount>, opened: String?, c
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
                         .then(if (shown) Modifier.background(LocalBrand.current.clay.pressed) else Modifier)
-                        .clickable(onClickLabel = if (shown) "Hide its payments" else "Show its payments") { openTop = if (shown) null else cs.category.id }
+                        .clickable(onClickLabel = if (shown) tr("Hide its payments") else tr("Show its payments")) { openTop = if (shown) null else cs.category.id }
                         .padding(vertical = 8.dp, horizontal = 6.dp).testTag("paid_top_${cs.category.id}"),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -211,7 +212,7 @@ fun PaidByView(vm: AppViewModel, accounts: List<PaidAccount>, opened: String?, c
                         start = {
                             Column {
                                 Text(cs.category.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text("${cs.paise * 100 / open.paise.coerceAtLeast(1)}% of this ${if (open.kind == PaidKind.CREDIT_CARD || open.kind == PaidKind.DEBIT_CARD) "card" else "one"}", style = MaterialTheme.typography.bodySmall, color = muted)
+                                Text(tr("{0}% of this {1}", cs.paise * 100 / open.paise.coerceAtLeast(1), if (open.kind == PaidKind.CREDIT_CARD || open.kind == PaidKind.DEBIT_CARD) tr("card") else tr("one")), style = MaterialTheme.typography.bodySmall, color = muted)
                             }
                         },
                         end = { Text(Money.formatInr(cs.paise), style = MaterialTheme.typography.titleSmall) },
@@ -235,11 +236,11 @@ private val KIND_COLORS = mapOf(
     PaidKind.BY_HAND to BY_HAND_COLOR, PaidKind.UNKNOWN to UNKNOWN_COLOR,
 )
 private val KIND_NOTES = mapOf(
-    PaidKind.CREDIT_CARD to "Paid by the bank now, you pay it back on the bill",
-    PaidKind.DEBIT_CARD to "Straight from your bank account",
-    PaidKind.ACCOUNT to "UPI, net banking and transfers",
-    PaidKind.BY_HAND to "Added in the app, with no card or account",
-    PaidKind.UNKNOWN to "The SMS didn't say which card or account",
+    PaidKind.CREDIT_CARD to tr("Paid by the bank now, you pay it back on the bill"),
+    PaidKind.DEBIT_CARD to tr("Straight from your bank account"),
+    PaidKind.ACCOUNT to tr("UPI, net banking and transfers"),
+    PaidKind.BY_HAND to tr("Added in the app, with no card or account"),
+    PaidKind.UNKNOWN to tr("The SMS didn't say which card or account"),
 )
 
 /** One bar split by kind, with its legend. */
@@ -268,7 +269,7 @@ private fun AccountRow(vm: AppViewModel, a: PaidAccount, i: Int, total: Long, on
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-            .clickable(onClickLabel = "See what ${a.name} was used for") { onOpen(a.key) }
+            .clickable(onClickLabel = tr("See what {0} was used for", a.name)) { onOpen(a.key) }
             .padding(vertical = 8.dp, horizontal = 6.dp).testTag("paid_row_$i"),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -282,7 +283,7 @@ private fun AccountRow(vm: AppViewModel, a: PaidAccount, i: Int, total: Long, on
                         // Never cut: the digits at the end are what tells one card from another
                         Text(a.name, style = MaterialTheme.typography.titleSmall)
                     }
-                    Text("${a.paise * 100 / total}% · ${a.note}" + if (a.changed) " · set by you" else "", style = MaterialTheme.typography.bodySmall, color = muted)
+                    Text("${a.paise * 100 / total}% · ${a.note}" + if (a.changed) tr(" · set by you") else "", style = MaterialTheme.typography.bodySmall, color = muted)
                 }
             },
             end = { Text(Money.formatInr(a.paise), style = MaterialTheme.typography.titleSmall) },
@@ -299,28 +300,28 @@ private fun AccountRow(vm: AppViewModel, a: PaidAccount, i: Int, total: Long, on
 fun PaidKindChoice(vm: AppViewModel, label: String, current: PaidKind, guessed: PaidKind, modifier: Modifier = Modifier) {
     var asking by remember { mutableStateOf(false) }
     androidx.compose.material3.TextButton(onClick = { asking = true }, modifier = modifier.testTag("paid_kind_change")) {
-        Text("${current.label}${if (current != guessed) " (set by you)" else ""} · Change", style = MaterialTheme.typography.labelLarge)
+        Text(tr("{0}{1} · Change", current.label, if (current != guessed) tr(" (set by you)") else ""), style = MaterialTheme.typography.labelLarge)
     }
     if (asking) {
         var picked by remember { mutableStateOf(current) }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { asking = false },
             modifier = Modifier.testTag("paid_kind_dialog"),
-            title = { Text("What is $label?") },
+            title = { Text(tr("What is {0}?", label)) },
             text = {
                 Column {
-                    Text("This applies to all its payments, past and new.", style = MaterialTheme.typography.bodyMedium)
+                    Text(tr("This applies to all its payments, past and new."), style = MaterialTheme.typography.bodyMedium)
                     Gap(8.dp)
                     PaidKind.CHOICES.forEach { k ->
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .clickable(onClickLabel = "Choose ${k.label}") { picked = k }
+                                .clickable(onClickLabel = tr("Choose {0}", k.label)) { picked = k }
                                 .padding(vertical = 4.dp).testTag("paid_kind_${k.key}"),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             androidx.compose.material3.RadioButton(selected = picked == k, onClick = { picked = k })
                             Column(Modifier.weight(1f)) {
-                                Text(k.label + if (k == guessed) " (what the SMS suggests)" else "", style = MaterialTheme.typography.bodyLarge)
+                                Text(k.label + if (k == guessed) tr(" (what the SMS suggests)") else "", style = MaterialTheme.typography.bodyLarge)
                                 Text(KIND_NOTES.getValue(k), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
@@ -331,9 +332,9 @@ fun PaidKindChoice(vm: AppViewModel, label: String, current: PaidKind, guessed: 
                 androidx.compose.material3.TextButton(
                     onClick = { asking = false; if (picked != current) vm.setPaidKind(label, if (picked == guessed) null else picked) },
                     modifier = Modifier.testTag("paid_kind_save"),
-                ) { Text("Save") }
+                ) { Text(tr("Save")) }
             },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = { asking = false }) { Text("Cancel") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { asking = false }) { Text(tr("Cancel")) } },
         )
     }
 }

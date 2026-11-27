@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import com.owl.tracker.i18n.tr
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
@@ -93,7 +94,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
     // The message on show, so an owl's reaction can be drawn as one
     var showing by remember { androidx.compose.runtime.mutableStateOf<UiMessage?>(null) }
 
-    LaunchedEffect(vm) { vm.reportShares.collect { r -> platform.shareFile(r.file, r.format.mime, "Owl Tracker report", "Share the report") } }
+    LaunchedEffect(vm) { vm.reportShares.collect { r -> platform.shareFile(r.file, r.format.mime, tr("Owl Tracker report"), tr("Share the report")) } }
 
     LaunchedEffect(vm) {
         vm.messages.collect { m ->
@@ -112,7 +113,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
 
     if (locked) {
         LockScreen(onUnlock = {
-            platform.authenticate("Unlock Owl Tracker", "Use your fingerprint, face or screen lock", onSuccess = { vm.unlocked() }, onFail = { })
+            platform.authenticate(tr("Unlock Owl Tracker"), tr("Use your fingerprint, face or screen lock"), onSuccess = { vm.unlocked() }, onFail = { })
         }, canUseDeviceLock = platform.canUseDeviceLock(), onFallbackUnlock = { vm.unlocked() })
         return
     }
@@ -184,27 +185,27 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
             val d by vm.deleteUi.collectAsStateWithLifecycle()
             val n = d.selectedCount
             val what = when (d.option) {
-                DeleteOption.OLDER_3 -> "Transactions older than 3 months"
-                DeleteOption.OLDER_6 -> "Transactions older than 6 months"
-                DeleteOption.ACCOUNT -> "All transactions from ${vm.senderName(d.group)}"
-                DeleteOption.ALL_SMS -> "Every transaction imported from SMS"
+                DeleteOption.OLDER_3 -> tr("Transactions older than 3 months")
+                DeleteOption.OLDER_6 -> tr("Transactions older than 6 months")
+                DeleteOption.ACCOUNT -> tr("All transactions from {0}", vm.senderName(d.group))
+                DeleteOption.ALL_SMS -> tr("Every transaction imported from SMS")
             }
             AlertDialog(
                 onDismissRequest = { vm.dismissConfirm() },
                 icon = { Icon(Ic.trash, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                title = { Text("Delete $n ${if (n == 1) "transaction" else "transactions"}?") },
+                title = { Text(tr("Delete {0} {1}?", n, if (n == 1) tr("transaction") else tr("transactions"))) },
                 text = {
                     Text(
                         "$what, with their saved SMS copies, will be erased from Owl Tracker. This can't be undone.\n\n" +
-                            "Stays: manual entries, categories, rules and budgets. Your SMS inbox isn't touched."
+                            tr("Stays: manual entries, categories, rules and budgets. Your SMS inbox isn't touched.")
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = { vm.confirmDelete() }, modifier = Modifier.testTag("confirm_delete")) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.ExtraBold)
+                        Text(tr("Delete"), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.ExtraBold)
                     }
                 },
-                dismissButton = { TextButton(onClick = { vm.dismissConfirm() }) { Text("Cancel") } },
+                dismissButton = { TextButton(onClick = { vm.dismissConfirm() }) { Text(tr("Cancel")) } },
             )
         }
         ConfirmKind.RESET -> {
@@ -212,25 +213,25 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
             AlertDialog(
                 onDismissRequest = { vm.dismissConfirm() },
                 icon = { Icon(Ic.reset, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                title = { Text("Reset Owl Tracker?") },
+                title = { Text(tr("Reset Owl Tracker?")) },
                 text = {
                     Text(
-                        "This erases every transaction, saved SMS copy, category, rule, budget and setting, and destroys the encryption key. " +
-                            "It can't be undone.\n\nYour SMS inbox isn't touched. You can set Owl Tracker up again straight away."
+                        tr("This erases every transaction, saved SMS copy, category, rule, budget and setting, and destroys the encryption key. ") +
+                            tr("It can't be undone.\n\nYour SMS inbox isn't touched. You can set Owl Tracker up again straight away.")
                     )
                 },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (secure) platform.authenticate("Confirm reset", "Confirm it's you to erase Owl Tracker", onSuccess = { vm.performReset() }, onFail = { })
+                            if (secure) platform.authenticate(tr("Confirm reset"), tr("Confirm it's you to erase Owl Tracker"), onSuccess = { vm.performReset() }, onFail = { })
                             else vm.performReset()
                         },
                         modifier = Modifier.testTag("confirm_reset"),
                     ) {
-                        Text(if (secure) "Confirm it's you" else "Erase everything", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.ExtraBold)
+                        Text(if (secure) tr("Confirm it's you") else tr("Erase everything"), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.ExtraBold)
                     }
                 },
-                dismissButton = { TextButton(onClick = { vm.dismissConfirm() }) { Text("Cancel") } },
+                dismissButton = { TextButton(onClick = { vm.dismissConfirm() }) { Text(tr("Cancel")) } },
             )
         }
         null -> Unit
@@ -238,10 +239,10 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
 }
 
 private val TABS = listOf(
-    Triple(Tab.HOME, "Home", Screen.HOME),
-    Triple(Tab.ACTIVITY, "Activity", Screen.ACTIVITY),
-    Triple(Tab.BUDGETS, "Budgets", Screen.BUDGETS),
-    Triple(Tab.MORE, "More", Screen.MORE),
+    Triple(Tab.HOME, tr("Home"), Screen.HOME),
+    Triple(Tab.ACTIVITY, tr("Activity"), Screen.ACTIVITY),
+    Triple(Tab.BUDGETS, tr("Budgets"), Screen.BUDGETS),
+    Triple(Tab.MORE, tr("More"), Screen.MORE),
 )
 
 /**
@@ -322,8 +323,8 @@ private fun AddButton(onClick: () -> Unit, ring: androidx.compose.ui.graphics.Co
                     size = androidx.compose.ui.geometry.Size(size.width * 0.34f, size.height * 0.2f),
                 )
             }
-            .clickable(interactionSource = press, indication = androidx.compose.material3.ripple(), role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Add expense") { onClick() }
-            .semantics { contentDescription = "Add expense" }
+            .clickable(interactionSource = press, indication = androidx.compose.material3.ripple(), role = androidx.compose.ui.semantics.Role.Button, onClickLabel = tr("Add expense")) { onClick() }
+            .semantics { contentDescription = tr("Add expense") }
             .testTag("add_expense"),
         contentAlignment = Alignment.Center,
     ) {

@@ -1,5 +1,6 @@
 package com.owl.tracker.ui
 
+import com.owl.tracker.i18n.tr
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
@@ -176,7 +177,7 @@ class MainActivity : FragmentActivity() {
             BiometricManager.from(this@MainActivity).canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
 
         override fun authenticate(title: String, subtitle: String, onSuccess: () -> Unit, onFail: (String) -> Unit) {
-            if (!canUseDeviceLock()) { onFail("Set a screen lock on your phone first"); return }
+            if (!canUseDeviceLock()) { onFail(tr("Set a screen lock on your phone first")); return }
             val prompt = BiometricPrompt(this@MainActivity, ContextCompat.getMainExecutor(this@MainActivity), object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) = onSuccess()
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) = onFail(errString.toString())
@@ -210,7 +211,7 @@ class MainActivity : FragmentActivity() {
             val send = Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri).putExtra(Intent.EXTRA_TEXT, text)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             send.clipData = android.content.ClipData.newRawUri(file.name, uri)
-            startActivity(Intent.createChooser(send, "Share"))
+            startActivity(Intent.createChooser(send, tr("Share")))
         }
 
         override fun shareBackup(file: java.io.File) {
@@ -218,10 +219,10 @@ class MainActivity : FragmentActivity() {
             val send = Intent(Intent.ACTION_SEND)
                 .setType("application/json")
                 .putExtra(Intent.EXTRA_STREAM, uri)
-                .putExtra(Intent.EXTRA_SUBJECT, "Owl Tracker backup")
+                .putExtra(Intent.EXTRA_SUBJECT, tr("Owl Tracker backup"))
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             send.clipData = android.content.ClipData.newRawUri(file.name, uri)
-            startActivity(Intent.createChooser(send, "Share your backup"))
+            startActivity(Intent.createChooser(send, tr("Share your backup")))
         }
     }
 }
@@ -244,5 +245,5 @@ interface Platform {
     /** Hands [file] (in the shared cache folder) to an app the person picks. */
     fun shareFile(file: java.io.File, mime: String, subject: String, chooser: String)
     /** Hands a picture (in the shared cache folder) and a line of [text] to an app the person picks. */
-    fun shareImage(file: java.io.File, text: String) = shareFile(file, "image/png", "Owl Tracker", "Share")
+    fun shareImage(file: java.io.File, text: String) = shareFile(file, "image/png", tr("Owl Tracker"), tr("Share"))
 }

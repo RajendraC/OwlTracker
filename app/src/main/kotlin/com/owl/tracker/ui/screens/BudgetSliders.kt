@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -135,12 +136,12 @@ fun trendWords(months: List<Long?>, labels: List<String>): Pair<String, TrendKin
     val known = months.mapIndexedNotNull { i, v -> v?.let { labels.getOrElse(i) { "" } to it } }
     val last3 = known.takeLast(3).joinToString(", ") { (l, v) -> "$l ${Money.formatShort(v)}" }
     val text = when (kind) {
-        TrendKind.RISING -> "↑ Rising · $last3"
-        TrendKind.FALLING -> "↓ Falling · $last3"
-        TrendKind.STEADY -> "→ Steady · about ${Money.formatShort(known.takeLast(3).map { it.second }.average().toLong())}"
-        TrendKind.UP_AND_DOWN -> "↕ Up and down · ${Money.formatShort(known.minOf { it.second })} to ${Money.formatShort(known.maxOf { it.second })}"
-        TrendKind.TOO_EARLY -> known.lastOrNull()?.let { (l, v) -> "Only $l so far · ${Money.formatShort(v)}" } ?: "Nothing yet"
-        TrendKind.NONE -> if (known.isEmpty()) "No months to go by yet" else "Nothing in the last ${known.size} months"
+        TrendKind.RISING -> tr("↑ Rising · {0}", last3)
+        TrendKind.FALLING -> tr("↓ Falling · {0}", last3)
+        TrendKind.STEADY -> tr("→ Steady · about {0}", Money.formatShort(known.takeLast(3).map { it.second }.average().toLong()))
+        TrendKind.UP_AND_DOWN -> tr("↕ Up and down · {0} to {1}", Money.formatShort(known.minOf { it.second }), Money.formatShort(known.maxOf { it.second }))
+        TrendKind.TOO_EARLY -> known.lastOrNull()?.let { (l, v) -> tr("Only {0} so far · {1}", l, Money.formatShort(v)) } ?: tr("Nothing yet")
+        TrendKind.NONE -> if (known.isEmpty()) tr("No months to go by yet") else tr("Nothing in the last {0} months", known.size)
     }
     return text to kind
 }
@@ -178,7 +179,7 @@ internal fun MonthsSlider(
         // slider (an amount typed past it) it slides freely, still in ₹100s
         steps = (maxRupees / 100 - 1).toInt().takeIf { it in 1..5000 } ?: 0,
         modifier = Modifier.fillMaxWidth().padding(top = if (months.any { (it ?: 0L) > 0 }) 18.dp else 0.dp).testTag("budget_slider_$id")
-            .semantics { contentDescription = "$name budget"; stateDescription = Money.formatInr(paise) },
+            .semantics { contentDescription = tr("{0} budget", name); stateDescription = Money.formatInr(paise) },
         thumb = {
             Box(Modifier.size(24.dp).shadow(3.dp, CircleShape).background(surface, CircleShape).border(3.dp, ink, CircleShape))
         },
@@ -233,7 +234,7 @@ internal fun AmountBox(id: String, name: String, paise: Long, tag: String = "bud
         visualTransformation = IndianGrouping,
         interactionSource = focus,
         cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
-        modifier = Modifier.testTag(tag).semantics { contentDescription = "$name budget in rupees" },
+        modifier = Modifier.testTag(tag).semantics { contentDescription = tr("{0} budget in rupees", name) },
         decorationBox = { inner ->
             Row(
                 Modifier.widthIn(min = 100.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface)
@@ -282,19 +283,19 @@ private fun SliderRow(r: SliderCategory, labels: List<String>, paise: Long, maxP
             r.now?.let { now ->
                 val over = now - paise
                 val line = when {
-                    paise <= 0 -> "This month: ${Money.formatInr(now)} spent"
-                    over > 0 -> "This month: ${Money.formatInr(now)} spent · ${Money.formatInr(over)} over"
-                    else -> "This month: ${Money.formatInr(now)} spent · ${Money.formatInr(-over)} left"
+                    paise <= 0 -> tr("This month: {0} spent", Money.formatInr(now))
+                    over > 0 -> tr("This month: {0} spent · {1} over", Money.formatInr(now), Money.formatInr(over))
+                    else -> tr("This month: {0} spent · {1} left", Money.formatInr(now), Money.formatInr(-over))
                 }
                 Text(line, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = if (paise > 0 && over > 0) sc.overFg else muted)
             }
             if (known > 0) {
                 val ok = Trends.enoughIn(r.months, paise)
                 val (text, col) = when {
-                    paise <= 0 -> "No budget for this category" to muted
-                    ok * 10 >= known * 8 -> "Enough in $ok of the last $known months" to sc.okFg
-                    ok * 2 >= known -> "Enough in $ok of the last $known months" to sc.warnFg
-                    else -> "Enough in $ok of the last $known months" to sc.overFg
+                    paise <= 0 -> tr("No budget for this category") to muted
+                    ok * 10 >= known * 8 -> tr("Enough in {0} of the last {1} months", ok, known) to sc.okFg
+                    ok * 2 >= known -> tr("Enough in {0} of the last {1} months", ok, known) to sc.warnFg
+                    else -> tr("Enough in {0} of the last {1} months", ok, known) to sc.overFg
                 }
                 Text(text, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = col, modifier = Modifier.testTag("enough_${c.id}"))
             }
@@ -313,19 +314,19 @@ private fun SliderSummary(rows: List<SliderCategory>, values: Map<String, Long>,
             Modifier.fillMaxWidth(),
             start = {
                 Column {
-                    Text("Monthly budget", style = MaterialTheme.typography.labelLarge, color = muted)
+                    Text(tr("Monthly budget"), style = MaterialTheme.typography.labelLarge, color = muted)
                     FitText(Money.formatInr(total), style = MaterialTheme.typography.headlineMedium, minScale = 0.7f, modifier = Modifier.testTag("slider_total"))
                 }
             },
             end = {
                 when {
                     now != null -> Column(horizontalAlignment = Alignment.End) {
-                        Text("Spent so far", style = MaterialTheme.typography.labelLarge, color = muted)
+                        Text(tr("Spent so far"), style = MaterialTheme.typography.labelLarge, color = muted)
                         Text(Money.formatInr(now), style = MaterialTheme.typography.titleMedium, color = if (now > total) sc.overFg else MaterialTheme.colorScheme.onSurface)
                     }
                     moneyIn > 0 -> Column(horizontalAlignment = Alignment.End) {
                         val left = moneyIn - total
-                        Text(if (left >= 0) "Left to save" else "More than comes in", style = MaterialTheme.typography.labelLarge, color = muted)
+                        Text(if (left >= 0) tr("Left to save") else tr("More than comes in"), style = MaterialTheme.typography.labelLarge, color = muted)
                         Text(Money.formatInr(kotlin.math.abs(left)), style = MaterialTheme.typography.titleMedium, color = if (left >= 0) sc.okFg else sc.overFg)
                     }
                     else -> Unit
@@ -345,16 +346,16 @@ private fun SliderSummary(rows: List<SliderCategory>, values: Map<String, Long>,
             now != null && daysLeft != null && daysLeft > 0 -> {
                 val left = total - now
                 Text(
-                    if (left >= 0) "${Money.formatInr(left / daysLeft)} a day is safe for the next $daysLeft days" else "${Money.formatInr(-left)} over this budget with $daysLeft days left",
+                    if (left >= 0) tr("{0} a day is safe for the next {1} days", Money.formatInr(left / daysLeft), daysLeft) else tr("{0} over this budget with {1} days left", Money.formatInr(-left), daysLeft),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = if (left >= 0) sc.okFg else sc.overFg,
                 )
             }
-            moneyIn > 0 -> Text("Money in, usual month: ${Money.formatInr(moneyIn)}", style = MaterialTheme.typography.bodySmall, color = muted)
+            moneyIn > 0 -> Text(tr("Money in, usual month: {0}", Money.formatInr(moneyIn)), style = MaterialTheme.typography.bodySmall, color = muted)
             else -> Unit
         }
         if (before != null && before > 0 && before != total) {
             Gap(4.dp)
-            Text("Your monthly budget now: ${Money.formatInr(before)}. Saving makes it the total of these.", style = MaterialTheme.typography.bodySmall, color = muted)
+            Text(tr("Your monthly budget now: {0}. Saving makes it the total of these.", Money.formatInr(before)), style = MaterialTheme.typography.bodySmall, color = muted)
         }
     }
 }
@@ -388,7 +389,7 @@ private fun SliderList(
         if (more.isNotEmpty()) {
             item(key = "more") {
                 TextButton(onClick = { showMore = !showMore }, modifier = Modifier.testTag("more_categories")) {
-                    Text(if (showMore) "Fewer categories" else "More categories (${more.size})")
+                    Text(if (showMore) tr("Fewer categories") else tr("More categories ({0})", more.size))
                 }
             }
             if (showMore) items(more, key = { it.category.id }) { r ->
@@ -399,8 +400,8 @@ private fun SliderList(
 }
 
 private fun note(h: MonthHistory): String =
-    "Dots: what you spent ${h.labels.getOrElse(h.firstKnown) { "" }} to ${h.labels.lastOrNull() ?: ""}, older ones fainter. " +
-        "Drag, or type any amount. ₹0 means no budget."
+    tr("Dots: what you spent {0} to {1}, older ones fainter. ", h.labels.getOrElse(h.firstKnown) { "" }, h.labels.lastOrNull() ?: "") +
+        tr("Drag, or type any amount. ₹0 means no budget.")
 
 /**
  * First-time setup with the sliders, once the SMS history has at least one month: every category starts at its usual
@@ -417,9 +418,9 @@ fun BudgetSlidersSetup(vm: AppViewModel, h: MonthHistory, onOneTotal: () -> Unit
     val total = values.values.filter { it > 0 }.sum()
     Column(Modifier.fillMaxSize().imePadding()) {
         Column(Modifier.padding(start = 22.dp, end = 22.dp, top = 24.dp, bottom = 8.dp)) {
-            Text("Set your budgets", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
+            Text(tr("Set your budgets"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
             Text(
-                "From your last ${h.knownCount} ${if (h.knownCount == 1) "month" else "months"} of SMS. Change any of them later in Budgets.",
+                tr("From your last {0} {1} of SMS. Change any of them later in Budgets.", h.knownCount, if (h.knownCount == 1) tr("month") else tr("months")),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -438,8 +439,8 @@ fun BudgetSlidersSetup(vm: AppViewModel, h: MonthHistory, onOneTotal: () -> Unit
                 onClick = { vm.finishOnboardingWithBudgets((shown + more).associate { it.category.id to (values[it.category.id] ?: 0L) }) },
                 enabled = total > 0,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("save_budgets"),
-            ) { FitText("Save budgets · ${Money.formatInr(total)} a month", minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
-            TextButton(onClick = onOneTotal, modifier = Modifier.fillMaxWidth().testTag("one_total")) { Text("Just one monthly total instead") }
+            ) { FitText(tr("Save budgets · {0} a month", Money.formatInr(total)), minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
+            TextButton(onClick = onOneTotal, modifier = Modifier.fillMaxWidth().testTag("one_total")) { Text(tr("Just one monthly total instead")) }
         }
     }
 }
@@ -452,8 +453,8 @@ fun AdjustBudgetsScreen(vm: AppViewModel) {
     val days = h?.current?.let { it.days - it.dayNumber(vm.today()) }
     Column(Modifier.fillMaxSize().imePadding()) {
         ScreenHeader(
-            "Adjust budgets",
-            h?.let { "${MonthHistory.label(it.current)} · $days ${if (days == 1) "day" else "days"} left" },
+            tr("Adjust budgets"),
+            h?.let { tr("{0} · {1} {2} left", MonthHistory.label(it.current), days, if (days == 1) tr("day") else tr("days")) },
             onBack = { vm.back() },
         )
         if (h == null) {
@@ -495,7 +496,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.AdjustBudgetsBody(vm:
                 onClick = { vm.saveBudgets((shown + more).associate { it.category.id to (values[it.category.id] ?: 0L) }) },
                 enabled = total > 0,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("save_budgets"),
-            ) { FitText("Save · ${Money.formatInr(total)} a month", minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
+            ) { FitText(tr("Save · {0} a month", Money.formatInr(total)), minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
         }
     }
 }
@@ -503,7 +504,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.AdjustBudgetsBody(vm:
 /** Shown when there's no month to go by yet: a note under the single amount. */
 @Composable
 fun SlidersComingNote() {
-    InfoNote("A budget for each category? In Budgets, tap any category to set one with a slider.", Ic.info)
+    InfoNote(tr("A budget for each category? In Budgets, tap any category to set one with a slider."), Ic.info)
 }
 
 /**
@@ -538,8 +539,8 @@ fun CategoryBudgetSheet(vm: AppViewModel, key: String) {
     val known = Trends.known(months).size
     val (trend, kind) = when {
         known > 0 -> trendWords(months, labels)
-        now > 0 -> "This month so far: ${Money.formatInr(now)}" to TrendKind.TOO_EARLY
-        else -> "Nothing spent on it yet" to TrendKind.NONE
+        now > 0 -> tr("This month so far: {0}", Money.formatInr(now)) to TrendKind.TOO_EARLY
+        else -> tr("Nothing spent on it yet") to TrendKind.NONE
     }
 
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -551,7 +552,7 @@ fun CategoryBudgetSheet(vm: AppViewModel, key: String) {
     }
     SideOrStacked(
         Modifier.fillMaxWidth(), stackedGap = 6.dp,
-        start = { Text("Budget a month", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold)) },
+        start = { Text(tr("Budget a month"), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold)) },
         end = {
             AmountBox(key, c.name, value) { v ->
                 picked = v
@@ -574,9 +575,9 @@ fun CategoryBudgetSheet(vm: AppViewModel, key: String) {
         val over = now - value
         Text(
             when {
-                value <= 0 -> "This month: ${Money.formatInr(now)} spent, no budget"
-                over > 0 -> "This month: ${Money.formatInr(now)} spent · ${Money.formatInr(over)} over"
-                else -> "This month: ${Money.formatInr(now)} spent · ${Money.formatInr(-over)} left"
+                value <= 0 -> tr("This month: {0} spent, no budget", Money.formatInr(now))
+                over > 0 -> tr("This month: {0} spent · {1} over", Money.formatInr(now), Money.formatInr(over))
+                else -> tr("This month: {0} spent · {1} left", Money.formatInr(now), Money.formatInr(-over))
             },
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
             color = if (value > 0 && over > 0) sc.overFg else MaterialTheme.colorScheme.onSurface,
@@ -589,7 +590,7 @@ fun CategoryBudgetSheet(vm: AppViewModel, key: String) {
         if (known > 0) {
             val ok = Trends.enoughIn(months, value)
             Text(
-                if (value <= 0) "No budget for ${c.name}" else "Enough in $ok of the last $known ${if (known == 1) "month" else "months"}",
+                if (value <= 0) tr("No budget for {0}", c.name) else tr("Enough in {0} of the last {1} {2}", ok, known, if (known == 1) tr("month") else tr("months")),
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                 color = when {
                     value <= 0 -> muted
@@ -603,9 +604,9 @@ fun CategoryBudgetSheet(vm: AppViewModel, key: String) {
     }
     // One tap to a figure that means something
     val quick = buildList {
-        if (usual > 0) add(Triple("usual", "Usual · ${Money.formatShort(usual)}", usual))
+        if (usual > 0) add(Triple("usual", tr("Usual · {0}", Money.formatShort(usual)), usual))
         months.getOrNull(lastIdx)?.takeIf { it > 0 && it != usual }?.let { add(Triple("last", "${labels.getOrElse(lastIdx) { "" }} · ${Money.formatShort(it)}", it)) }
-        current?.takeIf { it != usual }?.let { add(Triple("now", "As now · ${Money.formatShort(it)}", it)) }
+        current?.takeIf { it != usual }?.let { add(Triple("now", tr("As now · {0}", Money.formatShort(it)), it)) }
     }
     if (quick.isNotEmpty()) {
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -618,18 +619,18 @@ fun CategoryBudgetSheet(vm: AppViewModel, key: String) {
         }
     }
     Text(
-        "Drag in steps of ₹100, or tap the amount and type any figure." +
-            (if (known > 0) " The dots are ${labels.getOrElse(h?.firstKnown ?: 0) { "" }} to ${labels.getOrElse(lastIdx) { "" }}, older ones fainter." else ""),
+        tr("Drag in steps of ₹100, or tap the amount and type any figure.") +
+            (if (known > 0) tr(" The dots are {0} to {1}, older ones fainter.", labels.getOrElse(h?.firstKnown ?: 0) { "" }, labels.getOrElse(lastIdx) { "" }) else ""),
         style = MaterialTheme.typography.bodySmall, color = muted,
     )
     // Full width, one under the other: side by side, big text cut "Remove" short
     Button(
         onClick = { vm.saveBudget(key, value) }, enabled = value > 0,
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("save_budget_sheet"),
-    ) { FitText("Save · ${Money.formatInr(value)} a month", minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
+    ) { FitText(tr("Save · {0} a month", Money.formatInr(value)), minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
     if (current != null) {
         TextButton(onClick = { vm.saveBudget(key, null) }, modifier = Modifier.fillMaxWidth().testTag("remove_budget")) {
-            Text("Remove this budget", color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+            Text(tr("Remove this budget"), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         }
     }
 }
@@ -652,16 +653,16 @@ internal fun MonthBudgetPicker(h: MonthHistory?, spent: Long, value: Long, boxTa
     val known = Trends.known(months).size
     SideOrStacked(
         Modifier.fillMaxWidth(), stackedGap = 6.dp,
-        start = { Text("Budget a month", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold)) },
+        start = { Text(tr("Budget a month"), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold)) },
         end = {
-            AmountBox("month", "Monthly", value, tag = boxTag) { v ->
+            AmountBox("month", tr("Monthly"), value, tag = boxTag) { v ->
                 onValue(v)
                 if (v > cap) stretched = Trends.monthSliderMax(maxOf(usual, spent), v)
             }
         },
     )
     Column {
-        MonthsSlider("month", "Monthly", value, cap, months, labels.getOrElse(lastIdx) { "" }, MaterialTheme.colorScheme.primary) { onValue(it) }
+        MonthsSlider("month", tr("Monthly"), value, cap, months, labels.getOrElse(lastIdx) { "" }, MaterialTheme.colorScheme.primary) { onValue(it) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("₹0", style = MaterialTheme.typography.labelSmall, color = muted)
             Text(Money.formatInr(cap), style = MaterialTheme.typography.labelSmall, color = muted, modifier = Modifier.testTag("month_slider_end"))
@@ -675,9 +676,9 @@ internal fun MonthBudgetPicker(h: MonthHistory?, spent: Long, value: Long, boxTa
             val left = value - spent
             Text(
                 when {
-                    value <= 0 -> "This month: ${Money.formatInr(spent)} spent"
-                    left < 0 -> "This month: ${Money.formatInr(spent)} spent · ${Money.formatInr(-left)} over"
-                    else -> "This month: ${Money.formatInr(spent)} spent · ${Money.formatInr(left)} left"
+                    value <= 0 -> tr("This month: {0} spent", Money.formatInr(spent))
+                    left < 0 -> tr("This month: {0} spent · {1} over", Money.formatInr(spent), Money.formatInr(-left))
+                    else -> tr("This month: {0} spent · {1} left", Money.formatInr(spent), Money.formatInr(left))
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = if (value > 0 && left < 0) sc.overFg else MaterialTheme.colorScheme.onSurface,
@@ -686,7 +687,7 @@ internal fun MonthBudgetPicker(h: MonthHistory?, spent: Long, value: Long, boxTa
             if (known > 0 && value > 0) {
                 val ok = Trends.enoughIn(months, value)
                 Text(
-                    "Enough in $ok of the last $known ${if (known == 1) "month" else "months"}",
+                    tr("Enough in {0} of the last {1} {2}", ok, known, if (known == 1) tr("month") else tr("months")),
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                     color = when { ok * 10 >= known * 8 -> sc.okFg; ok * 2 >= known -> sc.warnFg; else -> sc.overFg },
                     modifier = Modifier.testTag("month_sheet_enough"),
@@ -718,20 +719,20 @@ fun MonthBudgetSheet(vm: AppViewModel) {
     val labels = h?.labels ?: emptyList()
 
     Column {
-        Text("Monthly budget", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+        Text(tr("Monthly budget"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         if (Trends.known(months).isNotEmpty()) {
             val (trend, kind) = trendWords(months, labels)
             Text(trend, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = trendColor(kind))
         } else {
-            Text("All your spending in a budget month", style = MaterialTheme.typography.bodyMedium, color = muted)
+            Text(tr("All your spending in a budget month"), style = MaterialTheme.typography.bodyMedium, color = muted)
         }
     }
     MonthBudgetPicker(h, spent, value, "budget_amount") { picked = it }
     val quick = buildList {
-        if (usual > 0) add(Triple("usual", "Usual · ${Money.formatShort(usual)}", usual))
+        if (usual > 0) add(Triple("usual", tr("Usual · {0}", Money.formatShort(usual)), usual))
         months.getOrNull(lastIdx)?.takeIf { it > 0 && it != usual }?.let { add(Triple("last", "${labels.getOrElse(lastIdx) { "" }} · ${Money.formatShort(it)}", it)) }
-        h?.usualMoneyIn?.takeIf { it > 0 }?.let { add(Triple("in", "Money in · ${Money.formatShort(it)}", it)) }
-        current?.takeIf { it != usual }?.let { add(Triple("now", "As now · ${Money.formatShort(it)}", it)) }
+        h?.usualMoneyIn?.takeIf { it > 0 }?.let { add(Triple("in", tr("Money in · {0}", Money.formatShort(it)), it)) }
+        current?.takeIf { it != usual }?.let { add(Triple("now", tr("As now · {0}", Money.formatShort(it)), it)) }
     }
     if (quick.isNotEmpty()) {
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -744,18 +745,18 @@ fun MonthBudgetSheet(vm: AppViewModel) {
     val categories = budgets.filterKeys { it != Schema.OVERALL }.values.sum()
     if (categories > 0) {
         Text(
-            if (categories > value) "Your category budgets add up to ${Money.formatInr(categories)}, more than this."
-            else "Your category budgets add up to ${Money.formatInr(categories)} of it.",
+            if (categories > value) tr("Your category budgets add up to {0}, more than this.", Money.formatInr(categories))
+            else tr("Your category budgets add up to {0} of it.", Money.formatInr(categories)),
             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
             color = if (categories > value) sc.warnFg else muted,
         )
     }
-    Text("Drag in steps of ₹100, or tap the amount and type any figure. Repeats every month until you change it.", style = MaterialTheme.typography.bodySmall, color = muted)
+    Text(tr("Drag in steps of ₹100, or tap the amount and type any figure. Repeats every month until you change it."), style = MaterialTheme.typography.bodySmall, color = muted)
     Button(
         onClick = { vm.saveBudget(Schema.OVERALL, value) }, enabled = value > 0,
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("save_budget_sheet"),
-    ) { FitText("Save · ${Money.formatInr(value)} a month", minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
+    ) { FitText(tr("Save · {0} a month", Money.formatInr(value)), minScale = 0.8f, maxLines = 2, textAlign = TextAlign.Center) }
     TextButton(onClick = { vm.openAdjustBudgets() }, modifier = Modifier.fillMaxWidth().testTag("open_adjust")) {
-        Text("Set it category by category, with sliders", textAlign = TextAlign.Center)
+        Text(tr("Set it category by category, with sliders"), textAlign = TextAlign.Center)
     }
 }

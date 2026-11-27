@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -51,7 +52,7 @@ fun QuickCheckSheet(vm: AppViewModel, txId: Long) {
     val tx = t ?: return
     val current = choices.firstOrNull()
     Column(Modifier.testTag("quick_check"), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("New payment", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(tr("New payment"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
                 Text(tx.merchantName, style = MaterialTheme.typography.titleLarge)
@@ -60,7 +61,7 @@ fun QuickCheckSheet(vm: AppViewModel, txId: Long) {
             }
             Text(Money.formatInr(tx.amountPaise), style = MaterialTheme.typography.headlineSmall)
         }
-        Text(current?.let { "Was it ${it.name}?" } ?: "What was it?", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("quick_check_question"))
+        Text(current?.let { tr("Was it {0}?", it.name) } ?: tr("What was it?"), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("quick_check_question"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             choices.forEachIndexed { i, c ->
                 val first = i == 0
@@ -80,15 +81,15 @@ fun QuickCheckSheet(vm: AppViewModel, txId: Long) {
                 }
             }
             Text(
-                "More…", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold,
+                tr("More…"), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { vm.openSheet(Sheet.CategoryPick(txId)) }.padding(horizontal = 14.dp, vertical = 9.dp).testTag("quick_check_more"),
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Switch(always, { always = it }, modifier = Modifier.testTag("quick_check_always"))
-            Text("Always use this for ${tx.merchantName}", style = MaterialTheme.typography.bodyMedium)
+            Text(tr("Always use this for {0}", tx.merchantName), style = MaterialTheme.typography.bodyMedium)
         }
-        Text("With Always on, the owl sorts this merchant the same way from now on.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(tr("With Always on, the owl sorts this merchant the same way from now on."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

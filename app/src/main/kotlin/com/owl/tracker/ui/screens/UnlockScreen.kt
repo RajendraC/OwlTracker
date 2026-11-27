@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.selection.selectable
@@ -47,10 +48,10 @@ import java.util.Locale
 
 /** What the subscription includes, shown on the unlock screen. */
 private val INCLUDED = listOf(
-    "Automatic import of bank, card and UPI SMS",
-    "Monthly budgets with over-spend warnings",
-    "Your own categories and “always use” rules",
-    "Every future update",
+    tr("Automatic import of bank, card and UPI SMS"),
+    tr("Monthly budgets with over-spend warnings"),
+    tr("Your own categories and “always use” rules"),
+    tr("Every future update"),
 )
 
 @Composable
@@ -67,7 +68,7 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 32.dp).testTag("unlock_screen"),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        ScreenHeader("Unlock Owl Tracker", onBack = { vm.back() })
+        ScreenHeader(tr("Unlock Owl Tracker"), onBack = { vm.back() })
         val context = androidx.compose.ui.platform.LocalContext.current
         val manage = {
             runCatching {
@@ -82,36 +83,36 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
         when (val a = access) {
             Access.Unlocked -> if (lifetime) {
                 StatusCard(
-                    Ic.check, sc.okFg, sc.okBg, "Lifetime · paid once",
-                    "Thank you! Owl Tracker is yours for good on this Google account, including on a new phone. Nothing more to pay.",
+                    Ic.check, sc.okFg, sc.okBg, tr("Lifetime · paid once"),
+                    tr("Thank you! Owl Tracker is yours for good on this Google account, including on a new phone. Nothing more to pay."),
                     Modifier.testTag("unlock_lifetime_done"),
                 )
                 // Bought lifetime while subscribed: the subscription would keep charging until cancelled
                 if (store.renewing == true) {
                     InfoNote(
-                        "You also have the yearly subscription. Cancel it in Google Play so it doesn't renew; you don't need it any more.",
+                        tr("You also have the yearly subscription. Cancel it in Google Play so it doesn't renew; you don't need it any more."),
                         icon = Ic.info, container = sc.warnBg, content = sc.warnFg,
                     )
                     OutlinedButton(onClick = manage, modifier = Modifier.fillMaxWidth().testTag("unlock_manage")) {
-                        Text("Cancel the subscription in Google Play")
+                        Text(tr("Cancel the subscription in Google Play"))
                     }
                 }
             } else {
                 StatusCard(
                     Ic.check, sc.okFg, sc.okBg,
-                    if (store.renewing == false) "Subscribed · won't renew" else "Subscribed · $price a year",
-                    if (store.renewing == false) "You cancelled it, so it stops at the end of the year you paid for. Subscribe again in Google Play any time before then to keep it going."
-                    else "Thank you! It renews every year until you cancel, and works on a new phone signed in to the same Google account.",
+                    if (store.renewing == false) tr("Subscribed · won't renew") else tr("Subscribed · {0} a year", price),
+                    if (store.renewing == false) tr("You cancelled it, so it stops at the end of the year you paid for. Subscribe again in Google Play any time before then to keep it going.")
+                    else tr("Thank you! It renews every year until you cancel, and works on a new phone signed in to the same Google account."),
                     Modifier.testTag("unlock_done"),
                 )
                 OutlinedButton(onClick = manage, modifier = Modifier.fillMaxWidth().testTag("unlock_manage")) {
-                    Text("Manage or cancel in Google Play")
+                    Text(tr("Manage or cancel in Google Play"))
                 }
                 // A subscriber can move to paying once
                 Panel {
-                    Text("Rather pay once?", style = MaterialTheme.typography.titleMedium)
+                    Text(tr("Rather pay once?"), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "$lifePrice once and Owl Tracker is yours for good. After buying it, cancel the yearly subscription in Google Play.",
+                        tr("{0} once and Owl Tracker is yours for good. After buying it, cancel the yearly subscription in Google Play.", lifePrice),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Gap(10.dp)
@@ -119,42 +120,42 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
                         onClick = { platform.buyUnlock(UnlockStore.Plan.LIFETIME) },
                         enabled = !store.busy && !store.pending && store.status != StoreState.Status.UNAVAILABLE,
                         modifier = Modifier.fillMaxWidth().testTag("unlock_switch_lifetime"),
-                    ) { Text("Pay $lifePrice once") }
+                    ) { Text(tr("Pay {0} once", lifePrice)) }
                 }
             }
             is Access.Trial -> StatusCard(
                 Ic.calendar, MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.primaryContainer,
-                "Free trial: ${daysText(a.daysLeft)} left",
-                "Ends on ${vm.dateOf(a.endsAt).format(DateTimeFormatter.ofPattern("d MMMM", Locale.ENGLISH))}. After that Owl Tracker turns read-only: " +
-                    "everything stays visible, but nothing new comes in until you unlock it.",
+                tr("Free trial: {0} left", daysText(a.daysLeft)),
+                tr("Ends on {0}. After that Owl Tracker turns read-only: ", vm.dateOf(a.endsAt).format(DateTimeFormatter.ofPattern("d MMMM", Locale.ENGLISH))) +
+                    tr("everything stays visible, but nothing new comes in until you unlock it."),
                 Modifier.testTag("unlock_trial"),
             )
             Access.TrialEnded -> StatusCard(
-                Ic.lock, sc.warnFg, sc.warnBg, "Your free trial has ended",
-                "Everything you've imported is still here to see. Subscribe, or pay once, to import new SMS again, add expenses and change budgets.",
+                Ic.lock, sc.warnFg, sc.warnBg, tr("Your free trial has ended"),
+                tr("Everything you've imported is still here to see. Subscribe, or pay once, to import new SMS again, add expenses and change budgets."),
                 Modifier.testTag("unlock_ended"),
             )
             Access.Lapsed -> StatusCard(
-                Ic.lock, sc.warnFg, sc.warnBg, "Your subscription has ended",
-                "Everything is still here to see. Subscribe again, or pay once for good, to import new SMS, add expenses and change budgets.",
+                Ic.lock, sc.warnFg, sc.warnBg, tr("Your subscription has ended"),
+                tr("Everything is still here to see. Subscribe again, or pay once for good, to import new SMS, add expenses and change budgets."),
                 Modifier.testTag("unlock_lapsed"),
             )
         }
 
         if (access != Access.Unlocked) {
             PlanCard(
-                plan == UnlockStore.Plan.YEARLY, "$price a year", "Yearly subscription",
-                "Renews every year. Cancel anytime in Google Play.", null,
+                plan == UnlockStore.Plan.YEARLY, tr("{0} a year", price), tr("Yearly subscription"),
+                tr("Renews every year. Cancel anytime in Google Play."), null,
                 Modifier.testTag("unlock_plan_yearly").testTag("unlock_price"),
             ) { plan = UnlockStore.Plan.YEARLY }
             PlanCard(
-                plan == UnlockStore.Plan.LIFETIME, "$lifePrice once", "Lifetime",
-                "Pay once, yours for good. No renewals, nothing more to pay.", "Pay once",
+                plan == UnlockStore.Plan.LIFETIME, tr("{0} once", lifePrice), tr("Lifetime"),
+                tr("Pay once, yours for good. No renewals, nothing more to pay."), tr("Pay once"),
                 Modifier.testTag("unlock_plan_lifetime"),
             ) { plan = UnlockStore.Plan.LIFETIME }
             Panel {
-                Text("Both include", style = MaterialTheme.typography.titleSmall)
-                Text("No ads, no account.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("Both include"), style = MaterialTheme.typography.titleSmall)
+                Text(tr("No ads, no account."), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Gap(8.dp)
                 INCLUDED.forEach { line ->
                     Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -166,13 +167,13 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
 
             if (store.pending) {
                 InfoNote(
-                    "Payment pending. Google Play will confirm it, which can take a few minutes with UPI. Owl Tracker unlocks by itself as soon as it does.",
+                    tr("Payment pending. Google Play will confirm it, which can take a few minutes with UPI. Owl Tracker unlocks by itself as soon as it does."),
                     icon = Ic.info, container = sc.warnBg, content = sc.warnFg,
                 )
             }
             if (store.status == StoreState.Status.CONNECTING && store.message == null) {
                 Text(
-                    "Connecting to Google Play\u2026", style = MaterialTheme.typography.bodySmall,
+                    tr("Connecting to Google Play\u2026"), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("unlock_connecting"),
                 )
             }
@@ -188,27 +189,27 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
             ) {
                 Text(
                     when {
-                        !available -> "Try Google Play again"
-                        plan == UnlockStore.Plan.LIFETIME -> "Pay $lifePrice once"
-                        else -> "Subscribe for $price a year"
+                        !available -> tr("Try Google Play again")
+                        plan == UnlockStore.Plan.LIFETIME -> tr("Pay {0} once", lifePrice)
+                        else -> tr("Subscribe for {0} a year", price)
                     },
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
             Text(
-                if (plan == UnlockStore.Plan.LIFETIME) "One payment of $lifePrice through Google Play. It stays with your Google account, so it works on a new phone too."
-                else "Renews automatically every year at $price until you cancel in Google Play (Play Store › Payments & subscriptions). " +
-                    "If you cancel, you keep it until the end of the year you paid for.",
+                if (plan == UnlockStore.Plan.LIFETIME) tr("One payment of {0} through Google Play. It stays with your Google account, so it works on a new phone too.", lifePrice)
+                else tr("Renews automatically every year at {0} until you cancel in Google Play (Play Store › Payments & subscriptions). ", price) +
+                    tr("If you cancel, you keep it until the end of the year you paid for."),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("unlock_terms"),
             )
             TextButton(onClick = { vm.restorePurchase() }, modifier = Modifier.fillMaxWidth().testTag("unlock_restore")) {
-                Text("Already paid? Restore")
+                Text(tr("Already paid? Restore"))
             }
         }
 
         InfoNote(
-            "Google Play takes the payment. Owl Tracker never sees your card or UPI details, and it still has no internet access: " +
-                "the Play Store app on your phone confirms the purchase to it.",
+            tr("Google Play takes the payment. Owl Tracker never sees your card or UPI details, and it still has no internet access: ") +
+                tr("the Play Store app on your phone confirms the purchase to it."),
             icon = Ic.noNet, container = MaterialTheme.colorScheme.surfaceVariant, content = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -256,4 +257,4 @@ private fun StatusCard(icon: ImageVector, fg: Color, bg: Color, title: String, b
     }
 }
 
-fun daysText(n: Int): String = if (n == 1) "1 day" else "$n days"
+fun daysText(n: Int): String = if (n == 1) tr("1 day") else tr("{0} days", n)

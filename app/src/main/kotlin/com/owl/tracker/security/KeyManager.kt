@@ -1,5 +1,6 @@
 package com.owl.tracker.security
 
+import com.owl.tracker.i18n.tr
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -57,16 +58,16 @@ class KeyManager(
         val info = SecretKeyFactory.getInstance(key.algorithm, ANDROID_KEYSTORE).getKeySpec(key, KeyInfo::class.java) as KeyInfo
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             when (info.securityLevel) {
-                KeyProperties.SECURITY_LEVEL_STRONGBOX -> "StrongBox secure chip"
-                KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT -> "Secure hardware (TEE)"
-                KeyProperties.SECURITY_LEVEL_SOFTWARE -> "Software keystore"
-                else -> "Hardware-backed keystore"
+                KeyProperties.SECURITY_LEVEL_STRONGBOX -> tr("StrongBox secure chip")
+                KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT -> tr("Secure hardware (TEE)")
+                KeyProperties.SECURITY_LEVEL_SOFTWARE -> tr("Software keystore")
+                else -> tr("Hardware-backed keystore")
             }
         } else {
             @Suppress("DEPRECATION")
-            if (info.isInsideSecureHardware) "Secure hardware" else "Software keystore"
+            if (info.isInsideSecureHardware) tr("Secure hardware") else tr("Software keystore")
         }
-    }.getOrDefault("Android Keystore")
+    }.getOrDefault(tr("Android Keystore"))
 
     @Synchronized
     fun destroy() {
@@ -115,7 +116,7 @@ class KeyManager(
     }
 
     private fun unwrap(blob: ByteArray): ByteArray {
-        require(blob.size > 2 && blob[0] == FORMAT_VERSION) { "Unknown key file format" }
+        require(blob.size > 2 && blob[0] == FORMAT_VERSION) { tr("Unknown key file format") }
         val ivLen = blob[1].toInt()
         val iv = blob.copyOfRange(2, 2 + ivLen)
         val ct = blob.copyOfRange(2 + ivLen, blob.size)

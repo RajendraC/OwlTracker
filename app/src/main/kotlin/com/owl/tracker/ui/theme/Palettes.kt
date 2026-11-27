@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.theme
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
@@ -10,11 +11,11 @@ import androidx.compose.ui.graphics.Color
  * text and background was checked for contrast (4.5:1 for text, 3:1 for large text, rings and buttons).
  */
 enum class Palette(val key: String, val label: String) {
-    CREAM("cream", "Cream & Mango"),
-    TEAL("teal", "Mango & Teal"),
-    INDIGO("indigo", "Indigo & Saffron"),
-    MINT("mint", "Mint & Coral"),
-    PLUM("plum", "Plum & Marigold");
+    CREAM("cream", tr("Cream & Mango")),
+    TEAL("teal", tr("Mango & Teal")),
+    INDIGO("indigo", tr("Indigo & Saffron")),
+    MINT("mint", tr("Mint & Coral")),
+    PLUM("plum", tr("Plum & Marigold"));
 
     fun scheme(dark: Boolean): ColorScheme = when (this) {
         CREAM -> if (dark) DarkColors else LightColors

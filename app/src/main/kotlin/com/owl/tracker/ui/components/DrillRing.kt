@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.components
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -113,7 +114,7 @@ fun DrillRingCard(
     onMerchant: (String) -> Unit,
     onPayment: (Txn) -> Unit,
     modifier: Modifier = Modifier,
-    title: String = "Where it went",
+    title: String = tr("Where it went"),
     moreBelow: Boolean = false,
     /** Shown beside the title at the top level, like Home's "See all". */
     headerAction: (@Composable () -> Unit)? = null,
@@ -179,7 +180,7 @@ fun DrillRingCard(
             val whole = (if (merchantKey == null) pick.paise else merchants.sumOf { it.paise }).coerceAtLeast(1)
             val top = merchants.take(6)
             val rest = (whole - top.sumOf { it.paise }).coerceAtLeast(0)
-            val list = top.map { it.key to (it.name to it.paise) } + if (rest > 0) listOf("" to ("Others" to rest)) else emptyList()
+            val list = top.map { it.key to (it.name to it.paise) } + if (rest > 0) listOf("" to (tr("Others") to rest)) else emptyList()
             list.mapIndexed { i, (k, v) ->
                 Slice(k, v.first, v.second, v.second.toFloat() / whole, lerp(pickColor, Color.White, 0.55f * i / list.size.coerceAtLeast(1)))
             }
@@ -231,9 +232,9 @@ fun DrillRingCard(
                     Column(Modifier.weight(1f)) {
                         Text(title, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            if (paidShowing) "By card and account · tap one to see what it was used for"
-                            else if (moods != null && sideBySide) "Tap a bubble to see how it's doing · tap again to open it · swipe to spin"
-                            else if (moods != null) "Tap a slice to see how it's doing · tap again to open it" else "Slide round the ring · tap a slice to open it",
+                            if (paidShowing) tr("By card and account · tap one to see what it was used for")
+                            else if (moods != null && sideBySide) tr("Tap a bubble to see how it's doing · tap again to open it · swipe to spin")
+                            else if (moods != null) tr("Tap a slice to see how it's doing · tap again to open it") else tr("Slide round the ring · tap a slice to open it"),
                             style = MaterialTheme.typography.bodySmall, color = muted,
                         )
                     }
@@ -254,7 +255,7 @@ fun DrillRingCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Ic.back, contentDescription = if (upTo != null) "Back to $upTo" else "Back to all categories",
+                        Ic.back, contentDescription = if (upTo != null) tr("Back to {0}", upTo) else tr("Back to all categories"),
                         tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp),
                     )
                     Spacer(Modifier.width(4.dp))
@@ -262,9 +263,9 @@ fun DrillRingCard(
                         Text((merchantName ?: catName) ?: "", style = MaterialTheme.typography.titleMedium)
                         Text(
                             when {
-                                merchantName != null -> "$catName › payments · back to $catName"
-                                inGroup -> "By category · tap one for its merchants"
-                                else -> "By merchant · tap one for its payments" + (groupName?.let { " · back to $it" } ?: "")
+                                merchantName != null -> tr("{0} › payments · back to {1}", catName, catName)
+                                inGroup -> tr("By category · tap one for its merchants")
+                                else -> tr("By merchant · tap one for its payments") + (groupName?.let { tr(" · back to {0}", it) } ?: "")
                             },
                             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary,
                         )
@@ -331,7 +332,7 @@ fun DrillRingCard(
         } else if (level == 0 && moods != null) {
             RingOwlStage(
                 slices = categories.map { Ring3DSlice(it.id, it.color, it.paise.toFloat() / total) },
-                description = "Spending by category: " + categories.joinToString { "${it.name} ${it.paise * 100 / total}%" },
+                description = tr("Spending by category: ") + categories.joinToString { "${it.name} ${it.paise * 100 / total}%" },
                 say = chosenHere?.let { moods.byCategory[it] } ?: moods.month,
                 picked = chosenHere,
                 actKey = act,
@@ -382,7 +383,7 @@ fun DrillRingCard(
                         }
                     }
                     .semantics {
-                        contentDescription = (if (pick == null) "Spending by category: " else if (inGroup) "${pick.name} by category: " else "${pick.name} by merchant: ") +
+                        contentDescription = (if (pick == null) tr("Spending by category: ") else if (inGroup) tr("{0} by category: ", pick.name) else tr("{0} by merchant: ", pick.name)) +
                             slices.joinToString { "${it.name} ${(it.share * 100).toInt()}%" }
                     }
                     .testTag("category_donut"),
@@ -447,12 +448,12 @@ fun DrillRingCard(
             // The hole is a fixed size: with big text its words grow a little, then get smaller to fit
             CapFontScale(1.25f) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(118.dp).testTag("ring_centre")) {
-                    FitText(focus?.name ?: pick?.name ?: "Total", style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2, minScale = 0.75f)
+                    FitText(focus?.name ?: pick?.name ?: tr("Total"), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2, minScale = 0.75f)
                     FitText(Money.formatInr(animatedPaise(focus?.paise ?: pick?.paise ?: categories.sumOf { it.paise }, 450)), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, minScale = 0.6f)
                     FitText(
                         when {
-                            focus != null -> "${(focus.share * 100).toInt()}%" + if (pick != null) " of ${pick.name}" else " of spending"
-                            pick != null -> "${(pickShare * 100).toInt()}% of " + (if (!inGroup && groupName != null) groupName else "spending")
+                            focus != null -> "${(focus.share * 100).toInt()}%" + if (pick != null) tr(" of {0}", pick.name) else tr(" of spending")
+                            pick != null -> tr("{0}% of ", (pickShare * 100).toInt()) + (if (!inGroup && groupName != null) groupName else "spending")
                             else -> "${slices.size} ${if (slices.size == 1) "category" else "categories"}"
                         },
                         style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.Center, maxLines = 2, minScale = 0.75f,
@@ -516,7 +517,7 @@ fun DrillRingCard(
                         Modifier.weight(1f),
                         start = {
                             Column {
-                                Text(if (unsorted) "Not sorted yet" else c.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(if (unsorted) tr("Not sorted yet") else c.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Text(
                                     c.note ?: "${(c.paise.toFloat() / (pick?.paise ?: 1L).coerceAtLeast(1L) * 100).toInt()}%",
                                     style = MaterialTheme.typography.bodySmall, color = muted, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -533,7 +534,7 @@ fun DrillRingCard(
                         onClick = { onSort(c.id) },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
                         modifier = Modifier.padding(start = 54.dp, bottom = 8.dp).testTag("sort_${c.id}"),
-                    ) { Text("Sort: pick what it was") }
+                    ) { Text(tr("Sort: pick what it was")) }
                 }
             } else slices.forEachIndexed { i, s ->
                 if (i > 0) Divider()
@@ -565,7 +566,7 @@ fun DrillRingCard(
                 Column(Modifier.fillMaxWidth().testTag("ring_payments")) {
                     Text(
                         "$paymentCount ${if (paymentCount == 1) "payment" else "payments"}" +
-                            (if (paymentCount > shown.size) " · newest ${shown.size} here" + (if (moreBelow) ", all of them below" else "") else ""),
+                            (if (paymentCount > shown.size) tr(" · newest {0} here", shown.size) + (if (moreBelow) ", all of them below" else "") else ""),
                         style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.padding(start = 6.dp, bottom = 4.dp),
                     )
                     shown.forEachIndexed { i, t ->
@@ -624,13 +625,13 @@ private fun TopLine(month: OwlSay, spent: Long, budget: Long, category: RingCate
                     Text(
                         androidx.compose.ui.text.buildAnnotatedString {
                             withStyle(MaterialTheme.typography.headlineSmall.toSpanStyle().copy(fontWeight = xb)) { append(Money.formatInr(animatedPaise(spent, 450))) }
-                            if (budget > 0) withStyle(MaterialTheme.typography.bodyMedium.toSpanStyle().copy(color = muted)) { append(" of\u00A0" + Money.formatInr(budget)) }
+                            if (budget > 0) withStyle(MaterialTheme.typography.bodyMedium.toSpanStyle().copy(color = muted)) { append(tr(" of\u00A0") + Money.formatInr(budget)) }
                         },
                         modifier = Modifier.testTag("side_amount"),
                     )
                     // Investments go out of the budget like spending; say how much of it they were
                     if (invested > 0) Text(
-                        "${Money.formatInr(invested)} of it invested",
+                        tr("{0} of it invested", Money.formatInr(invested)),
                         style = MaterialTheme.typography.labelMedium, fontWeight = xb, color = com.owl.tracker.ui.components.INVESTED,
                         modifier = Modifier.testTag("top_invested"),
                     )
@@ -644,23 +645,23 @@ private fun TopLine(month: OwlSay, spent: Long, budget: Long, category: RingCate
             }
             if (c != null && onOpen != null) {
                 Row(
-                    Modifier.clip(RoundedCornerShape(50)).clickable(onClickLabel = "Open ${c.name}", onClick = onOpen)
+                    Modifier.clip(RoundedCornerShape(50)).clickable(onClickLabel = tr("Open {0}", c.name), onClick = onOpen)
                         .background(MaterialTheme.colorScheme.primary).heightIn(min = 40.dp).padding(start = 16.dp, end = 10.dp).testTag("owl_open"),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Open", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge, fontWeight = xb)
+                    Text(tr("Open"), color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge, fontWeight = xb)
                     Icon(Ic.chevR, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
                 }
             } else if (c == null && budget > 0) {
                 Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 3.dp)) {
                     val left = budget - spent
                     Text(
-                        if (left >= 0) "${Money.formatInr(left)} left" else "${Money.formatInr(-left)} over",
+                        if (left >= 0) tr("{0} left", Money.formatInr(left)) else tr("{0} over", Money.formatInr(-left)),
                         color = if (left >= 0) month.mood.ink else sc.overFg, style = MaterialTheme.typography.labelLarge, fontWeight = xb,
                     )
                     // "this month" / "this week", but a picked day keeps its capitals: "on Thu 5 Nov"
                     val span = month.title.substringBefore(" · ")
-                    Text(if (span.startsWith("This")) span.lowercase() else "on $span", style = MaterialTheme.typography.labelSmall, color = muted)
+                    Text(if (span.startsWith("This")) span.lowercase() else tr("on {0}", span), style = MaterialTheme.typography.labelSmall, color = muted)
                 }
             }
         }

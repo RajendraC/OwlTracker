@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.components
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -60,7 +61,7 @@ class RingTrends(
 /** "↑ Rising · 50% more than in Jul", or "New in Nov" for a category with only this month, and which way. */
 fun MonthHistory.trendOf(id: String): Pair<String, TrendKind> {
     val (said, kind) = trendPhrase(of(id), labels)
-    return if (kind == TrendKind.NONE && (now[id] ?: 0L) > 0) "New in ${MonthHistory.label(current)}" to kind else said to kind
+    return if (kind == TrendKind.NONE && (now[id] ?: 0L) > 0) tr("New in {0}", MonthHistory.label(current)) to kind else said to kind
 }
 
 @Composable
@@ -87,16 +88,16 @@ fun WhereSwitch(view: Int, hasSix: Boolean, hasPaid: Boolean, onView: (Int) -> U
     val brand = LocalBrand.current
     Row(
         Modifier.fillMaxWidth().clay(RoundedCornerShape(22.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true).padding(4.dp)
-            .semantics { contentDescription = "Show this month, six months or paid by" },
+            .semantics { contentDescription = tr("Show this month, six months or paid by") },
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        listOfNotNull(Triple("This month", 0, "where_this_month"), Triple("6 months", 1, "where_six_months").takeIf { hasSix },
-            Triple("Paid by", 2, "where_paid_by").takeIf { hasPaid }).forEach { (label, v, tag) ->
+        listOfNotNull(Triple(tr("This month"), 0, "where_this_month"), Triple(tr("6 months"), 1, "where_six_months").takeIf { hasSix },
+            Triple(tr("Paid by"), 2, "where_paid_by").takeIf { hasPaid }).forEach { (label, v, tag) ->
             val on = view == v
             Box(
                 Modifier.weight(1f).heightIn(min = 40.dp)
                     .then(if (on) Modifier.clay(RoundedCornerShape(18.dp), brand.clay, elevation = 3.dp) else Modifier.clip(RoundedCornerShape(18.dp)))
-                    .clickable(onClickLabel = "Show $label") { onView(v) }
+                    .clickable(onClickLabel = tr("Show {0}", label)) { onView(v) }
                     .semantics { selected = on; role = androidx.compose.ui.semantics.Role.Tab }
                     .testTag(tag)
                     .padding(horizontal = 4.dp, vertical = 4.dp),
@@ -119,9 +120,9 @@ fun RowTrendStrip(h: MonthHistory, id: String, name: String, color: Color, open:
     val (phrase, kind) = h.trendOf(id)
     Row(
         Modifier.padding(start = 58.dp, end = 6.dp, bottom = 6.dp).clip(RoundedCornerShape(8.dp))
-            .clickable(onClickLabel = if (open) "Hide the months" else "Show the months") { onToggle() }
+            .clickable(onClickLabel = if (open) tr("Hide the months") else tr("Show the months")) { onToggle() }
             .padding(vertical = 4.dp).padding(end = 6.dp)
-            .semantics { contentDescription = "$name: $phrase"; stateDescription = if (open) "Months shown" else "Months hidden" }
+            .semantics { contentDescription = "$name: $phrase"; stateDescription = if (open) tr("Months shown") else tr("Months hidden") }
             .testTag("where_bars_$id"),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -137,8 +138,8 @@ fun RowTrendOpen(h: MonthHistory, id: String, color: Color, budget: Long?) {
     Column(Modifier.fillMaxWidth().padding(start = 58.dp, end = 6.dp, bottom = 10.dp).testTag("where_bars_open_$id"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         BarsWithAmounts(h.of(id), h.now[id] ?: 0L, labels, color, budget, Modifier.fillMaxWidth())
         Text(
-            (if (budget != null) "Its ${Money.formatInr(budget)} budget is the dashed line. " else "No budget on it. ") +
-                "${labels.last()} so far is the lighter bar.",
+            (if (budget != null) tr("Its {0} budget is the dashed line. ", Money.formatInr(budget)) else tr("No budget on it. ")) +
+                tr("{0} so far is the lighter bar.", labels.last()),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -213,10 +214,10 @@ fun SixMonthsView(h: MonthHistory, order: List<Category>, monthBudget: Long?, pi
         val pick = cats.firstOrNull { it.id == picked }
         Text(
             when {
-                pick != null -> "${pick.name}: ${h.trendOf(pick.id).first}. Its part of each bar is lit."
-                monthBudget == null -> "A bar a month, by category. ${labels.last()} so far is lighter."
-                over == 0 -> "Within the ${Money.formatInr(monthBudget)} budget, the dashed line, in all ${known.size} months. Tap a category to light it up."
-                else -> "Over the ${Money.formatInr(monthBudget)} budget, the dashed line, in $over of the last ${known.size} months. Tap a category to light it up."
+                pick != null -> tr("{0}: {1}. Its part of each bar is lit.", pick.name, h.trendOf(pick.id).first)
+                monthBudget == null -> tr("A bar a month, by category. {0} so far is lighter.", labels.last())
+                over == 0 -> tr("Within the {0} budget, the dashed line, in all {1} months. Tap a category to light it up.", Money.formatInr(monthBudget), known.size)
+                else -> tr("Over the {0} budget, the dashed line, in {1} of the last {2} months. Tap a category to light it up.", Money.formatInr(monthBudget), over, known.size)
             },
             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
             color = when {
@@ -235,7 +236,7 @@ fun SixMonthsView(h: MonthHistory, order: List<Category>, monthBudget: Long?, pi
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
                 .then(if (on) Modifier.background(LocalBrand.current.clay.pressed) else Modifier)
-                .clickable(onClickLabel = if (on) "Show every category" else "Light up ${c.name}") { onPick(if (on) null else c.id) }
+                .clickable(onClickLabel = if (on) tr("Show every category") else tr("Light up {0}", c.name)) { onPick(if (on) null else c.id) }
                 .semantics { selected = on }
                 .padding(vertical = 8.dp, horizontal = 6.dp)
                 .testTag("six_${c.id}"),
@@ -254,7 +255,7 @@ fun SixMonthsView(h: MonthHistory, order: List<Category>, monthBudget: Long?, pi
                     Column(horizontalAlignment = Alignment.End) {
                         MonthBars(h.of(c.id), h.now[c.id] ?: 0L, Color(c.color), Modifier.size(width = 60.dp, height = 20.dp))
                         Text(
-                            h.usual(c.id).takeIf { it > 0 }?.let { "usual ${Money.formatShort(it)}" } ?: "new",
+                            h.usual(c.id).takeIf { it > 0 }?.let { tr("usual {0}", Money.formatShort(it)) } ?: "new",
                             style = MaterialTheme.typography.labelSmall, color = muted,
                         )
                     }

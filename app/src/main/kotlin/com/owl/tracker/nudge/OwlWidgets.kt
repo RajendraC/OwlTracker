@@ -1,5 +1,6 @@
 package com.owl.tracker.nudge
 
+import com.owl.tracker.i18n.tr
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -95,31 +96,31 @@ object OwlWidgets {
         when {
             s == null -> {
                 v.setImageViewBitmap(R.id.widget_ring, ring(0.0, (96 * dp).toInt(), null))
-                v.setTextViewText(R.id.widget_label, "Owl Tracker")
-                v.setTextViewText(R.id.widget_spent, "Set up")
-                v.setTextViewText(R.id.widget_left, "Open the app to start")
+                v.setTextViewText(R.id.widget_label, tr("Owl Tracker"))
+                v.setTextViewText(R.id.widget_spent, tr("Set up"))
+                v.setTextViewText(R.id.widget_left, tr("Open the app to start"))
                 v.setTextViewText(R.id.widget_today, "")
             }
             s.appLock -> {
                 v.setImageViewBitmap(R.id.widget_ring, ring(0.0, (96 * dp).toInt(), null))
-                v.setTextViewText(R.id.widget_label, "Owl Tracker is locked")
+                v.setTextViewText(R.id.widget_label, tr("Owl Tracker is locked"))
                 v.setTextViewText(R.id.widget_spent, "🔒")
-                v.setTextViewText(R.id.widget_left, "Tap to open")
-                v.setTextViewText(R.id.widget_today, "Amounts stay hidden while app lock is on")
+                v.setTextViewText(R.id.widget_left, tr("Tap to open"))
+                v.setTextViewText(R.id.widget_today, tr("Amounts stay hidden while app lock is on"))
             }
             else -> {
                 v.setImageViewBitmap(R.id.widget_ring, ring(if (s.overall > 0) s.used else 0.0, (96 * dp).toInt(), s.period.dayNumber(s.today).toFloat() / s.period.days))
-                v.setTextViewText(R.id.widget_label, "Spent this month")
+                v.setTextViewText(R.id.widget_label, tr("Spent this month"))
                 v.setTextViewText(R.id.widget_spent, Money.formatInr(s.spent))
                 val over = s.overall > 0 && s.left < 0
                 v.setTextViewText(R.id.widget_left, when {
-                    s.overall <= 0 -> "No budget yet"
-                    over -> "Over by ${Money.formatInr(-s.left)}"
-                    else -> "${Money.formatInr(s.left)} left"
+                    s.overall <= 0 -> tr("No budget yet")
+                    over -> tr("Over by {0}", Money.formatInr(-s.left))
+                    else -> tr("{0} left", Money.formatInr(s.left))
                 })
                 v.setInt(R.id.widget_left, "setBackgroundResource", if (over) R.drawable.widget_chip_over else R.drawable.widget_chip_ok)
                 v.setTextColor(R.id.widget_left, if (over) 0xFFB3261E.toInt() else 0xFF2E7D32.toInt())
-                v.setTextViewText(R.id.widget_today, if (s.dayShare > 0) "Today ${Money.formatInr(s.todaySpent)} of ${Money.formatInr(s.dayShare)}" else "Today ${Money.formatInr(s.todaySpent)}")
+                v.setTextViewText(R.id.widget_today, if (s.dayShare > 0) tr("Today {0} of {1}", Money.formatInr(s.todaySpent), Money.formatInr(s.dayShare)) else tr("Today {0}", Money.formatInr(s.todaySpent)))
             }
         }
         return v
@@ -134,17 +135,17 @@ object OwlWidgets {
         val w = (140 * dp).toInt(); val h = (10 * dp).toInt()
         when {
             s == null || s.appLock -> {
-                v.setTextViewText(R.id.widget_label, if (s == null) "Owl Tracker" else "Locked")
-                v.setTextViewText(R.id.widget_spent, if (s == null) "Set up" else "🔒")
+                v.setTextViewText(R.id.widget_label, if (s == null) tr("Owl Tracker") else tr("Locked"))
+                v.setTextViewText(R.id.widget_spent, if (s == null) tr("Set up") else "🔒")
                 v.setImageViewBitmap(R.id.widget_bar, bar(0f, w, h))
-                v.setTextViewText(R.id.widget_today, "Tap to open")
+                v.setTextViewText(R.id.widget_today, tr("Tap to open"))
             }
             else -> {
-                v.setTextViewText(R.id.widget_label, "Today")
+                v.setTextViewText(R.id.widget_label, tr("Today"))
                 v.setTextViewText(R.id.widget_spent, Money.formatInr(s.todaySpent))
                 val f = if (s.dayShare > 0) s.todaySpent.toFloat() / s.dayShare else 0f
                 v.setImageViewBitmap(R.id.widget_bar, bar(f, w, h))
-                v.setTextViewText(R.id.widget_today, if (s.dayShare > 0) "of ${Money.formatInr(s.dayShare)} share" else "no budget yet")
+                v.setTextViewText(R.id.widget_today, if (s.dayShare > 0) tr("of {0} share", Money.formatInr(s.dayShare)) else tr("no budget yet"))
             }
         }
         return v

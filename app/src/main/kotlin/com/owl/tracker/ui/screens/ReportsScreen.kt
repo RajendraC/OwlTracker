@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -149,16 +150,16 @@ fun ReportsScreen(vm: AppViewModel) {
             item(key = key) { Reveal(key, seen, o, openedAt, content) }
         }
         item {
-            ScreenHeader("Reports", subtitle = report?.title, onBack = { vm.back() }) {
+            ScreenHeader(tr("Reports"), subtitle = report?.title, onBack = { vm.back() }) {
                 androidx.compose.material3.IconButton(onClick = { vm.openSheet(com.owl.tracker.ui.Sheet.ShareReport) }, modifier = Modifier.testTag("share_report")) {
-                    androidx.compose.material3.Icon(com.owl.tracker.ui.theme.Ic.share, contentDescription = "Share a report")
+                    androidx.compose.material3.Icon(com.owl.tracker.ui.theme.Ic.share, contentDescription = tr("Share a report"))
                 }
             }
         }
         item { RangeChips(range) { vm.setReportRange(it) } }
         val r = report
         if (r == null) {
-            item { Text("Loading…", modifier = Modifier.padding(16.dp)) }
+            item { Text(tr("Loading…"), modifier = Modifier.padding(16.dp)) }
             return@LazyColumn
         }
         if (r.chips.isNotEmpty()) item { ActiveFilters(r, vm) }
@@ -196,11 +197,11 @@ private fun ActiveFilters(r: Report, vm: AppViewModel) {
         r.chips.forEach { (kind, label) ->
             FilterChip(
                 selected = true, onClick = { vm.clearReportFilter(kind) }, label = { Text(label, maxLines = 1) },
-                trailingIcon = { Icon(Ic.close, contentDescription = "Remove $label", modifier = Modifier.size(16.dp)) },
+                trailingIcon = { Icon(Ic.close, contentDescription = tr("Remove {0}", label), modifier = Modifier.size(16.dp)) },
                 modifier = Modifier.testTag("filter_${kind.name.lowercase()}"),
             )
         }
-        if (r.chips.size > 1) TextButton(onClick = { vm.clearReportFilter() }) { Text("Clear all") }
+        if (r.chips.size > 1) TextButton(onClick = { vm.clearReportFilter() }) { Text(tr("Clear all")) }
     }
 }
 
@@ -208,7 +209,7 @@ private fun ActiveFilters(r: Report, vm: AppViewModel) {
 private fun SummaryCard(r: Report) {
     val sc = LocalStatusColors.current
     Panel(modifier = Modifier.testTag("report_summary")) {
-        Text(if (r.filter.isEmpty) "Spent" else "Spent on what you picked", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(if (r.filter.isEmpty) tr("Spent") else tr("Spent on what you picked"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(Money.formatInr(animatedPaise(r.spent)), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.testTag("report_spent"))
             r.changePct?.let { pct ->
@@ -222,18 +223,18 @@ private fun SummaryCard(r: Report) {
             }
         }
         r.previousSpent?.takeIf { r.changePct != null }?.let {
-            Text("vs ${Money.formatInr(it)} ${r.range.previousText}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr("vs {0} {1}", Money.formatInr(it), r.range.previousText), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Gap(12.dp)
         Row(Modifier.fillMaxWidth()) {
-            Stat("Income", Money.formatInr(animatedPaise(r.received)), Modifier.weight(1f))
+            Stat(tr("Income"), Money.formatInr(animatedPaise(r.received)), Modifier.weight(1f))
             val net = r.received - r.spent
-            Stat("Net", (if (net >= 0) "+" else "−") + Money.formatInr(kotlin.math.abs(animatedPaise(net))), Modifier.weight(1f), if (net >= 0) MaterialTheme.colorScheme.primary else sc.overFg)
+            Stat(tr("Net"), (if (net >= 0) "+" else "−") + Money.formatInr(kotlin.math.abs(animatedPaise(net))), Modifier.weight(1f), if (net >= 0) MaterialTheme.colorScheme.primary else sc.overFg)
         }
         Gap(8.dp)
         Row(Modifier.fillMaxWidth()) {
-            Stat("Per day", Money.formatInr(animatedPaise(r.perDay)), Modifier.weight(1f))
-            Stat("Payments", r.payments.toString(), Modifier.weight(1f))
+            Stat(tr("Per day"), Money.formatInr(animatedPaise(r.perDay)), Modifier.weight(1f))
+            Stat(tr("Payments"), r.payments.toString(), Modifier.weight(1f))
         }
     }
 }
@@ -248,14 +249,14 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
     val gain = MaterialTheme.colorScheme.primary
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Panel(modifier = Modifier.testTag("income_expenses")) {
-        Text("Income & expenses", style = MaterialTheme.typography.titleMedium)
+        Text(tr("Income & expenses"), style = MaterialTheme.typography.titleMedium)
         Text(pl.title, style = MaterialTheme.typography.bodySmall, color = muted)
         Gap(12.dp)
         // Three figures side by side, or (big text, lakh amounts) one under the other
         val stats = listOf(
-            StatItem("Income", "+" + Money.formatInr(animatedPaise(pl.moneyIn)), "pl_in", gain),
-            StatItem("Expenses", "−" + Money.formatInr(animatedPaise(pl.spent)), "pl_spent", Color.Unspecified),
-            StatItem(if (pl.net >= 0) "Saved" else "Overspent", Money.formatInr(kotlin.math.abs(animatedPaise(pl.net))), "pl_net", if (pl.net >= 0) gain else sc.overFg),
+            StatItem(tr("Income"), "+" + Money.formatInr(animatedPaise(pl.moneyIn)), "pl_in", gain),
+            StatItem(tr("Expenses"), "−" + Money.formatInr(animatedPaise(pl.spent)), "pl_spent", Color.Unspecified),
+            StatItem(if (pl.net >= 0) tr("Saved") else tr("Overspent"), Money.formatInr(kotlin.math.abs(animatedPaise(pl.net))), "pl_net", if (pl.net >= 0) gain else sc.overFg),
         )
         val valueWidth = stats.maxOf { com.owl.tracker.ui.components.rememberTextWidth(it.value, MaterialTheme.typography.titleMedium) }
         val labelWidth = stats.maxOf { com.owl.tracker.ui.components.rememberTextWidth(it.label, MaterialTheme.typography.labelMedium) }
@@ -279,10 +280,10 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
         Gap(8.dp)
         Text(
             when {
-                pl.moneyIn == 0L && pl.spent == 0L -> "No income or expenses yet."
-                pl.keptPct == null -> "No income yet, so everything spent came from what you already had."
-                pl.net >= 0 -> "You saved ${pl.keptPct}% of your income."
-                else -> "You spent ${Money.formatInr(-pl.net)} more than your income."
+                pl.moneyIn == 0L && pl.spent == 0L -> tr("No income or expenses yet.")
+                pl.keptPct == null -> tr("No income yet, so everything spent came from what you already had.")
+                pl.net >= 0 -> tr("You saved {0}% of your income.", pl.keptPct)
+                else -> tr("You spent {0} more than your income.", Money.formatInr(-pl.net))
             },
             style = MaterialTheme.typography.bodyMedium,
             color = if (pl.net < 0) sc.overFg else MaterialTheme.colorScheme.onSurface,
@@ -303,16 +304,16 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
         }
 
         Gap(14.dp)
-        IeSection("Income", "+" + Money.formatInr(pl.moneyIn), gain, "pl_income")
-        if (pl.income.isEmpty()) Text("No income.", style = MaterialTheme.typography.bodySmall, color = muted)
+        IeSection(tr("Income"), "+" + Money.formatInr(pl.moneyIn), gain, "pl_income")
+        if (pl.income.isEmpty()) Text(tr("No income."), style = MaterialTheme.typography.bodySmall, color = muted)
         pl.income.forEach { IeRow(it, true) }
         Gap(10.dp)
-        IeSection("Expenses", "−" + Money.formatInr(pl.spent), MaterialTheme.colorScheme.onSurface, "pl_spending")
-        if (pl.spending.isEmpty()) Text("No expenses.", style = MaterialTheme.typography.bodySmall, color = muted)
+        IeSection(tr("Expenses"), "−" + Money.formatInr(pl.spent), MaterialTheme.colorScheme.onSurface, "pl_spending")
+        if (pl.spending.isEmpty()) Text(tr("No expenses."), style = MaterialTheme.typography.bodySmall, color = muted)
         pl.spending.forEach { IeRow(it, false) }
         Divider()
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (pl.net >= 0) "Saved" else "Overspent", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            Text(if (pl.net >= 0) tr("Saved") else tr("Overspent"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             Text(
                 (if (pl.net >= 0) "+" else "−") + Money.formatInr(kotlin.math.abs(pl.net)),
                 style = MaterialTheme.typography.titleMedium, color = if (pl.net >= 0) gain else sc.overFg,
@@ -321,13 +322,13 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
 
         if (pl.months.size > 1) {
             Gap(6.dp)
-            Text("Each month", style = MaterialTheme.typography.titleSmall)
+            Text(tr("Each month"), style = MaterialTheme.typography.titleSmall)
             Gap(4.dp)
             // A table of four narrow columns: with big text its words grow only a little, then get smaller to fit
             com.owl.tracker.ui.components.CapFontScale(1.3f) { Column {
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                com.owl.tracker.ui.components.FitText("Month", style = MaterialTheme.typography.labelMedium, color = muted, minScale = 0.7f, modifier = Modifier.weight(0.8f))
-                listOf("Income", "Expenses", "Net").forEach {
+                com.owl.tracker.ui.components.FitText(tr("Month"), style = MaterialTheme.typography.labelMedium, color = muted, minScale = 0.7f, modifier = Modifier.weight(0.8f))
+                listOf(tr("Income"), tr("Expenses"), tr("Net")).forEach {
                     com.owl.tracker.ui.components.FitText(it, style = MaterialTheme.typography.labelMedium, color = muted, textAlign = TextAlign.End, minScale = 0.7f, modifier = Modifier.weight(1f))
                 }
             }
@@ -349,25 +350,25 @@ private fun IncomeExpensesCard(pl: IncomeExpenses) {
 
         val apart = buildList {
             if (pl.savingsOut > 0 || pl.savingsIn > 0) add(
-                "Investments: " + listOfNotNull(
-                    pl.savingsOut.takeIf { it > 0 }?.let { "${Money.formatInr(it)} put in, counted in expenses" },
-                    pl.savingsIn.takeIf { it > 0 }?.let { "${Money.formatInr(it)} back" },
+                tr("Investments: ") + listOfNotNull(
+                    pl.savingsOut.takeIf { it > 0 }?.let { tr("{0} put in, counted in expenses", Money.formatInr(it)) },
+                    pl.savingsIn.takeIf { it > 0 }?.let { tr("{0} back", Money.formatInr(it)) },
                 ).joinToString(" · "),
             )
             if (pl.transfersOut > 0 || pl.transfersIn > 0) add(
-                "Transfers and card bills: " + listOfNotNull(
-                    pl.transfersOut.takeIf { it > 0 }?.let { "${Money.formatInr(it)} out" },
-                    pl.transfersIn.takeIf { it > 0 }?.let { "${Money.formatInr(it)} in" },
+                tr("Transfers and card bills: ") + listOfNotNull(
+                    pl.transfersOut.takeIf { it > 0 }?.let { tr("{0} out", Money.formatInr(it)) },
+                    pl.transfersIn.takeIf { it > 0 }?.let { tr("{0} in", Money.formatInr(it)) },
                 ).joinToString(" · "),
             )
-            if (pl.leftOut > 0) add("${pl.leftOut} ${if (pl.leftOut == 1) "payment" else "payments"} you left out")
+            if (pl.leftOut > 0) add(tr("{0} {1} you left out", pl.leftOut, if (pl.leftOut == 1) tr("payment") else tr("payments")))
         }
         if (apart.isNotEmpty()) {
             Gap(10.dp)
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp).testTag("pl_apart"),
             ) {
-                Text("Not counted as income or expenses", style = MaterialTheme.typography.labelLarge)
+                Text(tr("Not counted as income or expenses"), style = MaterialTheme.typography.labelLarge)
                 apart.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = muted) }
             }
         }
@@ -383,17 +384,17 @@ private fun WaysToSaveCard(plan: SavingPlan, catMap: Map<String, Category>, vm: 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             com.owl.tracker.ui.components.IconTile(Ic.bulb, MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.primaryContainer)
             Column(Modifier.weight(1f)) {
-                Text("Ways to save", style = MaterialTheme.typography.titleMedium)
+                Text(tr("Ways to save"), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "From your last ${plan.basedOnMonths} ${if (plan.basedOnMonths == 1) "month" else "months"} and this one",
+                    tr("From your last {0} {1} and this one", plan.basedOnMonths, if (plan.basedOnMonths == 1) tr("month") else tr("months")),
                     style = MaterialTheme.typography.bodySmall, color = muted,
                 )
             }
         }
         if (plan.monthlyPaise > 0) {
             Gap(12.dp)
-            Text("You could save about ${Money.formatInr(plan.monthlyPaise)} a month", style = MaterialTheme.typography.titleMedium, color = gain, modifier = Modifier.testTag("ways_total"))
-            Text("That's ${Money.formatInr(plan.monthlyPaise * 12)} a year.", style = MaterialTheme.typography.bodySmall, color = muted)
+            Text(tr("You could save about {0} a month", Money.formatInr(plan.monthlyPaise)), style = MaterialTheme.typography.titleMedium, color = gain, modifier = Modifier.testTag("ways_total"))
+            Text(tr("That's {0} a year.", Money.formatInr(plan.monthlyPaise * 12)), style = MaterialTheme.typography.bodySmall, color = muted)
             Gap(6.dp)
             plan.tips.forEachIndexed { i, tip ->
                 if (i > 0) Divider()
@@ -449,8 +450,8 @@ private fun IeRow(line: IeLine, moneyIn: Boolean) {
     ) {
         CategoryTile(c, 28.dp)
         Column(Modifier.weight(1f)) {
-            Text(c?.name ?: "Others", style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val what = if (moneyIn && c?.kind != com.owl.tracker.data.CategoryKind.INCOME) "refunds and money back" else null
+            Text(c?.name ?: tr("Others"), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val what = if (moneyIn && c?.kind != com.owl.tracker.data.CategoryKind.INCOME) tr("refunds and money back") else null
             Text(
                 listOfNotNull(what, "${line.count} ${if (line.count == 1) "payment" else "payments"}").joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -503,17 +504,17 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
             label = "trend_title",
         ) { title ->
             if (title == null) {
-                Text(if (r.daily) "Day by day" else "Month by month", style = MaterialTheme.typography.titleMedium)
+                Text(if (r.daily) tr("Day by day") else tr("Month by month"), style = MaterialTheme.typography.titleMedium)
             } else {
                 Row(
                     Modifier.clip(RoundedCornerShape(12.dp)).clickable { vm.clearReportFilter(FilterKind.BUCKET) }.padding(end = 8.dp).testTag("drill_up"),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Ic.back, contentDescription = "Back to ${r.range.label.lowercase()}", tint = primary, modifier = Modifier.size(20.dp))
+                    Icon(Ic.back, contentDescription = tr("Back to {0}", r.range.label.lowercase()), tint = primary, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(4.dp))
                     Column {
                         Text(title, style = MaterialTheme.typography.titleMedium)
-                        Text("Day by day · back to ${r.range.label.lowercase()}", style = MaterialTheme.typography.labelSmall, color = primary)
+                        Text(tr("Day by day · back to {0}", r.range.label.lowercase()), style = MaterialTheme.typography.labelSmall, color = primary)
                     }
                 }
             }
@@ -521,9 +522,9 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
         val f = focus?.let { bars.getOrNull(it) }
         Text(
             when {
-                f != null -> "${f.title}: ${Money.formatInr(f.spent)} spent" + (if (f.received > 0) " · ${Money.formatInr(f.received)} income" else "")
-                !days -> "Tap a month to see its days · slide along the bars"
-                else -> "Tap a day to see its payments · slide along the bars"
+                f != null -> tr("{0}: {1} spent", f.title, Money.formatInr(f.spent)) + (if (f.received > 0) tr(" · {0} income", Money.formatInr(f.received)) else "")
+                !days -> tr("Tap a month to see its days · slide along the bars")
+                else -> tr("Tap a day to see its payments · slide along the bars")
             },
             style = MaterialTheme.typography.bodySmall, color = if (f != null) primary else muted,
             modifier = Modifier.testTag("trend_caption"),
@@ -564,7 +565,7 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
                             onDragCancel = { scrub = null },
                         )
                     }
-                    .semantics { contentDescription = "Spending chart. $desc" }
+                    .semantics { contentDescription = tr("Spending chart. {0}", desc) }
                     .testTag("trend_chart"),
             ) {
                 val n = bars.size.coerceAtLeast(1)
@@ -604,7 +605,7 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
                     val reach = size.width * grow
                     drawLine(muted.copy(alpha = 0.8f), Offset(0f, y), Offset(reach, y), strokeWidth = 1.2.dp.toPx())
                     if (grow > 0.95f) {
-                        val label = measurer.measure("avg ${Money.formatShort(average)}", avgStyle)
+                        val label = measurer.measure(tr("avg {0}", Money.formatShort(average)), avgStyle)
                         drawText(label, topLeft = Offset(size.width - label.size.width, (y - label.size.height - 2.dp.toPx()).coerceAtLeast(0f)))
                     }
                 }
@@ -658,7 +659,7 @@ private fun TrendCard(r: Report, vm: AppViewModel) {
         }
         if (budget > 0) {
             Text(
-                "Dashed line: your budget for ${if (days) "a day (${Money.formatInr(budget)})" else "a month (${Money.formatInr(budget)})"}. Red bars went over.",
+                tr("Dashed line: your budget for {0}. Red bars went over.", if (days) tr("a day ({0})", Money.formatInr(budget)) else tr("a month ({0})", Money.formatInr(budget))),
                 style = MaterialTheme.typography.bodySmall, color = muted,
             )
         }
@@ -711,7 +712,7 @@ private fun MerchantCard(r: Report, catMap: Map<String, Category>, vm: AppViewMo
     val top = r.merchants.maxOfOrNull { it.paise }?.coerceAtLeast(1L) ?: 1L
     val grow = growIn(r.range, 900)
     Panel(padding = 12.dp, modifier = Modifier.testTag("report_merchants")) {
-        Text("Top merchants", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(4.dp))
+        Text(tr("Top merchants"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(4.dp))
         r.merchants.forEachIndexed { i, m ->
             if (i > 0) Divider()
             val isPicked = m.key == selected
@@ -746,7 +747,7 @@ private fun WeekdayCard(r: Report, vm: AppViewModel) {
     val primary = MaterialTheme.colorScheme.primary
     val grow = growIn(r.range)
     Panel(modifier = Modifier.testTag("report_weekdays")) {
-        Text("By day of the week", style = MaterialTheme.typography.titleMedium)
+        Text(tr("By day of the week"), style = MaterialTheme.typography.titleMedium)
         Gap(12.dp)
         Row(Modifier.fillMaxWidth().height(130.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom) {
             r.weekdays.forEachIndexed { idx, w ->
@@ -787,7 +788,7 @@ private fun WeekdayCard(r: Report, vm: AppViewModel) {
 @Composable
 private fun HighlightsCard(r: Report) {
     Panel(modifier = Modifier.testTag("report_highlights")) {
-        Text("Highlights", style = MaterialTheme.typography.titleMedium)
+        Text(tr("Highlights"), style = MaterialTheme.typography.titleMedium)
         Gap(6.dp)
         r.highlights.forEach { line ->
             Row(Modifier.padding(vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -802,11 +803,11 @@ private fun HighlightsCard(r: Report) {
 private fun PaymentsCard(r: Report, catMap: Map<String, Category>, vm: AppViewModel) {
     Panel(padding = 12.dp, modifier = Modifier.testTag("report_payments")) {
         Text(
-            if (r.filter.isEmpty) "Biggest payments" else "${r.matchCount} matching ${if (r.matchCount == 1) "payment" else "payments"}",
+            if (r.filter.isEmpty) tr("Biggest payments") else tr("{0} matching {1}", r.matchCount, if (r.matchCount == 1) tr("payment") else tr("payments")),
             style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(4.dp).testTag("payments_title"),
         )
         if (r.matches.isEmpty()) {
-            Text("Nothing here yet.", modifier = Modifier.padding(4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr("Nothing here yet."), modifier = Modifier.padding(4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         r.matches.forEachIndexed { i, t ->
             if (i > 0) Divider()
@@ -814,7 +815,7 @@ private fun PaymentsCard(r: Report, catMap: Map<String, Category>, vm: AppViewMo
         }
         if (r.matchCount > r.matches.size) {
             Text(
-                "Showing the latest ${r.matches.size}. Pick a shorter range or another filter to see the rest.",
+                tr("Showing the latest {0}. Pick a shorter range or another filter to see the rest.", r.matches.size),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(4.dp),
             )
         }

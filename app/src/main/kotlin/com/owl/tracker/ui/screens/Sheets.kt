@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import com.owl.tracker.i18n.tr
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.background
@@ -151,14 +152,14 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         Column(Modifier.weight(1f)) {
             Text(tx.merchantName, style = MaterialTheme.typography.titleLarge)
             Text(
-                if (tx.isSplit) "Split: " + tx.parts.joinToString(" + ") { vm.categoryName(it.categoryId) } else cat?.name ?: "Others",
+                if (tx.isSplit) tr("Split: ") + tx.parts.joinToString(" + ") { vm.categoryName(it.categoryId) } else cat?.name ?: tr("Others"),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         androidx.compose.material3.IconButton(
             onClick = { vm.openSheet(Sheet.Rename(tx.id)) },
             modifier = Modifier.testTag("rename_txn"),
-        ) { Icon(Ic.edit, contentDescription = "Rename ${tx.merchantName}") }
+        ) { Icon(Ic.edit, contentDescription = tr("Rename {0}", tx.merchantName)) }
     }
     Column {
         com.owl.tracker.ui.components.FitText(
@@ -171,7 +172,7 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         Row(
             Modifier.then(
                 if (pickable) Modifier.clip(RoundedCornerShape(12.dp))
-                    .clickable(onClickLabel = "Choose the account") { vm.openSheet(Sheet.AccountPick(tx.id)) }.testTag("choose_account")
+                    .clickable(onClickLabel = tr("Choose the account")) { vm.openSheet(Sheet.AccountPick(tx.id)) }.testTag("choose_account")
                 else Modifier,
             ),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -183,16 +184,16 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             }
             Text(
                 when {
-                    tx.source == com.owl.tracker.data.Source.BACKUP -> "Restored from a backup"
-                    tx.source == com.owl.tracker.data.Source.MANUAL && tx.accountLabel == null -> "Added by you"
-                    else -> (if (credit) "Credited to " else "Paid from ") + (tx.accountLabel ?: "an account")
+                    tx.source == com.owl.tracker.data.Source.BACKUP -> tr("Restored from a backup")
+                    tx.source == com.owl.tracker.data.Source.MANUAL && tx.accountLabel == null -> tr("Added by you")
+                    else -> (if (credit) tr("Credited to ") else tr("Paid from ")) + (tx.accountLabel ?: tr("an account"))
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f, fill = false).testTag("paid_from"),
             )
             // The SMS didn't say which card or account: ask, plainly
             if (pickable) Text(
-                if (tx.accountLabel == null) "Which one?" else "Change",
+                if (tx.accountLabel == null) tr("Which one?") else tr("Change"),
                 color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
             )
@@ -210,15 +211,15 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
 
     if (tx.needsReview) {
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(sc.warnBg).padding(14.dp)) {
-            Text("We weren't sure about this one", style = MaterialTheme.typography.titleSmall, color = sc.warnFg)
-            Text("The message didn't fully match a known format. Check the details and category, then confirm.", style = MaterialTheme.typography.bodySmall, color = sc.warnFg)
+            Text(tr("We weren't sure about this one"), style = MaterialTheme.typography.titleSmall, color = sc.warnFg)
+            Text(tr("The message didn't fully match a known format. Check the details and category, then confirm."), style = MaterialTheme.typography.bodySmall, color = sc.warnFg)
             Gap(8.dp)
-            Button(onClick = { vm.confirmReview(tx.id) }, colors = ButtonDefaults.buttonColors(containerColor = sc.warnFg, contentColor = sc.warnBg)) { Text("Looks right") }
+            Button(onClick = { vm.confirmReview(tx.id) }, colors = ButtonDefaults.buttonColors(containerColor = sc.warnFg, contentColor = sc.warnBg)) { Text(tr("Looks right")) }
         }
     }
 
     Panel(padding = 12.dp) {
-        DetailRow("Date", vm.dateOf(tx.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.ENGLISH)) + ", " +
+        DetailRow(tr("Date"), vm.dateOf(tx.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.ENGLISH)) + ", " +
             java.time.Instant.ofEpochMilli(tx.occurredAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)))
         Divider()
         if (tx.isSplit) {
@@ -227,8 +228,8 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Split", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                    Text(tr("Split"), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    Text(tr("Change"), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 }
                 tx.parts.forEach { p ->
                     val pc = cats.firstOrNull { it.id == p.categoryId }
@@ -237,7 +238,7 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                         start = {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 CategoryTile(pc, 28.dp)
-                                Text(pc?.name ?: "Others", style = MaterialTheme.typography.titleSmall)
+                                Text(pc?.name ?: tr("Others"), style = MaterialTheme.typography.titleSmall)
                             }
                         },
                         end = { Text(Money.formatInr(p.paise, showPaise = p.paise % 100 != 0L), style = MaterialTheme.typography.titleSmall) },
@@ -248,15 +249,15 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             // Side by side when there's room; with big text the category goes under its label
             com.owl.tracker.ui.components.SideOrStacked(
                 Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.CategoryPick(tx.id)) }.padding(vertical = 10.dp).testTag("change_category"),
-                start = { Text("Category", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                start = { Text(tr("Category"), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 end = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         CategoryTile(cat, 28.dp)
                         Text(
-                            (cat?.name ?: "Others") + if (waiting) " · not sorted" else "",
+                            (cat?.name ?: tr("Others")) + if (waiting) tr(" · not sorted") else "",
                             style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f, fill = false),
                         )
-                        Text(if (waiting) "Sort" else "Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                        Text(if (waiting) tr("Sort") else tr("Change"), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                     }
                 },
             )
@@ -271,31 +272,31 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
                 Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.Split(tx.id)) }.padding(vertical = 10.dp).testTag("split_open"),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("Split across categories", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                Text("Split", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                Text(tr("Split across categories"), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                Text(tr("Split"), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
             }
         }
         Divider()
         com.owl.tracker.ui.components.SideOrStacked(
             Modifier.fillMaxWidth().clickable { vm.openSheet(Sheet.MerchantIcon(tx.id)) }.padding(vertical = 10.dp).testTag("change_icon"),
-            start = { Text("Icon", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            start = { Text(tr("Icon"), color = MaterialTheme.colorScheme.onSurfaceVariant) },
             end = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cat, 28.dp)
                     Text(
                         when {
-                            tx.merchantPackage != null && vm.appIcons.get(tx.merchantPackage) != null -> "App icon"
-                            tx.merchantPackage != null -> "App not installed"
-                            else -> "Category icon"
+                            tx.merchantPackage != null && vm.appIcons.get(tx.merchantPackage) != null -> tr("App icon")
+                            tx.merchantPackage != null -> tr("App not installed")
+                            else -> tr("Category icon")
                         },
                         style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f, fill = false),
                     )
-                    Text("Change", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                    Text(tr("Change"), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 }
             },
         )
-        tx.refNo?.let { Divider(); DetailRow("Reference", it) }
-        tx.sender?.let { Divider(); DetailRow("From", it) }
+        tx.refNo?.let { Divider(); DetailRow(tr("Reference"), it) }
+        tx.sender?.let { Divider(); DetailRow(tr("From"), it) }
         Divider()
         if (credit) {
             // Money in is shown, never spent: it can count as income on Income & expenses, or be left out.
@@ -303,12 +304,12 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             // A card bill payment: money into the card from your own account, never income
             val cardBill = tx.kind == com.owl.tracker.core.TxKind.CARD_BILL_PAYMENT || com.owl.tracker.ui.CardBills.saysPayment(tx.smsBody)
             SwitchRow(
-                "Count as income",
+                tr("Count as income"),
                 when {
-                    !counts && cardBill -> "A credit card bill payment, so never income. It's your own money paying the card."
-                    !counts -> "${cat?.name ?: "Transfers"} aren't income. To count it, change the category to an income one."
-                    tx.excluded -> "Left out of Income & expenses. Never counts as spending."
-                    else -> "Counts as income in Reports. Never counts as spending."
+                    !counts && cardBill -> tr("A credit card bill payment, so never income. It's your own money paying the card.")
+                    !counts -> tr("{0} aren't income. To count it, change the category to an income one.", cat?.name ?: tr("Transfers"))
+                    tx.excluded -> tr("Left out of Income & expenses. Never counts as spending.")
+                    else -> tr("Counts as income in Reports. Never counts as spending.")
                 },
                 tx.isIncome(cat),
                 { on -> if (counts) vm.setExcluded(tx.id, !on) },
@@ -317,8 +318,8 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             )
         } else {
             SwitchRow(
-                "Count in spend",
-                if (cat?.countsAsSpend == false) "Transfers and income never count" else if (tx.excluded) "Left out of your budget" else "Counts toward your budget",
+                tr("Count in spend"),
+                if (cat?.countsAsSpend == false) tr("Transfers and income never count") else if (tx.excluded) tr("Left out of your budget") else tr("Counts toward your budget"),
                 tx.isSpending(cat),
                 { on -> if (cat?.countsAsSpend == false) Unit else vm.setExcluded(tx.id, !on) },
                 enabled = cat?.countsAsSpend != false,
@@ -328,19 +329,19 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
 
     OutlinedTextField(
         value = note, onValueChange = { note = it },
-        label = { Text("Note") }, singleLine = true,
+        label = { Text(tr("Note")) }, singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        trailingIcon = { if (note != (tx.note ?: "")) TextButton(onClick = { vm.setNote(tx.id, note) }) { Text("Save") } },
+        trailingIcon = { if (note != (tx.note ?: "")) TextButton(onClick = { vm.setNote(tx.id, note) }) { Text(tr("Save")) } },
     )
 
     tx.smsBody?.let { body ->
         TextButton(onClick = { showSms = !showSms }) {
             Icon(Ic.message, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(if (showSms) "  Hide original SMS" else "  View original SMS")
+            Text(if (showSms) tr("  Hide original SMS") else tr("  View original SMS"))
         }
         if (showSms) {
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp)) {
-                Text("From ${tx.sender ?: "bank"}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("From {0}", tx.sender ?: tr("bank")), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Gap(4.dp)
                 Text(body, style = MaterialTheme.typography.bodyMedium)
             }
@@ -353,10 +354,10 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
     ) {
         Icon(Ic.trash, contentDescription = null, modifier = Modifier.size(18.dp))
-        Text("  Delete transaction")
+        Text(tr("  Delete transaction"))
     }
     Text(
-        "It won't be imported again. Your SMS inbox isn't changed.",
+        tr("It won't be imported again. Your SMS inbox isn't changed."),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
@@ -370,13 +371,13 @@ private fun ForYouOrKids(vm: AppViewModel, tx: com.owl.tracker.data.Txn, mine: S
             .padding(12.dp).testTag("for_you_or_kids"),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Who was this for?", style = MaterialTheme.typography.titleSmall)
+        Text(tr("Who was this for?"), style = MaterialTheme.typography.titleSmall)
         Text(
-            "${tx.merchantName} could be for you or your children. Your answer goes for every payment to it.",
+            tr("{0} could be for you or your children. Your answer goes for every payment to it.", tx.merchantName),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(Triple(mine, "For me", "for_me"), Triple(kids, "For my kids", "for_kids")).forEach { (id, label, tag) ->
+            listOf(Triple(mine, tr("For me"), "for_me"), Triple(kids, tr("For my kids"), "for_kids")).forEach { (id, label, tag) ->
                 FilterChip(
                     selected = tx.categoryId == id, onClick = { if (tx.categoryId != id) vm.setCategory(tx.id, id, true) },
                     label = { Text("$label · ${cats.firstOrNull { it.id == id }?.name ?: ""}") },
@@ -411,16 +412,16 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
     // Stores that sell everything ("WWW AMAZON IN" says nothing about what was bought): just this one is usually right
     val mixed = com.owl.tracker.core.MixedStores.isMixed(tx.merchantKey)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
-        SheetTitle("Choose category")
+        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = tr("Back to transaction")) }
+        SheetTitle(tr("Choose category"))
     }
     if (tx.isSplit) {
-        InfoNote("This payment is split across ${tx.parts.size} categories. Picking one category joins it back together.", icon = Ic.info)
+        InfoNote(tr("This payment is split across {0} categories. Picking one category joins it back together.", tx.parts.size), icon = Ic.info)
     }
     if (mixed) {
         Box(Modifier.testTag("mixed_store_note")) {
             InfoNote(
-                "${tx.merchantName} sells all kinds of things, and its SMS doesn't say what was bought, so changing just this payment is usually right.",
+                tr("{0} sells all kinds of things, and its SMS doesn't say what was bought, so changing just this payment is usually right.", tx.merchantName),
                 icon = Ic.info, container = MaterialTheme.colorScheme.primaryContainer, content = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
@@ -429,9 +430,9 @@ private fun CategoryPickSheet(vm: AppViewModel, txId: Long) {
         val name = cats.firstOrNull { it.id == id }?.name ?: ""
         if (count > 1) MoveDialog(vm, tx, id, count, cats, onDone = { pending = null })
         else OneOrAllDialog(
-            title = "Move to $name",
-            text = "Just this payment, or new payments from ${tx.merchantName} too?",
-            allLabel = "This and new ones",
+            title = tr("Move to {0}", name),
+            text = tr("Just this payment, or new payments from {0} too?", tx.merchantName),
+            allLabel = tr("This and new ones"),
             onOne = { pending = null; vm.setCategory(txId, id, false) },
             onAll = { pending = null; vm.setCategory(txId, id, true) },
             onDismiss = { pending = null },
@@ -484,11 +485,11 @@ private fun pickSections(tree: com.owl.tracker.data.CategoryTree, credit: Boolea
     val waitingIn = current.takeIf { tree.isGroup(it) }
     return buildList {
         if (credit) tops.firstOrNull { it.id == Cat.INCOME }?.let { add(null to listOf(it)) }
-        waitingIn?.let { g -> add("${tree.byId[g]?.name}: what was it?" to tree.children(g).filter { it.id in ok }) }
+        waitingIn?.let { g -> add(tr("{0}: what was it?", tree.byId[g]?.name) to tree.children(g).filter { it.id in ok }) }
         tops.filter { tree.isGroup(it.id) && it.id != waitingIn }.forEach { g ->
             tree.children(g.id).filter { it.id in ok }.takeIf { it.isNotEmpty() }?.let { add(g.name to it) }
         }
-        tops.filter { !tree.isGroup(it.id) && it.id in ok && !(credit && it.id == Cat.INCOME) }.takeIf { it.isNotEmpty() }?.let { add("On their own" to it) }
+        tops.filter { !tree.isGroup(it.id) && it.id in ok && !(credit && it.id == Cat.INCOME) }.takeIf { it.isNotEmpty() }?.let { add(tr("On their own") to it) }
     }
 }
 
@@ -518,8 +519,8 @@ private fun SplitSheet(vm: AppViewModel, txId: Long) {
     val ok = amounts.all { (it ?: 0L) > 0 } && rest > 0 && com.owl.tracker.data.Parts.valid(parts, tx.amountPaise)
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
-        SheetTitle("Split this payment", "One order, more than one kind of thing")
+        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = tr("Back to transaction")) }
+        SheetTitle(tr("Split this payment"), tr("One order, more than one kind of thing"))
     }
     Panel(padding = 12.dp) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -544,7 +545,7 @@ private fun SplitSheet(vm: AppViewModel, txId: Long) {
                         CategoryTile(cats.firstOrNull { it.id == catId }, 32.dp)
                         Column {
                             Text(vm.categoryName(catId), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (i == 0) "Gets the rest" else "Tap to change", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(if (i == 0) tr("Gets the rest") else tr("Tap to change"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -572,7 +573,7 @@ private fun SplitSheet(vm: AppViewModel, txId: Long) {
                     )
                     if (list.size > 2) {
                         androidx.compose.material3.IconButton(onClick = { save(list.filterIndexed { j, _ -> j != i }) }) {
-                            Icon(Ic.close, contentDescription = "Remove this part")
+                            Icon(Ic.close, contentDescription = tr("Remove this part"))
                         }
                     }
                 }
@@ -582,10 +583,10 @@ private fun SplitSheet(vm: AppViewModel, txId: Long) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             when {
-                amounts.any { it == null || it <= 0 } -> "Type an amount for each part"
-                rest <= 0 -> "The parts come to more than ${Money.formatInr(tx.amountPaise, showPaise = tx.amountPaise % 100 != 0L)}"
-                !ok -> "Use a different category for each part"
-                else -> "Adds up to ${Money.formatInr(tx.amountPaise, showPaise = tx.amountPaise % 100 != 0L)}"
+                amounts.any { it == null || it <= 0 } -> tr("Type an amount for each part")
+                rest <= 0 -> tr("The parts come to more than {0}", Money.formatInr(tx.amountPaise, showPaise = tx.amountPaise % 100 != 0L))
+                !ok -> tr("Use a different category for each part")
+                else -> tr("Adds up to {0}", Money.formatInr(tx.amountPaise, showPaise = tx.amountPaise % 100 != 0L))
             },
             style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).testTag("split_check"),
             color = if (ok) LocalStatusColors.current.okFg else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -594,20 +595,20 @@ private fun SplitSheet(vm: AppViewModel, txId: Long) {
             TextButton(
                 onClick = { save(list + ((choices.first { c -> list.none { it.first == c.id } }).id to "")) },
                 modifier = Modifier.testTag("split_add"),
-            ) { Text("+ Add a part") }
+            ) { Text(tr("+ Add a part")) }
         }
     }
     Button(
         onClick = { vm.saveSplit(txId, parts) }, enabled = ok,
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("split_save"),
-    ) { Text("Save the split") }
+    ) { Text(tr("Save the split")) }
     if (tx.isSplit) {
         OutlinedButton(onClick = { vm.joinSplit(txId) }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("split_join")) {
-            Text("Join back into one category")
+            Text(tr("Join back into one category"))
         }
     }
     Text(
-        "Each part counts in its own category in budgets, “Where it went” and Reports. The payment itself stays as one.",
+        tr("Each part counts in its own category in budgets, “Where it went” and Reports. The payment itself stays as one."),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
@@ -635,20 +636,20 @@ private fun RenameSheet(vm: AppViewModel, txId: Long) {
     var name by rememberSaveable(txId) { mutableStateOf(tx.merchantName) }
     var asking by rememberSaveable(txId) { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
-        SheetTitle("Rename", "Banks often send a company's legal name. Use one you'll recognise.")
+        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = tr("Back to transaction")) }
+        SheetTitle(tr("Rename"), tr("Banks often send a company's legal name. Use one you'll recognise."))
     }
     OutlinedTextField(
         value = name, onValueChange = { name = it.take(com.owl.tracker.data.Repository.MAX_NAME) },
-        label = { Text("Name") }, singleLine = true,
+        label = { Text(tr("Name")) }, singleLine = true,
         modifier = Modifier.fillMaxWidth().testTag("rename_field"),
     )
     if (asking) {
         OneOrAllDialog(
-            title = "Rename to ${name.trim()}",
-            text = if (count > 1) "Just this payment, or all $count payments from ${tx.merchantName}? All also names new ones from ${tx.merchantName} this way."
-            else "Just this payment, or new payments from ${tx.merchantName} too?",
-            allLabel = if (count > 1) "All $count" else "This and new ones",
+            title = tr("Rename to {0}", name.trim()),
+            text = if (count > 1) tr("Just this payment, or all {0} payments from {1}? All also names new ones from {2} this way.", count, tx.merchantName, tx.merchantName)
+            else tr("Just this payment, or new payments from {0} too?", tx.merchantName),
+            allLabel = if (count > 1) tr("All {0}", count) else tr("This and new ones"),
             onOne = { asking = false; vm.renameTxn(txId, name, false) },
             onAll = { asking = false; vm.renameTxn(txId, name, true) },
             onDismiss = { asking = false },
@@ -659,7 +660,7 @@ private fun RenameSheet(vm: AppViewModel, txId: Long) {
         onClick = { asking = true },
         enabled = name.isNotBlank() && name.trim() != tx.merchantName,
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("rename_save"),
-    ) { Text("Save name") }
+    ) { Text(tr("Save name")) }
 }
 
 /**
@@ -682,17 +683,17 @@ private fun ShareReportSheet(vm: AppViewModel) {
         androidx.activity.result.contract.ActivityResultContracts.CreateDocument(com.owl.tracker.export.ReportFormat.EXCEL.mime),
     ) { uri -> if (uri != null) vm.saveReport(uri) }
 
-    SheetTitle("Share a report", "For your family, or to look through on a computer. It's made here on the phone and works without internet.")
-    Text("How much", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 4.dp))
+    SheetTitle(tr("Share a report"), tr("For your family, or to look through on a computer. It's made here on the phone and works without internet."))
+    Text(tr("How much"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 4.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         com.owl.tracker.export.ReportPeriod.entries.forEach { p ->
             FilterChip(selected = period == p, onClick = { period = p }, label = { Text(p.label) }, modifier = Modifier.testTag("report_period_${p.name}"))
         }
     }
-    Text("As", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
+    Text(tr("As"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
     listOf(
-        Triple(com.owl.tracker.export.ReportFormat.PAGE, "Interactive page", "Opens in any browser, on a phone or computer: charts, a calendar, filters by category, date and account, search, and every payment."),
-        Triple(com.owl.tracker.export.ReportFormat.EXCEL, "Excel workbook", "Summary, every payment with filters, and spending by category and by month, for your own sums."),
+        Triple(com.owl.tracker.export.ReportFormat.PAGE, tr("Interactive page"), tr("Opens in any browser, on a phone or computer: charts, a calendar, filters by category, date and account, search, and every payment.")),
+        Triple(com.owl.tracker.export.ReportFormat.EXCEL, tr("Excel workbook"), tr("Summary, every payment with filters, and spending by category and by month, for your own sums.")),
     ).forEach { (f, title, sub) ->
         val on = format == f
         Row(
@@ -710,8 +711,8 @@ private fun ShareReportSheet(vm: AppViewModel) {
         }
     }
     SwitchRow(
-        "Show card and account numbers",
-        if (accounts) "Like \"HDFC Bank card ••3643\"" else "Only the bank, like \"HDFC Bank card\"",
+        tr("Show card and account numbers"),
+        if (accounts) tr("Like \"HDFC Bank card ••3643\"") else tr("Only the bank, like \"HDFC Bank card\""),
         accounts, { accounts = it }, modifier = Modifier.padding(top = 6.dp).testTag("report_accounts"),
     )
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -723,11 +724,11 @@ private fun ShareReportSheet(vm: AppViewModel) {
                 }
             },
             enabled = !working, modifier = Modifier.weight(1f).height(52.dp).testTag("report_save"),
-        ) { Text("Save to a file") }
+        ) { Text(tr("Save to a file")) }
         Button(
             onClick = { vm.shareReport(period, format, accounts) },
             enabled = !working, modifier = Modifier.weight(1f).height(52.dp).testTag("report_share"),
-        ) { Text(if (working) "Making it…" else "Share") }
+        ) { Text(if (working) tr("Making it…") else tr("Share")) }
     }
 }
 
@@ -756,15 +757,15 @@ private fun AccountPickSheet(vm: AppViewModel, txId: Long) {
     var digits by rememberSaveable(txId) { mutableStateOf("") }
     var isCard by rememberSaveable(txId) { mutableStateOf(false) }
     var forBank by rememberSaveable(txId) { mutableStateOf(true) }
-    val newLabel = if (newBank.isNotBlank() && digits.length == 4) (if (isCard) "${newBank.trim()} card ••$digits" else "${newBank.trim()} ••$digits") else null
+    val newLabel = if (newBank.isNotBlank() && digits.length == 4) (if (isCard) tr("{0} card ••{1}", newBank.trim(), digits) else "${newBank.trim()} ••$digits") else null
     val label = if (adding) newLabel else picked
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
+        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = tr("Back to transaction")) }
         SheetTitle(
-            "Which account?",
-            if (tx.accountLabel == null) "The ${bankName ?: "bank's"} message didn't say which card or account. Choose it and Owl Tracker remembers."
-            else "Choose the card or account this came from.",
+            tr("Which account?"),
+            if (tx.accountLabel == null) tr("The {0} message didn't say which card or account. Choose it and Owl Tracker remembers.", bankName ?: "bank's")
+            else tr("Choose the card or account this came from."),
         )
     }
     Column(Modifier.fillMaxWidth().heightIn(max = 380.dp).verticalScroll(rememberScrollState())) {
@@ -781,7 +782,7 @@ private fun AccountPickSheet(vm: AppViewModel, txId: Long) {
                 Column(Modifier.weight(1f)) {
                     Text(choice, style = MaterialTheme.typography.titleSmall)
                     known?.filter { it.label == choice }?.sumOf { it.payments }?.takeIf { it > 0 }?.let {
-                        Text(if (it == 1) "1 payment" else "$it payments", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (it == 1) tr("1 payment") else tr("{0} payments", it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -794,20 +795,20 @@ private fun AccountPickSheet(vm: AppViewModel, txId: Long) {
         ) {
             androidx.compose.material3.RadioButton(selected = adding, onClick = null)
             Gap(10.dp)
-            Text("Another card or account", style = MaterialTheme.typography.titleSmall)
+            Text(tr("Another card or account"), style = MaterialTheme.typography.titleSmall)
         }
         if (adding) Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = !isCard, onClick = { isCard = false }, label = { Text("Bank account") })
-                FilterChip(selected = isCard, onClick = { isCard = true }, label = { Text("Card") })
+                FilterChip(selected = !isCard, onClick = { isCard = false }, label = { Text(tr("Bank account")) })
+                FilterChip(selected = isCard, onClick = { isCard = true }, label = { Text(tr("Card")) })
             }
             OutlinedTextField(
-                value = newBank, onValueChange = { newBank = it.take(30) }, label = { Text("Bank") }, singleLine = true,
+                value = newBank, onValueChange = { newBank = it.take(30) }, label = { Text(tr("Bank")) }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("account_new_bank"),
             )
             OutlinedTextField(
                 value = digits, onValueChange = { v -> digits = v.filter { it.isDigit() }.take(4) },
-                label = { Text("Last 4 digits") }, singleLine = true,
+                label = { Text(tr("Last 4 digits")) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 modifier = Modifier.fillMaxWidth().testTag("account_new_digits"),
             )
@@ -816,8 +817,8 @@ private fun AccountPickSheet(vm: AppViewModel, txId: Long) {
     if (bankId != null && label != null && label != "Cash") {
         val others = (missing - if (tx.accountLabel == null) 1 else 0).coerceAtLeast(0)
         SwitchRow(
-            "Use it for $bankName messages that don't say",
-            if (others > 0) "$others more payments now, and new ones" else "New ones from $bankName",
+            tr("Use it for {0} messages that don't say", bankName),
+            if (others > 0) tr("{0} more payments now, and new ones", others) else tr("New ones from {0}", bankName),
             forBank, { forBank = it }, modifier = Modifier.testTag("account_for_bank"),
         )
     }
@@ -825,10 +826,10 @@ private fun AccountPickSheet(vm: AppViewModel, txId: Long) {
         onClick = { vm.setAccount(txId, label, forBank && label != "Cash") },
         enabled = label != null && label != tx.accountLabel,
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("account_save"),
-    ) { Text("Save") }
+    ) { Text(tr("Save")) }
     if (tx.accountLabel != null) androidx.compose.material3.TextButton(
         onClick = { vm.setAccount(txId, null, false) }, modifier = Modifier.fillMaxWidth().testTag("account_clear"),
-    ) { Text("Not sure, clear it") }
+    ) { Text(tr("Not sure, clear it")) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -866,14 +867,14 @@ private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
         )
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = "Back to transaction") }
-        SheetTitle("Icon for ${tx.merchantName}", "Used for all its payments, now and later")
+        androidx.compose.material3.IconButton(onClick = { vm.openSheet(Sheet.TxnDetail(txId)) }) { Icon(Ic.back, contentDescription = tr("Back to transaction")) }
+        SheetTitle(tr("Icon for {0}", tx.merchantName), tr("Used for all its payments, now and later"))
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { vm.setMerchantIcon(txId, null) }, modifier = Modifier.weight(1f).testTag("icon_auto")) { Text("Automatic") }
+        OutlinedButton(onClick = { vm.setMerchantIcon(txId, null) }, modifier = Modifier.weight(1f).testTag("icon_auto")) { Text(tr("Automatic")) }
         OutlinedButton(onClick = { vm.setMerchantIcon(txId, "") }, modifier = Modifier.weight(1f).testTag("icon_none")) {
             CategoryTile(cat, 20.dp)
-            Text("  Category icon")
+            Text(tr("  Category icon"))
         }
     }
     val hasPicture = com.owl.tracker.core.MerchantPicture.isPicture(tx.merchantPackage)
@@ -890,14 +891,14 @@ private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
         ),
     ) {
         if (hasPicture) MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cat, 20.dp) else Icon(Ic.image, contentDescription = null)
-        Text(if (hasPicture) "  Change picture" else "  Use a picture")
+        Text(if (hasPicture) tr("  Change picture") else tr("  Use a picture"))
     }
-    Text("Apps on this phone", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(tr("Apps on this phone"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     val list = apps
     when {
-        list == null -> Text("Looking…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        list == null -> Text(tr("Looking…"), color = MaterialTheme.colorScheme.onSurfaceVariant)
         list.isEmpty() -> Text(
-            "None of the apps Owl Tracker recognises are installed. Use a picture instead.",
+            tr("None of the apps Owl Tracker recognises are installed. Use a picture instead."),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         else -> com.owl.tracker.ui.components.CellGrid(list.size, 76.dp, list.map { it.label }, MaterialTheme.typography.labelSmall, 4.dp, Modifier.fillMaxWidth()) { i, w ->
@@ -920,8 +921,8 @@ private fun MerchantIconSheet(vm: AppViewModel, txId: Long) {
         }
     }
     InfoNote(
-        "Shows the apps Owl Tracker recognises and every app here that pays by UPI. For anything else, use a picture, " +
-            "such as a screenshot of the app's icon. Owl Tracker never reads the full list of apps on your phone.",
+        tr("Shows the apps Owl Tracker recognises and every app here that pays by UPI. For anything else, use a picture, ") +
+            tr("such as a screenshot of the app's icon. Owl Tracker never reads the full list of apps on your phone."),
     )
 }
 
@@ -946,17 +947,17 @@ private fun CategoryEditSheet(vm: AppViewModel, id: String?, inGroup: String? = 
     var color by rememberSaveable(id) { mutableLongStateOf(existing?.color ?: Ic.colorChoices[3]) }
     var counts by rememberSaveable(id) { mutableStateOf(existing?.countsAsSpend ?: true) }
 
-    SheetTitle(if (existing == null) "New category" else "Edit category")
+    SheetTitle(if (existing == null) tr("New category") else tr("Edit category"))
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(56.dp).clip(RoundedCornerShape(17.dp)).background(Color(color).copy(alpha = 0.13f)), contentAlignment = Alignment.Center) {
             Icon(Ic.forCategory(icon), contentDescription = null, tint = Color(color), modifier = Modifier.size(28.dp))
         }
         OutlinedTextField(
-            value = name, onValueChange = { name = it.take(40) }, label = { Text("Name") }, singleLine = true,
-            placeholder = { Text("e.g. Pets, Gifts, Kids") }, modifier = Modifier.weight(1f).testTag("category_name"),
+            value = name, onValueChange = { name = it.take(40) }, label = { Text(tr("Name")) }, singleLine = true,
+            placeholder = { Text(tr("e.g. Pets, Gifts, Kids")) }, modifier = Modifier.weight(1f).testTag("category_name"),
         )
     }
-    Text("Icon", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(tr("Icon"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Ic.categoryChoices.forEach { k ->
             val on = icon == k
@@ -965,10 +966,10 @@ private fun CategoryEditSheet(vm: AppViewModel, id: String?, inGroup: String? = 
                     .border(if (on) 2.dp else 1.dp, if (on) Color(color) else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
                     .selectable(selected = on, role = Role.RadioButton) { icon = k },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Ic.forCategory(k), contentDescription = "$k icon", tint = if (on) Color(color) else MaterialTheme.colorScheme.onSurfaceVariant) }
+            ) { Icon(Ic.forCategory(k), contentDescription = tr("{0} icon", k), tint = if (on) Color(color) else MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
-    Text("Colour", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(tr("Colour"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Ic.colorChoices.forEachIndexed { i, col ->
             val on = color == col
@@ -982,9 +983,9 @@ private fun CategoryEditSheet(vm: AppViewModel, id: String?, inGroup: String? = 
     }
     // Which group it sits in (a group itself stays where it is)
     if (!isGroup && existing?.kind != com.owl.tracker.data.CategoryKind.INCOME) {
-        Text("Group", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(tr("Group"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("category_group")) {
-            FilterChip(selected = parent == null, onClick = { parent = null }, label = { Text("On its own") })
+            FilterChip(selected = parent == null, onClick = { parent = null }, label = { Text(tr("On its own")) })
             cats.filter { it.parent == null && !it.archived && tree.isGroup(it.id) }.forEach { g ->
                 FilterChip(
                     selected = parent == g.id, onClick = { parent = g.id; counts = true }, label = { Text(g.name) },
@@ -994,17 +995,17 @@ private fun CategoryEditSheet(vm: AppViewModel, id: String?, inGroup: String? = 
         }
     }
     if (existing?.kind != com.owl.tracker.data.CategoryKind.INCOME && parent == null) {
-        SwitchRow("Count as spending", "Turn off for transfers and savings", counts, { counts = it })
+        SwitchRow(tr("Count as spending"), tr("Turn off for transfers and savings"), counts, { counts = it })
     }
     Button(
         onClick = { vm.saveCategory(id, name, icon, color, counts, parent.takeIf { !isGroup }) },
         enabled = name.isNotBlank(),
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("save_category"),
-    ) { Text(if (existing == null) "Add category" else "Save changes") }
+    ) { Text(if (existing == null) tr("Add category") else tr("Save changes")) }
     if (existing != null && existing.id != Cat.OTHERS && existing.id != Cat.INCOME) {
         TextButton(onClick = { vm.archiveCategory(existing.id) }, modifier = Modifier.fillMaxWidth()) {
             Text(
-                if (isGroup) "Archive the group and its categories (their transactions move to Others)" else "Archive category (its transactions move to Others)",
+                if (isGroup) tr("Archive the group and its categories (their transactions move to Others)") else tr("Archive category (its transactions move to Others)"),
                 color = MaterialTheme.colorScheme.error,
             )
         }
@@ -1025,20 +1026,20 @@ private fun AddExpenseSheet(vm: AppViewModel) {
     var daysAgo by rememberSaveable { mutableIntStateOf(0) }
     val rupees = amount.toLongOrNull() ?: 0L
 
-    SheetTitle("Add expense", "For cash, or anything an SMS missed")
+    SheetTitle(tr("Add expense"), tr("For cash, or anything an SMS missed"))
     OutlinedTextField(
         value = amount, onValueChange = { v -> amount = v.filter { it.isDigit() }.take(8) },
-        label = { Text("Amount (₹)") }, singleLine = true,
+        label = { Text(tr("Amount (₹)")) }, singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth().testTag("add_amount"),
         textStyle = MaterialTheme.typography.headlineSmall,
     )
     OutlinedTextField(
         value = merchant, onValueChange = { merchant = it.take(40) },
-        label = { Text("Where") }, placeholder = { Text("e.g. Tea stall, Auto fare") }, singleLine = true,
+        label = { Text(tr("Where")) }, placeholder = { Text(tr("e.g. Tea stall, Auto fare")) }, singleLine = true,
         modifier = Modifier.fillMaxWidth().testTag("add_merchant"),
     )
-    Text("Category", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(tr("Category"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         com.owl.tracker.data.CategoryTree(cats).pickable().filter { it.countsAsSpend }.forEach { c ->
             FilterChip(selected = cat == c.id, onClick = { cat = c.id }, label = { Text(c.name) },
@@ -1047,15 +1048,15 @@ private fun AddExpenseSheet(vm: AppViewModel) {
     }
     // Today and yesterday in one tap; any other day from the calendar (never a future one)
     var picking by rememberSaveable { mutableStateOf(false) }
-    Text("When", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(tr("When"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(0 to "Today", 1 to "Yesterday").forEach { (d, label) ->
+        listOf(0 to tr("Today"), 1 to tr("Yesterday")).forEach { (d, label) ->
             FilterChip(selected = daysAgo == d, onClick = { daysAgo = d }, label = { Text(label) }, modifier = Modifier.testTag("add_day_$d"))
         }
         val other = daysAgo > 1
         FilterChip(
             selected = other, onClick = { picking = true },
-            label = { Text(if (other) vm.today().minusDays(daysAgo.toLong()).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.ENGLISH)) else "Pick a date") },
+            label = { Text(if (other) vm.today().minusDays(daysAgo.toLong()).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.ENGLISH)) else tr("Pick a date")) },
             leadingIcon = { Icon(Ic.calendar, contentDescription = null, modifier = Modifier.size(18.dp)) },
             modifier = Modifier.testTag("add_pick_date"),
         )
@@ -1069,7 +1070,7 @@ private fun AddExpenseSheet(vm: AppViewModel) {
         onClick = { vm.addManual(rupees * 100, merchant.ifBlank { "Cash expense" }, cat, daysAgo) },
         enabled = rupees > 0,
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("save_expense"),
-    ) { Text("Save expense") }
+    ) { Text(tr("Save expense")) }
 }
 
 /** A calendar for when an expense happened: any day up to today. */
@@ -1093,11 +1094,11 @@ private fun ExpenseDatePicker(today: java.time.LocalDate, current: java.time.Loc
             androidx.compose.material3.TextButton(
                 onClick = { state.selectedDateMillis?.let { onPick(java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()) } ?: onDismiss() },
                 modifier = Modifier.testTag("add_date_ok"),
-            ) { Text("OK") }
+            ) { Text(tr("OK")) }
         },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     ) {
-        androidx.compose.material3.DatePicker(state = state, title = { Text("When was it?", modifier = Modifier.padding(start = 24.dp, top = 16.dp)) }, modifier = Modifier.testTag("add_date_picker"))
+        androidx.compose.material3.DatePicker(state = state, title = { Text(tr("When was it?"), modifier = Modifier.padding(start = 24.dp, top = 16.dp)) }, modifier = Modifier.testTag("add_date_picker"))
     }
 }
 
@@ -1107,12 +1108,12 @@ private fun ExpenseDatePicker(today: java.time.LocalDate, current: java.time.Loc
 @Composable
 private fun DeleteSheet(vm: AppViewModel) {
     val d by vm.deleteUi.collectAsStateWithLifecycle()
-    SheetTitle("Delete transactions", "Messages in your SMS inbox are never touched")
+    SheetTitle(tr("Delete transactions"), tr("Messages in your SMS inbox are never touched"))
     val opts = listOf(
-        DeleteOption.OLDER_3 to "Older than 3 months",
-        DeleteOption.OLDER_6 to "Older than 6 months",
-        DeleteOption.ACCOUNT to "From one bank or card",
-        DeleteOption.ALL_SMS to "Everything imported from SMS",
+        DeleteOption.OLDER_3 to tr("Older than 3 months"),
+        DeleteOption.OLDER_6 to tr("Older than 6 months"),
+        DeleteOption.ACCOUNT to tr("From one bank or card"),
+        DeleteOption.ALL_SMS to tr("Everything imported from SMS"),
     )
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         opts.forEach { (o, label) ->
@@ -1130,9 +1131,9 @@ private fun DeleteSheet(vm: AppViewModel) {
                     Text(label, style = MaterialTheme.typography.titleSmall)
                     Text(
                         when (o) {
-                            DeleteOption.ACCOUNT -> if (d.groups.isEmpty()) "No imported accounts yet" else "$n from ${Institutions.nameFor(d.group)}"
-                            DeleteOption.ALL_SMS -> "$n transactions · keeps manual entries, categories, rules and budgets"
-                            else -> if (n == 0) "Nothing that old is stored" else "$n transactions"
+                            DeleteOption.ACCOUNT -> if (d.groups.isEmpty()) tr("No imported accounts yet") else tr("{0} from {1}", n, Institutions.nameFor(d.group))
+                            DeleteOption.ALL_SMS -> tr("{0} transactions · keeps manual entries, categories, rules and budgets", n)
+                            else -> if (n == 0) tr("Nothing that old is stored") else tr("{0} transactions", n)
                         },
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1144,15 +1145,15 @@ private fun DeleteSheet(vm: AppViewModel) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             d.groups.forEach { (g, n) -> FilterChip(selected = d.group == g, onClick = { vm.setDeleteGroup(g) }, label = { Text("${Institutions.nameFor(g)} · $n") }) }
         }
-        SwitchRow("Also stop importing from it", "Turns this sender off in Import filters", d.stopImporting, { vm.setStopImporting(it) })
+        SwitchRow(tr("Also stop importing from it"), tr("Turns this sender off in Import filters"), d.stopImporting, { vm.setStopImporting(it) })
     }
-    InfoNote("The next automatic scan won't bring these back. You can re-import them any time from Settings → What to import.")
+    InfoNote(tr("The next automatic scan won't bring these back. You can re-import them any time from Settings → What to import."))
     Button(
         onClick = { vm.requestDelete() },
         enabled = d.selectedCount > 0,
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
         modifier = Modifier.fillMaxWidth().height(52.dp).testTag("delete_button"),
-    ) { Text(if (d.selectedCount > 0) "Delete ${d.selectedCount} transactions" else "Nothing to delete") }
+    ) { Text(if (d.selectedCount > 0) tr("Delete {0} transactions", d.selectedCount) else tr("Nothing to delete")) }
 }
 
 
@@ -1170,13 +1171,13 @@ private fun OverBudgetSheet(vm: AppViewModel) {
     val over = dash?.over.orEmpty().sortedByDescending { it.spent - it.limit }
     val sc = LocalStatusColors.current
     if (over.isEmpty()) {
-        SheetTitle("No budget is over", "Nice. Every category is within its budget.")
+        SheetTitle(tr("No budget is over"), tr("Nice. Every category is within its budget."))
         return
     }
     val total = over.sumOf { it.spent - it.limit }
     SheetTitle(
-        if (over.size == 1) "1 budget is over" else "${over.size} budgets are over",
-        "${Money.formatInr(total)} over in all · ${over.first().daysLeftText}",
+        if (over.size == 1) tr("1 budget is over") else tr("{0} budgets are over", over.size),
+        tr("{0} over in all · {1}", Money.formatInr(total), over.first().daysLeftText),
     )
     Column(Modifier.testTag("over_sheet"), verticalArrangement = Arrangement.spacedBy(0.dp)) {
         over.forEach { o ->
@@ -1184,19 +1185,19 @@ private fun OverBudgetSheet(vm: AppViewModel) {
             Column(Modifier.fillMaxWidth().padding(vertical = 12.dp).testTag("over_row_" + o.budgetKey), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(o.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                    Text("${Money.formatInr(o.spent - o.limit)} over", style = MaterialTheme.typography.titleSmall, color = sc.overFg)
+                    Text(tr("{0} over", Money.formatInr(o.spent - o.limit)), style = MaterialTheme.typography.titleSmall, color = sc.overFg)
                 }
-                Text("${Money.formatInr(o.spent)} spent of ${Money.formatInr(o.limit)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("{0} spent of {1}", Money.formatInr(o.spent), Money.formatInr(o.limit)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OverBar(o.spent, o.limit, sc.overFg, sc.overBg)
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = { vm.closeSheet(); vm.showActivity(o.categoryId) },
                         modifier = Modifier.testTag("over_see_" + o.budgetKey),
-                    ) { Text("See where it went") }
+                    ) { Text(tr("See where it went")) }
                     OutlinedButton(
                         onClick = { vm.openSheet(Sheet.BudgetEdit(o.budgetKey)) },
                         modifier = Modifier.testTag("over_adjust_" + o.budgetKey),
-                    ) { Text("Adjust budget") }
+                    ) { Text(tr("Adjust budget")) }
                 }
             }
         }
@@ -1232,25 +1233,25 @@ private fun SkippedSheet(vm: AppViewModel) {
     val fmt = remember { DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH) }
     val groups = remember(items) { items.groupBy { it.reason } }
 
-    SheetTitle("Skipped messages", "${items.size} messages in this period weren't read as transactions. None of them is stored.")
+    SheetTitle(tr("Skipped messages"), tr("{0} messages in this period weren't read as transactions. None of them is stored.", items.size))
     InfoNote(
-        "If a real payment is listed here, tap Copy and send it to whoever maintains Owl Tracker. " +
-            "Account, card, phone and reference numbers are hidden in the copy.",
+        tr("If a real payment is listed here, tap Copy and send it to whoever maintains Owl Tracker. ") +
+            tr("Account, card, phone and reference numbers are hidden in the copy."),
     )
     Button(
         onClick = {
             context.getSystemService(ClipboardManager::class.java)
-                ?.setPrimaryClip(ClipData.newPlainText("Owl Tracker skipped messages", vm.skippedReport()))
-            vm.messages.tryEmit(UiMessage("Copied, with account and card numbers hidden"))
+                ?.setPrimaryClip(ClipData.newPlainText(tr("Owl Tracker skipped messages"), vm.skippedReport()))
+            vm.messages.tryEmit(UiMessage(tr("Copied, with account and card numbers hidden")))
         },
         modifier = Modifier.fillMaxWidth().height(48.dp).testTag("copy_skipped"),
-    ) { Text("Copy list to share") }
+    ) { Text(tr("Copy list to share")) }
 
     AppViewModel.SKIP_ORDER.filter { it in groups }.forEach { reason ->
         val list = groups.getValue(reason)
         Text("${AppViewModel.skipLabel(reason)} \u00b7 ${list.size}", style = MaterialTheme.typography.titleSmall)
         if (reason == RejectReason.PERSONAL_SENDER) {
-            Text("Texts from phone numbers are skipped without being read further.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr("Texts from phone numbers are skipped without being read further."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@forEach
         }
         Panel(padding = 12.dp) {
@@ -1266,7 +1267,7 @@ private fun SkippedSheet(vm: AppViewModel) {
                     }
                 }
             }
-            if (list.size > 30) Text("\u2026and ${list.size - 30} more", style = MaterialTheme.typography.bodySmall)
+            if (list.size > 30) Text(tr("\u2026and {0} more", list.size - 30), style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -1297,28 +1298,28 @@ private fun MoveDialog(vm: AppViewModel, tx: com.owl.tracker.data.Txn, target: S
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDone,
         modifier = Modifier.testTag("apply_dialog"),
-        title = { Text("Move to $name") },
+        title = { Text(tr("Move to {0}", name)) },
         text = {
             Column {
                 if (!review) {
-                    Text("Just this payment, or all $count payments from ${tx.merchantName}? All also sorts new ones from ${tx.merchantName} into $name.")
+                    Text(tr("Just this payment, or all {0} payments from {1}? All also sorts new ones from {2} into {3}.", count, tx.merchantName, tx.merchantName, name))
                     Row(
                         Modifier.padding(top = 12.dp).clip(RoundedCornerShape(12.dp)).clickable { review = true }
                             .heightIn(min = 44.dp).padding(end = 8.dp).testTag("apply_review"),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Review and choose", fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                        Text(tr("Review and choose"), fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                         Icon(Ic.chevDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     }
                 } else {
-                    Text("Tick the payments from ${tx.merchantName} to move. Tap where one goes to send it somewhere else.", style = MaterialTheme.typography.bodyMedium)
+                    Text(tr("Tick the payments from {0} to move. Tap where one goes to send it somewhere else.", tx.merchantName), style = MaterialTheme.typography.bodyMedium)
                     Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.material3.TextButton(onClick = { review = false }) { Text("Hide list") }
+                        androidx.compose.material3.TextButton(onClick = { review = false }) { Text(tr("Hide list")) }
                         Spacer(Modifier.weight(1f))
                         val all = list.isNotEmpty() && chosen.size == list.size
                         androidx.compose.material3.TextButton(
                             onClick = { list.forEach { ticked[it.id] = !all } }, modifier = Modifier.testTag("apply_select_all"),
-                        ) { Text(if (all) "Select none" else "Select all") }
+                        ) { Text(if (all) tr("Select none") else tr("Select all")) }
                     }
                     if (others == null) Text("…", color = muted)
                     Column(Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState())) {
@@ -1336,7 +1337,7 @@ private fun MoveDialog(vm: AppViewModel, tx: com.owl.tracker.data.Txn, target: S
                                 Column(Modifier.weight(1f)) {
                                     Row {
                                         Text(
-                                            vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH)) + if (p.id == tx.id) " · this one" else "",
+                                            vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH)) + if (p.id == tx.id) tr(" · this one") else "",
                                             style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
                                         )
                                         Text(Money.formatInr(p.amountPaise), style = MaterialTheme.typography.titleSmall)
@@ -1346,35 +1347,35 @@ private fun MoveDialog(vm: AppViewModel, tx: com.owl.tracker.data.Txn, target: S
                                         Row(
                                             Modifier.padding(top = 4.dp).clip(RoundedCornerShape(50))
                                                 .background(if (to != target) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                                                .clickable(onClickLabel = "Choose where this one goes") { choosingFor = p }
+                                                .clickable(onClickLabel = tr("Choose where this one goes")) { choosingFor = p }
                                                 .heightIn(min = 32.dp).padding(horizontal = 10.dp).testTag("apply_to_$i"),
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Text("→ ${byId[to]?.name ?: ""}", style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                                             Icon(Ic.chevDown, contentDescription = null, modifier = Modifier.size(14.dp))
                                         }
-                                    } else Text("Stays in ${byId[p.categoryId]?.name ?: ""}", style = MaterialTheme.typography.bodySmall, color = muted)
+                                    } else Text(tr("Stays in {0}", byId[p.categoryId]?.name ?: ""), style = MaterialTheme.typography.bodySmall, color = muted)
                                 }
                             }
                         }
                     }
                     SwitchRow(
-                        "Also new ones from ${tx.merchantName}", "Sorted into $name", newOnes, { newOnes = it },
+                        tr("Also new ones from {0}", tx.merchantName), tr("Sorted into {0}", name), newOnes, { newOnes = it },
                         modifier = Modifier.testTag("apply_new_ones"),
                     )
                 }
             }
         },
         confirmButton = {
-            if (!review) Button(onClick = { onDone(); vm.setCategory(tx.id, target, false) }, modifier = Modifier.testTag("apply_one")) { Text("Just this one") }
+            if (!review) Button(onClick = { onDone(); vm.setCategory(tx.id, target, false) }, modifier = Modifier.testTag("apply_one")) { Text(tr("Just this one")) }
             else Button(
                 onClick = { onDone(); vm.moveChosen(tx.id, chosen.associate { it.id to (goesTo[it.id] ?: target) }, target.takeIf { newOnes }) },
                 enabled = chosen.isNotEmpty(), modifier = Modifier.testTag("apply_move"),
-            ) { Text("Move ${chosen.size}") }
+            ) { Text(tr("Move {0}", chosen.size)) }
         },
         dismissButton = {
-            if (!review) androidx.compose.material3.TextButton(onClick = { onDone(); vm.setCategory(tx.id, target, true) }, modifier = Modifier.testTag("apply_all")) { Text("All $count") }
-            else androidx.compose.material3.TextButton(onClick = onDone) { Text("Cancel") }
+            if (!review) androidx.compose.material3.TextButton(onClick = { onDone(); vm.setCategory(tx.id, target, true) }, modifier = Modifier.testTag("apply_all")) { Text(tr("All {0}", count)) }
+            else androidx.compose.material3.TextButton(onClick = onDone) { Text(tr("Cancel")) }
         },
     )
     choosingFor?.let { p -> OneCategoryPicker(p, target, cats, vm, onPick = { goesTo[p.id] = it; choosingFor = null }, onDismiss = { choosingFor = null }) }
@@ -1392,10 +1393,10 @@ private fun OneCategoryPicker(p: com.owl.tracker.data.Txn, target: String, cats:
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag("apply_pick_dialog"),
-        title = { Text("Where does ${vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))} · ${Money.formatInr(p.amountPaise)} go?") },
+        title = { Text(tr("Where does {0} · {1} go?", vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)), Money.formatInr(p.amountPaise))) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                Text("Only this payment.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("Only this payment."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 choices.forEach { c ->
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(c.id) }.heightIn(min = 48.dp).padding(horizontal = 6.dp)
@@ -1406,15 +1407,15 @@ private fun OneCategoryPicker(p: com.owl.tracker.data.Txn, target: String, cats:
                         Gap(10.dp)
                         Text(c.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                         when (c.id) {
-                            target -> Text("For the rest", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                            p.categoryId -> Text("Now", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            target -> Text(tr("For the rest"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            p.categoryId -> Text(tr("Now"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
         },
         confirmButton = {},
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
@@ -1429,7 +1430,7 @@ private fun OneOrAllDialog(title: String, text: String, allLabel: String, onOne:
         modifier = Modifier.testTag("${tag}_dialog"),
         title = { Text(title) },
         text = { Text(text) },
-        confirmButton = { Button(onClick = onOne, modifier = Modifier.testTag("${tag}_one")) { Text("Just this one") } },
+        confirmButton = { Button(onClick = onOne, modifier = Modifier.testTag("${tag}_one")) { Text(tr("Just this one")) } },
         dismissButton = { androidx.compose.material3.TextButton(onClick = onAll, modifier = Modifier.testTag("${tag}_all")) { Text(allLabel) } },
     )
 }
