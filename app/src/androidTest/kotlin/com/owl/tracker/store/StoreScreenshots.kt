@@ -586,6 +586,31 @@ class StoreScreenshots {
                 waitForTag("backup_screen", 20_000)
                 shot("70_backup")
             }
+            section("streaks") {
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(800)
+                scrollTo(hasTestTag("streak_card"), below = 40f)
+                Thread.sleep(800)
+                shot("94_home_streak")
+                onNode(hasTestTag("streak_card")).performClick()
+                waitForTag("streaks_screen", 20_000)
+                Thread.sleep(1000)
+                shot("95_streaks")
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(800)
+            }
+            section("check") {
+                // "Was this right?" for a payment, as the Change button on its nudge opens it
+                withVm { vm ->
+                    val t = vm.periodTxns.value.first { it.direction == com.owl.tracker.core.Direction.DEBIT && it.parts.isEmpty() && it.merchantName.length < 14 }
+                    vm.openSheet(com.owl.tracker.ui.Sheet.QuickCheck(t.id))
+                }
+                waitForTag("quick_check", 20_000)
+                Thread.sleep(1200)
+                shot("96_quick_check")
+                withVm { it.closeSheet() }
+                Thread.sleep(800)
+            }
             section("recap") {
                 // The month's recap: this month's cards, as they'd look on the 1st
                 withVm { it.openRecap(it.period.value) }
