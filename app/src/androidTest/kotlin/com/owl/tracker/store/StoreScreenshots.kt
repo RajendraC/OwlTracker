@@ -698,6 +698,49 @@ class StoreScreenshots {
                 shot("93_recap_top_category")
                 onNode(hasTestTag("recap_close")).performClick(); Thread.sleep(800)
             }
+            section("owl_moments") {
+                // The owl's reactions after adding a payment, a milestone, and the pictures to share
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(800)
+                listOf(
+                    Triple("97a_react_on_track", com.owl.tracker.ui.components.OwlMood.CHEERING, "Saved ₹240 · Food delivery" to "Nice! ₹1,077 left of today's ₹2,317"),
+                    Triple("97b_react_big", com.owl.tracker.ui.components.OwlMood.WORRIED, "That's a big one · ₹1,900" to "Most of today's ₹2,317 share in one go. ₹417 left today."),
+                    Triple("97c_react_over", com.owl.tracker.ui.components.OwlMood.SAD, "₹420 over today's share" to "Spread over 8 days, that's ₹53 less a day. Easy fix."),
+                ).forEach { (name, m, words) ->
+                    withVm { it.messages.tryEmit(com.owl.tracker.ui.UiMessage(words.first, "Undo", {}, m, words.second)) }
+                    waitForTag("owl_reaction", 10_000)
+                    Thread.sleep(300)
+                    shot(name)
+                    Thread.sleep(4_500)
+                }
+                withVm {
+                    it.celebration.value = com.owl.tracker.ui.Celebration(
+                        "7 days in a row!", "7 days in a row within your share.", "Thrifty owl", "🪙",
+                        com.owl.tracker.ui.SharePicture.BadgeEarned("Thrifty owl", "🪙", "7 days in a row within your share"),
+                    )
+                }
+                waitForTag("celebration", 20_000)
+                Thread.sleep(700)
+                shot("97d_celebration")
+                onNode(hasTestTag("celebration_share")).performClick()
+                waitForTag("share_picture", 20_000)
+                Thread.sleep(1200)
+                shot("97e_share_badge")
+                withVm { it.closeShare() }
+                withVm { it.openRecap(it.period.value) }
+                waitForTag("recap_intro", 20_000)
+                onNode(hasTestTag("recap_share")).performClick()
+                waitForTag("share_picture", 20_000)
+                Thread.sleep(1200)
+                shot("97f_share_month")
+                withVm { it.closeShare(); it.closeRecap() }
+                nav(com.owl.tracker.ui.Screen.SETTINGS)
+                waitForTag("owl_reacts_choice", 20_000)
+                scrollTo(hasTestTag("owl_reacts_choice"), below = 40f)
+                Thread.sleep(800)
+                shot("97g_settings_owl")
+                nav(com.owl.tracker.ui.Screen.HOME)
+            }
             section("settings") {
                 nav(Screen.SETTINGS)
                 waitForTag("theme_choice", 20_000)

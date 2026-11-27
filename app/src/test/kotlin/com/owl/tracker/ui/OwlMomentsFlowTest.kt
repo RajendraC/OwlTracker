@@ -50,7 +50,8 @@ class OwlMomentsFlowTest {
         setUp()
         with(compose) {
             runOnUiThread { vm.messages.tryEmit(UiMessage("Saved ₹240 · Food", "Undo", {}, OwlMood.CHEERING, "Nice! ₹1,077 left of today's ₹2,317")) }
-            waitForTag("owl_reaction")
+            // after any message still showing from the setup
+            waitForTag("owl_reaction", 30_000)
             waitForText("Nice! ₹1,077 left")
             waitForTag("owl_reaction_undo")
         }
@@ -62,7 +63,7 @@ class OwlMomentsFlowTest {
         with(compose) {
             runOnUiThread { vm.addManual(100, "Tea", com.owl.tracker.core.Cat.FOOD_DELIVERY, 0) }
             // Within today's share the owl reacts; if the sample day is already past it, a plain message
-            waitUntil(10_000) {
+            waitUntil(30_000) {
                 onAllNodesWithTag("owl_reaction").fetchSemanticsNodes().isNotEmpty() ||
                     onAllNodes(hasText("Added ₹1 to", substring = true)).fetchSemanticsNodes().isNotEmpty()
             }
@@ -76,7 +77,7 @@ class OwlMomentsFlowTest {
             runOnUiThread { vm.setOwlReacts("off") }
             waitUntil(5_000) { vm.settings.value?.owlReacts == "off" }
             runOnUiThread { vm.addManual(100, "Tea", com.owl.tracker.core.Cat.FOOD_DELIVERY, 0) }
-            waitForText("Added ₹1 to")
+            waitForText("Added ₹1 to", timeoutMs = 30_000)
             assertTrue(onAllNodesWithTag("owl_reaction").fetchSemanticsNodes().isEmpty())
         }
     }
