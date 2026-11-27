@@ -347,6 +347,9 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
         SectionLabel("Owl nudges")
         NudgeSettings()
 
+        SectionLabel("Monthly report")
+        MonthlyReportSettings()
+
         SectionLabel("Security")
         Panel(padding = 12.dp) {
             SwitchRow("App lock", "Fingerprint, face or screen lock · locks a minute after you leave", settings.appLock, { on ->
@@ -517,6 +520,7 @@ private fun NudgeSettings() {
             Triple(com.owl.tracker.nudge.Nudges.WEEKLY, "Sunday: your week", "The week's total, against the week before"),
             Triple(com.owl.tracker.nudge.Nudges.RECAP, "Month recap", "On the 1st: your month in a few cards"),
             Triple(com.owl.tracker.nudge.Nudges.CHECK, "New payments: was it right?", "Confirm or change a new payment's category from the nudge"),
+            Triple(com.owl.tracker.nudge.Nudges.REPORT, "Monthly report for family", "On the 2nd: last month's report, ready to share in one tap"),
         )
         rows.forEachIndexed { i, (kind, title, sub) ->
             if (i > 0) Divider()
@@ -525,6 +529,29 @@ private fun NudgeSettings() {
                 com.owl.tracker.nudge.Nudges.setOn(context, kind, v)
                 if (v && !allowed && android.os.Build.VERSION.SDK_INT >= 33) ask.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }, if (i == 0) Ic.bell else null, Modifier.testTag("nudge_$kind"))
+        }
+    }
+}
+
+/** Who the monthly report is usually for (only used in the wording) and which kind of file it is. */
+@Composable
+private fun MonthlyReportSettings() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var to by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(com.owl.tracker.nudge.Nudges.reportTo(context) ?: "") }
+    var excel by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(com.owl.tracker.nudge.Nudges.reportExcel(context)) }
+    Panel(padding = 12.dp, modifier = Modifier.testTag("report_settings")) {
+        Text("On the 2nd of each month, the owl gets last month's report ready for you to share. You choose the app each time; nothing is sent by itself.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+        androidx.compose.material3.OutlinedTextField(
+            to, { v -> to = v.take(30); com.owl.tracker.nudge.Nudges.setReportTo(context, to) },
+            label = { Text("Usually for (optional)") }, placeholder = { Text("Like Priya, or family") }, singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(8.dp).testTag("report_to"),
+        )
+        androidx.compose.foundation.layout.Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+            listOf(false to "Interactive page", true to "Excel workbook").forEach { (x, label) ->
+                androidx.compose.material3.FilterChip(selected = excel == x, onClick = { excel = x; com.owl.tracker.nudge.Nudges.setReportExcel(context, x) },
+                    label = { Text(label) }, modifier = Modifier.testTag(if (x) "report_kind_excel" else "report_kind_page"))
+            }
         }
     }
 }

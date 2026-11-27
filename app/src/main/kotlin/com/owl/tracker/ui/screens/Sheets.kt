@@ -669,8 +669,11 @@ private fun RenameSheet(vm: AppViewModel, txId: Long) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ShareReportSheet(vm: AppViewModel) {
-    var period by rememberSaveable { mutableStateOf(com.owl.tracker.export.ReportPeriod.THIS_MONTH) }
-    var format by rememberSaveable { mutableStateOf(com.owl.tracker.export.ReportFormat.PAGE) }
+    // From the monthly nudge: last month, in the kind chosen in Settings
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val preset = remember { vm.reportPreset.also { vm.reportPreset = null } }
+    var period by rememberSaveable { mutableStateOf(preset ?: com.owl.tracker.export.ReportPeriod.THIS_MONTH) }
+    var format by rememberSaveable { mutableStateOf(if (com.owl.tracker.nudge.Nudges.reportExcel(context)) com.owl.tracker.export.ReportFormat.EXCEL else com.owl.tracker.export.ReportFormat.PAGE) }
     var accounts by rememberSaveable { mutableStateOf(false) }
     val working by vm.reportWorking.collectAsStateWithLifecycle()
     val scope = androidx.compose.runtime.rememberCoroutineScope()

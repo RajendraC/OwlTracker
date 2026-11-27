@@ -798,6 +798,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             com.owl.tracker.nudge.Nudges.OPEN_RECAP -> { go(Screen.HOME); openRecap() }
             com.owl.tracker.nudge.Nudges.OPEN_ACTIVITY -> showActivity()
             com.owl.tracker.nudge.Nudges.OPEN_BILLS -> go(Screen.BILLS)
+            com.owl.tracker.nudge.Nudges.OPEN_REPORT -> { go(Screen.HOME); reportPreset = com.owl.tracker.export.ReportPeriod.LAST_MONTH; openSheet(Sheet.ShareReport) }
+            com.owl.tracker.nudge.Nudges.OPEN_REPORT_SHARE -> { go(Screen.HOME); shareMonthly() }
             else -> go(Screen.HOME)
         }
     }
@@ -1031,6 +1033,33 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         } finally {
             reportWorking.value = false
         }
+    }
+
+    /** The period the next Share a report sheet starts on (Last month, from the monthly nudge), used once. */
+    var reportPreset: com.owl.tracker.export.ReportPeriod? = null
+
+    /** Last month's report, in the kind chosen in Settings, straight to the share sheet. */
+    fun shareMonthly() {
+        val excel = com.owl.tracker.nudge.Nudges.reportExcel(c.context)
+        shareReport(com.owl.tracker.export.ReportPeriod.LAST_MONTH, if (excel) com.owl.tracker.export.ReportFormat.EXCEL else com.owl.tracker.export.ReportFormat.PAGE, false)
+        reportOfferDone()
+    }
+
+    /** From the 2nd to the 7th: last month's report, offered on Home (once; × or sharing puts it away). */
+    fun reportOffer(settings: AppSettings?): String? {
+        val s = settings ?: return null
+        if (!homeOffersOn || !s.onboarded || !com.owl.tracker.nudge.Nudges.isOn(c.context, com.owl.tracker.nudge.Nudges.REPORT)) return null
+        val now = BudgetMath.periodFor(today(), s.budgetStartDay)
+        if (now.dayNumber(today()) !in 2..7) return null
+        val last = now.previous(s.budgetStartDay)
+        if (nudgePrefs.getBoolean("report_seen_${last.start}", false)) return null
+        return com.owl.tracker.nudge.Nudges.monthName(last)
+    }
+
+    fun reportOfferDone() {
+        val s = settings.value ?: return
+        val last = BudgetMath.periodFor(today(), s.budgetStartDay).previous(s.budgetStartDay)
+        nudgePrefs.edit().putBoolean("report_seen_${last.start}", true).apply()
     }
 
     /** Makes the report and opens the share sheet (WhatsApp, email, Drive…). */

@@ -43,7 +43,14 @@ object Nudges {
     const val WEEKLY = "weekly"
     const val RECAP = "recap"
     const val CHECK = "check"
-    val KINDS = listOf(DAILY, ALERTS, WEEKLY, RECAP, CHECK)
+    const val REPORT = "report"
+    val KINDS = listOf(DAILY, ALERTS, WEEKLY, RECAP, CHECK, REPORT)
+
+    /** The monthly report: who it's usually for (a name for the wording only) and the file kind. */
+    fun reportTo(context: Context): String? = prefs(context).getString("report_to", null)?.takeIf { it.isNotBlank() }
+    fun setReportTo(context: Context, name: String) = prefs(context).edit().putString("report_to", name.trim().take(30)).apply()
+    fun reportExcel(context: Context): Boolean = prefs(context).getBoolean("report_excel", false)
+    fun setReportExcel(context: Context, excel: Boolean) = prefs(context).edit().putBoolean("report_excel", excel).apply()
 
     /** Opened from a notification: what to show (EXTRA_OPEN values). */
     const val EXTRA_OPEN = "owl_open"
@@ -52,6 +59,8 @@ object Nudges {
     const val OPEN_RECAP = "recap"
     const val OPEN_ADD = "add"
     const val OPEN_BILLS = "bills"
+    const val OPEN_REPORT = "report"
+    const val OPEN_REPORT_SHARE = "report_share"
     const val OPEN_ACTIVITY = "activity"
     const val ACTION_CHECK_YES = "com.owl.tracker.CHECK_YES"
     const val EXTRA_TX = "tx"
@@ -73,6 +82,7 @@ object Nudges {
             NotificationChannel(WEEKLY, "Sunday: your week", NotificationManager.IMPORTANCE_LOW),
             NotificationChannel(RECAP, "Month recap", NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(CHECK, "New payments: was the category right?", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(REPORT, "Monthly report for family", NotificationManager.IMPORTANCE_DEFAULT),
         ).forEach { nm.createNotificationChannel(it) }
     }
 
@@ -83,7 +93,21 @@ object Nudges {
      * What the owl would say now, given the month: at most one evening line (after 7 pm), one week line on Sunday
      * evenings, budget alerts at any time, and the recap in the first three days of a new month.
      */
-    fun due(s: MonthSnapshot, now: LocalDateTime, previous: MonthSnapshot?, bills: List<Pair<com.owl.tracker.core.RecurringBill, LocalDate>> = emptyList()): List<Nudge> = buildList {
+    fun due(
+        s: MonthSnapshot, now: LocalDateTime, previous: MonthSnapshot?, bills: List<Pair<com.owl.tracker.core.RecurringBill, LocalDate>> = emptyList(),
+        sendTo: String? = null,
+    ): List<Nudge> = buildList {
+        // The month's report for the family, from the 2nd (the recap comes on the 1st)
+        if (previous != null && previous.spent > 0 && s.dayNumber in 2..4 && now.hour >= 9) {
+            val p = previous
+            val result = when {
+                p.overall > 0 && p.spent <= p.overall -> " · saved ${Money.formatInr(p.overall - p.spent)}"
+                p.overall > 0 -> " · ${Money.formatInr(p.spent - p.overall)} over"
+                else -> ""
+            }
+            add(Nudge(REPORT, "report_${p.period.start}", "Your ${month(p)} report is ready 📊",
+                "Spent ${Money.formatInr(p.spent)}$result. Share it with ${sendTo ?: "family"} in one tap.", OPEN_REPORT))
+        }
         // A bill due in the next two days (once per bill and date)
         bills.filter { java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), it.second) in 0..2 }.forEach { (b, d) ->
             val n = java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), d).toInt()
@@ -150,10 +174,10 @@ object Nudges {
         val settings = app.container.repo.settings()
         if (!settings.onboarded) return
         val s = MonthSnapshot.load(app.container.repo, app.container.clock, now.toLocalDate())
-        val previous = if (s.dayNumber <= 3) MonthSnapshot.load(app.container.repo, app.container.clock, s.period.start.minusDays(1)) else null
+        val previous = if (s.dayNumber <= 4) MonthSnapshot.load(app.container.repo, app.container.clock, s.period.start.minusDays(1)) else null
         val p = prefs(context)
         val bills = runCatching { upcomingBills(app, now.toLocalDate(), settings.ignoredBills) }.getOrDefault(emptyList())
-        val todo = due(s, now, previous, bills).filter { isOn(context, it.kind) && !p.getBoolean("shown_${it.key}", false) }
+        val todo = due(s, now, previous, bills, reportTo(context)).filter { isOn(context, it.kind) && !p.getBoolean("shown_${it.key}", false) }
         if (todo.isEmpty() || !allowed(context)) return
         channels(context)
         val nm = NotificationManagerCompat.from(context)
@@ -163,6 +187,11 @@ object Nudges {
             // On the lock screen: only that there's a nudge, never the amounts
             val public = NotificationCompat.Builder(context, n.kind).setSmallIcon(R.drawable.ic_notify_owl)
                 .setContentTitle("Owl Tracker").setContentText(publicLine(n.kind)).build()
+            val share = if (n.kind == REPORT) PendingIntent.getActivity(
+                context, n.key.hashCode() + 1,
+                Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra(EXTRA_OPEN, OPEN_REPORT_SHARE),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            ) else null
             val notification = NotificationCompat.Builder(context, n.kind)
                 .setSmallIcon(R.drawable.ic_notify_owl)
                 .setColor(0xFFFFB21A.toInt())
@@ -173,6 +202,7 @@ object Nudges {
                 .setAutoCancel(true)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setPublicVersion(public)
+                .apply { if (share != null) addAction(0, "Share", share) }
                 .build()
             // allowed() was checked above; the permission can still be taken away in between
             try { nm.notify(n.kind.hashCode() + if (n.kind == ALERTS) n.key.hashCode() else 0, notification) } catch (_: SecurityException) { return }
@@ -195,6 +225,7 @@ object Nudges {
 
     private fun publicLine(kind: String) = when (kind) {
         DAILY -> "Today's summary"
+        REPORT -> "Your monthly report is ready"
         ALERTS -> "A budget alert"
         WEEKLY -> "Your week"
         else -> "Your month's recap is ready"

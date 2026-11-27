@@ -22,7 +22,7 @@ import java.util.Locale
 
 /** How much a shared report covers, counted in calendar months up to today. */
 enum class ReportPeriod(val label: String) {
-    THIS_MONTH("This month"), LAST_3_MONTHS("Last 3 months"), THIS_YEAR("This year"), EVERYTHING("Everything")
+    THIS_MONTH("This month"), LAST_MONTH("Last month"), LAST_3_MONTHS("Last 3 months"), THIS_YEAR("This year"), EVERYTHING("Everything")
 }
 
 /** The file a report is made as: an interactive page that opens in any browser, or an Excel workbook. */
@@ -55,16 +55,19 @@ class ReportExport(private val context: Context, private val repo: Repository, p
         val earliest = repo.earliestTransaction()?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() } ?: today
         val from = when (period) {
             ReportPeriod.THIS_MONTH -> today.withDayOfMonth(1)
+            ReportPeriod.LAST_MONTH -> today.withDayOfMonth(1).minusMonths(1)
             ReportPeriod.LAST_3_MONTHS -> today.withDayOfMonth(1).minusMonths(2)
             ReportPeriod.THIS_YEAR -> today.withDayOfYear(1)
             ReportPeriod.EVERYTHING -> earliest.withDayOfMonth(1)
         }
         val cats = repo.categories()
         val tree = CategoryTree(cats)
-        val txns = repo.transactions(from.atStartOfDay(zone).toInstant().toEpochMilli(), today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+        // Last month ends where this one starts; the rest run up to today
+        val end = if (period == ReportPeriod.LAST_MONTH) today.withDayOfMonth(1) else today.plusDays(1)
+        val txns = repo.transactions(from.atStartOfDay(zone).toInstant().toEpochMilli(), end.atStartOfDay(zone).toInstant().toEpochMilli())
         val rows = txns.flatMap { t -> t.portions().map { p -> row(p, tree, showAccounts, zone) } }.sortedByDescending { it.date }
         val budget = repo.budgets()[Schema.OVERALL] ?: 0L
-        return Data(from, today, today, rows, cats, tree, budget, !showAccounts)
+        return Data(from, end.minusDays(1), today, rows, cats, tree, budget, !showAccounts)
     }
 
     private fun row(t: Txn, tree: CategoryTree, showAccounts: Boolean, zone: java.time.ZoneId): Row {

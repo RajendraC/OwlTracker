@@ -79,4 +79,13 @@ class ReportExportTest {
         assertEquals("ICICI Bank", ReportExport.hideNumber("ICICI Bank ••2210"))
         assertEquals("Cash", ReportExport.hideNumber("Cash"))
     }
+
+    @Test
+    fun lastMonthRunsFromItsFirstToItsLastDay() = runBlocking {
+        val c = container()
+        val d = c.reports.collect(ReportPeriod.LAST_MONTH, showAccounts = false)
+        assertEquals(java.time.LocalDate.of(2026, 9, 1), d.from)
+        assertEquals(java.time.LocalDate.of(2026, 9, 30), d.to)
+        assertTrue(d.rows.all { !it.date.isBefore(d.from) && !it.date.isAfter(d.to) })
+    }
 }

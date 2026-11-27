@@ -210,6 +210,8 @@ fun HomeScreen(vm: AppViewModel) {
     val showGoals = calendar != null && dash.isCurrent && goals.isNotEmpty()
     androidx.compose.runtime.LaunchedEffect(goals.size, settings?.budgetStartDay) { if (goals.isNotEmpty()) vm.loadLeftover() }
     var leftoverTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var reportTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val reportOffer = reportTick.let { vm.reportOffer(settings) }
     val leftover = leftoverTick.let { vm.leftoverOffer(settings, goals) }
     var askNudges by remember(settings?.onboarded) { androidx.compose.runtime.mutableStateOf(vm.askForNudges(settings)) }
     val paidTab = wholeMonth && whereView == "paid" && openGroup == null && openCat == null
@@ -228,7 +230,7 @@ fun HomeScreen(vm: AppViewModel) {
         (if (access is Access.Trial || !access.canEdit) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
         (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0) + (if (recapOffer != null) 1 else 0) + (if (askNudges) 1 else 0) +
-        (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0) + (if (showBills) 1 else 0) + (if (showGoals) 1 else 0) + (if (leftover != null) 1 else 0)
+        (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0) + (if (showBills) 1 else 0) + (if (showGoals) 1 else 0) + (if (leftover != null) 1 else 0) + (if (reportOffer != null) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
     // the status bar readable, and a card scrolled to stops just below it
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -300,6 +302,8 @@ fun HomeScreen(vm: AppViewModel) {
             whatsNew?.let { v -> item(key = "whats_new") { WhatsNewCard(v, vm::closeWhatsNew, side) } }
             // The month just ended, in a few cards (its first week only)
             recapOffer?.let { p -> item(key = "recap_offer") { RecapOfferCard(com.owl.tracker.nudge.Nudges.monthName(p), { vm.openRecap(p); recapTick++ }, { vm.dismissRecapOffer(p); recapTick++ }, side) } }
+            // From the 2nd: last month's report, ready to share with the family
+            reportOffer?.let { month -> item(key = "report_offer") { ReportOfferCard(vm, month, { vm.shareMonthly(); reportTick++ }, { vm.reportOfferDone(); reportTick++ }, side) } }
             // Last month's leftover, offered to the first goal not yet full (once)
             leftover?.let { (p, left) ->
                 val goal = goals.first { !it.done }
@@ -1187,6 +1191,33 @@ private fun scopeMoods(
  * round it to see each one in the middle; tap one to open it in "Where it went" just below, or tap
  * the middle for the whole breakdown. Over budget, a red inner ring shows by how much.
  */
+/** Last month's report, ready to share (2nd to 7th). */
+@Composable
+private fun ReportOfferCard(vm: AppViewModel, month: String, onShare: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val to = remember { com.owl.tracker.nudge.Nudges.reportTo(context) }
+    val excel = remember { com.owl.tracker.nudge.Nudges.reportExcel(context) }
+    com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(26.dp), modifier.fillMaxWidth().testTag("report_offer"), elevation = 10.dp) {
+        Column(Modifier.padding(start = 16.dp, end = 6.dp, top = 12.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("📊", fontSize = androidx.compose.ui.unit.TextUnit(28f, androidx.compose.ui.unit.TextUnitType.Sp))
+                Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                    Text("Your $month report is ready", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        (if (excel) "An Excel workbook" else "An interactive page that opens in any browser") + ", made on your phone. Share it with ${to ?: "your family"}.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = onClose, modifier = Modifier.testTag("report_offer_close")) { Icon(Ic.close, contentDescription = "Not now") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = onShare, modifier = Modifier.testTag("report_offer_share")) { Text(if (to != null) "Share with $to" else "Share") }
+                TextButton(onClick = { vm.reportPreset = com.owl.tracker.export.ReportPeriod.LAST_MONTH; vm.openSheet(Sheet.ShareReport) }) { Text("More choices") }
+            }
+        }
+    }
+}
+
 /** The month just ended, in a few cards: shown on Home in the new month's first week. */
 @Composable
 private fun RecapOfferCard(month: String, onOpen: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
