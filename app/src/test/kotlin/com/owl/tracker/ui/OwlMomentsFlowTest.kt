@@ -45,11 +45,12 @@ class OwlMomentsFlowTest {
         }
     }
 
+    // The owl is still in these (its act would move the test clock on past the 4-second message)
     @Test
     fun theOwlReactsInPlaceOfThePlainMessage() {
         setUp()
         with(compose) {
-            runOnUiThread { vm.messages.tryEmit(UiMessage("Saved ₹240 · Food", "Undo", {}, OwlMood.CHEERING, "Nice! ₹1,077 left of today's ₹2,317")) }
+            runOnUiThread { vm.messages.tryEmit(UiMessage("Saved ₹240 · Food", "Undo", {}, OwlMood.CHEERING, "Nice! ₹1,077 left of today's ₹2,317", still = true)) }
             // after any message still showing from the setup
             waitForText("Saved ₹240 · Food", timeoutMs = 30_000)
             waitForTag("owl_reaction")
@@ -63,6 +64,9 @@ class OwlMomentsFlowTest {
         // A budget big enough that today is well within its share
         setUp(budget = "2000000")
         with(compose) {
+            // Calm: the owl's act would move the test clock on past the message before it's looked for
+            runOnUiThread { vm.setOwlReacts("calm") }
+            waitUntil(5_000) { vm.settings.value?.owlReacts == "calm" }
             runOnUiThread { vm.addManual(100, "Tea", com.owl.tracker.core.Cat.FOOD_DELIVERY, 0) }
             waitForText("Saved ₹1 ·", timeoutMs = 30_000)
             waitForTag("owl_reaction")
