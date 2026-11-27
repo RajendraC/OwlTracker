@@ -611,6 +611,36 @@ class StoreScreenshots {
                 withVm { it.closeSheet() }
                 Thread.sleep(800)
             }
+            section("plan") {
+                // Bills coming up on Home, the Bills page, Can I afford it?, and a goal
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(1000)
+                runCatching { scrollTo(hasTestTag("bills_card"), below = 40f); Thread.sleep(800); shot("97_home_bills") }
+                nav(com.owl.tracker.ui.Screen.BILLS)
+                waitForTag("bills_screen", 20_000)
+                Thread.sleep(1000)
+                shot("98_bills")
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(800)
+                withVm { it.openSheet(com.owl.tracker.ui.Sheet.Afford) }
+                waitForTag("afford_amount", 20_000)
+                onNode(hasTestTag("afford_amount")).performTextInput("8000")
+                Thread.sleep(1500)
+                shot("99_afford")
+                withVm { it.closeSheet() }
+                Thread.sleep(600)
+                withVm { it.saveGoal(null, "Goa trip", "🏖️", 25_000_00L, java.time.LocalDate.now().plusMonths(4).withDayOfMonth(1)) }
+                Thread.sleep(1200)
+                withVm { vm -> vm.goals.value.firstOrNull()?.let { vm.addToGoal(it.id, 12_000_00L) } }
+                Thread.sleep(800)
+                nav(com.owl.tracker.ui.Screen.GOALS)
+                waitForTag("goals_screen", 20_000)
+                Thread.sleep(1200)
+                shot("99b_goals")
+                withVm { vm -> vm.goals.value.forEach { vm.deleteGoal(it.id) } }
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(800)
+            }
             section("recap") {
                 // The month's recap: this month's cards, as they'd look on the 1st
                 withVm { it.openRecap(it.period.value) }

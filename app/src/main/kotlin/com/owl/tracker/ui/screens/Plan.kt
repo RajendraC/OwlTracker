@@ -133,6 +133,7 @@ fun BillsCard(vm: AppViewModel, bills: List<RecurringBill>, modifier: Modifier =
 fun BillsScreen(vm: AppViewModel) {
     val bills by vm.bills.collectAsStateWithLifecycle()
     val cats by vm.categories.collectAsStateWithLifecycle()
+    val dash by vm.dashboard.collectAsStateWithLifecycle()
     val today = vm.today()
     var asking by remember { mutableStateOf<RecurringBill?>(null) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 32.dp).testTag("bills_screen"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -142,7 +143,7 @@ fun BillsScreen(vm: AppViewModel) {
             Text("No repeating payments yet. Once an EMI, rent or subscription has been paid two or three times, it shows up here with its next date.", style = MaterialTheme.typography.bodyMedium)
             return@Column
         }
-        val month = vm.dashboard.value?.period
+        val month = dash?.period
         val restOfMonth = month?.let { p -> all.filter { it.second.isBefore(p.endExclusive) }.sumOf { it.first.paise } } ?: 0
         if (restOfMonth > 0) Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
