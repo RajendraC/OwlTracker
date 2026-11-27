@@ -331,7 +331,8 @@ fun StatusPill(state: BudgetState, modifier: Modifier = Modifier) {
 @Composable
 fun BudgetRing(fraction: Double, state: BudgetState, centerTop: String, centerBottom: String, size: Dp = 136.dp) {
     val sc = LocalStatusColors.current
-    val main = sc.ring(state, MaterialTheme.colorScheme.primary)
+    // On track is green in every palette (never the palette's own colour, which could read as a warning)
+    val main = sc.ring(state, sc.ring)
     val track = sc.track
     val over = sc.overFg
     Box(Modifier.size(size).clearAndSetSemantics { contentDescription = "$centerTop $centerBottom" }, contentAlignment = Alignment.Center) {

@@ -661,10 +661,11 @@ class StoreScreenshots {
                     withVm { it.setPalette(p); it.setTheme(mode) }
                     nav(com.owl.tracker.ui.Screen.HOME)
                     Thread.sleep(1500)
-                    runCatching { scrollTo(hasTestTag("budget_hero"), below = 0f) }
-                    Thread.sleep(600)
+                    // The top of Home, header and all, then further down (the calendar, streak and bills)
+                    runCatching { onAllNodes(hasTestTag("home"))[0].performScrollToIndex(0) }
+                    Thread.sleep(800)
                     shot("pal_${p.key}_${mode.key}_1home")
-                    runCatching { scrollTo(hasTestTag("streak_card"), below = 40f) }
+                    runCatching { scrollTo(hasTestTag("month_calendar"), below = 40f) }
                     Thread.sleep(700)
                     shot("pal_${p.key}_${mode.key}_2home")
                     nav(com.owl.tracker.ui.Screen.BUDGETS)

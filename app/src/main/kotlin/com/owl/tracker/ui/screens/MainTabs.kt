@@ -1460,7 +1460,7 @@ fun BudgetsScreen(vm: AppViewModel) {
                 }
                 dash.status?.let { s ->
                     Gap(12.dp)
-                    PaceBar(s.fraction, pace, sc.ring(s.state, MaterialTheme.colorScheme.primary))
+                    PaceBar(s.fraction, pace, sc.ring(s.state, sc.ring))
                     Gap(8.dp)
                     StatusPill(s.state)
                 }
