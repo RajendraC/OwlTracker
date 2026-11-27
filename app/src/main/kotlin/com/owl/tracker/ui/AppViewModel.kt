@@ -521,7 +521,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     fun afford(paise: Long, categoryId: String?): Afford? {
         val d = dashboard.value ?: return null
-        val daysLeft = (d.period.days - d.dayNumber + 1).coerceAtLeast(1)
+        // The same days as Home's "₹… a day for N days"
+        val daysLeft = (d.period.days - d.dayNumber).coerceAtLeast(1)
         val left = d.overall - d.spent
         val row = categoryId?.let { id -> d.categoryRows.firstOrNull { it.category.id == com.owl.tracker.data.CategoryTree(categories.value).top(id) } }
         return Afford(
