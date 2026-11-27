@@ -918,9 +918,12 @@ private fun LapRing(used: Double, pace: Float?, finished: Boolean, centre: Strin
         },
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(if (used > 1) 64.dp else 84.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(if (used > 1) 66.dp else 84.dp)) {
             com.owl.tracker.ui.components.FitText(centre, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, minScale = 0.6f, modifier = Modifier.testTag("ring_centre_value"))
-            com.owl.tracker.ui.components.FitText(centreSub, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, minScale = 0.7f)
+            // Big text: "the budget" wraps onto two lines rather than being cut
+            com.owl.tracker.ui.components.CapFontScale(1.3f) {
+                Text(centreSub, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 2, lineHeight = MaterialTheme.typography.labelSmall.fontSize)
+            }
         }
     }
 }

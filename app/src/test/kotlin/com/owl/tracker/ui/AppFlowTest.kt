@@ -3,6 +3,7 @@ package com.owl.tracker.ui
 import android.content.Context
 import android.hardware.biometrics.BiometricManager
 import android.os.Build
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -60,7 +61,8 @@ class AppFlowTest {
             tapTag("save_budget")
             waitForText("Over by ₹13,607")
             onNodeWithTag("budget_hero").assertIsDisplayed()
-            waitForText("Over budget")
+            // The ring's middle says how many times the budget went out
+            onNodeWithTag("ring_centre_value", useUnmergedTree = true).assertTextEquals("2.4×")
 
             // Swiggy shows with its merchant row; delete it, then undo
             tapTag("tab_activity")
