@@ -586,10 +586,30 @@ class StoreScreenshots {
                 waitForTag("backup_screen", 20_000)
                 shot("70_backup")
             }
+            section("recap") {
+                // The month's recap: this month's cards, as they'd look on the 1st
+                withVm { it.openRecap(it.period.value) }
+                waitForTag("recap_intro", 20_000)
+                Thread.sleep(1500)
+                shot("90_recap_intro")
+                onNode(hasTestTag("recap_next")).performClick(); Thread.sleep(1200)
+                shot("91_recap_budget")
+                onNode(hasTestTag("recap_next")).performClick(); Thread.sleep(1200)
+                shot("92_recap_biggest_day")
+                onNode(hasTestTag("recap_next")).performClick(); Thread.sleep(1200)
+                onNode(hasTestTag("recap_next")).performClick(); Thread.sleep(1200)
+                shot("93_recap_top_category")
+                onNode(hasTestTag("recap_close")).performClick(); Thread.sleep(800)
+            }
             section("settings") {
                 nav(Screen.SETTINGS)
                 waitForTag("theme_choice", 20_000)
                 shot("75_settings")
+                // The owl's nudge switches
+                runCatching { scrollTo(hasTestTag("nudge_settings"), below = 40f) }
+                Thread.sleep(500)
+                shot("75c_settings_nudges")
+                runCatching { scrollTo(hasTestTag("theme_choice"), below = 20f) }
                 // Further down: the rescan, and erasing everything on this phone
                 runCatching { scrollTo(hasText("Reset Owl Tracker", substring = true), below = 300f) }
                 Thread.sleep(500)
