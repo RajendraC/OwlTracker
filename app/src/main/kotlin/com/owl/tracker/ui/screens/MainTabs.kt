@@ -198,6 +198,9 @@ fun HomeScreen(vm: AppViewModel) {
     val whereView by vm.whereView.collectAsStateWithLifecycle()
     val appUpdate by vm.appUpdate.collectAsStateWithLifecycle()
     val whatsNew by vm.whatsNew.collectAsStateWithLifecycle()
+    var recapTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val recapOffer = recapTick.let { vm.recapOffer(settings) }
+    var askNudges by remember(settings?.onboarded) { androidx.compose.runtime.mutableStateOf(vm.askForNudges(settings)) }
     val paidTab = wholeMonth && whereView == "paid" && openGroup == null && openCat == null
     androidx.activity.compose.BackHandler(enabled = paidTab && openPaid != null) { openPaid = null }
     androidx.activity.compose.BackHandler(enabled = openCat == null && openGroup == null && picked != null) { pickedIso = null }
@@ -213,7 +216,7 @@ fun HomeScreen(vm: AppViewModel) {
     val whereIndex = 1 + (if (calendar != null) 1 else 0) + (if (pickedTotal != null && weekMode) 1 else 0) +
         (if (access is Access.Trial || !access.canEdit) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
-        (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0)
+        (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0) + (if (recapOffer != null) 1 else 0) + (if (askNudges) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
     // the status bar readable, and a card scrolled to stops just below it
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -283,6 +286,10 @@ fun HomeScreen(vm: AppViewModel) {
                 UpdateCard(appUpdate, vm::updateNow, vm::updateLater, vm::restartToUpdate, side, onOpenPlay = vm::finishUpdateInPlay)
             }
             whatsNew?.let { v -> item(key = "whats_new") { WhatsNewCard(v, vm::closeWhatsNew, side) } }
+            // The month just ended, in a few cards (its first week only)
+            recapOffer?.let { p -> item(key = "recap_offer") { RecapOfferCard(com.owl.tracker.nudge.Nudges.monthName(p), { vm.openRecap(p); recapTick++ }, { vm.dismissRecapOffer(p); recapTick++ }, side) } }
+            // Android 13+: ask once whether the owl may nudge
+            if (askNudges) item(key = "nudge_ask") { NudgeAskCard({ vm.nudgeAskDone(); askNudges = false }, side) }
 
             when (val a = access) {
                 is Access.Trial -> item { Box(side) { TrialBanner(a.daysLeft, store.price ?: UnlockStore.FALLBACK_PRICE, store.lifetimePrice ?: UnlockStore.FALLBACK_LIFETIME_PRICE) { vm.openUnlock() } } }
@@ -1145,6 +1152,45 @@ private fun scopeMoods(
  * round it to see each one in the middle; tap one to open it in "Where it went" just below, or tap
  * the middle for the whole breakdown. Over budget, a red inner ring shows by how much.
  */
+/** The month just ended, in a few cards: shown on Home in the new month's first week. */
+@Composable
+private fun RecapOfferCard(month: String, onOpen: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
+            .background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color(0xFF3A1C0C), Color(0xFF8A3E12), Color(0xFFE08A12))))
+            .clickable(onClickLabel = "Open the recap", onClick = onOpen).padding(start = 18.dp, end = 6.dp, top = 14.dp, bottom = 14.dp).testTag("recap_offer"),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Your $month recap is ready", color = Color.White, style = MaterialTheme.typography.titleLarge)
+            Text("Your month in a few cards: saved, biggest day, top merchant", color = Color(0xFFFFE3B0), style = MaterialTheme.typography.bodySmall)
+        }
+        IconButton(onClick = onClose, modifier = Modifier.testTag("recap_offer_close")) { Icon(Ic.close, contentDescription = "Not now", tint = Color.White) }
+    }
+}
+
+/** Android 13+: ask once whether the owl may nudge. Not now puts it away for good (Settings has the switches). */
+@Composable
+private fun NudgeAskCard(onDone: () -> Unit, modifier: Modifier = Modifier) {
+    val ask = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { onDone() }
+    com.owl.tracker.ui.theme.ClaySurface(RoundedCornerShape(26.dp), modifier.fillMaxWidth().testTag("nudge_ask"), elevation = 10.dp) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                com.owl.tracker.ui.components.MoodOwl(com.owl.tracker.ui.components.OwlMood.HAPPY, 52.dp)
+                Column(Modifier.weight(1f)) {
+                    Text("Let the owl nudge you", style = MaterialTheme.typography.titleLarge)
+                    Text("A line each evening, a heads-up at 80% of your budget, your week on Sundays. Worked out on your phone; nothing is sent.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = { ask.launch(android.Manifest.permission.POST_NOTIFICATIONS) }, modifier = Modifier.testTag("nudge_ask_allow")) { Text("Allow nudges") }
+                TextButton(onClick = onDone, modifier = Modifier.testTag("nudge_ask_later")) { Text("Not now") }
+            }
+        }
+    }
+}
+
 /** Home's nudge: how much could be saved a month, and the biggest way to do it. Hidden until next month with ×. */
 @Composable
 private fun SavingNudge(vm: AppViewModel, plan: com.owl.tracker.ui.SavingPlan) {

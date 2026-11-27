@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The small widget (2×2): today against its share, and a button to add cash. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_bg" android:orientation="vertical"
+    android:gravity="center" android:padding="12dp">
+    <TextView android:id="@+id/widget_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="#FF7A5A44" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" />
+    <TextView android:id="@+id/widget_spent" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="#FF3A1C0C" android:textSize="24sp" android:textStyle="bold" android:fontFamily="serif" android:maxLines="1" />
+    <ImageView android:id="@+id/widget_bar" android:layout_width="match_parent" android:layout_height="10dp"
+        android:layout_marginTop="6dp" android:layout_marginStart="6dp" android:layout_marginEnd="6dp"
+        android:contentDescription="@null" android:scaleType="fitXY" />
+    <TextView android:id="@+id/widget_today" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginTop="4dp" android:textColor="#FF7A5A44" android:textSize="11sp" android:maxLines="1" />
+    <TextView android:id="@+id/widget_add" android:layout_width="34dp" android:layout_height="34dp"
+        android:layout_marginTop="6dp" android:background="@drawable/widget_add" android:gravity="center"
+        android:text="+" android:textColor="#FF3A1C0C" android:textSize="22sp" android:textStyle="bold"
+        android:contentDescription="Add an expense" />
+</LinearLayout>

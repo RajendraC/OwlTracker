@@ -47,6 +47,7 @@ object Ic {
     val trash = icon("M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13")
     val eye = icon("M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z")
     val alert = icon("M12 4 2.5 20h19zM12 10v4.5M12 17.5h.01", 2f)
+    val bell = icon("M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4")
     val download = icon("M12 3v12M7 10l5 5 5-5M5 20h14", 2.1f)
     val refresh = icon("M20 11a8 8 0 0 0-14.5-4.5M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5M20 20v-4h-4")
     val sparkle = icon("M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z", 1.6f)

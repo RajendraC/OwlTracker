@@ -20,7 +20,10 @@ open class OwlTrackerApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        if (scheduleBackgroundSync) runCatching { SyncWorker.schedule(this) }
+        if (scheduleBackgroundSync) {
+            runCatching { SyncWorker.schedule(this) }
+            runCatching { com.owl.tracker.nudge.NudgeWorker.schedule(this) }
+        }
     }
 }
 
@@ -32,6 +35,9 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         if (!app.container.licence.current().canEdit) return Result.success()
         return try {
             app.container.importEngine.syncNew()
+            // New payments may cross a budget line, and the widgets should show them
+            runCatching { com.owl.tracker.nudge.Nudges.run(applicationContext) }
+            runCatching { com.owl.tracker.nudge.OwlWidgets.refresh(applicationContext) }
             Result.success()
         } catch (e: Exception) {
             Result.success() // try again at the next scheduled run rather than looping

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Owl Tracker</string>
+    <string name="widget_budget_name">Owl Tracker: this month</string>
+    <string name="widget_budget_description">Your budget ring, what you spent and what\'s left</string>
+    <string name="widget_today_name">Owl Tracker: today</string>
+    <string name="widget_today_description">Today against its share, and a button to add cash</string>
 </resources>

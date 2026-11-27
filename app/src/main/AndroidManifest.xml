@@ -8,6 +8,8 @@
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <!-- App lock with fingerprint, face or device PIN. Not a runtime prompt. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- The owl's nudges (Android 13+ asks first); worked out on the phone, nothing is sent -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Privacy by construction: no internet access, even if a library asks for it. -->
     <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
@@ -264,6 +266,16 @@
             Hands a backup file to the app the person picks in the share sheet. Not exported: another
             app can only read a file Owl Tracker has just granted it, and only from cache/backups/.
         -->
+        <!-- Home-screen widgets: this month's ring, and today -->
+        <receiver android:name=".nudge.BudgetWidget" android:exported="false" android:label="@string/widget_budget_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_budget_info" />
+        </receiver>
+        <receiver android:name=".nudge.TodayWidget" android:exported="false" android:label="@string/widget_today_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.backups"

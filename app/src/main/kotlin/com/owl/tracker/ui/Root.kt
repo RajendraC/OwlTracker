@@ -115,6 +115,9 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
 
     val current = screen
     val tab = current?.tab
+    // The month's recap, as a story above everything
+    val recap by vm.recap.collectAsStateWithLifecycle()
+    recap?.let { com.owl.tracker.ui.screens.RecapStory(it, platform, vm::closeRecap) }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,

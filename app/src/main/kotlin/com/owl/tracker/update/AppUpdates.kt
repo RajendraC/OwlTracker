@@ -239,6 +239,11 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.27" to listOf(
+            Item("The owl nudges you", "A line each evening about today, a heads-up at 80% and 100% of your budget, and your week on Sundays. Turn each on or off in Settings → Owl nudges. All worked out on your phone."),
+            Item("Widgets", "Add Owl Tracker to your home screen: this month's ring and what's left, or today with a button to add cash. Amounts stay hidden while app lock is on."),
+            Item("Your month, in a few cards", "On the 1st, a recap of the month just ended: saved or over, your biggest day, top merchant and more. Share any card as a picture."),
+        ),
         "1.9.26" to listOf(
             Item("Spent, clear as day", "Home's budget card now shows what you spent as the big number. The ring goes round once for your budget; if you go past it, a red ring laps inside, and the middle says how many times over (like 1.3×) instead of a percentage."),
             Item("A warmer look", "Headings and amounts use a new, softer typeface, so the numbers that matter stand out."),

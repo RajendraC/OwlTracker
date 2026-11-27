@@ -338,6 +338,9 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             ThemeChoice(settings.theme) { vm.setTheme(it) }
         }
 
+        SectionLabel("Owl nudges")
+        NudgeSettings()
+
         SectionLabel("Security")
         Panel(padding = 12.dp) {
             SwitchRow("App lock", "Fingerprint, face or screen lock · locks a minute after you leave", settings.appLock, { on ->
@@ -481,6 +484,40 @@ private fun ThemeChoice(mode: ThemeMode, onPick: (ThemeMode) -> Unit) {
                     label = { com.owl.tracker.ui.components.FitText(m.label, minScale = 0.7f) },
                 )
             }
+        }
+    }
+}
+
+/**
+ * The owl's nudges, each with its own switch. On Android 13+ the first switch turned on (or the button) asks for
+ * permission to notify; until then the switches are shown but nothing is sent.
+ */
+@Composable
+private fun NudgeSettings() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var allowed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(com.owl.tracker.nudge.Nudges.allowed(context)) }
+    val ask = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { allowed = it }
+    val on = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>().apply { com.owl.tracker.nudge.Nudges.KINDS.forEach { put(it, com.owl.tracker.nudge.Nudges.isOn(context, it)) } } }
+    Panel(padding = 12.dp, modifier = Modifier.testTag("nudge_settings")) {
+        if (!allowed && android.os.Build.VERSION.SDK_INT >= 33) {
+            Text("Android needs your OK before the owl can nudge you. Everything is worked out on your phone; nothing is sent anywhere.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+            androidx.compose.material3.Button(onClick = { ask.launch(android.Manifest.permission.POST_NOTIFICATIONS) }, modifier = Modifier.fillMaxWidth().padding(8.dp).testTag("nudge_allow")) { Text("Allow nudges") }
+            Divider()
+        }
+        val rows = listOf(
+            Triple(com.owl.tracker.nudge.Nudges.DAILY, "Evening: today's spending", "Around 9 pm, how today went against its share"),
+            Triple(com.owl.tracker.nudge.Nudges.ALERTS, "Budget alerts", "At 80% and 100% of the month, and when a category goes over"),
+            Triple(com.owl.tracker.nudge.Nudges.WEEKLY, "Sunday: your week", "The week's total, against the week before"),
+            Triple(com.owl.tracker.nudge.Nudges.RECAP, "Month recap", "On the 1st: your month in a few cards"),
+        )
+        rows.forEachIndexed { i, (kind, title, sub) ->
+            if (i > 0) Divider()
+            SwitchRow(title, sub, on[kind] == true, { v ->
+                on[kind] = v
+                com.owl.tracker.nudge.Nudges.setOn(context, kind, v)
+                if (v && !allowed && android.os.Build.VERSION.SDK_INT >= 33) ask.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }, if (i == 0) Ic.bell else null, Modifier.testTag("nudge_$kind"))
         }
     }
 }

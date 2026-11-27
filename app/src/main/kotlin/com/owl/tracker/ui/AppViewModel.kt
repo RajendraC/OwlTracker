@@ -51,6 +51,15 @@ import java.util.Locale
 
 enum class Tab { HOME, ACTIVITY, BUDGETS, MORE }
 
+/** A month's recap: the story of cards shown on its first days, built on the phone from that month's payments. */
+data class Recap(
+    val month: String, val previousMonth: String, val period: BudgetPeriod, val spent: Long, val budget: Long, val payments: Int,
+    val biggestDay: LocalDate?, val biggestDayPaise: Long, val biggestDayMerchant: String?,
+    val topMerchant: String?, val topMerchantCount: Int, val topMerchantPaise: Long,
+    val topCategory: Category?, val topCategoryPaise: Long,
+    val noSpendDays: Int, val daysWithinShare: Int, val days: Int, val invested: Long, val previousSpent: Long,
+)
+
 enum class Screen(val tab: Tab? = null) {
     WELCOME, DISCLOSURE, IMPORT_FILTERS, IMPORT_REVIEW, IMPORTING, BUDGET_SETUP,
     HOME(Tab.HOME), ACTIVITY(Tab.ACTIVITY), BUDGETS(Tab.BUDGETS), MORE(Tab.MORE),
@@ -550,6 +559,91 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     val reportScrollTo = MutableStateFlow<String?>(null)
 
     /** Reports for this month with nothing picked, scrolled to Ways to save (from Home's "Could save" and nudge). */
+    // ---------------- The month's recap, and opening from nudges and widgets ----------------
+
+    /** The recap being shown (a story of cards), or null. */
+    val recap = MutableStateFlow<Recap?>(null)
+
+    private val nudgePrefs get() = com.owl.tracker.nudge.Nudges.prefs(c.context)
+
+    /** The month just ended, while its recap is new (the first week of the next) and not yet seen or put away. */
+    fun recapOffer(settings: AppSettings?): BudgetPeriod? {
+        val s = settings ?: return null
+        if (!homeOffersOn || !s.onboarded) return null
+        val now = BudgetMath.periodFor(today(), s.budgetStartDay)
+        if (now.dayNumber(today()) > 7) return null
+        val last = now.previous(s.budgetStartDay)
+        return last.takeIf { !nudgePrefs.getBoolean("recap_seen_${it.start}", false) }
+    }
+
+    /** Android 13+: whether to ask, on Home, if the owl may nudge (once; never again after Not now). */
+    fun askForNudges(settings: AppSettings?): Boolean =
+        homeOffersOn && settings?.onboarded == true && android.os.Build.VERSION.SDK_INT >= 33 &&
+            !com.owl.tracker.nudge.Nudges.allowed(c.context) && !nudgePrefs.getBoolean("ask_done", false)
+
+    fun nudgeAskDone() = nudgePrefs.edit().putBoolean("ask_done", true).apply()
+
+    fun dismissRecapOffer(p: BudgetPeriod) = nudgePrefs.edit().putBoolean("recap_seen_${p.start}", true).apply()
+
+    /** Opens the recap of [p] (by default the month just ended). */
+    fun openRecap(p: BudgetPeriod? = null) {
+        viewModelScope.launch {
+            val start = settings.value?.budgetStartDay ?: 1
+            val period = p ?: BudgetMath.periodFor(today(), start).previous(start)
+            runCatching { recap.value = buildRecap(period, start) }
+            dismissRecapOffer(period)
+        }
+    }
+
+    fun closeRecap() { recap.value = null }
+
+    /** From a nudge or a widget. */
+    fun openFromOutside(what: String) {
+        when (what) {
+            com.owl.tracker.nudge.Nudges.OPEN_BUDGETS -> go(Screen.BUDGETS)
+            com.owl.tracker.nudge.Nudges.OPEN_ADD -> { go(Screen.HOME); openSheet(Sheet.AddExpense) }
+            com.owl.tracker.nudge.Nudges.OPEN_RECAP -> { go(Screen.HOME); openRecap() }
+            else -> go(Screen.HOME)
+        }
+    }
+
+    private suspend fun buildRecap(p: BudgetPeriod, startDay: Int): Recap {
+        val cats = repo.categories()
+        val catMap = cats.associateBy { it.id }
+        val txns = repo.transactions(startMs(p.start), startMs(p.endExclusive))
+        val counted = txns.flatMap { it.portions() }.filter { counts(it, catMap) }
+        val spent = counted.sumOf { it.amountPaise }
+        val budget = repo.budgets()[Schema.OVERALL] ?: 0L
+        val byDay = counted.groupBy { dateOf(it.occurredAt) }
+        val biggest = byDay.maxByOrNull { (_, l) -> l.sumOf { it.amountPaise } }
+        val biggestMerchant = biggest?.value?.maxByOrNull { it.amountPaise }?.merchantName
+        val merchants = counted.filter { it.merchantKey.isNotBlank() }.groupBy { it.merchantKey }
+        val top = merchants.maxByOrNull { (_, l) -> l.sumOf { it.amountPaise } }?.value
+        val tree = com.owl.tracker.data.CategoryTree(cats)
+        val byTop = counted.groupBy { tree.top(it.categoryId) }.mapValues { (_, l) -> l.sumOf { it.amountPaise } }
+        val topCat = byTop.maxByOrNull { it.value }
+        val lastDay = minOf(p.endExclusive.minusDays(1), today())
+        val allDays = generateSequence(p.start) { it.plusDays(1) }.takeWhile { !it.isAfter(lastDay) }.toList()
+        val fixedSpent = counted.filter { it.categoryId in FIXED_CATEGORIES }.sumOf { it.amountPaise }
+        val share = com.owl.tracker.core.Weeks.dailyShare(
+            com.owl.tracker.core.Weeks.everydayBudget(budget, FIXED_CATEGORIES.sumOf { repo.budgets()[it] ?: 0L }, fixedSpent), p.days,
+        )
+        val everydayByDay = allDays.associateWith { d -> byDay[d].orEmpty().filter { it.categoryId !in FIXED_CATEGORIES }.sumOf { it.amountPaise } }
+        val previous = p.previous(startDay)
+        val prevSpent = repo.transactions(startMs(previous.start), startMs(previous.endExclusive))
+            .flatMap { it.portions() }.filter { counts(it, catMap) }.sumOf { it.amountPaise }
+        return Recap(
+            month = com.owl.tracker.nudge.Nudges.monthName(p), previousMonth = com.owl.tracker.nudge.Nudges.monthName(previous),
+            period = p, spent = spent, budget = budget, payments = counted.size,
+            biggestDay = biggest?.key, biggestDayPaise = biggest?.value?.sumOf { it.amountPaise } ?: 0, biggestDayMerchant = biggestMerchant,
+            topMerchant = top?.first()?.merchantName, topMerchantCount = top?.size ?: 0, topMerchantPaise = top?.sumOf { it.amountPaise } ?: 0,
+            topCategory = topCat?.key?.let { catMap[it] }, topCategoryPaise = topCat?.value ?: 0,
+            noSpendDays = everydayByDay.count { it.value == 0L }, daysWithinShare = if (share > 0) everydayByDay.count { it.value <= share } else 0,
+            days = allDays.size, invested = counted.filter { catMap[it.categoryId]?.isInvestment == true }.sumOf { it.amountPaise },
+            previousSpent = prevSpent,
+        )
+    }
+
     fun openWaysToSave() {
         reportRange.value = ReportRange.ONE
         reportFilter.value = ReportFilter()
@@ -1509,6 +1603,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
          * screen is the app itself; a test can switch it back on.
          */
         @Volatile internal var greetingsOn = !runningTests()
+
+        /** Home's "allow nudges" and recap cards are off under tests too (they'd move everything down); a test can turn them on. */
+        @Volatile internal var homeOffersOn = !runningTests()
 
         private fun runningTests(): Boolean =
             android.os.Build.FINGERPRINT == "robolectric" ||

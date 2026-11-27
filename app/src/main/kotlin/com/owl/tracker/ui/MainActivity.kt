@@ -49,7 +49,24 @@ class MainActivity : FragmentActivity() {
 
     private val processObserver = object : DefaultLifecycleObserver {
         override fun onStart(owner: LifecycleOwner) = vm.onAppForeground()
-        override fun onStop(owner: LifecycleOwner) = vm.onAppBackground()
+        override fun onStop(owner: LifecycleOwner) {
+            vm.onAppBackground()
+            // The home-screen widgets catch up with whatever changed in the app
+            com.owl.tracker.nudge.OwlWidgets.refreshAsync(this@MainActivity)
+        }
+    }
+
+    /** Opened from a nudge or a widget: go where it points. */
+    private fun handleOpen(intent: android.content.Intent?) {
+        val what = intent?.getStringExtra(com.owl.tracker.nudge.Nudges.EXTRA_OPEN) ?: return
+        intent.removeExtra(com.owl.tracker.nudge.Nudges.EXTRA_OPEN)
+        vm.openFromOutside(what)
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleOpen(intent)
     }
 
     /** Whether the app is drawn dark right now (for tests). */
@@ -68,6 +85,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         val container = (application as OwlTrackerApp).container
         vm = ViewModelProvider(this, viewModelFactory { initializer { AppViewModel(container) } })[AppViewModel::class.java]
+        if (savedInstanceState == null) handleOpen(intent)
 
         lifecycleScope.launch {
             vm.settings.collect { s ->
