@@ -26,23 +26,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -56,7 +50,6 @@ import com.owl.tracker.ui.Recap
 import com.owl.tracker.ui.theme.Ic
 import com.owl.tracker.ui.components.MoodOwl
 import com.owl.tracker.ui.components.OwlMood
-import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -66,23 +59,18 @@ private val Cream = Color(0xFFFFE3B0)
 private class RecapCard(val tag: String, val top: Color, val bottom: Color, val content: @Composable () -> Unit)
 
 /**
- * The month's recap: a story of cards (tap the right side for the next, the left for the one before), each one
- * shareable as a picture. Everything in it was worked out on the phone; a share goes only where the person sends it.
+ * The month's recap: a story of cards (tap the right side for the next, the left for the one before). Everything in
+ * it was worked out on the phone. "Share my month" makes a separate picture of the wins, without amounts.
  */
 @Composable
-fun RecapStory(r: Recap, platform: Platform, onClose: () -> Unit) {
+fun RecapStory(r: Recap, platform: Platform, onClose: () -> Unit, onShare: () -> Unit = {}) {
     val cards = remember(r) { recapCards(r) }
     var at by remember(r) { mutableIntStateOf(0) }
-    val layer = rememberGraphicsLayer()
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         val card = cards[at]
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(card.top, card.bottom))).testTag("recap")) {
-            // The part that becomes the shared picture: the card itself, with a small signature
             Column(
                 Modifier.fillMaxSize()
-                    .drawWithContent { layer.record { this@drawWithContent.drawContent() }; drawLayer(layer) }
                     .background(Brush.verticalGradient(listOf(card.top, card.bottom)))
                     .statusBarsPadding().padding(horizontal = 26.dp).padding(top = 34.dp, bottom = 130.dp)
                     .pointerInput(cards.size) {
@@ -93,7 +81,6 @@ fun RecapStory(r: Recap, platform: Platform, onClose: () -> Unit) {
                 Text("Your ${r.month} · ${at + 1} of ${cards.size}", color = Cream, style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(14.dp))
                 Box(Modifier.weight(1f)) { card.content() }
-                Text("Owl Tracker · worked out on my phone", color = Cream.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
             }
             // The progress dashes and close button, above the card
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -105,21 +92,12 @@ fun RecapStory(r: Recap, platform: Platform, onClose: () -> Unit) {
                 }
             }
             Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Shares the month's wins as one picture, without amounts (the cards themselves stay on the phone)
                 Text(
-                    "Share this card", color = Color(0xFF3A1C0C), style = MaterialTheme.typography.titleMedium,
+                    "Share my month", color = Color(0xFF3A1C0C), style = MaterialTheme.typography.titleMedium,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color.White)
-                        .clickable {
-                            scope.launch {
-                                runCatching {
-                                    val bmp = layer.toImageBitmap().asAndroidBitmap()
-                                    val dir = java.io.File(context.cacheDir, "backups").apply { mkdirs() }
-                                    val f = java.io.File(dir, "owl-tracker-${r.month.lowercase()}-${card.tag}.png")
-                                    f.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-                                    platform.shareFile(f, "image/png", "My ${r.month} with Owl Tracker", "Share this card")
-                                }
-                            }
-                        }
+                        .clickable(onClick = onShare)
                         .padding(vertical = 14.dp).testTag("recap_share"),
                 )
                 Text(

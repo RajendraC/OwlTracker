@@ -205,6 +205,14 @@ class MainActivity : FragmentActivity() {
             startActivity(Intent.createChooser(send, chooser))
         }
 
+        override fun shareImage(file: java.io.File, text: String) {
+            val uri = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.backups", file)
+            val send = Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri).putExtra(Intent.EXTRA_TEXT, text)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            send.clipData = android.content.ClipData.newRawUri(file.name, uri)
+            startActivity(Intent.createChooser(send, "Share"))
+        }
+
         override fun shareBackup(file: java.io.File) {
             val uri = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.backups", file)
             val send = Intent(Intent.ACTION_SEND)
@@ -235,4 +243,6 @@ interface Platform {
     fun shareBackup(file: java.io.File)
     /** Hands [file] (in the shared cache folder) to an app the person picks. */
     fun shareFile(file: java.io.File, mime: String, subject: String, chooser: String)
+    /** Hands a picture (in the shared cache folder) and a line of [text] to an app the person picks. */
+    fun shareImage(file: java.io.File, text: String) = shareFile(file, "image/png", "Owl Tracker", "Share")
 }

@@ -239,6 +239,10 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.32" to listOf(
+            Item("The owl reacts", "Add a payment and the owl hops when you're on track, thinks it over after a big one, and tells you kindly when today goes past its share. Streaks, badges and goals get a little celebration. Choose Lively, Calm or Off in Settings → Appearance."),
+            Item("Share your month, not your money", "Share my month on the recap, or tap a badge you've earned, to make a picture of your wins: no-spend days, days within your share, badges. No amounts or percentages, ever."),
+        ),
         "1.9.31" to listOf(
             Item("Pick your colours", "Settings → Appearance now has five looks: Cream & Mango, Mango & Teal, Indigo & Saffron, Mint & Coral and Plum & Marigold, each in light and dark. Your widgets follow along."),
         ),

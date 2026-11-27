@@ -54,6 +54,12 @@ enum class Tab { HOME, ACTIVITY, BUDGETS, MORE }
 /** An owl badge: earned or still to earn. */
 data class Badge(val id: String, val name: String, val earnedText: String, val howTo: String, val earned: Boolean)
 
+/** A badge's picture, on the Streaks page and in pictures to share. */
+fun badgeEmoji(id: String) = when (id) {
+    "wise_start" -> "🦉"; "thrifty" -> "🪙"; "on_target" -> "🎯"; "saver" -> "🌱"; "zero_day" -> "🌟"
+    "sorted" -> "🧹"; "steady" -> "🏔️"; "two_months" -> "✌️"; "investor" -> "📈"; else -> "⭐"
+}
+
 /** Streaks and badges together. */
 data class Streak(val info: com.owl.tracker.core.StreakInfo, val badges: List<Badge>)
 
@@ -106,7 +112,31 @@ enum class ReviewChip { ALL, OUT, IN, UNSURE }
 enum class DeleteOption { OLDER_3, OLDER_6, ACCOUNT, ALL_SMS }
 enum class ActivityFilter { ALL, SPENT, RECEIVED, REVIEW }
 
-class UiMessage(val text: String, val actionLabel: String? = null, val action: (() -> Unit)? = null)
+/**
+ * A short message at the bottom of the screen. With [owl], the owl reacts in it: [text] is the title and [line]
+ * the line under it; [still] shows only its face (the "Calm" setting).
+ */
+class UiMessage(
+    val text: String, val actionLabel: String? = null, val action: (() -> Unit)? = null,
+    val owl: com.owl.tracker.ui.components.OwlMood? = null, val line: String? = null, val still: Boolean = false,
+)
+
+/** A milestone the owl celebrates full screen, once: a badge earned or a goal saved up. */
+data class Celebration(val title: String, val line: String, val badgeName: String, val emoji: String, val share: SharePicture)
+
+/**
+ * A picture to share, made on the phone. None of them carries a rupee amount or a percentage: only wins (days,
+ * badges, a goal reached), the app's name and where to get it.
+ */
+sealed interface SharePicture {
+    /** A month's wins. [under] true under budget, false over, null without a budget; [lessThanBefore] spent less than [previousMonth]. */
+    data class Month(
+        val month: String, val previousMonth: String, val under: Boolean?, val daysWithinShare: Int, val days: Int,
+        val noSpendDays: Int, val lessThanBefore: Boolean, val badges: Int,
+    ) : SharePicture
+    data class BadgeEarned(val name: String, val emoji: String, val what: String) : SharePicture
+    data class GoalReached(val name: String, val emoji: String) : SharePicture
+}
 
 data class CategorySpend(val category: Category, val paise: Long)
 data class CategoryBudgetRow(val category: Category, val spent: Long, val limit: Long, val status: BudgetStatus)
@@ -566,7 +596,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         saveGoals { list -> list.map { if (it.id == id) it.copy(savedPaise = it.savedPaise + paise) else it } }
         _sheet.value = null
         val total = g.savedPaise + paise
-        say(if (total >= g.targetPaise) "🎉 ${g.name} is fully saved!" else "Added ${Money.formatInr(paise)} to ${g.name}")
+        if (total >= g.targetPaise && !g.done && settings.value?.owlReacts != "off") {
+            celebration.value = Celebration("${g.name}: done!", "You've set aside all ${Money.formatInr(g.targetPaise)}. Treat yourself.", "Goal reached", g.emoji, SharePicture.GoalReached(g.name, g.emoji))
+        } else say(if (total >= g.targetPaise) "🎉 ${g.name} is fully saved!" else "Added ${Money.formatInr(paise)} to ${g.name}")
     }
 
     fun deleteGoal(id: String) {
@@ -1672,15 +1704,119 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         if (!editable()) return@launch
         val day = today().minusDays(daysAgo.toLong())
         val at = if (daysAgo == 0) now() else day.atTime(12, 0).atZone(zone).toInstant().toEpochMilli()
-        repo.addManual(ImportEngine.manual(amountPaise, merchant, categoryId, at))
+        val todayBefore = if (daysAgo == 0) everydayToday() else 0L
+        val id = repo.addManual(ImportEngine.manual(amountPaise, merchant, categoryId, at))
         closeSheet()
         val name = categories.value.firstOrNull { it.id == categoryId }?.name ?: ""
-        say("Added ${Money.formatInr(amountPaise)} to $name" + when (daysAgo) {
+        val plain = "Added ${Money.formatInr(amountPaise)} to $name" + when (daysAgo) {
             0 -> ""
             1 -> " for yesterday"
             else -> " on " + day.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ENGLISH))
-        })
+        }
+        val undo: () -> Unit = { viewModelScope.launch { if (id > 0) repo.deleteTransaction(id); say("Removed ${Money.formatInr(amountPaise)} from $name") } }
+        val reacts = settings.value?.owlReacts ?: "lively"
+        if (daysAgo != 0 || reacts == "off") { say(plain); return@launch }
+        val counted = categories.value.firstOrNull { it.id == categoryId }?.let { c -> c.countsAsSpend } ?: true
+        val share = todayShare()
+        val after = everydayToday()
+        val strongKey = "owl_strong_${today()}"
+        val kind = com.owl.tracker.core.OwlReaction.pick(
+            amountPaise, todayBefore, after, share, setAside = categoryId in FIXED_CATEGORIES || !counted,
+            strongShownToday = nudgePrefs.getBoolean(strongKey, false),
+        )
+        val still = reacts == "calm" || !motionOn()
+        val head = "Saved ${Money.formatInr(amountPaise)} · $name"
+        val msg = when (kind) {
+            com.owl.tracker.core.OwlReaction.ON_TRACK -> UiMessage(head, "Undo", undo, com.owl.tracker.ui.components.OwlMood.CHEERING,
+                "Nice! ${Money.formatInr(share - after)} left of today's ${Money.formatInr(share)}", still)
+            com.owl.tracker.core.OwlReaction.BIG -> UiMessage("That's a big one · ${Money.formatInr(amountPaise)}", "Undo", undo, com.owl.tracker.ui.components.OwlMood.WORRIED,
+                "Most of today's ${Money.formatInr(share)} share in one go. ${Money.formatInr(share - after)} left today.", still)
+            com.owl.tracker.core.OwlReaction.OVER -> {
+                val p = BudgetMath.periodFor(today(), settings.value?.budgetStartDay ?: 1)
+                val left = p.days - p.dayNumber(today())
+                val each = com.owl.tracker.core.OwlReaction.lessEachDay(after - share, left)
+                UiMessage("${Money.formatInr(after - share)} over today's share", "Undo", undo, com.owl.tracker.ui.components.OwlMood.SAD,
+                    if (each > 0) "Spread over $left ${if (left == 1) "day" else "days"}, that's ${Money.formatInr(each)} less a day. Easy fix." else "A fresh budget month starts tomorrow.", still)
+            }
+            com.owl.tracker.core.OwlReaction.PLAIN -> null
+        }
+        if (kind == com.owl.tracker.core.OwlReaction.BIG || kind == com.owl.tracker.core.OwlReaction.OVER) nudgePrefs.edit().putBoolean(strongKey, true).apply()
+        if (msg == null) say(plain) else messages.tryEmit(msg)
     }
+
+    /** Today's everyday spending so far (EMIs and rent left out, investments in). */
+    private suspend fun everydayToday(): Long {
+        val catMap = categories.value.associateBy { it.id }
+        return repo.transactions(startMs(today()), startMs(today().plusDays(1))).flatMap { it.portions() }
+            .filter { counts(it, catMap) && it.categoryId !in FIXED_CATEGORIES }.sumOf { it.amountPaise }
+    }
+
+    /** Today's share of the budget after EMIs and rent are set aside, as Home's calendar works it out; 0 without a budget. */
+    private suspend fun todayShare(): Long {
+        val overall = budgets.value[Schema.OVERALL] ?: return 0L
+        if (overall <= 0) return 0L
+        val p = BudgetMath.periodFor(today(), settings.value?.budgetStartDay ?: 1)
+        val catMap = categories.value.associateBy { it.id }
+        val fixedSpent = repo.transactions(startMs(p.start), startMs(p.endExclusive)).flatMap { it.portions() }
+            .filter { counts(it, catMap) && it.categoryId in FIXED_CATEGORIES }.sumOf { it.amountPaise }
+        val w = com.owl.tracker.core.Weeks
+        return w.dailyShare(w.everydayBudget(overall, FIXED_CATEGORIES.sumOf { budgets.value[it] ?: 0L }, fixedSpent), p.days)
+    }
+
+    fun setOwlReacts(how: String) = viewModelScope.launch {
+        if (how in setOf("lively", "calm", "off")) repo.updateSettings { it.copy(owlReacts = how) }
+    }
+
+    // ---------------- Milestones and pictures to share ----------------
+
+    /** The milestone being celebrated full screen, if any. */
+    val celebration = MutableStateFlow<Celebration?>(null)
+    fun closeCelebration() { celebration.value = null }
+
+    /** The picture being previewed before sharing, if any. */
+    val sharePicture = MutableStateFlow<SharePicture?>(null)
+    fun openShare(p: SharePicture) { celebration.value = null; sharePicture.value = p }
+    fun closeShare() { sharePicture.value = null }
+
+    /** The month in [r] as wins only, for "Share my month". */
+    fun shareMonth(r: Recap) = openShare(SharePicture.Month(
+        month = r.month, previousMonth = r.previousMonth,
+        under = if (r.budget > 0) r.spent <= r.budget else null,
+        daysWithinShare = r.daysWithinShare, days = r.days, noSpendDays = r.noSpendDays,
+        lessThanBefore = r.previousSpent > 0 && r.spent < r.previousSpent,
+        badges = streaks.value?.badges?.count { it.earned } ?: 0,
+    ))
+
+    fun shareBadge(b: Badge) = openShare(SharePicture.BadgeEarned(b.name, badgeEmoji(b.id), b.earnedText))
+
+    /**
+     * Badges earned since the owl last looked. The first look after updating only notes what's already earned, so
+     * nobody gets a pile of celebrations for old badges.
+     */
+    private fun checkNewBadges(st: Streak) {
+        val prefs = nudgePrefs
+        val earned = st.badges.filter { it.earned }
+        val known = prefs.getStringSet("celebrated_badges", null)
+        if (known == null) { prefs.edit().putStringSet("celebrated_badges", earned.map { it.id }.toSet()).apply(); return }
+        val fresh = earned.firstOrNull { it.id !in known } ?: return
+        prefs.edit().putStringSet("celebrated_badges", known + fresh.id).apply()
+        if (!celebrationsOn || settings.value?.owlReacts == "off" || settings.value?.sampleData == true) return
+        celebration.value = Celebration(
+            title = when (fresh.id) { "thrifty" -> "7 days in a row!"; "steady" -> "30 days in a row!"; "saver" -> "A month under budget!"; "two_months" -> "Two months in a row!"; else -> "New badge!" },
+            line = fresh.earnedText + ".", badgeName = fresh.name, emoji = badgeEmoji(fresh.id),
+            share = SharePicture.BadgeEarned(fresh.name, badgeEmoji(fresh.id), fresh.earnedText),
+        )
+    }
+
+    // Placed after the flows it uses, so they exist when it starts
+    init {
+        viewModelScope.launch { streaks.collect { st -> if (st != null) runCatching { checkNewBadges(st) } } }
+    }
+
+    /** False when the phone's "Remove animations" is on: the owl then shows only its face. */
+    fun motionOn(): Boolean = runCatching {
+        android.provider.Settings.Global.getFloat(c.context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+    }.getOrDefault(true)
 
     // ---------------- budgets & categories ----------------
 
@@ -1863,6 +1999,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
         /** Home's "allow nudges" and recap cards are off under tests too (they'd move everything down); a test can turn them on. */
         @Volatile internal var homeOffersOn = !runningTests()
+
+        /** The owl's full-screen milestones are off under tests too, unless a test turns them on. */
+        @Volatile internal var celebrationsOn = !runningTests()
 
         private fun runningTests(): Boolean =
             android.os.Build.FINGERPRINT == "robolectric" ||

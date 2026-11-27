@@ -85,12 +85,13 @@ private const val ACT = 7f
  * with sparkles, bobs and winks, thinks with a wing at its chin, slumps, shivers with darting eyes and a drop of
  * sweat, cries with its ear tufts down, or tilts its head at a question mark. The act plays for a
  * few seconds whenever the mood or [playKey] changes, then the owl holds the mood's face. With "Remove animations"
- * on, the act is skipped and only the face shows.
+ * on, or [still], the act is skipped and only the face shows.
  */
 @Composable
-fun MoodOwl(mood: OwlMood, size: Dp, modifier: Modifier = Modifier, playKey: Any? = null, dark: Boolean = true) {
-    val clock = remember(mood, playKey) { Animatable(0f) }
-    LaunchedEffect(mood, playKey) { clock.animateTo(ACT, tween((ACT * 1000).toInt(), easing = LinearEasing)) }
+fun MoodOwl(mood: OwlMood, size: Dp, modifier: Modifier = Modifier, playKey: Any? = null, dark: Boolean = true, still: Boolean = false) {
+    // still: only the mood's face, no act (the owl's "Calm" setting, and pictures made for sharing)
+    val clock = remember(mood, playKey, still) { Animatable(if (still) ACT else 0f) }
+    LaunchedEffect(mood, playKey, still) { if (!still) clock.animateTo(ACT, tween((ACT * 1000).toInt(), easing = LinearEasing)) }
     Canvas(
         modifier.size(size)
             .semantics { contentDescription = "The owl looks ${mood.label}" }

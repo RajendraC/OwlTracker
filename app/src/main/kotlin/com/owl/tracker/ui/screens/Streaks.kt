@@ -36,6 +36,7 @@ import com.owl.tracker.core.DayMark
 import com.owl.tracker.core.Money
 import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.Badge
+import com.owl.tracker.ui.badgeEmoji
 import com.owl.tracker.ui.Streak
 import com.owl.tracker.ui.components.ScreenHeader
 import com.owl.tracker.ui.theme.ClaySurface
@@ -48,10 +49,6 @@ private val Red = Color(0xFFD63B41)
 private val Purple = Color(0xFF7B5CD6)
 private val Gold = Color(0xFFFFB21A)
 
-private fun badgeEmoji(id: String) = when (id) {
-    "wise_start" -> "🦉"; "thrifty" -> "🪙"; "on_target" -> "🎯"; "saver" -> "🌱"; "zero_day" -> "🌟"
-    "sorted" -> "🧹"; "steady" -> "🏔️"; "two_months" -> "✌️"; "investor" -> "📈"; else -> "⭐"
-}
 
 /** The last seven days as dots: green within the share, red over, a star for no-spend days, today still open. */
 @Composable
@@ -161,9 +158,10 @@ fun StreaksScreen(vm: AppViewModel) {
         }
         Stat("No-spend days this month", "🌟 ${s.info.noSpendThisMonth}", "Days when nothing went out", Modifier.fillMaxWidth())
         Text("Owl badges · ${s.badges.count { it.earned }} of ${s.badges.size}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 6.dp))
+        if (s.badges.any { it.earned }) Text("Tap a badge you've earned to share it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         s.badges.chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { BadgeTile(it, Modifier.weight(1f)) }
+                row.forEach { b -> BadgeTile(b, Modifier.weight(1f), onShare = if (b.earned) ({ vm.shareBadge(b) }) else null) }
                 repeat(3 - row.size) { Box(Modifier.weight(1f)) }
             }
         }
@@ -182,8 +180,9 @@ private fun Stat(label: String, value: String, sub: String?, modifier: Modifier 
 }
 
 @Composable
-private fun BadgeTile(b: Badge, modifier: Modifier = Modifier) {
-    Column(modifier.testTag("badge_${b.id}").alpha(if (b.earned) 1f else 0.5f), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun BadgeTile(b: Badge, modifier: Modifier = Modifier, onShare: (() -> Unit)? = null) {
+    val tap = if (onShare != null) Modifier.clip(RoundedCornerShape(20.dp)).clickable(onClickLabel = "Share this badge", onClick = onShare) else Modifier
+    Column(modifier.then(tap).testTag("badge_${b.id}").alpha(if (b.earned) 1f else 0.5f).padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier.size(72.dp).clip(CircleShape)
                 .background(if (b.earned) Brush.radialGradient(listOf(Color(0xFFFFE08A), Gold, Color(0xFFC9700A))) else Brush.radialGradient(listOf(Color(0xFFEFE3D3), Color(0xFFE0CDB6)))),

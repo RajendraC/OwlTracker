@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,12 +90,15 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
     val locked by vm.locked.collectAsStateWithLifecycle()
     val confirm by vm.confirm.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    // The message on show, so an owl's reaction can be drawn as one
+    var showing by remember { androidx.compose.runtime.mutableStateOf<UiMessage?>(null) }
 
     LaunchedEffect(vm) { vm.reportShares.collect { r -> platform.shareFile(r.file, r.format.mime, "Owl Tracker report", "Share the report") } }
 
     LaunchedEffect(vm) {
         vm.messages.collect { m ->
-            val r = snackbar.showSnackbar(m.text, m.actionLabel, withDismissAction = false, duration = if (m.action != null) SnackbarDuration.Long else SnackbarDuration.Short)
+            showing = m
+            val r = snackbar.showSnackbar(m.text, m.actionLabel, withDismissAction = false, duration = if (m.action != null && m.owl == null) SnackbarDuration.Long else SnackbarDuration.Short)
             if (r == SnackbarResult.ActionPerformed) m.action?.invoke()
         }
     }
@@ -117,7 +121,15 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
     val tab = current?.tab
     // The month's recap, as a story above everything
     val recap by vm.recap.collectAsStateWithLifecycle()
-    recap?.let { com.owl.tracker.ui.screens.RecapStory(it, platform, vm::closeRecap) }
+    recap?.let { r -> com.owl.tracker.ui.screens.RecapStory(r, platform, vm::closeRecap, onShare = { vm.shareMonth(r) }) }
+    // A milestone, and a picture to share (above the recap when shared from it)
+    val celebration by vm.celebration.collectAsStateWithLifecycle()
+    val settingsNow by vm.settings.collectAsStateWithLifecycle()
+    celebration?.let { c ->
+        com.owl.tracker.ui.screens.CelebrationScreen(c, still = settingsNow?.owlReacts == "calm" || !vm.motionOn(), onShare = { vm.openShare(c.share) }, onClose = vm::closeCelebration)
+    }
+    val picture by vm.sharePicture.collectAsStateWithLifecycle()
+    picture?.let { com.owl.tracker.ui.screens.SharePictureDialog(it, platform, vm::closeShare) }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
@@ -127,7 +139,13 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
         } else {
             androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
         },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = {
+            SnackbarHost(snackbar) { data ->
+                val m = showing
+                if (m?.owl != null && m.text == data.visuals.message) com.owl.tracker.ui.screens.OwlReactionBar(m, data)
+                else androidx.compose.material3.Snackbar(data)
+            }
+        },
         bottomBar = { if (tab != null) MangoTabBar(vm, tab) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {

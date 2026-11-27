@@ -236,6 +236,8 @@ data class AppSettings(
     val goals: String = "[]",
     /** The colours picked in Settings (`Palette.key`). */
     val palette: String = "cream",
+    /** How the owl reacts to what you do: "lively" (hops, confetti), "calm" (its face only) or "off". */
+    val owlReacts: String = "lively",
     /** Repeating payments the user stopped tracking (their merchant keys, JSON array). */
     val ignoredBills: String = "[]",
     /**
@@ -266,6 +268,7 @@ data class AppSettings(
         "card_credit_kinds" to cardCreditKinds,
         "goals" to goals,
         "palette" to palette,
+        "owl_reacts" to owlReacts,
         "ignored_bills" to ignoredBills,
         "account_for" to org.json.JSONObject(accountFor as Map<*, *>).toString(),
     )
@@ -292,6 +295,7 @@ data class AppSettings(
             cardCreditKinds = m["card_credit_kinds"] ?: "{}",
             goals = m["goals"] ?: "[]",
             palette = m["palette"] ?: "cream",
+            owlReacts = m["owl_reacts"]?.takeIf { it in setOf("lively", "calm", "off") } ?: "lively",
             ignoredBills = m["ignored_bills"] ?: "[]",
             accountFor = m["account_for"]?.let { raw ->
                 runCatching { org.json.JSONObject(raw).let { o -> o.keys().asSequence().associateWith { k -> o.getString(k) } } }.getOrNull()

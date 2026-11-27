@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The only files Owl Tracker can hand to another app: backup copies made for the share sheet,
-    in its private cache. Each share grants one app read access to one file.
+    The only files Owl Tracker can hand to another app: backup copies and reports made for the share sheet, and
+    pictures to share (no amounts in them), in its private cache. Each share grants one app read access to one file.
 -->
 <paths>
     <cache-path name="backups" path="backups/" />
+    <cache-path name="shares" path="shares/" />
 </paths>

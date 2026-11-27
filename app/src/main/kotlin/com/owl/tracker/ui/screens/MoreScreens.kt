@@ -353,6 +353,8 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             PaletteChoice(com.owl.tracker.ui.theme.Palette.from(settings.palette)) { vm.setPalette(it) }
             Divider()
             ThemeChoice(settings.theme) { vm.setTheme(it) }
+            Divider()
+            OwlReactsChoice(settings.owlReacts) { vm.setOwlReacts(it) }
         }
 
         SectionLabel("Owl nudges")
@@ -467,6 +469,47 @@ private fun PrivacyPara(title: String, body: String) {
 
 /** Light, dark or follow the phone; applies straight away. */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+/** How lively the owl is when you add a payment or reach a milestone: Lively, Calm (its face only) or Off. */
+@Composable
+private fun OwlReactsChoice(how: String, onPick: (String) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val options = listOf("lively" to "Lively", "calm" to "Calm", "off" to "Off")
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            com.owl.tracker.ui.components.MoodOwl(com.owl.tracker.ui.components.OwlMood.HAPPY, 36.dp, dark = false, still = true)
+            Column(Modifier.weight(1f)) {
+                Text("How the owl reacts", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    when (how) {
+                        "calm" -> "Its face changes when you add a payment; nothing moves"
+                        "off" -> "Plain messages, and no milestone celebrations"
+                        else -> "Hops, thinks or slumps when you add a payment, and celebrates milestones"
+                    },
+                    style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
+                )
+            }
+        }
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().testTag("owl_reacts_choice")) {
+            options.forEachIndexed { i, (key, label) ->
+                SegmentedButton(
+                    selected = key == how,
+                    onClick = { onPick(key) },
+                    shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                    colors = SegmentedButtonDefaults.colors(
+                        inactiveContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                        inactiveContentColor = c.onSurface,
+                        activeContainerColor = c.primaryContainer,
+                        activeContentColor = c.onPrimaryContainer,
+                    ),
+                    modifier = Modifier.testTag("owl_reacts_$key"),
+                    icon = { if (!com.owl.tracker.ui.components.textScaleAtLeast(1.3f)) SegmentedButtonDefaults.Icon(active = key == how) },
+                    label = { com.owl.tracker.ui.components.FitText(label, minScale = 0.7f) },
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun ThemeChoice(mode: ThemeMode, onPick: (ThemeMode) -> Unit) {
     val c = MaterialTheme.colorScheme
