@@ -641,6 +641,21 @@ class StoreScreenshots {
                 nav(com.owl.tracker.ui.Screen.HOME)
                 Thread.sleep(800)
             }
+            section("monthly_report") {
+                nav(com.owl.tracker.ui.Screen.SETTINGS)
+                waitForTag("theme_choice", 20_000)
+                runCatching { scrollTo(hasTestTag("report_settings"), below = 40f) }
+                onNode(hasTestTag("report_to")).performTextInput("Priya")
+                Thread.sleep(800)
+                shot("99c_settings_report")
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(800)
+                withVm { it.reportPreset = com.owl.tracker.export.ReportPeriod.LAST_MONTH; it.openSheet(com.owl.tracker.ui.Sheet.ShareReport) }
+                Thread.sleep(1500)
+                shot("99d_share_last_month")
+                withVm { it.closeSheet() }
+                Thread.sleep(600)
+            }
             section("recap") {
                 // The month's recap: this month's cards, as they'd look on the 1st
                 withVm { it.openRecap(it.period.value) }
