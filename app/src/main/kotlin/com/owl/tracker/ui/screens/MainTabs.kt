@@ -721,7 +721,7 @@ private fun PeriodSwitch(isWeek: Boolean, onMonth: () -> Unit, onWeek: () -> Uni
 /**
  * The budget card. Spent is always the big number; the ring goes round once for the budget (green, mango from 80%)
  * and, past it, laps on the inside in red, so it never shows more than 100%. The middle says how much is used, or how
- * many times the budget went out ("2.8×"). A white tick marks where an even pace would be by today.
+ * many times the budget went out ("2.8×"). A small tick marks where an even pace would be by today.
  */
 @Composable
 private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, plan: com.owl.tracker.ui.SavingPlan?, onOpen: (String?) -> Unit, modifier: Modifier = Modifier) {
@@ -814,7 +814,7 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
             // What the ring's parts mean, quietly
             Text(
                 if (used > 1) "Outer ring: the budget, once round · inner: what went past it"
-                else if (pace != null) "The white mark is where an even pace would be by today" else "The ring is the budget, once round",
+                else if (pace != null) "The small mark is where an even pace would be by today" else "The ring is the budget, once round",
                 style = MaterialTheme.typography.labelSmall, color = muted, modifier = Modifier.padding(horizontal = 4.dp),
             )
             val overRows = dash.categoryRows.filter { it.status.state == BudgetState.OVER }
@@ -874,7 +874,7 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
 /**
  * The budget as a ring that laps: the outer ring fills once for the budget (green, then mango from 80%; green for a
  * finished month that stayed within it); past the budget, an inner red ring laps once more, and again brighter past
- * twice. [pace] puts a white tick where an even pace would be by today.
+ * twice. [pace] puts a tick where an even pace would be by today.
  */
 @Composable
 private fun LapRing(used: Double, pace: Float?, finished: Boolean, centre: String, centreSub: String, period: LocalDate, modifier: Modifier = Modifier) {
