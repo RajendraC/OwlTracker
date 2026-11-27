@@ -707,21 +707,38 @@ class StoreScreenshots {
                     Triple("97b_react_big", com.owl.tracker.ui.components.OwlMood.WORRIED, "That's a big one · ₹1,900" to "Most of today's ₹2,317 share in one go. ₹417 left today."),
                     Triple("97c_react_over", com.owl.tracker.ui.components.OwlMood.SAD, "₹420 over today's share" to "Spread over 8 days, that's ₹53 less a day. Easy fix."),
                 ).forEach { (name, m, words) ->
-                    withVm { it.messages.tryEmit(com.owl.tracker.ui.UiMessage(words.first, "Undo", {}, m, words.second)) }
-                    waitForTag("owl_reaction", 10_000)
-                    Thread.sleep(300)
-                    shot(name)
-                    Thread.sleep(4_500)
+                    // The owl acts for seven seconds and the strip lasts four, so the clock is moved by hand:
+                    // waiting for the act to finish would wait out the strip too
+                    compose.mainClock.autoAdvance = false
+                    try {
+                        compose.runOnUiThread { ViewModelProvider(compose.activity)[AppViewModel::class.java].messages.tryEmit(com.owl.tracker.ui.UiMessage(words.first, "Undo", {}, m, words.second)) }
+                        compose.mainClock.advanceTimeBy(1_100)
+                        waitForTag("owl_reaction", 10_000)
+                        compose.mainClock.advanceTimeBy(if (m == com.owl.tracker.ui.components.OwlMood.CHEERING) 350 else 1_200)
+                        shot(name)
+                        compose.mainClock.advanceTimeBy(8_000)
+                    } finally {
+                        compose.mainClock.autoAdvance = true
+                    }
+                    Thread.sleep(800)
                 }
-                withVm {
-                    it.celebration.value = com.owl.tracker.ui.Celebration(
-                        "7 days in a row!", "7 days in a row within your share.", "Thrifty owl", "🪙",
-                        com.owl.tracker.ui.SharePicture.BadgeEarned("Thrifty owl", "🪙", "7 days in a row within your share"),
-                    )
+                // Mid-celebration, with the confetti still falling
+                compose.mainClock.autoAdvance = false
+                try {
+                    compose.runOnUiThread {
+                        ViewModelProvider(compose.activity)[AppViewModel::class.java].celebration.value = com.owl.tracker.ui.Celebration(
+                            "7 days in a row!", "7 days in a row within your share.", "Thrifty owl", "🪙",
+                            com.owl.tracker.ui.SharePicture.BadgeEarned("Thrifty owl", "🪙", "7 days in a row within your share"),
+                        )
+                    }
+                    compose.mainClock.advanceTimeBy(600)
+                    waitForTag("celebration", 20_000)
+                    compose.mainClock.advanceTimeBy(500)
+                    shot("97d_celebration")
+                    compose.mainClock.advanceTimeBy(8_000)
+                } finally {
+                    compose.mainClock.autoAdvance = true
                 }
-                waitForTag("celebration", 20_000)
-                Thread.sleep(700)
-                shot("97d_celebration")
                 onNode(hasTestTag("celebration_share")).performClick()
                 waitForTag("share_picture", 20_000)
                 Thread.sleep(1200)
