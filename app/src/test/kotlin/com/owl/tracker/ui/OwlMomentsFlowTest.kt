@@ -26,13 +26,13 @@ class OwlMomentsFlowTest {
 
     @After fun tidy() { AppViewModel.celebrationsOn = false }
 
-    private fun setUp() = with(compose) {
+    private fun setUp(budget: String = "20000") = with(compose) {
         tapTag("get_started")
         tapTag("allow_sms")
         waitForTag("import_all")
         tapTag("import_all")
         tapTag("import_continue")
-        setMonthlyTotal("20000")
+        setMonthlyTotal(budget)
         tapTag("save_budget")
         waitForTag("budget_hero")
     }
@@ -51,22 +51,22 @@ class OwlMomentsFlowTest {
         with(compose) {
             runOnUiThread { vm.messages.tryEmit(UiMessage("Saved ₹240 · Food", "Undo", {}, OwlMood.CHEERING, "Nice! ₹1,077 left of today's ₹2,317")) }
             // after any message still showing from the setup
-            waitForTag("owl_reaction", 30_000)
+            waitForText("Saved ₹240 · Food", timeoutMs = 30_000)
+            waitForTag("owl_reaction")
             waitForText("Nice! ₹1,077 left")
             waitForTag("owl_reaction_undo")
         }
     }
 
     @Test
-    fun addingAPaymentGetsAReactionOrAPlainMessage() {
-        setUp()
+    fun aSmallPaymentWithinTodaysShareGetsAHop() {
+        // A budget big enough that today is well within its share
+        setUp(budget = "2000000")
         with(compose) {
             runOnUiThread { vm.addManual(100, "Tea", com.owl.tracker.core.Cat.FOOD_DELIVERY, 0) }
-            // Within today's share the owl reacts; if the sample day is already past it, a plain message
-            waitUntil(30_000) {
-                onAllNodesWithTag("owl_reaction").fetchSemanticsNodes().isNotEmpty() ||
-                    onAllNodes(hasText("Added ₹1 to", substring = true)).fetchSemanticsNodes().isNotEmpty()
-            }
+            waitForText("Saved ₹1 ·", timeoutMs = 30_000)
+            waitForTag("owl_reaction")
+            waitForText("left of today's")
         }
     }
 
