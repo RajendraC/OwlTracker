@@ -46,9 +46,7 @@ object Nudges {
     const val REPORT = "report"
     val KINDS = listOf(DAILY, ALERTS, WEEKLY, RECAP, CHECK, REPORT)
 
-    /** The monthly report: who it's usually for (a name for the wording only) and the file kind. */
-    fun reportTo(context: Context): String? = prefs(context).getString("report_to", null)?.takeIf { it.isNotBlank() }
-    fun setReportTo(context: Context, name: String) = prefs(context).edit().putString("report_to", name.trim().take(30)).apply()
+    /** The monthly report's kind: an interactive page for any browser, or an Excel workbook. */
     fun reportExcel(context: Context): Boolean = prefs(context).getBoolean("report_excel", false)
     fun setReportExcel(context: Context, excel: Boolean) = prefs(context).edit().putBoolean("report_excel", excel).apply()
 
@@ -82,7 +80,7 @@ object Nudges {
             NotificationChannel(WEEKLY, "Sunday: your week", NotificationManager.IMPORTANCE_LOW),
             NotificationChannel(RECAP, "Month recap", NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(CHECK, "New payments: was the category right?", NotificationManager.IMPORTANCE_LOW),
-            NotificationChannel(REPORT, "Monthly report for family", NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(REPORT, "Monthly report", NotificationManager.IMPORTANCE_DEFAULT),
         ).forEach { nm.createNotificationChannel(it) }
     }
 
