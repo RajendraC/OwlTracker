@@ -52,7 +52,8 @@ class StreaksAndChecksFlowTest {
             waitForTag("quick_check")
             waitForTag("quick_check_question")
             waitForTag("quick_check_more")
-            // Its own category, confirmed
+            // Its own category, confirmed (the choices load from the database)
+            waitForTag("quick_check_yes", timeoutMs = 30_000)
             tapTag("quick_check_yes")
             waitForText("Thanks:", substring = true)
             waitUntil(5_000) { onAllNodesWithTag("quick_check").fetchSemanticsNodes().isEmpty() }
