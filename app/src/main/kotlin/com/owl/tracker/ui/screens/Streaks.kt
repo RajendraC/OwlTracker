@@ -80,8 +80,8 @@ private fun dayWord(n: Int) = if (n == 1) "day" else "days"
 /** Home: days in a row within the share, the last seven days, and how many badges. Opens the Streaks page. */
 @Composable
 fun StreakCard(st: Streak, onOpen: () -> Unit, modifier: Modifier = Modifier) {
-    ClaySurface(RoundedCornerShape(30.dp), modifier.fillMaxWidth().testTag("streak_card"), elevation = 12.dp) {
-        Column(Modifier.clickable(onClickLabel = "See your streaks and badges", onClick = onOpen).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    ClaySurface(RoundedCornerShape(30.dp), modifier.fillMaxWidth(), elevation = 12.dp) {
+        Column(Modifier.clickable(onClickLabel = "See your streaks and badges", onClick = onOpen).testTag("streak_card").padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(if (st.info.days > 0) "🔥" else "🌱", fontSize = 34.sp)
                 Column(Modifier.weight(1f)) {
