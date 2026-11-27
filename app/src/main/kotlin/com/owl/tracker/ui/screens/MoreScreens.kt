@@ -547,7 +547,8 @@ private fun MonthlyReportSettings() {
             label = { Text("Usually for (optional)") }, placeholder = { Text("Like Priya, or family") }, singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(8.dp).testTag("report_to"),
         )
-        androidx.compose.foundation.layout.Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+        // Chips that wrap onto a second line with big text, rather than breaking words
+        androidx.compose.foundation.layout.FlowRow(Modifier.padding(horizontal = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
             listOf(false to "Interactive page", true to "Excel workbook").forEach { (x, label) ->
                 androidx.compose.material3.FilterChip(selected = excel == x, onClick = { excel = x; com.owl.tracker.nudge.Nudges.setReportExcel(context, x) },
                     label = { Text(label) }, modifier = Modifier.testTag(if (x) "report_kind_excel" else "report_kind_page"))
