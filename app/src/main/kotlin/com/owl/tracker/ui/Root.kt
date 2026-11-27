@@ -288,7 +288,7 @@ private fun AddButton(onClick: () -> Unit, ring: androidx.compose.ui.graphics.Co
             .background(ring)
             .padding(5.dp)
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(com.owl.tracker.ui.theme.SphereBrush)
+            .background(com.owl.tracker.ui.theme.LocalBrand.current.add.let { a -> androidx.compose.runtime.remember(a) { com.owl.tracker.ui.theme.sphereBrush(a) } })
             .drawBehind {
                 // Shade underneath and a bright spot up top, so it reads as a ball
                 drawCircle(

@@ -60,4 +60,18 @@ class RecapAndNudgesFlowTest {
             waitForText("Budget alerts")
         }
     }
+
+    @Test
+    fun coloursArePickedInSettings() {
+        setUpWithSms()
+        with(compose) {
+            tapTag("tab_more")
+            tapText("Settings")
+            waitForTag("palette_choice")
+            tapTag("palette_teal")
+            waitUntil(5_000) { vm.settings.value?.palette == "teal" }
+            tapTag("palette_plum")
+            waitUntil(5_000) { vm.settings.value?.palette == "plum" }
+        }
+    }
 }

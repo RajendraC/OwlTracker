@@ -655,6 +655,33 @@ class StoreScreenshots {
                 withVm { it.closeSheet() }
                 Thread.sleep(600)
             }
+            section("palettes") {
+                // Every palette, light and dark: Home, its middle, and Budgets
+                for (p in com.owl.tracker.ui.theme.Palette.entries) for (mode in listOf(com.owl.tracker.data.ThemeMode.LIGHT, com.owl.tracker.data.ThemeMode.DARK)) {
+                    withVm { it.setPalette(p); it.setTheme(mode) }
+                    nav(com.owl.tracker.ui.Screen.HOME)
+                    Thread.sleep(1500)
+                    runCatching { scrollTo(hasTestTag("budget_hero"), below = 0f) }
+                    Thread.sleep(600)
+                    shot("pal_${p.key}_${mode.key}_1home")
+                    runCatching { scrollTo(hasTestTag("streak_card"), below = 40f) }
+                    Thread.sleep(700)
+                    shot("pal_${p.key}_${mode.key}_2home")
+                    nav(com.owl.tracker.ui.Screen.BUDGETS)
+                    Thread.sleep(1200)
+                    shot("pal_${p.key}_${mode.key}_3budgets")
+                    withVm { it.openSheet(com.owl.tracker.ui.Sheet.Afford) }
+                    waitForTag("afford_amount", 20_000)
+                    onNode(hasTestTag("afford_amount")).performTextInput("8000")
+                    Thread.sleep(1000)
+                    shot("pal_${p.key}_${mode.key}_4sheet")
+                    withVm { it.closeSheet() }
+                    Thread.sleep(500)
+                }
+                withVm { it.setPalette(com.owl.tracker.ui.theme.Palette.CREAM); it.setTheme(com.owl.tracker.data.ThemeMode.LIGHT) }
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(800)
+            }
             section("recap") {
                 // The month's recap: this month's cards, as they'd look on the 1st
                 withVm { it.openRecap(it.period.value) }

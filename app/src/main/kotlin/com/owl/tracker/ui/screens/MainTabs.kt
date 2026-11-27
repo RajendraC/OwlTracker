@@ -926,7 +926,8 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
 private fun LapRing(used: Double, pace: Float?, finished: Boolean, centre: String, centreSub: String, period: LocalDate, modifier: Modifier = Modifier) {
     val sc = LocalStatusColors.current
     val track = sc.track
-    val green = com.owl.tracker.ui.components.RING_GREEN
+    // Deep enough to show on light cards in every palette
+    val green = sc.ring
     val mango = com.owl.tracker.ui.components.RING_MANGO
     val red = com.owl.tracker.ui.components.RING_RED
     val redLight = Color(0xFFFF6B6B)

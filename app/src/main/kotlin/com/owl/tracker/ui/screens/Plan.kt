@@ -174,11 +174,12 @@ fun BillsScreen(vm: AppViewModel) {
 private fun MiniRing(used: Double, label: String) {
     Box(Modifier.size(110.dp), contentAlignment = Alignment.Center) {
         val track = MaterialTheme.colorScheme.surfaceVariant
+        val green = LocalStatusColors.current.ring
         Canvas(Modifier.fillMaxSize()) {
             val w = 13.dp.toPx(); val r = size.minDimension / 2 - w
             val tl = Offset(center.x - r, center.y - r); val s = Size(2 * r, 2 * r)
             drawArc(track, 0f, 360f, false, tl, s, style = Stroke(w))
-            drawArc(if (used < 0.8) Color(0xFF4CB86B) else if (used <= 1) Mango else Color(0xFFD63B41), -90f, (used.coerceAtMost(1.0) * 360).toFloat().coerceAtMost(359.5f), false, tl, s, style = Stroke(w, cap = StrokeCap.Round))
+            drawArc(if (used < 0.8) green else if (used <= 1) Mango else Color(0xFFD63B41), -90f, (used.coerceAtMost(1.0) * 360).toFloat().coerceAtMost(359.5f), false, tl, s, style = Stroke(w, cap = StrokeCap.Round))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(if (used > 1) String.format(Locale.ROOT, "%.1f×", used) else "${(used * 100).toInt()}%", style = MaterialTheme.typography.titleLarge)
@@ -209,8 +210,8 @@ fun AffordSheet(vm: AppViewModel) {
             val on = cat == c.id
             Text(
                 c.name, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
-                color = if (on) Color(0xFFFFF3E2) else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Color(0xFF3A1C0C) else MaterialTheme.colorScheme.surfaceVariant)
+                color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { cat = if (on) null else c.id }.padding(horizontal = 12.dp, vertical = 7.dp).testTag("afford_cat_${c.id}"),
             )
         }
@@ -268,6 +269,7 @@ fun AffordSheet(vm: AppViewModel) {
 private fun Jar(fraction: Float, size: androidx.compose.ui.unit.Dp) {
     val glass = MaterialTheme.colorScheme.surfaceVariant
     val ink = MaterialTheme.colorScheme.onSurface
+    val fill = com.owl.tracker.ui.theme.LocalBrand.current.add[1]
     Box(Modifier.size(width = size * 0.68f, height = size), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val w = this.size.width; val h = this.size.height
@@ -278,7 +280,7 @@ private fun Jar(fraction: Float, size: androidx.compose.ui.unit.Dp) {
             drawPath(path, glass)
             clipPath(path) {
                 val top = h - (h - lid * 1.3f) * fraction
-                drawRect(Mango, Offset(0f, top), Size(w, h - top))
+                drawRect(fill, Offset(0f, top), Size(w, h - top))
             }
             drawPath(path, Color(0x33C98C46), style = Stroke(2.dp.toPx()))
         }
@@ -325,7 +327,7 @@ fun GoalsRow(vm: AppViewModel, goals: List<Goal>, modifier: Modifier = Modifier)
                     Column(Modifier.weight(1f)) {
                         Text(g.name, style = MaterialTheme.typography.titleSmall)
                         Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                            Box(Modifier.fillMaxWidth(g.fraction).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Mango))
+                            Box(Modifier.fillMaxWidth(g.fraction).height(8.dp).clip(RoundedCornerShape(4.dp)).background(com.owl.tracker.ui.theme.LocalBrand.current.add[1]))
                         }
                     }
                     Text("${(g.fraction * 100).toInt()}%", style = MaterialTheme.typography.labelLarge)
@@ -379,7 +381,7 @@ fun GoalEditSheet(vm: AppViewModel, id: String?) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Goals.PICTURES.forEach { e ->
             Box(
-                Modifier.size(44.dp).clip(CircleShape).background(if (e == emoji) Mango else MaterialTheme.colorScheme.surfaceVariant).clickable { emoji = e },
+                Modifier.size(44.dp).clip(CircleShape).background(if (e == emoji) com.owl.tracker.ui.theme.LocalBrand.current.add[1] else MaterialTheme.colorScheme.surfaceVariant).clickable { emoji = e },
                 contentAlignment = Alignment.Center,
             ) { Text(e, fontSize = 22.sp) }
         }
@@ -394,8 +396,8 @@ fun GoalEditSheet(vm: AppViewModel, id: String?) {
         listOf(0 to "No date", 3 to "3 months", 6 to "6 months", 12 to "1 year", 24 to "2 years").forEach { (m, l) ->
             Text(
                 l, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
-                color = if (months == m) Color(0xFFFFF3E2) else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (months == m) Color(0xFF3A1C0C) else MaterialTheme.colorScheme.surfaceVariant)
+                color = if (months == m) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (months == m) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { months = m }.padding(horizontal = 12.dp, vertical = 7.dp),
             )
         }

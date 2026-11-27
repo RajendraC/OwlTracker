@@ -40,7 +40,7 @@ val Mango = Color(0xFFFFB21A)
  */
 val LocalDarkTheme = staticCompositionLocalOf { false }
 
-private val LightColors = lightColorScheme(
+internal val LightColors = lightColorScheme(
     primary = Cocoa,
     onPrimary = Color.White,
     primaryContainer = Color(0xFFFFE7AE),
@@ -73,7 +73,7 @@ private val LightColors = lightColorScheme(
     error = Color(0xFFB3261E),
 )
 
-private val DarkColors = darkColorScheme(
+internal val DarkColors = darkColorScheme(
     primary = Color(0xFFFFC24D),
     onPrimary = Color(0xFF3A1C0C),
     primaryContainer = Color(0xFF5A2E14),
@@ -113,6 +113,8 @@ data class StatusColors(
     val warnFg: Color, val warnBg: Color, val warnRing: Color,
     val overFg: Color, val overBg: Color, val overRing: Color,
     val track: Color,
+    /** The budget ring's green: deep enough to stand out on light cards (3:1 or more). */
+    val ring: Color = Color(0xFF2E9E57),
 ) {
     fun fg(s: BudgetState) = when (s) { BudgetState.ON_TRACK -> okFg; BudgetState.HEADS_UP -> warnFg; BudgetState.OVER -> overFg }
     fun bg(s: BudgetState) = when (s) { BudgetState.ON_TRACK -> okBg; BudgetState.HEADS_UP -> warnBg; BudgetState.OVER -> overBg }
@@ -130,6 +132,7 @@ private val DarkStatus = StatusColors(
     warnFg = Color(0xFFFFD08A), warnBg = Color(0xFF3D2C10), warnRing = Color(0xFFE59B2E),
     overFg = Color(0xFFFFB4AB), overBg = Color(0xFF4A1E1A), overRing = Color(0xFFF2675B),
     track = Color(0xFF3A2A1E),
+    ring = Color(0xFF5FC77A),
 )
 
 val LocalStatusColors = staticCompositionLocalOf { LightStatus }
@@ -162,7 +165,7 @@ data class BrandColors(
     val dish: Color,
 )
 
-private val LightBrand = BrandColors(
+internal val LightBrand = BrandColors(
     header = listOf(Color(0xFFFFF1B3), Color(0xFFFFC85C), Color(0xFFFF9A3D)),
     onHeader = Color(0xFF2A1708), onHeaderSoft = Color(0xFF7A3B18),
     headerButton = Color.White.copy(alpha = 0.7f),
@@ -174,7 +177,7 @@ private val LightBrand = BrandColors(
     hills = listOf(Color(0xFFFFB347), Color(0xFFFF9A3D), Color(0xFFF6862E)),
     dish = Color(0xFFFBEBD6),
 )
-private val DarkBrand = BrandColors(
+internal val DarkBrand = BrandColors(
     header = listOf(Color(0xFF4A2C12), Color(0xFF3A2210), Color(0xFF26170C)),
     onHeader = Color(0xFFFFF1DE), onHeaderSoft = Color(0xFFFFC98A),
     headerButton = Color.White.copy(alpha = 0.12f),
@@ -188,6 +191,17 @@ private val DarkBrand = BrandColors(
 )
 
 val LocalBrand = staticCompositionLocalOf { LightBrand }
+
+/** The Add button's ball in the palette's own colour: a bright spot at the top left, deepening at the edge. */
+fun sphereBrush(add: List<Color>): androidx.compose.ui.graphics.Brush = object : androidx.compose.ui.graphics.ShaderBrush() {
+    override fun createShader(size: androidx.compose.ui.geometry.Size): androidx.compose.ui.graphics.Shader =
+        androidx.compose.ui.graphics.RadialGradientShader(
+            center = androidx.compose.ui.geometry.Offset(size.width * 0.34f, size.height * 0.28f),
+            radius = maxOf(size.width, size.height) * 0.82f,
+            colors = listOf(Color(0xFFFFFBF2), add[0], add[1], add[2], androidx.compose.ui.graphics.lerp(add[2], Color.Black, 0.25f)),
+            colorStops = listOf(0f, 0.18f, 0.52f, 0.78f, 1f),
+        )
+}
 
 /** The Add button's mango ball: a bright spot at the top left, deepening to burnt orange at the edge. */
 val SphereBrush: androidx.compose.ui.graphics.Brush = object : androidx.compose.ui.graphics.ShaderBrush() {
@@ -274,17 +288,18 @@ val Numeric = TextStyle(fontFeatureSettings = "tnum")
  */
 @Composable
 @Suppress("UNUSED_PARAMETER")
-fun OwlTrackerTheme(dark: Boolean = isSystemInDarkTheme(), dynamic: Boolean = false, content: @Composable () -> Unit) {
+fun OwlTrackerTheme(dark: Boolean = isSystemInDarkTheme(), dynamic: Boolean = false, palette: Palette = Palette.CREAM, content: @Composable () -> Unit) {
     val context = LocalContext.current
     val body = remember { appFont(context) }
     val display = remember(body) { displayFont(context, body) }
     val typography = remember(body, display) { appTypography(body, display) }
     CompositionLocalProvider(
         LocalDisplayFont provides display,
-        LocalStatusColors provides if (dark) DarkStatus else LightStatus,
-        LocalBrand provides if (dark) DarkBrand else LightBrand,
+        LocalStatusColors provides (if (dark) DarkStatus else LightStatus).copy(track = palette.track(dark)),
+        LocalBrand provides palette.brand(dark),
         LocalDarkTheme provides dark,
+        LocalPalette provides palette,
     ) {
-        MaterialTheme(colorScheme = if (dark) DarkColors else LightColors, typography = typography, content = content)
+        MaterialTheme(colorScheme = palette.scheme(dark), typography = typography, content = content)
     }
 }

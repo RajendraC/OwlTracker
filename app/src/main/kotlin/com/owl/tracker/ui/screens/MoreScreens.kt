@@ -37,6 +37,14 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -341,6 +349,8 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
 
         SectionLabel("Appearance")
         Panel(padding = 12.dp) {
+            PaletteChoice(com.owl.tracker.ui.theme.Palette.from(settings.palette)) { vm.setPalette(it) }
+            Divider()
             ThemeChoice(settings.theme) { vm.setTheme(it) }
         }
 
@@ -547,6 +557,47 @@ private fun MonthlyReportSettings() {
             listOf(false to "Web page (any browser)", true to "Excel workbook").forEach { (x, label) ->
                 androidx.compose.material3.FilterChip(selected = excel == x, onClick = { excel = x; com.owl.tracker.nudge.Nudges.setReportExcel(context, x) },
                     label = { Text(label) }, modifier = Modifier.testTag(if (x) "report_kind_excel" else "report_kind_page"))
+            }
+        }
+    }
+}
+
+/** The colours: a small picture of each palette (its light version), the picked one ringed with a tick. */
+@Composable
+private fun PaletteChoice(picked: com.owl.tracker.ui.theme.Palette, onPick: (com.owl.tracker.ui.theme.Palette) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    Column(Modifier.padding(8.dp).testTag("palette_choice"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Colours", style = MaterialTheme.typography.titleMedium)
+        Text("Pick the look you like. Each has a light and a dark version.", style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            com.owl.tracker.ui.theme.Palette.entries.forEach { p ->
+                val on = p == picked
+                val (bg, head, button, add) = p.swatch
+                Column(
+                    Modifier.width(92.dp).clip(RoundedCornerShape(14.dp))
+                        .clickable(onClickLabel = "Use ${p.label}") { onPick(p) }
+                        .semantics { selected = on }
+                        .testTag("palette_${p.key}"),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier.size(width = 76.dp, height = 104.dp).clip(RoundedCornerShape(16.dp)).background(bg)
+                            .then(if (on) Modifier.border(3.dp, c.onSurface, RoundedCornerShape(16.dp)) else Modifier.border(1.dp, c.outlineVariant, RoundedCornerShape(16.dp))),
+                    ) {
+                        Box(Modifier.fillMaxWidth().height(32.dp).background(head))
+                        Box(Modifier.padding(start = 8.dp, end = 8.dp, top = 22.dp).fillMaxWidth().height(26.dp).clip(RoundedCornerShape(8.dp)).background(androidx.compose.ui.graphics.Color.White))
+                        Box(Modifier.align(Alignment.BottomCenter).padding(start = 8.dp, end = 8.dp, bottom = 26.dp).fillMaxWidth().height(12.dp).clip(RoundedCornerShape(6.dp)).background(button))
+                        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp).size(16.dp).clip(androidx.compose.foundation.shape.CircleShape).background(add))
+                        if (on) Box(
+                            Modifier.align(Alignment.TopEnd).padding(4.dp).size(20.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.onSurface),
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Ic.check, contentDescription = null, tint = c.surface, modifier = Modifier.size(13.dp)) }
+                    }
+                    Text(
+                        p.label, style = MaterialTheme.typography.labelMedium, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
     }

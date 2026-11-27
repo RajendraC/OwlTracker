@@ -1270,6 +1270,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setTheme(mode: com.owl.tracker.data.ThemeMode) = viewModelScope.launch { repo.updateSettings { it.copy(theme = mode) } }
 
+    fun setPalette(p: com.owl.tracker.ui.theme.Palette) = viewModelScope.launch { repo.updateSettings { it.copy(palette = p.key) } }
+
     fun setStartDay(day: Int) = viewModelScope.launch {
         repo.updateSettings { it.copy(budgetStartDay = day.coerceIn(1, 28)) }
         monthOffset.value = 0

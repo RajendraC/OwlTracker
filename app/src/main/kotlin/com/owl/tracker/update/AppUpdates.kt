@@ -239,6 +239,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.31" to listOf(
+            Item("Pick your colours", "Settings → Appearance now has five looks: Cream & Mango, Mango & Teal, Indigo & Saffron, Mint & Coral and Plum & Marigold, each in light and dark. Your widgets follow along."),
+        ),
         "1.9.30" to listOf(
             Item("Your month, on a bigger screen", "On the 2nd, the owl gets last month's report ready to dig into on a computer: an interactive web page for any browser, or an Excel workbook. Send it to yourself in one tap. Pick the kind in Settings → Monthly report."),
         ),

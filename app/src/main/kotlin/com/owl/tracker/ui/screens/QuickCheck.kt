@@ -66,7 +66,7 @@ fun QuickCheckSheet(vm: AppViewModel, txId: Long) {
                 val first = i == 0
                 Row(
                     Modifier.clip(RoundedCornerShape(50))
-                        .background(if (first) Color(0xFF3A1C0C) else MaterialTheme.colorScheme.surfaceVariant)
+                        .background(if (first) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { vm.checkAnswer(txId, c.id, always) }
                         .padding(horizontal = 14.dp, vertical = 9.dp)
                         .testTag(if (first) "quick_check_yes" else "quick_check_${c.id}"),
@@ -75,7 +75,7 @@ fun QuickCheckSheet(vm: AppViewModel, txId: Long) {
                     categoryArt(c.icon)?.let { Image(painterResource(it), null, Modifier.size(22.dp)) }
                     Text(
                         c.name + if (first) " ✓" else "", fontWeight = FontWeight.ExtraBold,
-                        color = if (first) Color(0xFFFFF3E2) else MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelLarge,
+                        color = if (first) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }

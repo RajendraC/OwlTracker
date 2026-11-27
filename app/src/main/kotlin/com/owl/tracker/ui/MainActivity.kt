@@ -81,6 +81,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val startTheme = ThemeMode.from(look.getString("theme", null))
+        val startPalette = com.owl.tracker.ui.theme.Palette.from(look.getString("palette", null))
         applySystemBars(startTheme.isDark(systemDark()))
         super.onCreate(savedInstanceState)
         val container = (application as OwlTrackerApp).container
@@ -91,6 +92,11 @@ class MainActivity : FragmentActivity() {
             vm.settings.collect { s ->
                 applyScreenPrivacy(s?.screenPrivacy ?: true)
                 if (s != null && look.getString("theme", null) != s.theme.key) look.edit().putString("theme", s.theme.key).apply()
+                // The colours too: the first frame and the home-screen widgets use them before the settings load
+                if (s != null && look.getString("palette", null) != s.palette) {
+                    look.edit().putString("palette", s.palette).apply()
+                    com.owl.tracker.nudge.OwlWidgets.refreshAsync(this@MainActivity)
+                }
             }
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(processObserver)
@@ -116,7 +122,8 @@ class MainActivity : FragmentActivity() {
                 applySystemBars(dark)
                 onDispose {}
             }
-            OwlTrackerTheme(dark = dark) {
+            val palette = settings?.let { com.owl.tracker.ui.theme.Palette.from(it.palette) } ?: startPalette
+            OwlTrackerTheme(dark = dark, palette = palette) {
                 // The owl says hello (see AppViewModel.greeting), once the settings are in and not behind the app lock
                 val greeting by vm.greeting.collectAsStateWithLifecycle()
                 val locked by vm.locked.collectAsStateWithLifecycle()
