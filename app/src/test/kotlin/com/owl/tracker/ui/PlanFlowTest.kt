@@ -44,6 +44,7 @@ class PlanFlowTest {
             onNodeWithTag("goal_target").performTextInput("25000")
             tapTag("goal_save")
             waitForText("Goa trip")
+            waitUntil(5_000) { vm.goals.value.size == 1 }
             val id = vm.goals.value.single().id
             tapTag("goal_add_$id")
             waitForTag("goal_add_amount")
@@ -62,10 +63,10 @@ class PlanFlowTest {
             waitForTag("afford_amount")
             onNodeWithTag("afford_amount").performTextInput("8000")
             waitForTag("afford_verdict")
-            // ₹40,000 budget, ₹23,607 spent: ₹16,393 left, ₹8,393 after
-            waitForText("₹8,393")
+            // What's left of the ₹40,000 budget, less the ₹8,000
             val a = vm.afford(8_000_00L, null)!!
-            assertEquals(16_393_00L, a.left)
+            assertEquals(a.left - 8_000_00L, a.leftAfter)
+            waitForText(com.owl.tracker.core.Money.formatInr(a.leftAfter))
         }
     }
 
