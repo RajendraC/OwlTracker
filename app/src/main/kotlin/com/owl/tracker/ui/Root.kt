@@ -140,7 +140,8 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
             androidx.compose.material3.ScaffoldDefaults.contentWindowInsets
         },
         snackbarHost = {
-            SnackbarHost(snackbar) { data ->
+            // Above the tab bar's + button, which stands up out of the bar
+            SnackbarHost(snackbar, Modifier.padding(bottom = if (tab != null) 30.dp else 0.dp)) { data ->
                 val m = showing
                 if (m?.owl != null && m.text == data.visuals.message) com.owl.tracker.ui.screens.OwlReactionBar(m, data)
                 else androidx.compose.material3.Snackbar(data)
