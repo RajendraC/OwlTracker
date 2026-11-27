@@ -147,6 +147,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
                 Screen.SETTINGS -> SettingsScreen(vm, platform)
                 Screen.INSIGHTS -> ReportsScreen(vm)
                 Screen.PRIVACY -> PrivacyScreen(vm)
+                Screen.STREAKS -> com.owl.tracker.ui.screens.StreaksScreen(vm)
                 Screen.DB_ERROR -> DbErrorScreen(vm)
                 Screen.UNLOCK -> UnlockScreen(vm, platform)
                 Screen.BACKUP -> BackupScreen(vm, platform)

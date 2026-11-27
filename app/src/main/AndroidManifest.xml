@@ -266,6 +266,9 @@
             Hands a backup file to the app the person picks in the share sheet. Not exported: another
             app can only read a file Owl Tracker has just granted it, and only from cache/backups/.
         -->
+        <!-- ✓ Yes on a new payment's nudge -->
+        <receiver android:name=".nudge.CheckReceiver" android:exported="false" />
+
         <!-- Home-screen widgets: this month's ring, and today -->
         <receiver android:name=".nudge.BudgetWidget" android:exported="false" android:label="@string/widget_budget_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>

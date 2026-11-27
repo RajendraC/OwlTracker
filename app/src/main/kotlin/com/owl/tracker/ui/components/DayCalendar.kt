@@ -176,7 +176,7 @@ fun fullColor(full: Float): Color = when {
  * whole share, more went over and the ball is full and red). The same gloss and shadow as [DayCircle].
  */
 @Composable
-fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, future: Boolean, size: Dp, modifier: Modifier = Modifier, investedShare: Float = 0f, picked: Boolean = false) {
+fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, future: Boolean, size: Dp, modifier: Modifier = Modifier, investedShare: Float = 0f, picked: Boolean = false, noSpend: Boolean = false) {
     val brand = LocalBrand.current
     val glass = brand.clay.pressed
     val surface = brand.clay.surface
@@ -195,8 +195,10 @@ fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, futur
             }
             val light = c + Offset(-r * 0.32f, -r * 0.44f)
             drawCircle(Color.Black.copy(alpha = 0.16f), r, c + Offset(0f, 2.dp.toPx()))
-            // The empty glass
-            drawCircle(Brush.radialGradient(0f to lerp(glass, Color.White, 0.6f), 0.6f to glass, 1f to lerp(glass, Color.Black, 0.1f), center = light, radius = r * 1.6f), r, c)
+            // The empty glass (lavender on a no-spend day, with a purple ring)
+            val base = if (noSpend) Color(0xFFEEE4F8) else glass
+            drawCircle(Brush.radialGradient(0f to lerp(base, Color.White, 0.6f), 0.6f to base, 1f to lerp(base, Color.Black, 0.08f), center = light, radius = r * 1.6f), r, c)
+            if (noSpend && !picked) drawCircle(INVESTED, r + 2.5.dp.toPx(), c, style = Stroke(2.dp.toPx()))
             // The liquid, with a soft wave on top while it isn't full
             if (level > 0f) {
                 val ball = androidx.compose.ui.graphics.Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r)) }
@@ -235,6 +237,22 @@ fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, futur
                 drawCircle(surface, 6.dp.toPx(), dc)
                 drawCircle(FIXED_DOT, 4.dp.toPx(), dc)
             }
+            if (noSpend) {
+                // A little star: nothing went out this day
+                val sc0 = c + Offset(r * 0.74f, -r * 0.74f)
+                drawCircle(surface, 7.dp.toPx(), sc0)
+                val star = androidx.compose.ui.graphics.Path().apply {
+                    val outer = 6.dp.toPx(); val inner = 2.6.dp.toPx()
+                    for (i in 0 until 10) {
+                        val a = Math.toRadians(-90.0 + i * 36)
+                        val rr = if (i % 2 == 0) outer else inner
+                        val pt = Offset(sc0.x + rr * kotlin.math.cos(a).toFloat(), sc0.y + rr * kotlin.math.sin(a).toFloat())
+                        if (i == 0) moveTo(pt.x, pt.y) else lineTo(pt.x, pt.y)
+                    }
+                    close()
+                }
+                drawPath(star, Color(0xFFFFC21A))
+            }
             if (investedShare > 0f) {
                 // A purple badge with a rising line: some of this day went into investments
                 val bc = c + Offset(-r * 0.74f, -r * 0.74f)
@@ -265,11 +283,15 @@ fun GlassDay(date: LocalDate, full: Float, fixed: Boolean, today: Boolean, futur
 
 /** The month card's key: the three liquids, the EMI dot, and what a day is measured against. */
 @Composable
-fun FillLegend(share: DayShare, modifier: Modifier = Modifier) {
+fun FillLegend(share: DayShare, modifier: Modifier = Modifier, noSpendDays: Int = 0) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (noSpendDays > 0) Text(
+            "🌟 $noSpendDays no-spend ${if (noSpendDays == 1) "day" else "days"} this month",
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold), color = INVESTED, modifier = Modifier.testTag("no_spend_count"),
+        )
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(LIGHT to "Up to half the day's share", WITHIN to "Most of it", VERY_HEAVY to "Over", INVESTED to "Invested", FIXED_DOT to "EMI or rent").forEach { (c, label) ->
+            listOf(LIGHT to "Up to half the day's share", WITHIN to "Most of it", VERY_HEAVY to "Over", INVESTED to "Invested", FIXED_DOT to "EMI or rent", Color(0xFFFFC21A) to "No-spend day").forEach { (c, label) ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     Box(Modifier.size(if (c == FIXED_DOT) 9.dp else 12.dp).clip(CircleShape).background(c))
                     Text(label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = muted)
@@ -376,8 +398,10 @@ fun LevelLegend(share: DayShare, modifier: Modifier = Modifier) {
 @Composable
 fun MonthCalendarCard(
     title: String, rows: List<CalendarRow>, share: DayShare, picked: LocalDate?, today: LocalDate,
-    onPick: (LocalDate) -> Unit, onWeek: (LocalDate) -> Unit, modifier: Modifier = Modifier,
+    onPick: (LocalDate) -> Unit, onWeek: (LocalDate) -> Unit, modifier: Modifier = Modifier, firstDay: LocalDate? = null,
 ) {
+    // Days from the first payment on that had nothing go out: stars
+    val noSpendDays = rows.flatMap { it.days }.filterNotNull().count { com.owl.tracker.core.Streaks.isNoSpend(it.date, it.paise, firstDay, today) }
     val brand = LocalBrand.current
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val thisWeek = com.owl.tracker.core.Weeks.startOf(today)
@@ -417,14 +441,15 @@ fun MonthCalendarCard(
                     ) {
                         if (d != null) {
                             val full = com.owl.tracker.core.Weeks.fullness(d.everydayPaise, share.paise)
+                            val noSpend = com.owl.tracker.core.Streaks.isNoSpend(date, d.paise, firstDay, today)
                             GlassDay(date, full, d.fixedPaise > 0, date == today, future, 32.dp,
-                                investedShare = if (d.everydayPaise > 0) d.investedPaise.toFloat() / d.everydayPaise else 0f, picked = date == picked)
-                            // What went that day, under the ball; red when it went over its share
+                                investedShare = if (d.everydayPaise > 0) d.investedPaise.toFloat() / d.everydayPaise else 0f, picked = date == picked, noSpend = noSpend)
+                            // What went that day, under the ball; red when it went over its share, purple ₹0 on a no-spend day
                             if (!future) FitText(
-                                if (d.everydayPaise > 0) Money.formatShort(d.everydayPaise) else "–",
+                                if (d.everydayPaise > 0) Money.formatShort(d.everydayPaise) else if (noSpend) "₹0" else "–",
                                 Modifier.padding(horizontal = 1.dp).testTag("cal_amount_$date"),
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 10.sp),
-                                color = if (full > 1f) VERY_HEAVY else muted, textAlign = TextAlign.Center, minScale = 0.6f,
+                                color = if (full > 1f) VERY_HEAVY else if (noSpend) INVESTED else muted, textAlign = TextAlign.Center, minScale = 0.6f,
                             )
                             if (!future && d.investedPaise > 0) FitText(
                                 Money.formatShort(d.investedPaise) + " inv.",
@@ -466,7 +491,7 @@ fun MonthCalendarCard(
         }
         } }
         Gap(8.dp)
-        FillLegend(share, Modifier.padding(horizontal = 4.dp))
+        FillLegend(share, Modifier.padding(horizontal = 4.dp), noSpendDays)
     }
 }
 

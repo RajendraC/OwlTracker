@@ -46,4 +46,5 @@ data class WeekView(
 )
 
 /** The budget month on Home as a calendar, one row a week. */
-data class MonthCalendar(val rows: List<CalendarRow>, val share: DayShare, val title: String)
+/** [firstDay]: the first recorded payment; days from then that had nothing go out are no-spend days (stars). */
+data class MonthCalendar(val rows: List<CalendarRow>, val share: DayShare, val title: String, val firstDay: LocalDate? = null)

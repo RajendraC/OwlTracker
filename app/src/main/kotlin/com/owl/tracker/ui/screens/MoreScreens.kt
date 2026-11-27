@@ -510,6 +510,7 @@ private fun NudgeSettings() {
             Triple(com.owl.tracker.nudge.Nudges.ALERTS, "Budget alerts", "At 80% and 100% of the month, and when a category goes over"),
             Triple(com.owl.tracker.nudge.Nudges.WEEKLY, "Sunday: your week", "The week's total, against the week before"),
             Triple(com.owl.tracker.nudge.Nudges.RECAP, "Month recap", "On the 1st: your month in a few cards"),
+            Triple(com.owl.tracker.nudge.Nudges.CHECK, "New payments: was it right?", "Confirm or change a new payment's category from the nudge"),
         )
         rows.forEachIndexed { i, (kind, title, sub) ->
             if (i > 0) Divider()

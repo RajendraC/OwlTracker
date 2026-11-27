@@ -101,6 +101,7 @@ fun SheetHost(vm: AppViewModel) {
             when (current) {
                 is Sheet.TxnDetail -> TxnDetailSheet(vm, current.id)
                 is Sheet.CategoryPick -> CategoryPickSheet(vm, current.txId)
+                is Sheet.QuickCheck -> QuickCheckSheet(vm, current.txId)
                 is Sheet.Split -> SplitSheet(vm, current.txId)
                 is Sheet.Rename -> RenameSheet(vm, current.txId)
                 is Sheet.MerchantIcon -> MerchantIconSheet(vm, current.txId)

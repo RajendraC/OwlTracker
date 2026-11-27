@@ -51,6 +51,12 @@ import java.util.Locale
 
 enum class Tab { HOME, ACTIVITY, BUDGETS, MORE }
 
+/** An owl badge: earned or still to earn. */
+data class Badge(val id: String, val name: String, val earnedText: String, val howTo: String, val earned: Boolean)
+
+/** Streaks and badges together. */
+data class Streak(val info: com.owl.tracker.core.StreakInfo, val badges: List<Badge>)
+
 /** A month's recap: the story of cards shown on its first days, built on the phone from that month's payments. */
 data class Recap(
     val month: String, val previousMonth: String, val period: BudgetPeriod, val spent: Long, val budget: Long, val payments: Int,
@@ -63,12 +69,14 @@ data class Recap(
 enum class Screen(val tab: Tab? = null) {
     WELCOME, DISCLOSURE, IMPORT_FILTERS, IMPORT_REVIEW, IMPORTING, BUDGET_SETUP,
     HOME(Tab.HOME), ACTIVITY(Tab.ACTIVITY), BUDGETS(Tab.BUDGETS), MORE(Tab.MORE),
-    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES, ADJUST_BUDGETS,
+    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES, ADJUST_BUDGETS, STREAKS,
 }
 
 sealed interface Sheet {
     data class TxnDetail(val id: Long) : Sheet
     data class CategoryPick(val txId: Long) : Sheet
+    /** "Was this right?" for a new payment: its category, or one of a few others, in one tap. */
+    data class QuickCheck(val txId: Long) : Sheet
     data class Split(val txId: Long) : Sheet
     data class Rename(val txId: Long) : Sheet
     data class MerchantIcon(val txId: Long) : Sheet
@@ -422,8 +430,68 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val share = if (dash.overall > 0) DayShare(w.dailyShare(everyday, p.days), true)
         else DayShare(w.usualDay(spends, p.start, earlier(p.endExclusive, today.plusDays(1))), false)
         val title = if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)) else dash.label
-        return MonthCalendar(w.calendar(p.start, p.endExclusive, spends, today) { share.paise }, share, title)
+        return MonthCalendar(w.calendar(p.start, p.endExclusive, spends, today) { share.paise }, share, title, firstPaymentDay.value)
     }
+
+    // ---------------- Streaks, badges and no-spend days ----------------
+
+    /** The first day with a recorded payment: days before it are neither no-spend days nor streak days. */
+    val firstPaymentDay: StateFlow<LocalDate?> = repo.observeStorage()
+        .map { runCatching { repo.earliestTransaction()?.let { ms -> dateOf(ms) } }.getOrNull() }
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** The last 400 days of payments, for streaks and badges. */
+    private val streakTxns: StateFlow<List<Txn>> = repo.observeTransactions(startMs(today().minusDays(400)), startMs(today().plusDays(1)))
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /**
+     * Streaks against today's share (the budget after EMIs and rent, over this month's days; the same share is
+     * used for earlier days), and the badges earned. Null without a monthly budget.
+     */
+    val streaks: StateFlow<Streak?> = combine(streakTxns, categories, budgets, settings, firstPaymentDay) { txns, cats, b, s, first ->
+        val overall = b[Schema.OVERALL] ?: 0L
+        if (overall <= 0 || s == null) return@combine null
+        val catMap = cats.associateBy { it.id }
+        val today = today()
+        val period = BudgetMath.periodFor(today, s.budgetStartDay)
+        val counted = txns.flatMap { it.portions() }.filter { counts(it, catMap) }
+        val inMonth = counted.filter { val d = dateOf(it.occurredAt); !d.isBefore(period.start) && d.isBefore(period.endExclusive) }
+        val everydayBudget = com.owl.tracker.core.Weeks.everydayBudget(overall, FIXED_CATEGORIES.sumOf { b[it] ?: 0L }, inMonth.filter { it.categoryId in FIXED_CATEGORIES }.sumOf { it.amountPaise })
+        val share = com.owl.tracker.core.Weeks.dailyShare(everydayBudget, period.days)
+        val everyday = counted.filter { it.categoryId !in FIXED_CATEGORIES }.groupBy { dateOf(it.occurredAt) }.mapValues { (_, l) -> l.sumOf { it.amountPaise } }
+        val months = generateSequence(period.previous(s.budgetStartDay)) { it.previous(s.budgetStartDay) }.take(12)
+            .takeWhile { first != null && it.endExclusive.isAfter(first) }.toList()
+        val info = com.owl.tracker.core.Streaks.compute(everyday, share, first, today, period, months)
+        // Finished months within the budget, newest first
+        val monthSpent = months.map { m -> counted.filter { val d = dateOf(it.occurredAt); !d.isBefore(m.start) && d.isBefore(m.endExclusive) }.sumOf { it.amountPaise } }
+        val under = monthSpent.map { it in 1..overall }
+        val twoInARow = under.zipWithNext().any { (a, c) -> a && c }
+        val invested = counted.any { catMap[it.categoryId]?.isInvestment == true }
+        val reviewLeft = txns.count { it.needsReview }
+        val badges = listOf(
+            Badge("wise_start", "Wise start", "A month of tracking", "Track your spending for a month", first != null && !first.isAfter(today.minusDays(30))),
+            Badge("thrifty", "Thrifty owl", "7 days in a row within your share", "7 days in a row within your share", info.bestDays >= 7),
+            Badge("on_target", "On target", "3 weeks in a row within budget", "3 weeks in a row within budget", info.bestWeeks >= 3),
+            Badge("saver", "Saver", "A month under budget", "Finish a month under budget", under.any { it }),
+            Badge("zero_day", "Zero day", "5 no-spend days in a month", "5 no-spend days in one month", info.bestNoSpendMonth >= 5),
+            Badge("sorted", "Sorted owl", "Nothing left to sort", "Sort every payment", reviewLeft == 0 && txns.size >= 30),
+            Badge("steady", "Steady", "30 days in a row within your share", "30 days in a row within your share", info.bestDays >= 30),
+            Badge("two_months", "Two in a row", "Two months under budget in a row", "Two months under budget in a row", twoInARow),
+            Badge("investor", "Investor", "Put money into investments", "Put money into investments", invested),
+        )
+        Streak(info, badges)
+    }.catch { emit(null) }.stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    /** Yesterday, if nothing went out (for Home's little celebration), and not yet put away. */
+    fun noSpendYesterday(st: Streak?): LocalDate? {
+        if (!homeOffersOn || st == null) return null
+        val y = st.info.lastSeven.getOrNull(5) ?: return null
+        return y.first.takeIf { y.second == com.owl.tracker.core.DayMark.NO_SPEND && !nudgePrefs.getBoolean("nospend_seen_${it}", false) }
+    }
+
+    fun dismissNoSpend(d: LocalDate) = nudgePrefs.edit().putBoolean("nospend_seen_$d", true).apply()
 
     /** A day's share of the month's budget and of each category's budget, for the owl when one day is picked. */
     fun dayShares(day: LocalDate): Pair<Long, Map<String, Long>> {
@@ -599,10 +667,15 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     /** From a nudge or a widget. */
     fun openFromOutside(what: String) {
+        // "check:<id>": the Change button on a new payment's nudge
+        what.removePrefix("check:").toLongOrNull()?.takeIf { what.startsWith("check:") }?.let { id ->
+            go(Screen.HOME); openSheet(Sheet.QuickCheck(id)); return
+        }
         when (what) {
             com.owl.tracker.nudge.Nudges.OPEN_BUDGETS -> go(Screen.BUDGETS)
             com.owl.tracker.nudge.Nudges.OPEN_ADD -> { go(Screen.HOME); openSheet(Sheet.AddExpense) }
             com.owl.tracker.nudge.Nudges.OPEN_RECAP -> { go(Screen.HOME); openRecap() }
+            com.owl.tracker.nudge.Nudges.OPEN_ACTIVITY -> showActivity()
             else -> go(Screen.HOME)
         }
     }
@@ -1072,6 +1145,8 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         )
         if (gone > 0) say(if (gone == 1) "Removed 1 payment reminder that was counted as spending" else "Removed $gone payment reminders that were counted as spending")
         if (c.licence.current().canEdit) runCatching { engine.syncNew() }
+        // Payments seen in the app aren't asked about later by a nudge
+        runCatching { com.owl.tracker.nudge.PaymentChecks.markSeen(c.context) }
     }
 
     fun rescan() = viewModelScope.launch {
@@ -1079,6 +1154,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val s = settings.value
         if (s == null || !s.smsEnabled || !c.sms.hasPermission()) { say("Turn on SMS access first"); return@launch }
         val n = runCatching { engine.syncNew() }.getOrDefault(0)
+        runCatching { com.owl.tracker.nudge.PaymentChecks.markSeen(c.context) }
         say(if (n == 0) "Scanned your inbox: no new transactions" else "Added $n new ${if (n == 1) "transaction" else "transactions"}")
     }
 
@@ -1266,6 +1342,34 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun sameMerchantCount(txId: Long): Flow<Int> = repo.observeSameMerchantCount(txId)
+
+    /** For "Was this right?": the payment's own category first, then the three used most in the last three months. */
+    suspend fun checkChoices(txId: Long): List<Category> {
+        val t = repo.transaction(txId) ?: return emptyList()
+        val cats = categories.value.ifEmpty { repo.categories() }
+        val byId = cats.associateBy { it.id }
+        val recent = repo.transactions(startMs(today().minusDays(90)), startMs(today().plusDays(1)))
+        val used = recent.filter { it.direction == com.owl.tracker.data.Direction.DEBIT }.groupingBy { it.categoryId }.eachCount()
+            .entries.sortedByDescending { it.value }.mapNotNull { byId[it.key] }
+            .filter { it.id != t.categoryId && it.countsAsSpend && !it.archived }
+        val fallback = com.owl.tracker.data.CategoryTree(cats).spendTops.filter { it.id != t.categoryId }
+        return listOfNotNull(byId[t.categoryId]) + (used + fallback).distinctBy { it.id }.take(3)
+    }
+
+    /** The answer to "Was this right?": the same category confirms it; another moves it (and, if asked, all from that merchant). */
+    fun checkAnswer(txId: Long, categoryId: String, remember: Boolean) = viewModelScope.launch {
+        if (!editable()) return@launch
+        val t = repo.transaction(txId) ?: return@launch
+        val name = categories.value.firstOrNull { it.id == categoryId }?.name ?: "category"
+        if (categoryId == t.categoryId && !remember) {
+            repo.confirmReview(txId)
+            say("Thanks: ${t.merchantName} stays in $name")
+        } else {
+            val n = repo.setCategory(txId, categoryId, remember)
+            say(if (remember) "Done: ${t.merchantName} always goes to $name" + (if (n > 1) " ($n updated)" else "") else "Moved to $name")
+        }
+        _sheet.value = null
+    }
 
     suspend fun sameMerchant(txId: Long): List<Txn> = repo.sameMerchant(txId)
 

@@ -37,6 +37,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             app.container.importEngine.syncNew()
             // New payments may cross a budget line, and the widgets should show them
             runCatching { com.owl.tracker.nudge.Nudges.run(applicationContext) }
+            runCatching { com.owl.tracker.nudge.PaymentChecks.run(applicationContext) }
             runCatching { com.owl.tracker.nudge.OwlWidgets.refresh(applicationContext) }
             Result.success()
         } catch (e: Exception) {

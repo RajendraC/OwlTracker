@@ -242,6 +242,15 @@ class Repository(private val db: Db, private val clock: Clock, private val bankA
             .use { c -> c.toTxns() }
     }
 
+    /** Payments stored after [id] (new imports), oldest first. */
+    suspend fun transactionsAfter(id: Long): List<Txn> = read { d ->
+        d.query("SELECT $TX_COLS FROM transactions WHERE id > ? ORDER BY id", arrayOf<Any?>(id)).use { c -> c.toTxns() }
+    }
+
+    suspend fun maxTransactionId(): Long = read { d ->
+        d.query("SELECT MAX(id) FROM transactions").use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else 0L }
+    }
+
     suspend fun transaction(id: Long): Txn? = read { d ->
         d.query("SELECT $TX_COLS FROM transactions WHERE id = ?", arrayOf<Any?>(id)).use { c -> c.toTxns().firstOrNull() }
     }

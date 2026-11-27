@@ -21,6 +21,7 @@ import com.owl.tracker.OwlTrackerApp
 import com.owl.tracker.R
 import com.owl.tracker.core.Money
 import com.owl.tracker.ui.MainActivity
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
@@ -41,7 +42,8 @@ object Nudges {
     const val ALERTS = "alerts"
     const val WEEKLY = "weekly"
     const val RECAP = "recap"
-    val KINDS = listOf(DAILY, ALERTS, WEEKLY, RECAP)
+    const val CHECK = "check"
+    val KINDS = listOf(DAILY, ALERTS, WEEKLY, RECAP, CHECK)
 
     /** Opened from a notification: what to show (EXTRA_OPEN values). */
     const val EXTRA_OPEN = "owl_open"
@@ -49,6 +51,9 @@ object Nudges {
     const val OPEN_BUDGETS = "budgets"
     const val OPEN_RECAP = "recap"
     const val OPEN_ADD = "add"
+    const val OPEN_ACTIVITY = "activity"
+    const val ACTION_CHECK_YES = "com.owl.tracker.CHECK_YES"
+    const val EXTRA_TX = "tx"
 
     fun prefs(context: Context): SharedPreferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     fun isOn(context: Context, kind: String) = prefs(context).getBoolean("on_$kind", true)
@@ -66,6 +71,7 @@ object Nudges {
             NotificationChannel(ALERTS, "Budget alerts", NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(WEEKLY, "Sunday: your week", NotificationManager.IMPORTANCE_LOW),
             NotificationChannel(RECAP, "Month recap", NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(CHECK, "New payments: was the category right?", NotificationManager.IMPORTANCE_LOW),
         ).forEach { nm.createNotificationChannel(it) }
     }
 
@@ -180,6 +186,85 @@ object Nudges {
             k.startsWith("shown_") && Regex("""\d{4}-\d{2}-\d{2}""").find(k)?.value?.let { runCatching { LocalDate.parse(it).isBefore(cutoff) }.getOrNull() } == true
         }
         if (old.isNotEmpty()) p.edit().apply { old.forEach { remove(it) } }.apply()
+    }
+}
+
+/**
+ * "Was this right?": after an SMS sync, each new payment (up to three; more become one summary) as a nudge with
+ * ✓ Yes (keeps the category, marks it checked) and Change (opens a quick picker). The first run after updating
+ * only notes where it's up to, so nothing old is asked about.
+ */
+object PaymentChecks {
+    private const val LAST = "check_last_id"
+
+    suspend fun run(context: android.content.Context) {
+        val app = context.applicationContext as? OwlTrackerApp ?: return
+        val repo = app.container.repo
+        val p = Nudges.prefs(context)
+        val maxId = repo.maxTransactionId()
+        if (!p.contains(LAST)) { p.edit().putLong(LAST, maxId).apply(); return }
+        val last = p.getLong(LAST, maxId)
+        if (maxId <= last) return
+        p.edit().putLong(LAST, maxId).apply()
+        if (!Nudges.isOn(context, Nudges.CHECK) || !Nudges.allowed(context)) return
+        val cats = repo.categories().associateBy { it.id }
+        val fresh = repo.transactionsAfter(last).filter { it.source == com.owl.tracker.data.Source.SMS && it.isSpending(cats[it.categoryId]) }
+        if (fresh.isEmpty()) return
+        Nudges.channels(context)
+        val nm = NotificationManagerCompat.from(context)
+        fun open(what: String, code: Int) = PendingIntent.getActivity(
+            context, code, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra(Nudges.EXTRA_OPEN, what),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val public = NotificationCompat.Builder(context, Nudges.CHECK).setSmallIcon(R.drawable.ic_notify_owl).setContentTitle("Owl Tracker").setContentText("A new payment to check").build()
+        val posts = if (fresh.size <= 3) fresh.map { t ->
+            val cat = cats[t.categoryId]?.name ?: "Not sorted yet"
+            val time = java.time.Instant.ofEpochMilli(t.occurredAt).atZone(app.container.clock.zone).toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH))
+            val yes = PendingIntent.getBroadcast(context, t.id.toInt(), Intent(context, CheckReceiver::class.java).setAction(Nudges.ACTION_CHECK_YES).putExtra(Nudges.EXTRA_TX, t.id),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            (CHECK_BASE + (t.id % 100_000).toInt()) to NotificationCompat.Builder(context, Nudges.CHECK)
+                .setSmallIcon(R.drawable.ic_notify_owl).setColor(0xFFFFB21A.toInt())
+                .setContentTitle("${t.merchantName} · ${Money.formatInr(t.amountPaise)} → $cat?")
+                .setContentText((t.accountLabel?.let { "$it · " } ?: "") + "$time. Was that right?")
+                .setContentIntent(open("check:${t.id}", t.id.toInt()))
+                .addAction(0, "✓ Yes, $cat", yes)
+                .addAction(0, "Change", open("check:${t.id}", t.id.toInt() + 1))
+                .setAutoCancel(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(public).setGroup("checks")
+                .build()
+        } else listOf(
+            CHECK_BASE to NotificationCompat.Builder(context, Nudges.CHECK)
+                .setSmallIcon(R.drawable.ic_notify_owl).setColor(0xFFFFB21A.toInt())
+                .setContentTitle("${fresh.size} new payments")
+                .setContentText("${Money.formatInr(fresh.sumOf { it.amountPaise })} in all. Tap to check their categories.")
+                .setContentIntent(open(Nudges.OPEN_ACTIVITY, 7201))
+                .setAutoCancel(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(public)
+                .build()
+        )
+        posts.forEach { (id, n) -> try { nm.notify(id, n) } catch (_: SecurityException) { return } }
+    }
+
+    /** Everything stored so far has been seen (the app was open): only later payments get a nudge. */
+    suspend fun markSeen(context: android.content.Context) {
+        val app = context.applicationContext as? OwlTrackerApp ?: return
+        Nudges.prefs(context).edit().putLong(LAST, app.container.repo.maxTransactionId()).apply()
+    }
+
+    const val CHECK_BASE = 40_000
+}
+
+/** ✓ Yes on a new payment's nudge: keeps its category and marks it checked, without opening the app. */
+class CheckReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: android.content.Context, intent: Intent) {
+        if (intent.action != Nudges.ACTION_CHECK_YES) return
+        val id = intent.getLongExtra(Nudges.EXTRA_TX, -1).takeIf { it > 0 } ?: return
+        val pending = goAsync()
+        val app = context.applicationContext as? OwlTrackerApp ?: run { pending.finish(); return }
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                if (app.container.licence.current().canEdit) app.container.repo.confirmReview(id)
+                NotificationManagerCompat.from(context).cancel(PaymentChecks.CHECK_BASE + (id % 100_000).toInt())
+            } finally { pending.finish() }
+        }
     }
 }
 

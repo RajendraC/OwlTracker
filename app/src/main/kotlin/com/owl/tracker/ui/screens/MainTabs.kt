@@ -200,6 +200,10 @@ fun HomeScreen(vm: AppViewModel) {
     val whatsNew by vm.whatsNew.collectAsStateWithLifecycle()
     var recapTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val recapOffer = recapTick.let { vm.recapOffer(settings) }
+    val streak by vm.streaks.collectAsStateWithLifecycle()
+    var noSpendTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val noSpendYesterday = noSpendTick.let { vm.noSpendYesterday(streak) }
+    val showStreak = streak != null && calendar != null && dash.isCurrent
     var askNudges by remember(settings?.onboarded) { androidx.compose.runtime.mutableStateOf(vm.askForNudges(settings)) }
     val paidTab = wholeMonth && whereView == "paid" && openGroup == null && openCat == null
     androidx.activity.compose.BackHandler(enabled = paidTab && openPaid != null) { openPaid = null }
@@ -216,7 +220,8 @@ fun HomeScreen(vm: AppViewModel) {
     val whereIndex = 1 + (if (calendar != null) 1 else 0) + (if (pickedTotal != null && weekMode) 1 else 0) +
         (if (access is Access.Trial || !access.canEdit) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
-        (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0) + (if (recapOffer != null) 1 else 0) + (if (askNudges) 1 else 0)
+        (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0) + (if (recapOffer != null) 1 else 0) + (if (askNudges) 1 else 0) +
+        (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
     // the status bar readable, and a card scrolled to stops just below it
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -343,6 +348,9 @@ fun HomeScreen(vm: AppViewModel) {
                 }
             }
 
+            // Nothing went out yesterday: a little celebration (once)
+            noSpendYesterday?.let { d -> item(key = "no_spend_yesterday") { NoSpendCard(streak?.info?.noSpendThisMonth ?: 1, { vm.dismissNoSpend(d); noSpendTick++ }, side) } }
+
             // Under the budget and its alerts: the categories that moved most over the last months
             if (showChanges && changes != null) item(key = "changes") {
                 WhatsChangingCard(changes, cats, budgetMap, vm, side)
@@ -351,8 +359,10 @@ fun HomeScreen(vm: AppViewModel) {
             // After the alerts, the month as a calendar, a row a week: tap a day for its payments, a week's total for the week
             if (calendar != null) item(key = "calendar") {
                 // A tap on a day narrows "Where it went" (owl, orbit and list) to that day; tap it again for the month
-                MonthCalendarCard(calendar.title, calendar.rows, calendar.share, picked, today, ::pick, { start -> vm.openWeek(start) }, side)
+                MonthCalendarCard(calendar.title, calendar.rows, calendar.share, picked, today, ::pick, { start -> vm.openWeek(start) }, side, calendar.firstDay)
             }
+            // Under the calendar: days in a row within the share, and the badges
+            streak?.takeIf { showStreak }?.let { st -> item(key = "streak") { StreakCard(st, { vm.go(Screen.STREAKS) }, side) } }
 
             // One day picked: everything below is about that day
             if (pickedTotal != null && weekMode) item(key = "day_filter") {

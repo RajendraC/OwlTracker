@@ -239,6 +239,11 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.28" to listOf(
+            Item("Streaks and owl badges", "See how many days in a row you've stayed within your daily share, right under the calendar. Tap it for your weeks, no-spend days and nine owl badges to earn."),
+            Item("No-spend days", "A day when nothing went out gets a star on the calendar, and the owl celebrates it the next morning."),
+            Item("Was this right?", "When a new payment comes in by SMS, confirm its category straight from the notification, or change it in one tap."),
+        ),
         "1.9.27" to listOf(
             Item("The owl nudges you", "A line each evening about today, a heads-up at 80% and 100% of your budget, and your week on Sundays. Turn each on or off in Settings → Owl nudges. All worked out on your phone."),
             Item("Widgets", "Add Owl Tracker to your home screen: this month's ring and what's left, or today with a button to add cash. Amounts stay hidden while app lock is on."),
