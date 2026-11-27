@@ -594,10 +594,17 @@ private fun PaletteChoice(picked: com.owl.tracker.ui.theme.Palette, onPick: (com
                             contentAlignment = Alignment.Center,
                         ) { Icon(Ic.check, contentDescription = null, tint = c.surface, modifier = Modifier.size(13.dp)) }
                     }
-                    Text(
-                        p.label, style = MaterialTheme.typography.labelMedium, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 6.dp),
-                    )
+                    // Two lines ("Indigo &" / "Saffron"), each shrinking to fit, so big text never splits a word
+                    val words = p.label.split(" & ")
+                    Column(Modifier.padding(top = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        words.forEachIndexed { i, w ->
+                            com.owl.tracker.ui.components.FitText(
+                                if (i < words.size - 1) "$w &" else w,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center, minScale = 0.55f,
+                            )
+                        }
+                    }
                 }
             }
         }
