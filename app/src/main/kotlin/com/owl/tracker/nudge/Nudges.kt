@@ -159,7 +159,8 @@ object Nudges {
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setPublicVersion(public)
                 .build()
-            runCatching { nm.notify(n.kind.hashCode() + if (n.kind == ALERTS) n.key.hashCode() else 0, notification) }
+            // allowed() was checked above; the permission can still be taken away in between
+            try { nm.notify(n.kind.hashCode() + if (n.kind == ALERTS) n.key.hashCode() else 0, notification) } catch (_: SecurityException) { return }
             p.edit().putBoolean("shown_${n.key}", true).apply()
         }
         prune(p, now.toLocalDate())
