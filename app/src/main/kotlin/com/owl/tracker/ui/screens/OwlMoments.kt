@@ -70,7 +70,7 @@ private val MangoMid = Color(0xFFFFC15A)
 private val MangoEnd = Color(0xFFFFE9C9)
 
 /** What goes with every shared picture: who made it, that it's private, and where to get it. */
-const val SHARE_TEXT = "I'm keeping track of my spending with Owl Tracker 🦉 It works without internet and needs no login; " +
+val SHARE_TEXT = "I'm keeping track of my spending with Owl Tracker 🦉 It works without internet and needs no login; " +
     tr("everything stays on the phone.\nhttps://play.google.com/store/apps/details?id=com.owl.tracker")
 
 /**
