@@ -647,6 +647,11 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
 
+    /** Budgets' tab: 0 Monthly, 1 Events (1.9.38: event budgets moved here from More). */
+    val budgetsTab = MutableStateFlow(0)
+
+    fun openEvents() { budgetsTab.value = 1; go(Screen.BUDGETS) }
+
     /** The event the Event screen shows. */
     val shownEvent = MutableStateFlow<String?>(null)
 

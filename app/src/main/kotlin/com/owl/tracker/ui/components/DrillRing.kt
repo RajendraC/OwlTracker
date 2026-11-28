@@ -234,7 +234,7 @@ fun DrillRingCard(
                         Text(title, style = MaterialTheme.typography.titleMedium)
                         Text(
                             if (paidShowing) tr("By card and account · tap one to see what it was used for")
-                            else if (moods != null && sideBySide) tr("Tap a bubble to see how it's doing · tap again to open it · swipe to spin")
+                            else if (moods != null && sideBySide) tr("Tap a stack to see how it's doing · tap again to open it")
                             else if (moods != null) tr("Tap a slice to see how it's doing · tap again to open it") else tr("Slide round the ring · tap a slice to open it"),
                             style = MaterialTheme.typography.bodySmall, color = muted,
                         )
@@ -314,7 +314,7 @@ fun DrillRingCard(
                 share = chosenHere?.let { id -> categories.firstOrNull { it.id == id }?.paise?.times(100)?.div(total) },
                 onOpen = chosenHere?.let { id -> { onCategory(id) } },
             )
-            OrbitOwlStage(
+            CoinStacksStage(
                 items = categories.map { OrbitItem(it.id, it.name, it.color, it.paise, catMap[it.id]?.icon, moods.use[it.id]) },
                 say = say,
                 picked = chosenHere,
@@ -327,8 +327,6 @@ fun DrillRingCard(
                         RingHit.Outside -> Unit
                     }
                 },
-                budgetUsed = moods.budget.takeIf { it > 0 }?.let { moods.spent.toFloat() / it },
-                wide = true,
             )
         } else if (level == 0 && moods != null) {
             RingOwlStage(

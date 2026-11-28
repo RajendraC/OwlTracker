@@ -816,6 +816,11 @@ class StoreScreenshots {
                 com.owl.tracker.ui.AppViewModel.homeOffersOn = true
                 var today = java.time.LocalDate.now()
                 withVm { today = it.today() }
+                // Budgets → Events with none yet
+                withVm { it.openEvents() }
+                waitForTag("events_start_diwali", 20_000)
+                Thread.sleep(800)
+                shot("99a0_events_empty")
                 withVm {
                     it.saveEvent(null, "diwali", "Diwali", today.minusDays(5), today.plusDays(2), 15_000_00,
                         com.owl.tracker.data.Events.template("diwali").categories.toSet() + com.owl.tracker.core.Cat.SHOPPING + com.owl.tracker.core.Cat.FOOD)
@@ -832,6 +837,11 @@ class StoreScreenshots {
                 waitForTag("event_screen", 20_000)
                 Thread.sleep(800)
                 shot("99b_event_screen")
+                withVm { it.openEvents() }
+                waitForTag("events_on_badge", 20_000)
+                Thread.sleep(800)
+                shot("99b1_budgets_events")
+                withVm { it.budgetsTab.value = 0 }
                 withVm { it.openSheet(com.owl.tracker.ui.Sheet.EventEdit(null)) }
                 waitForTag("event_template_diwali", 20_000)
                 Thread.sleep(800)

@@ -141,6 +141,7 @@ class ReportsAndBackupFlowTest {
             waitForTag("top_month")
             waitForText("this month")
             waitForTag("orbit_note")
+            waitForTag("coin_value")
             // The bubble nearest the front (the lowest on screen), clear of the owl
             val bubble = onAllNodes(hasTestTagPrefix("orbit_")).fetchSemanticsNodes()
                 .filter { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] !in setOf("orbit_owl", "orbit_note", "orbit_+more") }

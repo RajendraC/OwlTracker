@@ -754,6 +754,39 @@ internal fun shorterLabels(label: String): List<String> {
     return listOf(label, "${month.take(3)} $year", month.take(3))
 }
 
+/** Budgets' Monthly | Events switch, like Home's Month | Week; a badge counts the events on now. */
+@Composable
+private fun BudgetsSwitch(events: Boolean, eventsOn: Int, onPick: (Boolean) -> Unit) {
+    val brand = LocalBrand.current
+    Row(
+        Modifier.fillMaxWidth().clay(RoundedCornerShape(24.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true).padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        listOf(false to tr("Monthly"), true to tr("Events")).forEach { (isEvents, label) ->
+            val on = isEvents == events
+            Box(
+                Modifier.weight(1f).heightIn(min = 42.dp)
+                    .then(if (on) Modifier.clay(RoundedCornerShape(20.dp), brand.clay, elevation = 3.dp) else Modifier.clip(RoundedCornerShape(20.dp)))
+                    .clickable { onPick(isEvents) }
+                    .semantics { selected = on; role = androidx.compose.ui.semantics.Role.Tab }
+                    .testTag(if (isEvents) "budgets_events" else "budgets_monthly"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
+                        color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (isEvents && eventsOn > 0) Text(
+                        tr("{0} on", eventsOn), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = Color.White,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFE8833A)).padding(horizontal = 6.dp, vertical = 1.dp).testTag("events_on_badge"),
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** Month or Week: two segments pressed into the header, the picked one raised. */
 @Composable
 private fun PeriodSwitch(isWeek: Boolean, onMonth: () -> Unit, onWeek: () -> Unit) {
@@ -1464,9 +1497,17 @@ fun BudgetsScreen(vm: AppViewModel) {
     val sc = LocalStatusColors.current
     val pace = dash.dayNumber.toDouble() / dash.period.days
     val startDay = settings?.budgetStartDay ?: 1
+    val tab by vm.budgetsTab.collectAsStateWithLifecycle()
+    val events by vm.events.collectAsStateWithLifecycle()
+    val eventsOn = events.count { it.hasStarted(vm.today()) && !it.isOver(vm.today()) }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 44.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { ScreenHeader(tr("Budgets"), "${dash.label} · " + if (dash.isCurrent) tr("{0} days left", dash.period.days - dash.dayNumber) else "ended") }
+        item { ScreenHeader(tr("Budgets"), if (tab == 1) tr("Festivals, weddings, trips") else "${dash.label} · " + if (dash.isCurrent) tr("{0} days left", dash.period.days - dash.dayNumber) else "ended") }
+        item { BudgetsSwitch(tab == 1, eventsOn) { vm.budgetsTab.value = if (it) 1 else 0 } }
+        if (tab == 1) {
+            item { EventsTab(vm) }
+            return@LazyColumn
+        }
         item {
             Panel {
                 Row(verticalAlignment = Alignment.CenterVertically) {

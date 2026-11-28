@@ -40,10 +40,11 @@ class EventsFlowTest {
             tapTag("save_budget")
             waitForTag("budget_hero")
 
-            tapTag("tab_more")
-            tapTag("open_events")
+            // Budgets → Events; with none yet, a template starts one
+            tapTag("tab_budgets")
+            tapTag("budgets_events")
             waitForTag("events_screen")
-            tapTag("event_new")
+            tapTag("events_start_trip")
             waitForTag("event_template_trip")
             tapTag("event_template_trip")
             onNodeWithTag("event_name").performTextInput(" to Goa")
@@ -73,6 +74,10 @@ class EventsFlowTest {
             waitUntil(5_000) { vm.eventStatus.value[e.id]?.spend?.totalPaise == 1500_00L }
 
             // Its own page
+            // Budgets → Events lists it under On now, with the badge on the tab
+            runOnUiThread { vm.openEvents() }
+            waitForTag("events_on_badge")
+            waitForTag("event_card_${e.id}")
             runOnUiThread { vm.openEvent(e.id) }
             waitForTag("event_screen")
             waitForText("Fisherman's Wharf")

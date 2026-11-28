@@ -199,6 +199,86 @@ fun FestivalOfferCard(vm: AppViewModel, f: AppViewModel.FestivalOffer, modifier:
     }
 }
 
+/** One event in the Events tab: picture, name, dates, its bar and how much of its budget went. */
+@Composable
+private fun EventRow(vm: AppViewModel, e: EventBudget, spent: Long, today: LocalDate) {
+    ClaySurface(RoundedCornerShape(22.dp), Modifier.fillMaxWidth().testTag("event_row_${e.id}"), elevation = 8.dp) {
+        Row(Modifier.clickable { vm.openEvent(e.id) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(e.emoji, fontSize = 26.sp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(e.name, style = MaterialTheme.typography.titleMedium)
+                Text(dates(e) + " · " + whenWords(e, today), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (e.hasStarted(today)) SpendBar(spent.toFloat() / e.budgetPaise, spent > e.budgetPaise)
+            }
+            Text(
+                if (e.hasStarted(today)) tr("{0} of {1}", Money.formatShort(spent), Money.formatShort(e.budgetPaise)) else Money.formatShort(e.budgetPaise),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+    }
+}
+
+/**
+ * Budgets → Events (1.9.38, moved from More): what's on now (its Home card), what's coming, what's done, and a new one.
+ * With none yet: what they're for, a template to start from, and the festival offer when one is near.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun EventsTab(vm: AppViewModel) {
+    val map by vm.eventStatus.collectAsStateWithLifecycle()
+    val events by vm.events.collectAsStateWithLifecycle()
+    val tick by vm.eventTick.collectAsStateWithLifecycle()
+    val today = vm.today()
+    Column(Modifier.fillMaxWidth().testTag("events_screen"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val festival = tick.let { vm.festivalOffer(map) }
+        if (events.isEmpty()) {
+            ClaySurface(RoundedCornerShape(24.dp), Modifier.fillMaxWidth(), elevation = 8.dp) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.owl.tracker.ui.components.OwlMark(72.dp)
+                    Text(tr("Big spends get their own budget"), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+                    Text(tr("Give a festival, a wedding or a trip its own money and dates. It still counts in your month."),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
+            }
+            festival?.let { FestivalOfferCard(vm, it) }
+            Text(tr("Start one"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 6.dp, top = 4.dp))
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 4) {
+                Events.TEMPLATES.forEach { t ->
+                    Column(
+                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)
+                            .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                            .clickable { vm.eventTemplate = t.key; vm.openSheet(Sheet.EventEdit(null)) }
+                            .padding(vertical = 10.dp, horizontal = 4.dp).testTag("events_start_${t.key}"),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(t.emoji, fontSize = 24.sp)
+                        Text(templateName(t.key), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2)
+                    }
+                }
+            }
+            return@Column
+        }
+        festival?.let { FestivalOfferCard(vm, it) }
+        val now = events.filter { it.hasStarted(today) && !it.isOver(today) }.sortedBy { it.end }
+        val coming = events.filter { !it.hasStarted(today) }.sortedBy { it.start }
+        val done = events.filter { it.isOver(today) }.sortedByDescending { it.end }
+        if (now.isNotEmpty()) {
+            Text(tr("On now"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 6.dp))
+            now.forEach { e -> map[e.id]?.let { EventHomeCard(vm, it) } ?: EventRow(vm, e, 0, today) }
+        }
+        if (coming.isNotEmpty()) {
+            Text(tr("Coming up"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 6.dp))
+            coming.forEach { e -> EventRow(vm, e, map[e.id]?.spend?.totalPaise ?: 0, today) }
+        }
+        if (done.isNotEmpty()) {
+            Text(tr("Finished"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 6.dp))
+            done.forEach { e -> EventRow(vm, e, map[e.id]?.spend?.totalPaise ?: 0, today) }
+        }
+        if (events.size < Events.MAX) Button(onClick = { vm.openSheet(Sheet.EventEdit(null)) }, modifier = Modifier.fillMaxWidth().testTag("event_new")) { Text(tr("+ New event budget")) }
+        Text(tr("Event budgets are kept on your phone and in your backups."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
 /** All event budgets, newest first, and starting a new one. */
 @Composable
 fun EventsScreen(vm: AppViewModel) {

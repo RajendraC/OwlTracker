@@ -82,7 +82,10 @@ fun OwlTrackerRoot(vm: AppViewModel, platform: Platform) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             // Drawn afresh when the language changes under tests (outside tests the app restarts)
             val language by vm.languageVersion.collectAsStateWithLifecycle()
-            androidx.compose.runtime.key(language) { RootContent(vm, platform) }
+            val reacts by vm.settings.collectAsStateWithLifecycle()
+            androidx.compose.runtime.CompositionLocalProvider(com.owl.tracker.ui.components.LocalOwlReacts provides (reacts?.owlReacts ?: "lively")) {
+                androidx.compose.runtime.key(language) { RootContent(vm, platform) }
+            }
         }
     }
 }
@@ -175,7 +178,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
                 Screen.STREAKS -> com.owl.tracker.ui.screens.StreaksScreen(vm)
                 Screen.BILLS -> com.owl.tracker.ui.screens.BillsScreen(vm)
                 Screen.GOALS -> com.owl.tracker.ui.screens.GoalsScreen(vm)
-                Screen.EVENTS -> com.owl.tracker.ui.screens.EventsScreen(vm)
+                Screen.EVENTS -> androidx.compose.runtime.LaunchedEffect(Unit) { vm.openEvents() }
                 Screen.EVENT -> com.owl.tracker.ui.screens.EventScreen(vm)
                 Screen.HOUSEHOLD -> com.owl.tracker.ui.screens.HouseholdScreen(vm)
                 Screen.DB_ERROR -> DbErrorScreen(vm)
