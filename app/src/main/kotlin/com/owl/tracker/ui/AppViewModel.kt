@@ -644,7 +644,6 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         .catch { emit(emptyMap()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
-    private fun dateOf(ms: Long): LocalDate = java.time.Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
 
     /** The event the Event screen shows. */
     val shownEvent = MutableStateFlow<String?>(null)
