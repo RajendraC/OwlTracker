@@ -36,3 +36,8 @@ wait_ready 2>&1 | tee logs/ready.log
 bash ci/seed-sms.sh 2>&1 | tee logs/seed.log
 wait_ready >/dev/null 2>&1   # seeding may restart adbd as root
 ./gradlew :app:connectedDebugAndroidTest --stacktrace 2>&1 | tee logs/device.log
+tests=$?
+# Language switching on a real process (it restarts the app, which instrumented tests can't follow)
+bash ci/language-switch.sh 2>&1 | tee logs/language-switch.log
+switch=$?
+[ "$tests" -eq 0 ] && [ "$switch" -eq 0 ]

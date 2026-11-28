@@ -39,7 +39,8 @@ object I18n {
     /** Loads [code]'s table (or the saved language's, when null). English needs none. */
     fun load(context: Context, code: String? = null) {
         val c = code ?: prefsLanguage(context)
-        if (code != null) context.getSharedPreferences("look", Context.MODE_PRIVATE).edit().putString("language", c).apply()
+        // commit, not apply: switching restarts the process straight away, which would drop an unwritten apply()
+        if (code != null) context.getSharedPreferences("look", Context.MODE_PRIVATE).edit().putString("language", c).commit()
         table = if (c == "en") emptyMap() else runCatching {
             context.assets.open("i18n/$c.json").bufferedReader().use { parse(it.readText()) }
         }.getOrDefault(emptyMap())
