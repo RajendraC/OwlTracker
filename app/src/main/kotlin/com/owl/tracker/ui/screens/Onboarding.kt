@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -111,7 +112,7 @@ fun LanguageChoice(vm: AppViewModel, modifier: Modifier = Modifier) {
                 contentColor = if (on) c.onPrimaryContainer else c.onSurface,
                 border = androidx.compose.foundation.BorderStroke(1.dp, if (on) c.primaryContainer else c.outline),
                 modifier = Modifier.weight(1f).heightIn(min = 44.dp).testTag("language_${l.code}")
-                    .semantics { androidx.compose.ui.semantics.contentDescription = l.ownName + if (l.code != "en") " · " + l.englishName else "" },
+                    .semantics { contentDescription = l.ownName + if (l.code != "en") " · " + l.englishName else "" },
             ) {
                 Box(Modifier.padding(horizontal = 8.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
                     com.owl.tracker.ui.components.FitText(l.ownName, minScale = 0.7f)
