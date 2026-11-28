@@ -8,6 +8,7 @@ import android.net.Uri
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -254,7 +255,7 @@ class ReportsAndBackupFlowTest {
             runCatching { waitForTag("backup_done", timeoutMs = 30_000) }.onFailure {
                 val vm = androidx.lifecycle.ViewModelProvider(activity)[AppViewModel::class.java]
                 val u = vm.backupUi.value
-                throw AssertionError("no backup_done: screen=${vm.screen.value} working=${u.working} error=${u.error} exported=${u.exported} problem=${u.passwordProblem} sheet=${vm.sheet.value}", it)
+                throw AssertionError("no backup_done: screen=${vm.screen.value} working=${u.working} error=${u.error} exported=${u.exported} problem=${u.passwordProblem} sheet=${vm.sheet.value} roots=${runCatching { onAllNodes(androidx.compose.ui.test.isRoot()).fetchSemanticsNodes().size }} started=${shadowOf(activity).peekNextStartedActivity()} tree=${runCatching { onAllNodes(androidx.compose.ui.test.isRoot())[0].printToString(2).take(1500) }}", it)
             }
 
             // The share sheet was asked to send a content:// link to the backup, readable once
