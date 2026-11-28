@@ -32,7 +32,7 @@ def unescape(s):
     return ''.join(out)
 
 
-CATEGORY = re.compile(r'\be\(Cat\.\w+,\s*"((?:[^"\\]|\\.)*)"')
+CATEGORY = re.compile(r'\b(?:e|SeedCategory)\(Cat\.\w+,\s*"((?:[^"\\]|\\.)*)"')
 
 
 def keys():
