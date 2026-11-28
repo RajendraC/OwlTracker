@@ -127,6 +127,8 @@ class HouseholdFlowTest {
             tapTag("house_setup_go")
             waitUntil(5_000) { vm.household.value?.id == other.id }
             assertEquals(listOf("Asha"), vm.household.value!!.others.map { it.name })
+            // Joining sends the first update straight away
+            waitUntil(5_000) { (vm.household.value?.lastSentAt ?: 0) > 0 }
         }
     }
 }
