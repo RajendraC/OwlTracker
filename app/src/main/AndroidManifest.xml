@@ -260,10 +260,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Household files (.owlhome) from another member, opened in or shared from WhatsApp, Files, Quick Share -->
+            <!-- Household files (.owlhome) from another member, opened from WhatsApp, Files or Quick Share -->
             <intent-filter android:label="@string/open_household_file">
                 <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>

@@ -251,13 +251,7 @@ class ReportsAndBackupFlowTest {
             typeInto("backup_confirm", "secret-one")
             onNodeWithTag("backup_save").assertIsEnabled()
             tapTag("backup_share")
-            runCatching { waitForTag("backup_done", timeoutMs = 30_000) }.onFailure {
-                val vm = androidx.lifecycle.ViewModelProvider(activity)[AppViewModel::class.java]
-                val u = vm.backupUi.value
-                val idle = runCatching { waitForIdle() }.exceptionOrNull()
-                val why = generateSequence(idle) { e -> e.cause.takeIf { c -> c !== e } }.take(4).joinToString(" <- ") { e -> e.toString().take(300) + " @ " + e.stackTrace.take(6).joinToString(" | ") }
-                throw AssertionError("no backup_done: life=${activity.lifecycle.currentState} finishing=${activity.isFinishing} appStarted=${shadowOf(activity.application).peekNextStartedActivity()} idle=$why screen=${vm.screen.value} working=${u.working} error=${u.error} exported=${u.exported} problem=${u.passwordProblem} sheet=${vm.sheet.value} roots=${runCatching { onAllNodes(androidx.compose.ui.test.isRoot()).fetchSemanticsNodes().size }} started=${shadowOf(activity).peekNextStartedActivity()} tags=${runCatching { onAllNodes(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.TestTag), useUnmergedTree = true).fetchSemanticsNodes().map { it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag] }.take(60) }} texts=${runCatching { onAllNodes(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.Text), useUnmergedTree = true).fetchSemanticsNodes().map { it.config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString() }.take(40) }}", it)
-            }
+            waitForTag("backup_done", timeoutMs = 30_000)
 
             // The share sheet was asked to send a content:// link to the backup, readable once
             val shadow = shadowOf(activity)
