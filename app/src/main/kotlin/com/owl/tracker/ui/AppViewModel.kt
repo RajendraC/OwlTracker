@@ -670,23 +670,27 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         .flatMapLatest { on ->
             if (!on) kotlinx.coroutines.flow.flowOf(emptyMap<LocalDate, Map<String, Long>>() to emptyList())
             else combine(repo.observeTransactions(startMs(today().minusDays(com.owl.tracker.data.Households.DAYS)), startMs(today().plusDays(1))), categories) { txns, cats ->
-                val tree = CategoryTree(cats)
-                val days = mutableMapOf<LocalDate, MutableMap<String, Long>>()
-                val payments = mutableListOf<com.owl.tracker.data.HousePayment>()
-                txns.forEach { t ->
-                    val day = dateOf(t.occurredAt)
-                    t.portions().filter { it.isSpending(tree.byId[it.categoryId]) }.forEach { p ->
-                        val top = tree.top(p.categoryId)
-                        val m = days.getOrPut(day) { mutableMapOf() }
-                        m[top] = (m[top] ?: 0) + p.amountPaise
-                        payments += com.owl.tracker.data.HousePayment(day, t.merchantName, p.amountPaise, top)
-                    }
-                }
-                days.mapValues { it.value.toMap() } to payments.sortedByDescending { it.date }
+                houseDays(txns, CategoryTree(cats))
             }
         }
         .catch { emit(emptyMap<LocalDate, Map<String, Long>>() to emptyList()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap<LocalDate, Map<String, Long>>() to emptyList())
+
+    /** What [txns] spent each day by category group, and as payments (what an update carries). */
+    private fun houseDays(txns: List<Txn>, tree: CategoryTree): Pair<Map<LocalDate, Map<String, Long>>, List<com.owl.tracker.data.HousePayment>> {
+        val days = mutableMapOf<LocalDate, MutableMap<String, Long>>()
+        val payments = mutableListOf<com.owl.tracker.data.HousePayment>()
+        txns.forEach { t ->
+            val day = dateOf(t.occurredAt)
+            t.portions().filter { it.isSpending(tree.byId[it.categoryId]) }.forEach { p ->
+                val top = tree.top(p.categoryId)
+                val m = days.getOrPut(day) { mutableMapOf() }
+                m[top] = (m[top] ?: 0) + p.amountPaise
+                payments += com.owl.tracker.data.HousePayment(day, t.merchantName, p.amountPaise, top)
+            }
+        }
+        return days.mapValues { it.value.toMap() } to payments.sortedByDescending { it.date }
+    }
 
     /** One person's share of this month's household spending. */
     data class HousePerson(val id: String, val name: String, val me: Boolean, val totalPaise: Long, val byGroup: Map<String, Long>, val updatedAt: Long, val sharesAll: Boolean, val names: Map<String, String>)
@@ -757,14 +761,16 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         _sheet.value = null
         go(Screen.HOUSEHOLD)
         // The first update tells the others who joined
-        sendHouseUpdate()
+        sendHouseUpdate(h)
     }
 
-    fun sendHouseUpdate() = viewModelScope.launch {
-        val h = household.value ?: return@launch
+    fun sendHouseUpdate() = viewModelScope.launch { household.value?.let { sendHouseUpdate(it) } }
+
+    private suspend fun sendHouseUpdate(h: com.owl.tracker.data.Household) {
         val now = c.clock.millis()
         val tree = CategoryTree(categories.value)
-        val (days, payments) = myHouseDays.value
+        val txns = runCatching { repo.transactions(startMs(today().minusDays(com.owl.tracker.data.Households.DAYS)), startMs(today().plusDays(1))) }.getOrDefault(emptyList())
+        val (days, payments) = houseDays(txns, tree)
         val names = days.values.flatMap { it.keys }.toSet().mapNotNull { id -> tree.byId[id]?.takeIf { !it.isSystem }?.let { id to it.name } }.toMap()
         val bytes = com.owl.tracker.data.Households.update(h, now, days, names, payments)
         writeHouse(h.copy(lastSentAt = now))
