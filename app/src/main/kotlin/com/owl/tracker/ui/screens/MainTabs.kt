@@ -632,6 +632,8 @@ private fun HomeHeader(
         dash.period.start.dayOfMonth == 1 -> tr("{0} so far", monthName)
         else -> tr("This month so far")
     }
+    // Text straight on the header uses the header's own colours; anything on a clay pill (the Reports button,
+    // the month picker, Month/Week) sits on the card colour, so it uses the card's text colours in every palette
     Box(modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(brand.header))) {
         // A soft sun in the corner
         androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
@@ -681,7 +683,7 @@ private fun HomeHeader(
                         .semantics { contentDescription = tr("Reports") },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Ic.chart, contentDescription = null, tint = brand.onHeader, modifier = Modifier.size(22.dp))
+                    Icon(Ic.chart, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
                 }
             }
             Gap(12.dp)
@@ -697,15 +699,15 @@ private fun HomeHeader(
             val periodPill: @Composable (Modifier) -> Unit = { m ->
                 Row(m.clay(RoundedCornerShape(24.dp), brand.clay, elevation = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { if (weekMode) vm.previousWeek() else vm.previousMonth() }, modifier = Modifier.size(44.dp).testTag("period_prev")) {
-                        Icon(Ic.chevL, contentDescription = tr("Previous {0}", unit), tint = brand.onHeader, modifier = Modifier.size(20.dp))
+                        Icon(Ic.chevL, contentDescription = tr("Previous {0}", unit), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
                     }
                     com.owl.tracker.ui.components.FirstThatFits(
-                        options, style = MaterialTheme.typography.labelLarge, color = brand.onHeader,
+                        options, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         modifier = Modifier.weight(1f).testTag("period_label"),
                     )
                     IconButton(onClick = { if (weekMode) vm.nextWeek() else vm.nextMonth() }, enabled = forward, modifier = Modifier.size(44.dp).testTag("period_next")) {
-                        Icon(Ic.chevR, contentDescription = tr("Next {0}", unit), tint = brand.onHeader.copy(alpha = if (forward) 1f else 0.3f), modifier = Modifier.size(20.dp))
+                        Icon(Ic.chevR, contentDescription = tr("Next {0}", unit), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (forward) 1f else 0.3f), modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -754,7 +756,7 @@ private fun PeriodSwitch(isWeek: Boolean, onMonth: () -> Unit, onWeek: () -> Uni
             ) {
                 Text(
                     label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
-                    color = if (on) MaterialTheme.colorScheme.primary else brand.onHeaderSoft,
+                    color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

@@ -224,7 +224,7 @@ fun AffordSheet(vm: AppViewModel) {
         return
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        MiniRing((a.spent + paise).toDouble() / a.budget, "after")
+        MiniRing((a.spent + paise).toDouble() / a.budget, tr("after"))
         Column {
             Text(tr("Left for {0} {1}", a.daysLeft, if (a.daysLeft == 1) tr("day") else tr("days")), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(Money.formatInr(a.left), style = MaterialTheme.typography.bodyLarge.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough), color = MaterialTheme.colorScheme.onSurfaceVariant)

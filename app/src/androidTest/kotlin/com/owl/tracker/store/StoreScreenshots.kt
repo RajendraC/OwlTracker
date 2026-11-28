@@ -686,6 +686,25 @@ class StoreScreenshots {
                     shot("pal_${p.key}_${mode.key}_4sheet")
                     withVm { it.closeSheet() }
                     Thread.sleep(500)
+                    // More screens, to catch text that a palette makes hard to see
+                    for ((n, screen) in listOf(
+                        "5activity" to com.owl.tracker.ui.Screen.ACTIVITY, "6more" to com.owl.tracker.ui.Screen.MORE,
+                        "7settings" to com.owl.tracker.ui.Screen.SETTINGS, "8reports" to com.owl.tracker.ui.Screen.INSIGHTS,
+                        "9streaks" to com.owl.tracker.ui.Screen.STREAKS, "10goals" to com.owl.tracker.ui.Screen.GOALS,
+                    )) {
+                        nav(screen)
+                        Thread.sleep(1300)
+                        shot("pal_${p.key}_${mode.key}_$n")
+                    }
+                    // A payment's details
+                    runCatching {
+                        nav(com.owl.tracker.ui.Screen.ACTIVITY)
+                        Thread.sleep(800)
+                        onAllNodes(hasTestTagStartingWith("txn_"))[0].performClick()
+                        Thread.sleep(1200)
+                        shot("pal_${p.key}_${mode.key}_11detail")
+                        withVm { it.closeSheet() }
+                    }
                 }
                 withVm { it.setPalette(com.owl.tracker.ui.theme.Palette.CREAM); it.setTheme(com.owl.tracker.data.ThemeMode.LIGHT) }
                 nav(com.owl.tracker.ui.Screen.HOME)
