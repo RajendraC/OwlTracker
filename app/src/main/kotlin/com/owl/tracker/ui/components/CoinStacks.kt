@@ -177,8 +177,10 @@ fun CoinStacksStage(
         val density = LocalDensity.current
         val maxW = maxWidth
         val k = min(1f, maxW.value / 300f)
-        val stageH = 250.dp * k
         val n = stacks.size.coerceAtLeast(1)
+        // Tall enough for the tallest stack (or budget line), the owl on it and a tag above the owl; no more
+        val tallest = stacks.indices.maxOfOrNull { max(counts[it], lines[it] ?: 0) } ?: 0
+        val stageH = ((50f + tallest * 5f + 8f + 56f + 34f) * k).coerceIn(170f * k, 250f * k).dp
         val slot = maxW / n
         val stackW = min(38f, slot.value * 0.74f).dp
         val pitch = 5.dp * k
