@@ -854,6 +854,7 @@ class StoreScreenshots {
             }
             section("household") {
                 // The setup sheet, then a household of three: Home's card, and its own page
+                Thread.sleep(5000) // let the last section's message go
                 val H = com.owl.tracker.data.Households
                 withVm { it.openSheet(com.owl.tracker.ui.Sheet.HouseSetup) }
                 waitForTag("house_me", 20_000)

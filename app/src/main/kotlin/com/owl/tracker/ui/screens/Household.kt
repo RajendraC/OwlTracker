@@ -53,7 +53,6 @@ import com.owl.tracker.i18n.tr
 import com.owl.tracker.i18n.trn
 import com.owl.tracker.ui.AppViewModel
 import com.owl.tracker.ui.Sheet
-import com.owl.tracker.ui.components.Glyph
 import com.owl.tracker.ui.components.OwlMark
 import com.owl.tracker.ui.components.ScreenHeader
 import com.owl.tracker.ui.theme.ClaySurface
@@ -81,9 +80,15 @@ fun houseWhen(ms: Long, now: Long): String {
     }
 }
 
-/** A category group's name and picture: from this phone, or as the person who spent it named it. */
-private fun groupLabel(tree: CategoryTree, id: String, names: Map<String, String>): Pair<String, String> =
-    tree.byId[id]?.let { it.name to it.icon } ?: ((names[id] ?: tr("Other")) to "🏷️")
+/** A category group's name and its icon key and colour: from this phone, or as the person who spent it named it. */
+private data class GroupLabel(val name: String, val icon: String, val color: Long)
+
+private fun groupLabel(tree: CategoryTree, id: String, names: Map<String, String>): GroupLabel =
+    tree.byId[id]?.let { GroupLabel(it.name, it.icon, it.color) } ?: GroupLabel(names[id] ?: tr("Other"), "others", 0xFF8A8A8A)
+
+@Composable
+private fun GroupIcon(g: GroupLabel) =
+    androidx.compose.material3.Icon(com.owl.tracker.ui.theme.Ic.forCategory(g.icon), contentDescription = null, tint = Color(g.color), modifier = Modifier.size(20.dp))
 
 /** One bar split by person, each in their colour. */
 @Composable
@@ -205,10 +210,10 @@ fun HouseholdScreen(vm: AppViewModel) {
                     }
                     if (shown == p.id) {
                         p.byGroup.toList().sortedByDescending { it.second }.forEach { (g, paise) ->
-                            val (name, icon) = groupLabel(tree, g, p.names)
+                            val label = groupLabel(tree, g, p.names)
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Glyph(icon, 18.dp)
-                                Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                GroupIcon(label)
+                                Text(label.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                                 Text(Money.formatInr(paise), style = MaterialTheme.typography.bodyMedium)
                             }
                         }
@@ -236,11 +241,11 @@ fun HouseholdScreen(vm: AppViewModel) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     view.byGroup.take(12).forEach { (g, paise) ->
                         val names = view.people.fold(emptyMap<String, String>()) { a, p -> a + p.names }
-                        val (name, icon) = groupLabel(tree, g, names)
+                        val label = groupLabel(tree, g, names)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Glyph(icon, 18.dp)
-                                Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                GroupIcon(label)
+                                Text(label.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                                 Text(Money.formatInr(paise), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                             }
                             SplitBar(view.people.map { it.byGroup[g] ?: 0 }, height = 8)
