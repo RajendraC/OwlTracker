@@ -34,6 +34,10 @@ class PaletteContrastTest {
             need("links on cards", c.primary, b.clay.surface, 4.5)
             need("header title", b.onHeader, b.header[1], 4.5)
             need("header greeting", b.onHeaderSoft, b.header[1], 3.0)
+            // The header's pills (Reports button, month picker, Month/Week) are clay: card text colours on them
+            need("month picker on its pill", c.onSurface, b.clay.surface, 4.5)
+            need("Week, not picked, on the pressed pill", c.onSurfaceVariant, b.clay.pressed, 4.5)
+            need("Month, picked", c.primary, b.clay.surface, 4.5)
             need("+ on the Add button", b.onAdd, b.add[1], 3.0)
             need("the green ring on cards", status, b.clay.surface, 3.0)
             need("the selected tab", b.barActive, b.bar, 3.0)
