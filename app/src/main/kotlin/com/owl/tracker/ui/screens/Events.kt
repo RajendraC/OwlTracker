@@ -151,7 +151,10 @@ fun EventWrapCard(vm: AppViewModel, w: AppViewModel.EventWrap, modifier: Modifie
     val topName = top?.let { id -> cats.firstOrNull { it.id == id }?.name }
     ClaySurface(RoundedCornerShape(26.dp), modifier.fillMaxWidth().testTag("event_wrap"), elevation = 10.dp) {
         Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("🦉 ${e.emoji}", fontSize = 40.sp)
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                com.owl.tracker.ui.components.OwlMark(64.dp)
+                Text(e.emoji, fontSize = 36.sp)
+            }
             Text(tr("{0}: done!", e.name), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
             Text(tr("{0} of {1}", Money.formatInr(spent), Money.formatInr(e.budgetPaise)), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             val lines = buildList {

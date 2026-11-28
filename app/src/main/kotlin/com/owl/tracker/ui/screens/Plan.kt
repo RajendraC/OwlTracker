@@ -150,7 +150,7 @@ fun BillsScreen(vm: AppViewModel) {
             Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("🦉", fontSize = 28.sp)
+            com.owl.tracker.ui.components.OwlMark(36.dp)
             Text(tr("Still to come this month: {0} in bills. Keep it in mind before spending what's left.", Money.formatInr(restOfMonth)), style = MaterialTheme.typography.bodyMedium)
         }
         ClaySurface(RoundedCornerShape(26.dp), Modifier.fillMaxWidth(), elevation = 10.dp) {
@@ -254,7 +254,7 @@ fun AffordSheet(vm: AppViewModel) {
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(sc.bg(state)).padding(14.dp).testTag("afford_verdict"),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("🦉", fontSize = 28.sp)
+        com.owl.tracker.ui.components.OwlMark(36.dp)
         Text(verdict, color = sc.fg(state), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

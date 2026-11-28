@@ -57,4 +57,14 @@ class I18nTest {
         }.toList()
         assertTrue("Wrap these in tr(…):\n" + found.joinToString("\n"), found.isEmpty())
     }
+
+    /** The owl on screen is always the app's own drawing (OwlMark, MoodOwl, Glyph for a badge), never the 🦉 emoji as text. */
+    @Test fun screensDrawTheOwlNotTheEmoji() {
+        val src = listOf(File("src/main/kotlin/com/owl/tracker/ui"), File("app/src/main/kotlin/com/owl/tracker/ui")).first { it.isDirectory }
+        val emojiText = Regex("""\bText\([^)]*🦉""")
+        val found = src.walkTopDown().filter { it.extension == "kt" }.flatMap { f ->
+            f.readLines().mapIndexedNotNull { i, line -> if (emojiText.containsMatchIn(line)) "${f.name}:${i + 1}: ${line.trim()}" else null }
+        }.toList()
+        assertTrue("Draw the owl with OwlMark or Glyph:\n" + found.joinToString("\n"), found.isEmpty())
+    }
 }

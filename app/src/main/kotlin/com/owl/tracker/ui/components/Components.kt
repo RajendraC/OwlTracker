@@ -78,6 +78,24 @@ fun Panel(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composab
     }
 }
 
+/** The app's owl (the launcher's), on its own: use this wherever the owl appears, never the 🦉 emoji. */
+@Composable
+fun OwlMark(size: Dp, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.Image(
+        androidx.compose.ui.res.painterResource(com.owl.tracker.R.drawable.owl_mascot), contentDescription = null,
+        modifier = modifier.size(size),
+    )
+}
+
+/** A picture given as an emoji (a badge's, an event's): the app's own owl for 🦉, otherwise the emoji itself. */
+@Composable
+fun Glyph(emoji: String, size: Dp, modifier: Modifier = Modifier) {
+    if (emoji == OWL) OwlMark(size * 1.15f, modifier)
+    else Text(emoji, fontSize = with(androidx.compose.ui.platform.LocalDensity.current) { size.toSp() }, modifier = modifier)
+}
+
+const val OWL = "🦉"
+
 /** The app's badge, as on the launcher: the owl and its coin on ripe mango. */
 @Composable
 fun OwlBadge(modifier: Modifier = Modifier, size: Dp = 72.dp) {

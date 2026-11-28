@@ -837,6 +837,18 @@ class StoreScreenshots {
                 Thread.sleep(800)
                 shot("99c_event_new")
                 withVm { it.closeSheet(); it.deleteEvent(id) }
+                // An event that ended yesterday: Home's wrap-up card
+                withVm {
+                    it.saveEvent(null, "diwali", "Diwali", today.minusDays(8), today.minusDays(1), 15_000_00,
+                        com.owl.tracker.data.Events.template("diwali").categories.toSet() + com.owl.tracker.core.Cat.SHOPPING + com.owl.tracker.core.Cat.FOOD)
+                }
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(1500)
+                waitForTag("event_wrap", 20_000)
+                scrollTo(hasTestTag("event_wrap"), below = 60f)
+                Thread.sleep(800)
+                shot("99d_event_wrap")
+                withVm { v -> v.events.value.forEach { v.deleteEvent(it.id) } }
                 com.owl.tracker.ui.AppViewModel.homeOffersOn = false
                 nav(com.owl.tracker.ui.Screen.HOME)
             }

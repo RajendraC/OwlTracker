@@ -155,7 +155,7 @@ private fun Medal(emoji: String, size: Int) {
     Box(
         Modifier.size(size.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Color(0xFFFFE08A), Color(0xFFFFB21A), Color(0xFFC9700A)))),
         contentAlignment = Alignment.Center,
-    ) { Text(emoji, fontSize = (size * 0.5).sp) }
+    ) { com.owl.tracker.ui.components.Glyph(emoji, (size * 0.5).dp) }
 }
 
 /** Paper bits falling once, for about two seconds. */
@@ -247,7 +247,10 @@ private fun PictureCard(p: SharePicture) {
 private fun Footer(modifier: Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(tr("🦉 Owl Tracker"), color = Cocoa, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                com.owl.tracker.ui.components.OwlMark(18.dp)
+                Text(tr("Owl Tracker"), color = Cocoa, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+            }
             Text(tr("Works offline · no login"), color = Brown, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         }
         Text(
@@ -285,7 +288,8 @@ private fun MonthPicture(p: SharePicture.Month) {
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (big, small) ->
                     Column(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(alpha = 0.7f)).padding(12.dp)) {
-                        Text(big, color = Cocoa, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
+                        if (big == com.owl.tracker.ui.components.OWL) com.owl.tracker.ui.components.OwlMark(32.dp)
+                        else Text(big, color = Cocoa, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
                         Text(small, color = Brown, fontSize = 12.sp, fontWeight = FontWeight.Bold, lineHeight = 15.sp, minLines = 2)
                     }
                 }

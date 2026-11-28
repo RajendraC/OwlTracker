@@ -188,7 +188,7 @@ private fun BadgeTile(b: Badge, modifier: Modifier = Modifier, onShare: (() -> U
             Modifier.size(72.dp).clip(CircleShape)
                 .background(if (b.earned) Brush.radialGradient(listOf(Color(0xFFFFE08A), Gold, Color(0xFFC9700A))) else Brush.radialGradient(listOf(Color(0xFFEFE3D3), Color(0xFFE0CDB6)))),
             contentAlignment = Alignment.Center,
-        ) { Text(badgeEmoji(b.id), fontSize = 34.sp) }
+        ) { com.owl.tracker.ui.components.Glyph(badgeEmoji(b.id), 34.dp) }
         Text(b.name, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
         Text(if (b.earned) b.earnedText else b.howTo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
     }
