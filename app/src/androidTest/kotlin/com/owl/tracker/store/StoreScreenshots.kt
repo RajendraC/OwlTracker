@@ -120,9 +120,11 @@ class StoreScreenshots {
             shot("02_disclosure")
 
             tapTag("allow_sms") // READ_SMS is already granted, so no system dialog
-            // the scan's summary line, in English or Hindi
+            // the scan's summary line, in whichever language: the longest fixed piece of its translated template
+            val summary = com.owl.tracker.i18n.tr("{0} transactions from {1} of {2} senders")
+                .split(Regex("\\{\\d\\}")).map { it.trim() }.maxBy { it.length }
             compose.waitUntil(60_000) {
-                listOf("transactions from", "भेजने वालों से").any { t -> compose.onAllNodes(hasText(t, substring = true)).fetchSemanticsNodes().isNotEmpty() }
+                listOf(summary, "transactions from").any { t -> compose.onAllNodes(hasText(t, substring = true)).fetchSemanticsNodes().isNotEmpty() }
             }
             shot("03_import_filters")
 
