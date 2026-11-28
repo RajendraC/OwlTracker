@@ -54,6 +54,8 @@ class AppFlowDeviceTest {
             tapTag("add_expense")
             typeInto("add_amount", "1500")
             typeInto("add_merchant", "Tea stall")
+            runCatching { androidx.test.espresso.Espresso.closeSoftKeyboard() }
+            runCatching { onNodeWithTag("save_expense").performScrollTo() }
             tapTag("save_expense")
             waitForText("Over by ₹", timeoutMs = 20_000)
             // Home has no Recent list: the new expense is in Activity
