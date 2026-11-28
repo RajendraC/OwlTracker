@@ -35,8 +35,9 @@ class PlanFlowTest {
     fun aGoalIsMadeAndFilled() {
         setUpWithSms()
         with(compose) {
-            tapTag("tab_more")
-            tapTag("open_goals")
+            // Budgets → Goals
+            tapTag("tab_budgets")
+            tapTag("budgets_goals")
             waitForTag("goals_screen")
             tapTag("goal_new")
             waitForTag("goal_name")

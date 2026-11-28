@@ -754,32 +754,34 @@ internal fun shorterLabels(label: String): List<String> {
     return listOf(label, "${month.take(3)} $year", month.take(3))
 }
 
-/** Budgets' Monthly | Events switch, like Home's Month | Week; a badge counts the events on now. */
+/** Budgets' Monthly | Events | Goals switch, like Home's Month | Week; a badge counts the events on now. */
 @Composable
-private fun BudgetsSwitch(events: Boolean, eventsOn: Int, onPick: (Boolean) -> Unit) {
+private fun BudgetsSwitch(tab: Int, eventsOn: Int, onPick: (Int) -> Unit) {
     val brand = LocalBrand.current
     Row(
         Modifier.fillMaxWidth().clay(RoundedCornerShape(24.dp), brand.clay, brand.clay.pressed, elevation = 0.dp, pressed = true).padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        listOf(false to tr("Monthly"), true to tr("Events")).forEach { (isEvents, label) ->
-            val on = isEvents == events
+        listOf(tr("Monthly") to "budgets_monthly", tr("Events") to "budgets_events", tr("Goals") to "budgets_goals").forEachIndexed { i, (label, tag) ->
+            val on = i == tab
             Box(
                 Modifier.weight(1f).heightIn(min = 42.dp)
                     .then(if (on) Modifier.clay(RoundedCornerShape(20.dp), brand.clay, elevation = 3.dp) else Modifier.clip(RoundedCornerShape(20.dp)))
-                    .clickable { onPick(isEvents) }
+                    .clickable { onPick(i) }
                     .semantics { selected = on; role = androidx.compose.ui.semantics.Role.Tab }
-                    .testTag(if (isEvents) "budgets_events" else "budgets_monthly"),
+                    .testTag(tag).padding(horizontal = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    com.owl.tracker.ui.components.FitText(
+                        label, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold), minScale = 0.75f, maxLines = 1,
                         color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
-                    if (isEvents && eventsOn > 0) Text(
-                        tr("{0} on", eventsOn), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = Color.White,
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFE8833A)).padding(horizontal = 6.dp, vertical = 1.dp).testTag("events_on_badge"),
+                    if (i == 1 && eventsOn > 0) Text(
+                        eventsOn.toString(), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = Color.White,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFE8833A)).padding(horizontal = 6.dp, vertical = 1.dp).testTag("events_on_badge")
+                            .semantics { contentDescription = tr("{0} on", eventsOn) },
                     )
                 }
             }
@@ -1502,10 +1504,20 @@ fun BudgetsScreen(vm: AppViewModel) {
     val eventsOn = events.count { it.hasStarted(vm.today()) && !it.isOver(vm.today()) }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 44.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { ScreenHeader(tr("Budgets"), if (tab == 1) tr("Festivals, weddings, trips") else "${dash.label} · " + if (dash.isCurrent) tr("{0} days left", dash.period.days - dash.dayNumber) else "ended") }
-        item { BudgetsSwitch(tab == 1, eventsOn) { vm.budgetsTab.value = if (it) 1 else 0 } }
+        item {
+            ScreenHeader(tr("Budgets"), when (tab) {
+                1 -> tr("Festivals, weddings, trips")
+                2 -> tr("Money set aside for something")
+                else -> "${dash.label} · " + if (dash.isCurrent) tr("{0} days left", dash.period.days - dash.dayNumber) else "ended"
+            })
+        }
+        item { BudgetsSwitch(tab, eventsOn) { vm.budgetsTab.value = it } }
         if (tab == 1) {
             item { EventsTab(vm) }
+            return@LazyColumn
+        }
+        if (tab == 2) {
+            item { GoalsTab(vm) }
             return@LazyColumn
         }
         item {

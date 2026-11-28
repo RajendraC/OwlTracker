@@ -13,6 +13,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.text.style.TextAlign
+import com.owl.tracker.i18n.trn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -320,7 +328,7 @@ private fun GoalCard(vm: AppViewModel, g: Goal, today: LocalDate) {
 fun GoalsRow(vm: AppViewModel, goals: List<Goal>, modifier: Modifier = Modifier) {
     if (goals.isEmpty()) return
     ClaySurface(RoundedCornerShape(26.dp), modifier.fillMaxWidth(), elevation = 10.dp) {
-        Column(Modifier.clickable(onClickLabel = tr("See your goals")) { vm.go(Screen.GOALS) }.padding(14.dp).testTag("goals_row"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.clickable(onClickLabel = tr("See your goals")) { vm.openGoals() }.padding(14.dp).testTag("goals_row"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(tr("Goals"), style = MaterialTheme.typography.titleLarge)
             goals.take(3).forEach { g ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -383,7 +391,7 @@ fun SalaryCard(vm: AppViewModel, offer: AppViewModel.SalaryOffer, startDay: Int,
                         Text(tr("Put in {0}", Money.formatInr(amount)))
                     }
                 } else {
-                    Button(onClick = { vm.dismissSalary(d); vm.go(com.owl.tracker.ui.Screen.GOALS) }, modifier = Modifier.testTag("salary_new_goal")) { Text(tr("Start a goal")) }
+                    Button(onClick = { vm.dismissSalary(d); vm.openGoals() }, modifier = Modifier.testTag("salary_new_goal")) { Text(tr("Start a goal")) }
                 }
                 TextButton(onClick = { vm.dismissSalary(d) }, modifier = Modifier.testTag("salary_close")) { Text(tr("Not now")) }
             }
@@ -410,6 +418,90 @@ fun GoalsScreen(vm: AppViewModel) {
             style = MaterialTheme.typography.bodyMedium)
         goals.forEach { GoalCard(vm, it, today) }
         if (goals.size < Goals.MAX) Button(onClick = { vm.openSheet(Sheet.GoalEdit(null)) }, modifier = Modifier.fillMaxWidth().testTag("goal_new")) { Text(tr("+ New goal")) }
+        Text(tr("Goals are kept on your phone (and in your backups). The money stays in your bank; the jar tracks what you set aside."),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** One goal on the shelf: its jar, name, how far, and Put in (or done). Tap the tile to change it. */
+@Composable
+private fun GoalTile(vm: AppViewModel, g: Goal, today: LocalDate, modifier: Modifier = Modifier) {
+    val sc = LocalStatusColors.current
+    ClaySurface(RoundedCornerShape(22.dp), modifier.testTag("goal_${g.id}"), elevation = 8.dp) {
+        Column(
+            Modifier.clickable(onClickLabel = tr("Change {0}", g.name)) { vm.openSheet(Sheet.GoalEdit(g.id)) }.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Jar(g.fraction, 92.dp)
+            Text("${g.emoji} ${g.name}", style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center, maxLines = 2)
+            Text(tr("{0} of {1}", Money.formatShort(g.savedPaise), Money.formatShort(g.targetPaise)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val per = g.perMonth(today)
+            Text(
+                when {
+                    g.done -> tr("Done! 🎉")
+                    per != null -> tr("{0} a month", Money.formatShort(per))
+                    else -> tr("No date")
+                },
+                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                color = if (g.done) sc.okFg else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (!g.done) Button(
+                onClick = { vm.openSheet(Sheet.GoalAdd(g.id)) }, modifier = Modifier.fillMaxWidth().testTag("goal_add_${g.id}"),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+            ) { Text(tr("+ Put in"), maxLines = 1) }
+        }
+    }
+}
+
+/**
+ * Budgets → Goals (1.9.39, moved from More; the user's pick "G2 · a shelf of jars"): the owl on the goal closest to
+ * done, then a two-column shelf of jars, each with Put in, and an empty jar to start a new one.
+ */
+@Composable
+fun GoalsTab(vm: AppViewModel) {
+    val goals by vm.goals.collectAsStateWithLifecycle()
+    val today = vm.today()
+    Column(Modifier.fillMaxWidth().testTag("goals_screen"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val next = goals.filter { !it.done }.maxByOrNull { it.fraction }
+        ClaySurface(RoundedCornerShape(22.dp), Modifier.fillMaxWidth(), elevation = 8.dp) {
+            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                com.owl.tracker.ui.components.OwlMark(48.dp)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        when {
+                            goals.isEmpty() -> tr("A trip, a phone, a deposit: give it a jar and fill it as you set money aside.")
+                            next == null -> tr("Every jar is full. Well done!")
+                            else -> tr("{0} is {1}% full. {2} more and it's done!", next.name, (next.fraction * 100).toInt(), Money.formatInr(next.targetPaise - next.savedPaise))
+                        },
+                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                    )
+                    if (goals.isNotEmpty()) Text(
+                        tr("{0} set aside across {1}", Money.formatInr(goals.sumOf { it.savedPaise }), trn(goals.size, "{0} goal", "{0} goals")),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        val tiles: List<Goal?> = goals + if (goals.size < Goals.MAX) listOf(null) else emptyList()
+        tiles.chunked(2).forEach { pair ->
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                pair.forEach { g ->
+                    if (g != null) GoalTile(vm, g, today, Modifier.weight(1f).fillMaxHeight())
+                    else Box(
+                        Modifier.weight(1f).fillMaxHeight().heightIn(min = 160.dp).clip(RoundedCornerShape(22.dp))
+                            .border(2.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp))
+                            .clickable { vm.openSheet(Sheet.GoalEdit(null)) }.testTag("goal_new"),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("+", fontSize = 30.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(tr("New goal"), style = MaterialTheme.typography.titleSmall)
+                        }
+                    }
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
         Text(tr("Goals are kept on your phone (and in your backups). The money stays in your bank; the jar tracks what you set aside."),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

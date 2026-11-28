@@ -240,6 +240,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.39" to listOf(
+            Item(tr("Goals in Budgets"), tr("Goals moved from More to Budgets, next to Events: a shelf of jars, each with + Put in, and the owl cheering the one closest to done.")),
+        ),
         "1.9.38" to listOf(
             Item(tr("Coin stacks with the owl"), tr("Where it went on Home is now a row of coin stacks, one per category, with a dashed line at its budget. Coins past the line turn red, and the owl hops from stack to stack to tell you how each is doing.")),
             Item(tr("Event budgets in Budgets"), tr("Event budgets moved from More to Budgets: switch between Monthly and Events at the top.")),

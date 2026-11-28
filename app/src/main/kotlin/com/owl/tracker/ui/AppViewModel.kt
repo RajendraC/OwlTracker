@@ -647,10 +647,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
 
-    /** Budgets' tab: 0 Monthly, 1 Events (1.9.38: event budgets moved here from More). */
+    /** Budgets' tab: 0 Monthly, 1 Events (1.9.38), 2 Goals (1.9.39); both moved here from More. */
     val budgetsTab = MutableStateFlow(0)
 
     fun openEvents() { budgetsTab.value = 1; go(Screen.BUDGETS) }
+
+    fun openGoals() { budgetsTab.value = 2; go(Screen.BUDGETS) }
 
     /** The event the Event screen shows. */
     val shownEvent = MutableStateFlow<String?>(null)
@@ -1177,7 +1179,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             com.owl.tracker.nudge.Nudges.OPEN_RECAP -> { go(Screen.HOME); openRecap() }
             com.owl.tracker.nudge.Nudges.OPEN_ACTIVITY -> showActivity()
             com.owl.tracker.nudge.Nudges.OPEN_BILLS -> go(Screen.BILLS)
-            com.owl.tracker.nudge.Nudges.OPEN_GOALS -> go(Screen.GOALS)
+            com.owl.tracker.nudge.Nudges.OPEN_GOALS -> openGoals()
             com.owl.tracker.nudge.Nudges.OPEN_REPORT -> { go(Screen.HOME); reportPreset = com.owl.tracker.export.ReportPeriod.LAST_MONTH; openSheet(Sheet.ShareReport) }
             com.owl.tracker.nudge.Nudges.OPEN_REPORT_SHARE -> { go(Screen.HOME); shareMonthly() }
             else -> go(Screen.HOME)

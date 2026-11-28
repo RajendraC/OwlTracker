@@ -643,10 +643,17 @@ class StoreScreenshots {
                 Thread.sleep(1200)
                 withVm { vm -> vm.goals.value.firstOrNull()?.let { vm.addToGoal(it.id, 12_000_00L) } }
                 Thread.sleep(800)
+                withVm { it.saveGoal(null, "Emergency fund", "🛡️", 50_000_00L, java.time.LocalDate.now().plusMonths(7).withDayOfMonth(1)) }
+                Thread.sleep(800)
+                withVm { it.saveGoal(null, "New phone", "📱", 30_000_00L, null) }
+                Thread.sleep(1200)
+                withVm { vm -> vm.goals.value.forEach { g -> if (g.targetPaise == 50_000_00L) vm.addToGoal(g.id, 40_000_00L); if (g.targetPaise == 30_000_00L) vm.addToGoal(g.id, 6_500_00L) } }
+                Thread.sleep(800)
                 nav(com.owl.tracker.ui.Screen.GOALS)
                 waitForTag("goals_screen", 20_000)
                 Thread.sleep(1200)
                 shot("99b_goals")
+                withVm { it.budgetsTab.value = 0 }
                 withVm { vm -> vm.goals.value.forEach { vm.deleteGoal(it.id) } }
                 nav(com.owl.tracker.ui.Screen.HOME)
                 Thread.sleep(800)
@@ -1187,7 +1194,7 @@ class StoreScreenshots {
     }
 
     /** Straight to a screen, closing any sheet, the way the app's own navigation does. */
-    private fun nav(s: Screen) = withVm { it.closeSheet(); it.dismissConfirm(); it.go(s) }
+    private fun nav(s: Screen) = withVm { it.closeSheet(); it.dismissConfirm(); if (s == Screen.BUDGETS) it.budgetsTab.value = 0; it.go(s) }
 
     /** The capture's budgets, whatever the setup saved: the same story on every run. */
     private fun useBudgets(b: Map<String, Long>) = runBlocking {

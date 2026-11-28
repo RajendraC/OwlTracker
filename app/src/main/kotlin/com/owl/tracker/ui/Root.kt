@@ -177,7 +177,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
                 Screen.PRIVACY -> PrivacyScreen(vm)
                 Screen.STREAKS -> com.owl.tracker.ui.screens.StreaksScreen(vm)
                 Screen.BILLS -> com.owl.tracker.ui.screens.BillsScreen(vm)
-                Screen.GOALS -> com.owl.tracker.ui.screens.GoalsScreen(vm)
+                Screen.GOALS -> androidx.compose.runtime.LaunchedEffect(Unit) { vm.openGoals() }
                 Screen.EVENTS -> androidx.compose.runtime.LaunchedEffect(Unit) { vm.openEvents() }
                 Screen.EVENT -> com.owl.tracker.ui.screens.EventScreen(vm)
                 Screen.HOUSEHOLD -> com.owl.tracker.ui.screens.HouseholdScreen(vm)
