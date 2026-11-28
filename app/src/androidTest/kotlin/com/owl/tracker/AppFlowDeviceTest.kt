@@ -46,7 +46,7 @@ class AppFlowDeviceTest {
             tapTag("not_now")
             setMonthlyTotal("1000")
             // the keyboard can cover the button on small screens: close it and bring the button into view
-            androidx.test.espresso.Espresso.closeSoftKeyboard()
+            runCatching { androidx.test.espresso.Espresso.closeSoftKeyboard() }
             runCatching { onNodeWithTag("save_budget").performScrollTo() }
             tapTag("save_budget")
             waitForText("SMS import is off", timeoutMs = 20_000)

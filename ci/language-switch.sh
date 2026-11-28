@@ -22,6 +22,8 @@ texts() { dump | grep -o 'text="[^"]\+"' | head -25 | tr '\n' ' '; echo; }
 # taps the node whose text or content-desc starts with $1
 tap() {
   local xml b
+  # an emulator's launcher sometimes stops responding: wait it out rather than fail
+  if dump | grep -q "isn't responding"; then adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS </dev/null >/dev/null; sleep 2; fi
   shows "$1" || true
   xml=$(dump)
   b=$(echo "$xml" | python3 -c '
@@ -39,7 +41,7 @@ for m in re.finditer(r"<node [^>]*>", x):
   adb shell input tap $b </dev/null
 }
 
-# language code, its own name (the button), and its "Get started" (proof the screen switched)
+# language code, its own name (the button), and the start of the welcome headline (proof the screen switched)
 check() {
   local code=$1 name=$2 start=$3 pid1 pid2
   pid1=$(adb shell pidof $PKG </dev/null | tr -d '\r')
@@ -66,7 +68,9 @@ src=open('app/src/main/kotlin/com/owl/tracker/i18n/I18n.kt',encoding='utf-8').re
 langs=re.findall(r'Language\("(\w+)", "([^"]+)", "[^"]+"\)',src)
 order=[l for l in langs if l[0]!='en']+[l for l in langs if l[0]=='en']
 for code,name in order:
-    start='Get started' if code=='en' else json.load(open(f'app/src/main/assets/i18n/{code}.json',encoding='utf-8'))['Get started']
+    head='Your spending, sorted from your bank SMS'
+    t=head if code=='en' else json.load(open(f'app/src/main/assets/i18n/{code}.json',encoding='utf-8'))[head]
+    start=t.split(',')[0][:12]  # the welcome headline's first words: always on screen, unlike the button on small phones
     print(f'{code}|{name}|{start}')
 EOF
 )

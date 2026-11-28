@@ -62,8 +62,10 @@ import com.owl.tracker.core.Money
 
 @Composable
 fun WelcomeScreen(vm: AppViewModel) {
+    // Get started stays in view at the bottom: with seven languages the page is taller than small phones
+    Column(Modifier.fillMaxSize()) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp, vertical = 32.dp),
+        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 28.dp, end = 28.dp, top = 32.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         com.owl.tracker.ui.components.OwlBadge(size = 72.dp)
@@ -77,13 +79,15 @@ fun WelcomeScreen(vm: AppViewModel) {
         Promise(Ic.message, tr("Reads only bank, card and UPI SMS"), tr("OTPs and personal messages are ignored"))
         Promise(Ic.noNet, tr("No internet permission"), tr("Your data cannot leave this phone"))
         Promise(Ic.lock, tr("Encrypted and lockable"), tr("Stored with a key held in your phone's secure hardware"))
-        Gap(8.dp)
+    }
+    Column(Modifier.fillMaxWidth().padding(start = 28.dp, end = 28.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Button(onClick = { vm.go(com.owl.tracker.ui.Screen.DISCLOSURE) }, modifier = Modifier.fillMaxWidth().height(56.dp).testTag("get_started")) {
             Text(tr("Get started"))
         }
         androidx.compose.material3.TextButton(onClick = { vm.openBackup() }, modifier = Modifier.fillMaxWidth().testTag("welcome_restore")) {
             Text(tr("Moving from another phone? Restore from a backup"))
         }
+    }
     }
 }
 
