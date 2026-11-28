@@ -206,6 +206,15 @@ class MainActivity : FragmentActivity() {
             startActivity(Intent.createChooser(send, chooser))
         }
 
+        override fun askForReview() {
+            runCatching {
+                val manager = com.google.android.play.core.review.ReviewManagerFactory.create(this@MainActivity)
+                manager.requestReviewFlow().addOnCompleteListener { task ->
+                    if (task.isSuccessful) runCatching { manager.launchReviewFlow(this@MainActivity, task.result) }
+                }
+            }
+        }
+
         override fun shareImage(file: java.io.File, text: String) {
             val uri = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.backups", file)
             val send = Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri).putExtra(Intent.EXTRA_TEXT, text)
@@ -246,4 +255,6 @@ interface Platform {
     fun shareFile(file: java.io.File, mime: String, subject: String, chooser: String)
     /** Hands a picture (in the shared cache folder) and a line of [text] to an app the person picks. */
     fun shareImage(file: java.io.File, text: String) = shareFile(file, "image/png", tr("Owl Tracker"), tr("Share"))
+    /** Google Play's own rating card, over the app. Play decides whether it shows (and limits how often). */
+    fun askForReview() {}
 }

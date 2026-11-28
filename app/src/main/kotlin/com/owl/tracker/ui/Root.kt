@@ -129,8 +129,10 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
     val celebration by vm.celebration.collectAsStateWithLifecycle()
     val settingsNow by vm.settings.collectAsStateWithLifecycle()
     celebration?.let { c ->
-        com.owl.tracker.ui.screens.CelebrationScreen(c, still = settingsNow?.owlReacts == "calm" || !vm.motionOn(), onShare = { vm.openShare(c.share) }, onClose = vm::closeCelebration)
+        com.owl.tracker.ui.screens.CelebrationScreen(c, still = settingsNow?.owlReacts == "calm" || !vm.motionOn(), onShare = { vm.openShare(c.share) }, onClose = { vm.closeCelebration() }, onYay = { vm.closeCelebration(happy = true) })
     }
+    // Play's rating card, after a happy moment (the view model decides when)
+    androidx.compose.runtime.LaunchedEffect(vm) { vm.askReview.collect { platform.askForReview() } }
     val picture by vm.sharePicture.collectAsStateWithLifecycle()
     picture?.let { com.owl.tracker.ui.screens.SharePictureDialog(it, platform, vm::closeShare) }
     Scaffold(

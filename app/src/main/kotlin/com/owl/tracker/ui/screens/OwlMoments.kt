@@ -105,7 +105,7 @@ fun OwlReactionBar(m: UiMessage, data: SnackbarData) {
 
 /** A milestone, full screen and once: the owl cheering under a little confetti, the badge, Share and Yay. */
 @Composable
-fun CelebrationScreen(c: Celebration, still: Boolean, onShare: () -> Unit, onClose: () -> Unit) {
+fun CelebrationScreen(c: Celebration, still: Boolean, onShare: () -> Unit, onClose: () -> Unit, onYay: () -> Unit = onClose) {
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Box(
             Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0xFFFFE7A8), MangoMid, Color(0xFFF59E2B)), radius = 1600f))
@@ -135,7 +135,7 @@ fun CelebrationScreen(c: Celebration, still: Boolean, onShare: () -> Unit, onClo
                 Spacer(Modifier.height(36.dp))
                 Row(Modifier.widthIn(max = 420.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Pill(tr("Share"), Color(0xFFFFE3B0), Cocoa, Modifier.weight(1f).testTag("celebration_share"), onShare)
-                    Pill(tr("Yay!"), Cocoa, Color(0xFFFFF3E2), Modifier.weight(1f).testTag("celebration_close"), onClose)
+                    Pill(tr("Yay!"), Cocoa, Color(0xFFFFF3E2), Modifier.weight(1f).testTag("celebration_close"), onYay)
                 }
             }
         }

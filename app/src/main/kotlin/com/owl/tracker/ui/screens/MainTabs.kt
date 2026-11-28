@@ -215,6 +215,10 @@ fun HomeScreen(vm: AppViewModel) {
     var reportTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val reportOffer = reportTick.let { vm.reportOffer(settings) }
     val leftover = leftoverTick.let { vm.leftoverOffer(settings, goals) }
+    // Salary day: worked out when Home opens, and again when the card changes
+    androidx.compose.runtime.LaunchedEffect(dash.period.start, settings?.budgetStartDay) { vm.loadSalaries() }
+    val salaryTick by vm.salaryTick.collectAsStateWithLifecycle()
+    val salary = salaryTick.let { if (dash.isCurrent) vm.salaryOffer(settings, goals) else null }
     var askNudges by remember(settings?.onboarded) { androidx.compose.runtime.mutableStateOf(vm.askForNudges(settings)) }
     val paidTab = wholeMonth && whereView == "paid" && openGroup == null && openCat == null
     androidx.activity.compose.BackHandler(enabled = paidTab && openPaid != null) { openPaid = null }
@@ -232,7 +236,7 @@ fun HomeScreen(vm: AppViewModel) {
         (if (access is Access.Trial || !access.canEdit) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
         (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0) + (if (recapOffer != null) 1 else 0) + (if (askNudges) 1 else 0) +
-        (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0) + (if (showBills) 1 else 0) + (if (showGoals) 1 else 0) + (if (leftover != null) 1 else 0) + (if (reportOffer != null) 1 else 0)
+        (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0) + (if (showBills) 1 else 0) + (if (showGoals) 1 else 0) + (if (leftover != null) 1 else 0) + (if (reportOffer != null) 1 else 0) + (if (salary != null) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
     // the status bar readable, and a card scrolled to stops just below it
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -306,6 +310,8 @@ fun HomeScreen(vm: AppViewModel) {
             recapOffer?.let { p -> item(key = "recap_offer") { RecapOfferCard(com.owl.tracker.nudge.Nudges.monthName(p), { vm.openRecap(p); recapTick++ }, { vm.dismissRecapOffer(p); recapTick++ }, side) } }
             // From the 2nd: last month's report, ready to share with the family
             reportOffer?.let { month -> item(key = "report_offer") { ReportOfferCard(vm, month, { vm.shareMonthly(); reportTick++ }, { vm.reportOfferDone(); reportTick++ }, side) } }
+            // Salary day: put some aside, and start budget months then
+            salary?.let { o -> item(key = "salary") { SalaryCard(vm, o, settings?.budgetStartDay ?: 1, side) } }
             // Last month's leftover, offered to the first goal not yet full (once)
             leftover?.let { (p, left) ->
                 val goal = goals.first { !it.done }
@@ -1566,7 +1572,8 @@ private fun insideLine(dash: com.owl.tracker.ui.Dashboard, groupId: String): Str
     } + if (list.size > 3) tr(" · +{0} more", list.size - 3) else ""
 }
 
-fun ordinal(n: Int): String = n.toString() + when {
+/** 1st, 2nd, 25th in English; other languages write the day as a number (their texts add the word for "date"). */
+fun ordinal(n: Int): String = n.toString() + if (com.owl.tracker.i18n.I18n.lang != "en") "" else when {
     n % 100 in 11..13 -> "th"
     n % 10 == 1 -> "st"
     n % 10 == 2 -> "nd"

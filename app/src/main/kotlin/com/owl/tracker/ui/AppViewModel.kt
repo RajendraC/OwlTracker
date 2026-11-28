@@ -829,7 +829,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun closeRecap() { recap.value = null }
+    fun closeRecap() {
+        val r = recap.value
+        recap.value = null
+        // A month that came in under budget is a good moment for Play's rating card
+        if (r != null && r.budget > 0 && r.spent <= r.budget) happyMoment()
+    }
 
     /** From a nudge or a widget. */
     fun openFromOutside(what: String) {
@@ -843,6 +848,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             com.owl.tracker.nudge.Nudges.OPEN_RECAP -> { go(Screen.HOME); openRecap() }
             com.owl.tracker.nudge.Nudges.OPEN_ACTIVITY -> showActivity()
             com.owl.tracker.nudge.Nudges.OPEN_BILLS -> go(Screen.BILLS)
+            com.owl.tracker.nudge.Nudges.OPEN_GOALS -> go(Screen.GOALS)
             com.owl.tracker.nudge.Nudges.OPEN_REPORT -> { go(Screen.HOME); reportPreset = com.owl.tracker.export.ReportPeriod.LAST_MONTH; openSheet(Sheet.ShareReport) }
             com.owl.tracker.nudge.Nudges.OPEN_REPORT_SHARE -> { go(Screen.HOME); shareMonthly() }
             else -> go(Screen.HOME)
@@ -1799,7 +1805,66 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     /** The milestone being celebrated full screen, if any. */
     val celebration = MutableStateFlow<Celebration?>(null)
-    fun closeCelebration() { celebration.value = null }
+    /** [happy]: closed with Yay!, a good moment for Play's rating card. */
+    fun closeCelebration(happy: Boolean = false) { celebration.value = null; if (happy) happyMoment() }
+
+    /** Asks Root to show Play's rating card. */
+    val askReview = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /**
+     * After a happy moment (a milestone, a month under budget): Play's rating card, to someone who has used the app
+     * for a week with 30 payments or more, at most every four months. Play may still choose not to show it.
+     */
+    fun happyMoment() = viewModelScope.launch {
+        if (runningTests()) return@launch
+        val s = settings.value ?: return@launch
+        val now = System.currentTimeMillis()
+        val first = runCatching { c.context.packageManager.getPackageInfo(c.context.packageName, 0).firstInstallTime }.getOrDefault(now)
+        val last = nudgePrefs.getLong("review_asked", 0L).takeIf { it > 0 }
+        val payments = runCatching { repo.maxTransactionId().toInt() }.getOrDefault(0)
+        if (com.owl.tracker.core.ReviewAsk.shouldAsk(first, now, payments, last, s.sampleData)) {
+            nudgePrefs.edit().putLong("review_asked", now).apply()
+            askReview.tryEmit(Unit)
+        }
+    }
+
+    // ---------------- Salary day ----------------
+
+    /** The salary just in, a tenth of it to set aside, the goal to put it in, and a budget-month start to suggest. */
+    data class SalaryOffer(val salary: com.owl.tracker.core.SalarySeen, val setAside: Long, val goal: com.owl.tracker.data.Goal?, val suggestDay: Int?)
+
+    private val salaries = MutableStateFlow<List<com.owl.tracker.core.SalarySeen>>(emptyList())
+    /** Bumped when the salary card changes, so Home asks again. */
+    val salaryTick = MutableStateFlow(0)
+
+    /** Salary credits of the last 100 days, for the salary card. */
+    fun loadSalaries() = viewModelScope.launch {
+        salaries.value = runCatching {
+            repo.transactions(startMs(today().minusDays(100)), startMs(today().plusDays(1)))
+                .filter { it.kind == com.owl.tracker.core.TxKind.SALARY && it.direction == com.owl.tracker.core.Direction.CREDIT }
+                .map { com.owl.tracker.core.SalarySeen(java.time.Instant.ofEpochMilli(it.occurredAt).atZone(zone).toLocalDate(), it.amountPaise) }
+        }.getOrDefault(emptyList())
+        salaryTick.value++
+    }
+
+    /** Home's salary card: for three days after a salary comes in, until put aside or closed. */
+    fun salaryOffer(s: AppSettings?, goals: List<com.owl.tracker.data.Goal>): SalaryOffer? {
+        if (!homeOffersOn || s == null || s.sampleData) return null
+        val seen = salaries.value
+        val latest = com.owl.tracker.core.Salary.latest(seen, today()) ?: return null
+        if (nudgePrefs.getBoolean("salary_seen_${latest.date}", false)) return null
+        val day = com.owl.tracker.core.Salary.suggestStartDay(seen, s.budgetStartDay)?.takeUnless { nudgePrefs.getBoolean("salary_day_no", false) }
+        return SalaryOffer(latest, com.owl.tracker.core.Salary.setAside(latest.paise), goals.firstOrNull { !it.done }, day)
+    }
+
+    fun dismissSalary(d: LocalDate) { nudgePrefs.edit().putBoolean("salary_seen_$d", true).apply(); salaryTick.value++ }
+
+    /** Budget months from the salary day ([day]), or never ask again (null). */
+    fun answerSalaryDay(day: Int?) {
+        if (day != null) setStartDay(day) else nudgePrefs.edit().putBoolean("salary_day_no", true).apply()
+        if (day != null) say(tr("Budget months now start on the {0}", day))
+        salaryTick.value++
+    }
 
     /** The picture being previewed before sharing, if any. */
     val sharePicture = MutableStateFlow<SharePicture?>(null)

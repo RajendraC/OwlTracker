@@ -40,7 +40,8 @@ data class CardCycle(val billDay: Int, val dueDays: Int = 20) {
     companion object {
         const val LAST_DAY = 31
 
-        fun ordinal(n: Int): String = n.toString() + when {
+        /** 1st, 2nd, 25th in English; other languages write the day as a number (their texts add the word for "date"). */
+        fun ordinal(n: Int): String = n.toString() + if (com.owl.tracker.i18n.I18n.lang != "en") "" else when {
             n % 100 in 11..13 -> "th"
             n % 10 == 1 -> "st"
             n % 10 == 2 -> "nd"

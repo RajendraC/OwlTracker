@@ -240,6 +240,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.34" to listOf(
+            Item(tr("Salary day"), tr("When your salary comes in, the owl offers to put a tenth of it into a goal before the month takes it. If it comes on the same day each month, it offers to start your budget months then too.")),
+        ),
         "1.9.33" to listOf(
             Item(tr("Owl Tracker in Hindi"), tr("Pick हिंदी on the first screen or in Settings → Appearance → Language. Every screen, notification and widget follows, with dates in Hindi; amounts stay in the usual digits. More languages are on the way.")),
         ),

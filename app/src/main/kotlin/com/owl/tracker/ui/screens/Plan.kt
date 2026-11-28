@@ -355,6 +355,50 @@ fun LeftoverCard(month: String, left: Long, goal: Goal, onAdd: () -> Unit, onClo
     }
 }
 
+/**
+ * Salary day on Home: the salary just in, an offer to put a tenth of it into the first goal (or to start one), and,
+ * when salary comes on a steady day that isn't the budget month's first, an offer to start budget months then.
+ */
+@Composable
+fun SalaryCard(vm: AppViewModel, offer: AppViewModel.SalaryOffer, startDay: Int, modifier: Modifier = Modifier) {
+    val d = offer.salary.date
+    ClaySurface(RoundedCornerShape(26.dp), modifier.fillMaxWidth().testTag("salary_card"), elevation = 10.dp) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("💰", fontSize = 30.sp)
+                Column(Modifier.weight(1f)) {
+                    Text(tr("Salary's in · {0}", Money.formatInr(offer.salary.paise)), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (offer.goal != null) tr("Put {0} into {1} before the month takes it?", Money.formatInr(minOf(offer.setAside, offer.goal.targetPaise - offer.goal.savedPaise)), offer.goal.name)
+                        else tr("A good moment to set some aside. Start a goal for it?"),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                val g = offer.goal
+                if (g != null) {
+                    val amount = minOf(offer.setAside, g.targetPaise - g.savedPaise)
+                    Button(onClick = { vm.dismissSalary(d); vm.openSheet(com.owl.tracker.ui.Sheet.GoalAdd(g.id, amount)) }, modifier = Modifier.testTag("salary_put_in")) {
+                        Text(tr("Put in {0}", Money.formatInr(amount)))
+                    }
+                } else {
+                    Button(onClick = { vm.dismissSalary(d); vm.go(com.owl.tracker.ui.Screen.GOALS) }, modifier = Modifier.testTag("salary_new_goal")) { Text(tr("Start a goal")) }
+                }
+                TextButton(onClick = { vm.dismissSalary(d) }, modifier = Modifier.testTag("salary_close")) { Text(tr("Not now")) }
+            }
+            offer.suggestDay?.let { day ->
+                androidx.compose.material3.HorizontalDivider()
+                Text(tr("Your salary usually comes on the {0}. Start budget months on the {0}?", ordinal(day)), style = MaterialTheme.typography.bodyMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    androidx.compose.material3.OutlinedButton(onClick = { vm.answerSalaryDay(day) }, modifier = Modifier.testTag("salary_day_yes")) { Text(tr("Yes, from the {0}", ordinal(day))) }
+                    TextButton(onClick = { vm.answerSalaryDay(null) }, modifier = Modifier.testTag("salary_day_no")) { Text(tr("Keep the {0}", ordinal(startDay))) }
+                }
+            }
+        }
+    }
+}
+
 /** All goals, and adding a new one. */
 @Composable
 fun GoalsScreen(vm: AppViewModel) {

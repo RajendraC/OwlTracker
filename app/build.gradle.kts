@@ -138,6 +138,7 @@ dependencies {
     // stripped in AndroidManifest.xml, and CI fails if it ever comes back.
     implementation(libs.google.play.billing)
     implementation(libs.google.play.app.update)
+    implementation(libs.google.play.review)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

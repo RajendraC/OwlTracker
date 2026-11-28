@@ -98,4 +98,18 @@ class NudgesTest {
         assertTrue(on(2, 7).isEmpty())    // not before 9 am
         assertTrue(on(5, 10).isEmpty())
     }
+
+    @Test
+    fun salaryDayOffersToSetSomeAside() {
+        val pay = com.owl.tracker.core.SalarySeen(LocalDate.of(2026, 11, 27), rs(120000))
+        val n = Nudges.due(snap(rs(20000)), LocalDateTime.of(2026, 11, 27, 10, 0), null, salary = pay, goalName = "Goa trip").single { it.kind == Nudges.SALARY }
+        assertEquals("Salary's in 💰 ₹1,20,000", n.title)
+        assertEquals("A good moment to put ₹12,000 into Goa trip.", n.text)
+        assertEquals(Nudges.OPEN_GOALS, n.open)
+        // Without a goal; and not before 9 am, nor two days later
+        assertEquals("A good moment to set some aside before the month starts.",
+            Nudges.due(snap(rs(20000)), LocalDateTime.of(2026, 11, 28, 10, 0), null, salary = pay).single { it.kind == Nudges.SALARY }.text)
+        assertTrue(Nudges.due(snap(rs(20000)), LocalDateTime.of(2026, 11, 27, 7, 0), null, salary = pay).none { it.kind == Nudges.SALARY })
+        assertTrue(Nudges.due(snap(rs(20000)), LocalDateTime.of(2026, 11, 29, 10, 0), null, salary = pay).none { it.kind == Nudges.SALARY })
+    }
 }

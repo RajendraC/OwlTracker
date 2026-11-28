@@ -580,6 +580,7 @@ private fun NudgeSettings() {
             Triple(com.owl.tracker.nudge.Nudges.RECAP, tr("Month recap"), tr("On the 1st: your month in a few cards")),
             Triple(com.owl.tracker.nudge.Nudges.CHECK, tr("New payments: was it right?"), tr("Confirm or change a new payment's category from the nudge")),
             Triple(com.owl.tracker.nudge.Nudges.REPORT, tr("Monthly report"), tr("On the 2nd: last month's report, to look through on a computer")),
+            Triple(com.owl.tracker.nudge.Nudges.SALARY, tr("Salary day"), tr("When your salary comes in: a nudge to set some aside")),
         )
         rows.forEachIndexed { i, (kind, title, sub) ->
             if (i > 0) Divider()

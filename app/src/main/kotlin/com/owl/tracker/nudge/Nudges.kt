@@ -45,7 +45,8 @@ object Nudges {
     const val RECAP = "recap"
     const val CHECK = "check"
     const val REPORT = "report"
-    val KINDS = listOf(DAILY, ALERTS, WEEKLY, RECAP, CHECK, REPORT)
+    const val SALARY = "salary"
+    val KINDS = listOf(DAILY, ALERTS, WEEKLY, RECAP, CHECK, REPORT, SALARY)
 
     /** The monthly report's kind: an interactive page for any browser, or an Excel workbook. */
     fun reportExcel(context: Context): Boolean = prefs(context).getBoolean("report_excel", false)
@@ -61,6 +62,7 @@ object Nudges {
     const val OPEN_REPORT = "report"
     const val OPEN_REPORT_SHARE = "report_share"
     const val OPEN_ACTIVITY = "activity"
+    const val OPEN_GOALS = "goals"
     const val ACTION_CHECK_YES = "com.owl.tracker.CHECK_YES"
     const val EXTRA_TX = "tx"
 
@@ -82,6 +84,7 @@ object Nudges {
             NotificationChannel(RECAP, "Month recap", NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(CHECK, "New payments: was the category right?", NotificationManager.IMPORTANCE_LOW),
             NotificationChannel(REPORT, "Monthly report", NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(SALARY, "Salary day", NotificationManager.IMPORTANCE_DEFAULT),
         ).forEach { nm.createNotificationChannel(it) }
     }
 
@@ -94,8 +97,14 @@ object Nudges {
      */
     fun due(
         s: MonthSnapshot, now: LocalDateTime, previous: MonthSnapshot?, bills: List<Pair<com.owl.tracker.core.RecurringBill, LocalDate>> = emptyList(),
-        excel: Boolean = false,
+        excel: Boolean = false, salary: com.owl.tracker.core.SalarySeen? = null, goalName: String? = null,
     ): List<Nudge> = buildList {
+        // Salary day: the morning it lands (or the day after), a nudge to set some aside before the month takes it
+        if (salary != null && !salary.date.isAfter(now.toLocalDate()) && !salary.date.isBefore(now.toLocalDate().minusDays(1)) && now.hour >= 9) {
+            val part = Money.formatInr(com.owl.tracker.core.Salary.setAside(salary.paise))
+            add(Nudge(SALARY, "salary_${salary.date}", tr("Salary's in 💰 {0}", Money.formatInr(salary.paise)),
+                if (goalName != null) tr("A good moment to put {0} into {1}.", part, goalName) else tr("A good moment to set some aside before the month starts."), OPEN_GOALS))
+        }
         // The month's report, to look through on a computer, from the 2nd (the recap comes on the 1st)
         if (previous != null && previous.spent > 0 && s.dayNumber in 2..4 && now.hour >= 9) {
             val p = previous
@@ -177,7 +186,16 @@ object Nudges {
         val previous = if (s.dayNumber <= 4) MonthSnapshot.load(app.container.repo, app.container.clock, s.period.start.minusDays(1)) else null
         val p = prefs(context)
         val bills = runCatching { upcomingBills(app, now.toLocalDate(), settings.ignoredBills) }.getOrDefault(emptyList())
-        val todo = due(s, now, previous, bills, reportExcel(context)).filter { isOn(context, it.kind) && !p.getBoolean("shown_${it.key}", false) }
+        // The latest salary credit of the last two days, and the first goal not yet full
+        val salary = runCatching {
+            val zone = app.container.clock.zone
+            app.container.repo.transactions(now.toLocalDate().minusDays(1).atStartOfDay(zone).toInstant().toEpochMilli(), now.toLocalDate().plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+                .filter { it.kind == com.owl.tracker.core.TxKind.SALARY && it.direction == com.owl.tracker.core.Direction.CREDIT }
+                .maxByOrNull { it.occurredAt }
+                ?.let { com.owl.tracker.core.SalarySeen(java.time.Instant.ofEpochMilli(it.occurredAt).atZone(zone).toLocalDate(), it.amountPaise) }
+        }.getOrNull()
+        val goalName = com.owl.tracker.data.Goals.fromJson(settings.goals).firstOrNull { !it.done }?.name
+        val todo = due(s, now, previous, bills, reportExcel(context), salary.takeUnless { settings.sampleData }, goalName).filter { isOn(context, it.kind) && !p.getBoolean("shown_${it.key}", false) }
         if (todo.isEmpty() || !allowed(context)) return
         channels(context)
         val nm = NotificationManagerCompat.from(context)
@@ -226,6 +244,7 @@ object Nudges {
     private fun publicLine(kind: String) = when (kind) {
         DAILY -> tr("Today's summary")
         REPORT -> tr("Your monthly report is ready")
+        SALARY -> tr("Salary day")
         ALERTS -> tr("A budget alert")
         WEEKLY -> tr("Your week")
         else -> tr("Your month's recap is ready")
