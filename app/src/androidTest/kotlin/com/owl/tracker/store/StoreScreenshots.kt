@@ -785,14 +785,16 @@ class StoreScreenshots {
                 nav(com.owl.tracker.ui.Screen.HOME)
             }
             section("salary") {
-                // Salary day: a salary today and on the same day last month, with a goal to put it in
+                // Salary day: a salary two days ago and on the same day last month, with a goal to put it in
+                // (two days back keeps the day clear of the 27th–1st, where a month from the 1st already fits)
                 com.owl.tracker.ui.AppViewModel.homeOffersOn = true
                 runBlocking {
                     val repo = app.container.repo
                     val zone = app.container.clock.zone
                     var today = java.time.LocalDate.now()
                     withVm { today = it.today() }
-                    listOf(today, today.minusMonths(1)).forEach { d ->
+                    val paid = today.minusDays(2)
+                    listOf(paid, paid.minusMonths(1)).forEach { d ->
                         val at = d.atTime(10, 5).atZone(zone).toInstant().toEpochMilli()
                         repo.addManual(com.owl.tracker.sms.ImportEngine.manual(120_000_00, "ACME SOFTWARE", com.owl.tracker.core.Cat.INCOME, at, com.owl.tracker.core.Direction.CREDIT).copy(kind = com.owl.tracker.core.TxKind.SALARY))
                     }
