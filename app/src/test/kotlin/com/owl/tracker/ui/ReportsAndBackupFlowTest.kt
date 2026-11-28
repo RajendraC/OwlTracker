@@ -251,7 +251,11 @@ class ReportsAndBackupFlowTest {
             typeInto("backup_confirm", "secret-one")
             onNodeWithTag("backup_save").assertIsEnabled()
             tapTag("backup_share")
-            waitForTag("backup_done", timeoutMs = 30_000)
+            runCatching { waitForTag("backup_done", timeoutMs = 30_000) }.onFailure {
+                val vm = androidx.lifecycle.ViewModelProvider(activity)[AppViewModel::class.java]
+                val u = vm.backupUi.value
+                throw AssertionError("no backup_done: screen=${vm.screen.value} working=${u.working} error=${u.error} exported=${u.exported} problem=${u.passwordProblem} sheet=${vm.sheet.value}", it)
+            }
 
             // The share sheet was asked to send a content:// link to the backup, readable once
             val shadow = shadowOf(activity)
