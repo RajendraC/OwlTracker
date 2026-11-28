@@ -784,6 +784,29 @@ class StoreScreenshots {
                 shot("97g_settings_owl")
                 nav(com.owl.tracker.ui.Screen.HOME)
             }
+            section("salary") {
+                // Salary day: a salary today and on the same day last month, with a goal to put it in
+                com.owl.tracker.ui.AppViewModel.homeOffersOn = true
+                runBlocking {
+                    val repo = app.container.repo
+                    val zone = app.container.clock.zone
+                    var today = java.time.LocalDate.now()
+                    withVm { today = it.today() }
+                    listOf(today, today.minusMonths(1)).forEach { d ->
+                        val at = d.atTime(10, 5).atZone(zone).toInstant().toEpochMilli()
+                        repo.addManual(com.owl.tracker.sms.ImportEngine.manual(120_000_00, "ACME SOFTWARE", com.owl.tracker.core.Cat.INCOME, at, com.owl.tracker.core.Direction.CREDIT).copy(kind = com.owl.tracker.core.TxKind.SALARY))
+                    }
+                }
+                withVm { if (it.goals.value.isEmpty()) it.saveGoal(null, "Goa trip", "🏖️", 50_000_00, null); it.loadSalaries() }
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(1500)
+                withVm { it.loadSalaries() }
+                waitForTag("salary_card", 20_000)
+                scrollTo(hasTestTag("salary_card"), below = 60f)
+                Thread.sleep(800)
+                shot("98b_salary_card")
+                com.owl.tracker.ui.AppViewModel.homeOffersOn = false
+            }
             section("settings") {
                 nav(Screen.SETTINGS)
                 waitForTag("theme_choice", 20_000)
