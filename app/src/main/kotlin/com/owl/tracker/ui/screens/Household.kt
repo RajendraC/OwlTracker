@@ -192,8 +192,8 @@ fun HouseholdScreen(vm: AppViewModel) {
         // Each person
         Text(tr("Who spent what"), style = MaterialTheme.typography.titleMedium)
         view.people.forEachIndexed { i, p ->
-            ClaySurface(RoundedCornerShape(20.dp), Modifier.fillMaxWidth().testTag("house_person_$i"), elevation = 6.dp) {
-                Column(Modifier.clickable { shown = if (shown == p.id) null else p.id; payments = false }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ClaySurface(RoundedCornerShape(20.dp), Modifier.fillMaxWidth(), elevation = 6.dp) {
+                Column(Modifier.testTag("house_person_$i").clickable { shown = if (shown == p.id) null else p.id; payments = false }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Dot(i)
                         Column(Modifier.weight(1f)) {
