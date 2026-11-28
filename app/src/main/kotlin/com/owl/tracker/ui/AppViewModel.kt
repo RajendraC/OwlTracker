@@ -725,6 +725,12 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
     private suspend fun writeHouse(h: com.owl.tracker.data.Household?) = repo.updateSettings { it.copy(household = com.owl.tracker.data.Households.toJson(h)) }
 
+    /** Changes the stored household in one step on the database thread, so two quick changes can't undo each other. */
+    private suspend fun changeHouse(change: (com.owl.tracker.data.Household) -> com.owl.tracker.data.Household) = repo.updateSettings { s ->
+        val cur = com.owl.tracker.data.Households.fromJson(s.household) ?: return@updateSettings s
+        s.copy(household = com.owl.tracker.data.Households.toJson(change(cur)))
+    }
+
     private fun houseFileName(h: com.owl.tracker.data.Household, kind: String): String {
         val safe = { x: String -> x.filter { it.isLetterOrDigit() || it == ' ' }.trim().replace(' ', '-').ifEmpty { "home" }.take(24) }
         return "owl-${safe(h.name)}-${safe(h.meName)}-$kind-${today()}.owlhome"
@@ -773,7 +779,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val (days, payments) = houseDays(txns, tree)
         val names = days.values.flatMap { it.keys }.toSet().mapNotNull { id -> tree.byId[id]?.takeIf { !it.isSystem }?.let { id to it.name } }.toMap()
         val bytes = com.owl.tracker.data.Households.update(h, now, days, names, payments)
-        writeHouse(h.copy(lastSentAt = now))
+        changeHouse { it.copy(lastSentAt = now) }
         shareHouse(bytes, houseFileName(h, "update"))
     }
 
@@ -796,14 +802,20 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             }
             is com.owl.tracker.data.HouseFile.Update -> {
                 if (h == null) { say(tr("Join the household first: open the invite you were sent.")); return@launch }
-                try {
-                    val updated = com.owl.tracker.data.Households.apply(h, file, today())
-                    if (updated == h) { go(Screen.HOUSEHOLD); say(tr("You already have this update.")); return@launch }
-                    writeHouse(updated)
-                    val who = updated.others.maxByOrNull { it.updatedAt }?.name ?: ""
-                    go(Screen.HOUSEHOLD)
-                    say(tr("Added {0}'s spending.", who))
-                } catch (e: com.owl.tracker.data.HouseholdException) { say(problemText(e.problem)) }
+                var problem: com.owl.tracker.data.HouseholdException.Problem? = null
+                var same = false
+                var who = ""
+                changeHouse { cur ->
+                    try {
+                        val updated = com.owl.tracker.data.Households.apply(cur, file, today())
+                        same = updated == cur
+                        who = updated.others.maxByOrNull { it.updatedAt }?.name ?: ""
+                        updated
+                    } catch (e: com.owl.tracker.data.HouseholdException) { problem = e.problem; cur }
+                }
+                problem?.let { say(problemText(it)); return@launch }
+                go(Screen.HOUSEHOLD)
+                say(if (same) tr("You already have this update.") else tr("Added {0}'s spending.", who))
             }
         }
     }
@@ -818,19 +830,17 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun setHouseBudget(paise: Long) = viewModelScope.launch {
-        val h = household.value ?: return@launch
-        writeHouse(h.copy(budgetPaise = paise.coerceAtLeast(0), budgetAt = c.clock.millis()))
+        if (household.value == null) return@launch
+        changeHouse { it.copy(budgetPaise = paise.coerceAtLeast(0), budgetAt = c.clock.millis()) }
         say(tr("Household budget saved. It reaches the others with your next update."))
     }
 
     fun setHouseShareAll(all: Boolean) = viewModelScope.launch {
-        val h = household.value ?: return@launch
-        writeHouse(h.copy(shareAll = all))
+        changeHouse { it.copy(shareAll = all) }
     }
 
     fun removeHouseMember(id: String) = viewModelScope.launch {
-        val h = household.value ?: return@launch
-        writeHouse(h.copy(others = h.others.filterNot { it.id == id }))
+        changeHouse { h -> h.copy(others = h.others.filterNot { it.id == id }) }
     }
 
     fun leaveHousehold() = viewModelScope.launch {

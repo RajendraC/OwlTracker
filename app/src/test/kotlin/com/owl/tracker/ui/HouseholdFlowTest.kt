@@ -81,9 +81,12 @@ class HouseholdFlowTest {
             val today = vm.today()
             val bytes = Households.update(priya, app.container.clock.millis(), mapOf(today to mapOf(Cat.GROCERIES to 1300_00L)), emptyMap(),
                 listOf(HousePayment(today, "DMart", 1300_00, Cat.GROCERIES)))
-            runOnUiThread { vm.openHouseBytes(bytes) }
-            waitUntil(5_000) { vm.houseView.value?.people?.size == 2 }
-            assertEquals(2000_00L, vm.houseView.value!!.totalPaise)
+            // Amma's update opened straight after: both stick
+            val amma = Households.join(invite, "Amma", shareAll = false)
+            val fromAmma = Households.update(amma, app.container.clock.millis(), mapOf(today to mapOf(Cat.GROCERIES to 500_00L)), emptyMap(), emptyList())
+            runOnUiThread { vm.openHouseBytes(bytes); vm.openHouseBytes(fromAmma) }
+            waitUntil(5_000) { vm.houseView.value?.people?.size == 3 }
+            assertEquals(2500_00L, vm.houseView.value!!.totalPaise)
             waitForTag("house_person_1")
             tapTag("house_person_1")
             waitForTag("house_payments_1")
