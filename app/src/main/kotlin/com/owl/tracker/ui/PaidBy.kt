@@ -1,6 +1,7 @@
 package com.owl.tracker.ui
 
 import com.owl.tracker.i18n.tr
+import com.owl.tracker.i18n.trn
 import com.owl.tracker.data.Category
 import com.owl.tracker.data.CategoryTree
 import com.owl.tracker.data.Source
@@ -45,7 +46,7 @@ data class PaidAccount(
 
     /** "Credit card · 38 payments" */
     val note: String
-        get() = kind.label + " · ${payments.size} ${if (payments.size == 1) "payment" else "payments"}"
+        get() = kind.label + " · ${trn(payments.size, "{0} payment", "{0} payments")}"
 }
 
 /**

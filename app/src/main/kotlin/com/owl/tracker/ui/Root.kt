@@ -198,7 +198,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
                 title = { Text(tr("Delete {0} {1}?", n, if (n == 1) tr("transaction") else tr("transactions"))) },
                 text = {
                     Text(
-                        "$what, with their saved SMS copies, will be erased from Owl Tracker. This can't be undone.\n\n" +
+                        tr("{0}, with their saved SMS copies, will be erased from Owl Tracker. This can't be undone.", what) + "\n\n" +
                             tr("Stays: manual entries, categories, rules and budgets. Your SMS inbox isn't touched.")
                     )
                 },

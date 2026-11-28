@@ -1,6 +1,7 @@
 package com.owl.tracker.ui.screens
 
 import com.owl.tracker.i18n.tr
+import com.owl.tracker.i18n.trn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -183,7 +184,7 @@ fun RulesScreen(vm: AppViewModel) {
                                         com.owl.tracker.core.RuleMatch.VPA -> tr("UPI ID")
                                         com.owl.tracker.core.RuleMatch.KEYWORD -> tr("Names containing it")
                                     },
-                                    "${r.payments} ${if (r.payments == 1) "payment" else "payments"}",
+                                    "${trn(r.payments, "{0} payment", "{0} payments")}",
                                     tr("made ") + java.time.Instant.ofEpochMilli(r.createdAt).atZone(java.time.ZoneId.systemDefault()).format(made),
                                 ).joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

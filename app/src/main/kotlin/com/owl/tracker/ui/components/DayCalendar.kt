@@ -1,6 +1,7 @@
 package com.owl.tracker.ui.components
 
 import com.owl.tracker.i18n.tr
+import com.owl.tracker.i18n.trn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -313,10 +314,10 @@ fun FillLegend(share: DayShare, modifier: Modifier = Modifier, noSpendDays: Int 
 
 private fun dayDescription(d: DayTotal, budgeted: Boolean): String =
     dayTitle(d.date) + when (d.level) {
-        DayLevel.FUTURE -> ", still to come"
-        DayLevel.NONE -> ", nothing spent"
-        else -> ", ${Money.formatInr(d.paise)}, ${levelName(d.level, budgeted).lowercase()}" +
-            (if (d.fixedPaise > 0) ", with ${Money.formatInr(d.fixedPaise)} of EMI or rent" else "")
+        DayLevel.FUTURE -> ", " + tr("still to come")
+        DayLevel.NONE -> ", " + tr("nothing spent")
+        else -> ", ${Money.formatInr(d.paise)}, ${levelName(d.level, budgeted).lowercase(com.owl.tracker.i18n.I18n.locale)}" +
+            (if (d.fixedPaise > 0) ", " + tr("with {0} of EMI or rent", Money.formatInr(d.fixedPaise)) else "")
     }
 
 /** The week's seven days as circles, with the day's name above and what was spent below. Tap a day to see only it. */
@@ -407,7 +408,7 @@ fun MonthCalendarCard(
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val thisWeek = com.owl.tracker.core.Weeks.startOf(today)
     Panel(modifier = modifier.testTag("month_calendar"), padding = 12.dp) {
-        Text("$title, week by week", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 4.dp).semantics { heading() })
+        Text(tr("{0}, week by week", title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 4.dp).semantics { heading() })
         Text(
             tr("Each day fills with what it spent · tap a day to see where it went · tap a week's total to open the week"), style = MaterialTheme.typography.bodySmall, color = muted,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
@@ -416,7 +417,8 @@ fun MonthCalendarCard(
         // A grid of fixed circles: with big text its numbers and totals grow only a little, then get smaller to fit
         CapFontScale(1.2f) { Column {
         Row(Modifier.fillMaxWidth()) {
-            listOf("S", "M", "T", "W", "T", "F", "S").forEach {
+            // Day letters in the app's language, Sunday first
+            (listOf(java.time.DayOfWeek.SUNDAY) + java.time.DayOfWeek.entries.take(6)).map { it.getDisplayName(java.time.format.TextStyle.NARROW, com.owl.tracker.i18n.I18n.locale) }.forEach {
                 Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
             }
             FitText(tr("Week"), Modifier.width(WEEK_COL).padding(end = 6.dp), textAlign = TextAlign.End, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold), color = muted)
@@ -556,7 +558,7 @@ fun DayFilterBar(day: DayTotal, payments: Int, share: DayShare?, today: LocalDat
                         Text(Money.formatInr(day.fixedPaise), style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                     }
                 }
-                Text("$payments ${if (payments == 1) "payment" else "payments"}", style = MaterialTheme.typography.bodySmall, color = muted)
+                Text("${trn(payments, "{0} payment", "{0} payments")}", style = MaterialTheme.typography.bodySmall, color = muted)
             }
             IconButton(onClick = onClear, modifier = Modifier.testTag("day_filter_clear")) {
                 Icon(Ic.close, contentDescription = tr("Show every day again"), modifier = Modifier.size(20.dp))

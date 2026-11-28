@@ -1,6 +1,7 @@
 package com.owl.tracker.ui.screens
 
 import com.owl.tracker.i18n.tr
+import com.owl.tracker.i18n.trn
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -205,8 +206,8 @@ private fun RestorePanel(vm: AppViewModel, ui: BackupUi, newPhone: Boolean, onPi
             Gap(10.dp)
             Text(
                 tr("Restored {0} {1}", r.added, if (r.added == 1) tr("payment") else tr("payments")) +
-                    (if (r.skipped > 0) ", skipped ${r.skipped} already here" else "") +
-                    (if (r.categoriesAdded > 0) ", added ${r.categoriesAdded} ${if (r.categoriesAdded == 1) "category" else "categories"}" else "") + ".",
+                    (if (r.skipped > 0) ", " + tr("skipped {0} already here", r.skipped) else "") +
+                    (if (r.categoriesAdded > 0) ", " + tr("added {0}", trn(r.categoriesAdded, "{0} category", "{0} categories")) else "") + ".",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.testTag("restore_done"),
             )
         }
@@ -218,7 +219,7 @@ private fun Summary(vm: AppViewModel, c: BackupContent) {
     val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", com.owl.tracker.i18n.I18n.locale)
     val span = if (c.firstAt != null && c.lastAt != null) "${vm.dateOf(c.firstAt!!).format(fmt)} – ${vm.dateOf(c.lastAt!!).format(fmt)}" else tr("no payments")
     Column(Modifier.testTag("restore_summary")) {
-        Text("${c.transactions.size} ${if (c.transactions.size == 1) "payment" else "payments"} · $span", style = MaterialTheme.typography.titleSmall)
+        Text("${trn(c.transactions.size, "{0} payment", "{0} payments")} · $span", style = MaterialTheme.typography.titleSmall)
         Text(
             tr("{0} categories · {1} budgets · {2} rules", c.categories.size, c.budgets.size, c.rules.size),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

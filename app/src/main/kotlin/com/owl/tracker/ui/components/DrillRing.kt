@@ -1,6 +1,7 @@
 package com.owl.tracker.ui.components
 
 import com.owl.tracker.i18n.tr
+import com.owl.tracker.i18n.trn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -454,7 +455,7 @@ fun DrillRingCard(
                         when {
                             focus != null -> "${(focus.share * 100).toInt()}%" + if (pick != null) tr(" of {0}", pick.name) else tr(" of spending")
                             pick != null -> tr("{0}% of ", (pickShare * 100).toInt()) + (if (!inGroup && groupName != null) groupName else "spending")
-                            else -> "${slices.size} ${if (slices.size == 1) "category" else "categories"}"
+                            else -> "${trn(slices.size, "{0} category", "{0} categories")}"
                         },
                         style = MaterialTheme.typography.labelSmall, color = muted, textAlign = TextAlign.Center, maxLines = 2, minScale = 0.75f,
                     )
@@ -565,7 +566,7 @@ fun DrillRingCard(
                 val shown = payments.take(20)
                 Column(Modifier.fillMaxWidth().testTag("ring_payments")) {
                     Text(
-                        "$paymentCount ${if (paymentCount == 1) "payment" else "payments"}" +
+                        "${trn(paymentCount, "{0} payment", "{0} payments")}" +
                             (if (paymentCount > shown.size) tr(" · newest {0} here", shown.size) + (if (moreBelow) ", all of them below" else "") else ""),
                         style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.padding(start = 6.dp, bottom = 4.dp),
                     )

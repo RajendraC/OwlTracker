@@ -73,7 +73,7 @@ private fun WeekDots(st: Streak) {
     }
 }
 
-private fun dayWord(n: Int) = if (n == 1) "day" else "days"
+private fun dayWord(n: Int) = if (n == 1) tr("day") else tr("days")
 
 /** Home: days in a row within the share, the last seven days, and how many badges. Opens the Streaks page. */
 @Composable

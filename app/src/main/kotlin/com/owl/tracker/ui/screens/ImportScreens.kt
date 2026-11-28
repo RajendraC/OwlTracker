@@ -1,6 +1,7 @@
 package com.owl.tracker.ui.screens
 
 import com.owl.tracker.i18n.tr
+import com.owl.tracker.i18n.trn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -141,7 +142,7 @@ fun ImportFiltersScreen(vm: AppViewModel) {
                                     Text(g.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(g.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(
-                                        "$n ${if (n == 1) "transaction" else "transactions"}" + if (on) "" else tr(" · left out"),
+                                        "${trn(n, "{0} transaction", "{0} transactions")}" + if (on) "" else tr(" · left out"),
                                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
                                         color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     )

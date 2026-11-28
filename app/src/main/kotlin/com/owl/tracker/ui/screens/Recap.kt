@@ -1,6 +1,7 @@
 package com.owl.tracker.ui.screens
 
 import com.owl.tracker.i18n.tr
+import com.owl.tracker.i18n.trn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -186,7 +187,7 @@ private fun recapCards(r: Recap): List<RecapCard> = buildList {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(tr("Your top merchant"), color = Cream, style = MaterialTheme.typography.titleMedium)
             Big(r.topMerchant)
-            Line("${r.topMerchantCount} ${if (r.topMerchantCount == 1) "payment" else "payments"}, ${Money.formatInr(r.topMerchantPaise)} in all.")
+            Line("${trn(r.topMerchantCount, "{0} payment", "{0} payments")}, ${Money.formatInr(r.topMerchantPaise)} in all.")
         }
     })
     r.topCategory?.let { c ->

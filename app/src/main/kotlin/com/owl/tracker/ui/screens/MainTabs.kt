@@ -1,6 +1,7 @@
 package com.owl.tracker.ui.screens
 
 import com.owl.tracker.i18n.tr
+import com.owl.tracker.i18n.trn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -789,7 +790,7 @@ private fun BudgetCard(vm: AppViewModel, dash: com.owl.tracker.ui.Dashboard, pla
             val left = -over
             val pace = if (dash.isCurrent && used < 1) dash.dayNumber.toFloat() / dash.period.days else null
             val centre = if (used > 1) String.format(java.util.Locale.ROOT, "%.1f×", used) else "${(used * 100).toInt()}%"
-            val centreSub = if (used > 1) tr("the budget") else "used"
+            val centreSub = if (used > 1) tr("the budget") else tr("used")
             val chips: List<Pair<String, String>> = when {   // text to kind (ok, warn, over, plain)
                 over > 0 && dash.isCurrent -> listOf(tr("Over by {0}", Money.formatInr(over)) to "over")
                 over > 0 -> listOf(tr("Went over by {0}", Money.formatInr(over)) to "over")
@@ -1088,7 +1089,7 @@ private fun WeekCard(vm: AppViewModel, week: com.owl.tracker.ui.WeekView, picked
                     val count = week.txns.count { !it.isMoneyIn }
                     Text(
                         if (week.fixed > 0) tr("Everyday {0} · EMIs and rent {1}", Money.formatInr(week.spent - week.fixed), Money.formatInr(week.fixed))
-                        else "$count ${if (count == 1) "payment" else "payments"}",
+                        else "${trn(count, "{0} payment", "{0} payments")}",
                         style = MaterialTheme.typography.bodySmall, color = muted,
                     )
                     if (c != null) {
@@ -1371,7 +1372,7 @@ fun ActivityScreen(vm: AppViewModel) {
     val groups = list.groupBy { vm.dateOf(it.occurredAt) }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenHeader(tr("Activity"), "${d?.label ?: ""} · ${list.size} ${if (list.size == 1) "transaction" else "transactions"}")
+        ScreenHeader(tr("Activity"), "${d?.label ?: ""} · ${trn(list.size, "{0} transaction", "{0} transactions")}")
         OutlinedTextField(
             value = q, onValueChange = { vm.query.value = it },
             placeholder = { Text(tr("Search merchant, category or note")) },

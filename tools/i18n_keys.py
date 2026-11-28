@@ -16,6 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'app/src/main/kotlin')
 LANG_DIR = os.path.join(ROOT, 'app/src/main/assets/i18n')
 CALL = re.compile(r'\btr\(\s*"((?:[^"\\]|\\.)*)"')
+PLURAL = re.compile(r'\btrn\([^"]*?"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"')
 
 
 def unescape(s):
@@ -45,6 +46,9 @@ def keys():
         for m in CALL.finditer(text):
             k = unescape(m.group(1))
             found.setdefault(k, os.path.relpath(path, SRC))
+        for m in PLURAL.finditer(text):
+            for g in (1, 2):
+                found.setdefault(unescape(m.group(g)), os.path.relpath(path, SRC))
     return found
 
 

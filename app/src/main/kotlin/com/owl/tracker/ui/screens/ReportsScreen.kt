@@ -1,6 +1,7 @@
 package com.owl.tracker.ui.screens
 
 import com.owl.tracker.i18n.tr
+import com.owl.tracker.i18n.trn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -453,7 +454,7 @@ private fun IeRow(line: IeLine, moneyIn: Boolean) {
             Text(c?.name ?: tr("Others"), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val what = if (moneyIn && c?.kind != com.owl.tracker.data.CategoryKind.INCOME) tr("refunds and money back") else null
             Text(
-                listOfNotNull(what, "${line.count} ${if (line.count == 1) "payment" else "payments"}").joinToString(" · "),
+                listOfNotNull(what, "${trn(line.count, "{0} payment", "{0} payments")}").joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -727,7 +728,7 @@ private fun MerchantCard(r: Report, catMap: Map<String, Category>, vm: AppViewMo
                 MerchantAvatar(vm.appIcons, m.pkg, m.name, catMap[m.categoryId], 40.dp)
                 Column(Modifier.weight(1f)) {
                     Text(m.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${m.count} ${if (m.count == 1) "payment" else "payments"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${trn(m.count, "{0} payment", "{0} payments")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Gap(4.dp)
                     Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
                         val frac by animateFloatAsState((m.paise.toFloat() / top).coerceIn(0.02f, 1f), tween(500, easing = SettleEasing), label = "merchant")

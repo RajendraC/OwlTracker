@@ -272,8 +272,8 @@ fun OrbitOwlStage(
                                 contentDescription = if (b.id == MORE) tr("{0} more categories", more) else
                                     b.name + ", " + Money.formatInr(b.paise) + when {
                                         b.use == null -> ""
-                                        over -> ", over its budget"
-                                        else -> ", ${(b.use * 100).roundToInt()}% of its budget"
+                                        over -> ", " + tr("over its budget")
+                                        else -> ", " + tr("{0}% of its budget", (b.use * 100).roundToInt())
                                     }
                             }
                             .testTag("orbit_${b.id}"),

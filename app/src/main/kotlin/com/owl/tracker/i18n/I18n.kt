@@ -78,3 +78,6 @@ object I18n {
 
 /** The text in the current language. English is the key; see [I18n]. */
 fun tr(en: String, vararg args: Any?): String = I18n.tr(en, args)
+
+/** A count with its word: `trn(n, "{0} payment", "{0} payments")`. Each form is its own text to translate. */
+fun trn(n: Int, one: String, many: String): String = if (n == 1) I18n.tr(one, arrayOf(n)) else I18n.tr(many, arrayOf(n))
