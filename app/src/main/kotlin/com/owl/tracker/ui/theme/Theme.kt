@@ -247,8 +247,8 @@ private fun appFont(context: Context): FontFamily {
  */
 private fun displayFont(context: Context, body: FontFamily): FontFamily {
     val lang = com.owl.tracker.i18n.I18n.lang
-    // Bengali, Tamil and Telugu headings: the phone's own font for the script (Noto), as Fraunces has none of them
-    if (lang in setOf("bn", "ta", "te")) return body
+    // Bengali, Tamil, Telugu and Kannada headings: the phone's own font for the script (Noto), as Fraunces has none of them
+    if (lang in setOf("bn", "ta", "te", "kn")) return body
     // Hindi and Marathi headings: Baloo 2 (SIL OFL, assets/fonts/OFL-Baloo2.txt), rounded like the owl, with Latin and Devanagari
     if (lang in setOf("hi", "mr") && runCatching { context.resources.getFont(R.font.baloo2_bold) }.getOrNull() != null) {
         return FontFamily(

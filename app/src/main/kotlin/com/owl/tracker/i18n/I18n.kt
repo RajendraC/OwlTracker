@@ -22,6 +22,7 @@ object I18n {
         Language("bn", "বাংলা", "Bengali"),
         Language("ta", "தமிழ்", "Tamil"),
         Language("te", "తెలుగు", "Telugu"),
+        Language("kn", "ಕನ್ನಡ", "Kannada"),
     )
 
     @Volatile var lang: String = "en"

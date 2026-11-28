@@ -241,7 +241,7 @@ object WhatsNew {
 
     private val NOTES: Map<String, List<Item>> = mapOf(
         "1.9.35" to listOf(
-            Item(tr("Four more languages"), tr("Owl Tracker now speaks मराठी, বাংলা, தமிழ் and తెలుగు too. Pick one on the first screen or in Settings → Appearance → Language.")),
+            Item(tr("Five more languages"), tr("Owl Tracker now speaks मराठी, বাংলা, தமிழ், తెలుగు and ಕನ್ನಡ too. Pick one on the first screen or in Settings → Appearance → Language.")),
         ),
         "1.9.34" to listOf(
             Item(tr("Salary day"), tr("When your salary comes in, the owl offers to put a tenth of it into a goal before the month takes it. If it comes on the same day each month, it offers to start your budget months then too.")),

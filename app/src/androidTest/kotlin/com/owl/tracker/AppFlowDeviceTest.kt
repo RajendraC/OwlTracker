@@ -1,6 +1,8 @@
 package com.owl.tracker
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.owl.tracker.ui.MainActivity
@@ -43,6 +45,9 @@ class AppFlowDeviceTest {
             tapTag("get_started")
             tapTag("not_now")
             setMonthlyTotal("1000")
+            // the keyboard can cover the button on small screens: close it and bring the button into view
+            androidx.test.espresso.Espresso.closeSoftKeyboard()
+            runCatching { onNodeWithTag("save_budget").performScrollTo() }
             tapTag("save_budget")
             waitForText("SMS import is off", timeoutMs = 20_000)
 
