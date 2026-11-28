@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.owl.tracker.AppContainer
 import com.owl.tracker.data.AppSettings
 import com.owl.tracker.data.Category
+import com.owl.tracker.data.CategoryTree
 import com.owl.tracker.data.Repository
 import com.owl.tracker.data.Schema
 import com.owl.tracker.data.Txn
@@ -79,7 +80,7 @@ data class Recap(
 enum class Screen(val tab: Tab? = null) {
     WELCOME, DISCLOSURE, IMPORT_FILTERS, IMPORT_REVIEW, IMPORTING, BUDGET_SETUP,
     HOME(Tab.HOME), ACTIVITY(Tab.ACTIVITY), BUDGETS(Tab.BUDGETS), MORE(Tab.MORE),
-    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES, ADJUST_BUDGETS, STREAKS, BILLS, GOALS,
+    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES, ADJUST_BUDGETS, STREAKS, BILLS, GOALS, EVENTS, EVENT,
 }
 
 sealed interface Sheet {
@@ -93,6 +94,8 @@ sealed interface Sheet {
     data class GoalEdit(val id: String?) : Sheet
     /** Putting money into a goal's jar ([suggest]: an amount to offer, like last month's leftover). */
     data class GoalAdd(val id: String, val suggest: Long = 0) : Sheet
+    /** A new event budget (Diwali, a wedding, a trip), or changing one ([id]). */
+    data class EventEdit(val id: String?) : Sheet
     data class Split(val txId: Long) : Sheet
     data class Rename(val txId: Long) : Sheet
     data class MerchantIcon(val txId: Long) : Sheet
@@ -620,6 +623,130 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         _sheet.value = null
         say(tr("Removed {0}", g.name))
     }
+
+    // ---------------- Event budgets ----------------
+
+    val events: StateFlow<List<com.owl.tracker.data.EventBudget>> = settings.map { com.owl.tracker.data.Events.fromJson(it?.events) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** An event with what it has gathered so far. */
+    data class EventStatus(val event: com.owl.tracker.data.EventBudget, val spend: com.owl.tracker.data.EventSpend)
+
+    /** Every event's spending, kept up to date as payments come in or move. */
+    val eventStatus: StateFlow<Map<String, EventStatus>> = events
+        .flatMapLatest { list ->
+            if (list.isEmpty()) kotlinx.coroutines.flow.flowOf(emptyMap())
+            else combine(repo.observeTransactions(startMs(list.minOf { it.start }), startMs(list.maxOf { it.end }.plusDays(1))), categories) { txns, cats ->
+                val tree = CategoryTree(cats)
+                list.associate { e -> e.id to EventStatus(e, com.owl.tracker.data.Events.spend(e, txns, tree) { dateOf(it.occurredAt) }) }
+            }
+        }
+        .catch { emit(emptyMap()) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    private fun dateOf(ms: Long): LocalDate = java.time.Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
+
+    /** The event the Event screen shows. */
+    val shownEvent = MutableStateFlow<String?>(null)
+
+    fun openEvent(id: String) { shownEvent.value = id; go(Screen.EVENT) }
+
+    private fun saveEvents(transform: (List<com.owl.tracker.data.EventBudget>) -> List<com.owl.tracker.data.EventBudget>) = viewModelScope.launch {
+        repo.updateSettings { s -> s.copy(events = com.owl.tracker.data.Events.toJson(transform(com.owl.tracker.data.Events.fromJson(s.events)))) }
+    }
+
+    fun saveEvent(id: String?, template: String, name: String, start: LocalDate, end: LocalDate, budgetPaise: Long, categories: Set<String>) {
+        if (name.isBlank() || budgetPaise <= 0 || end.isBefore(start) || categories.isEmpty()) return
+        val emoji = com.owl.tracker.data.Events.template(template).emoji
+        saveEvents { list ->
+            if (id == null) {
+                if (list.size >= com.owl.tracker.data.Events.MAX) list
+                else list + com.owl.tracker.data.EventBudget(java.util.UUID.randomUUID().toString().take(12), template, name.trim().take(40), emoji, start, end, budgetPaise, categories)
+            } else list.map { if (it.id == id) it.copy(template = template, name = name.trim().take(40), emoji = emoji, start = start, end = end, budgetPaise = budgetPaise, categories = categories) else it }
+        }
+        _sheet.value = null
+        say(if (id == null) tr("{0} budget started", name.trim()) else tr("Event saved"))
+    }
+
+    fun deleteEvent(id: String) {
+        val e = events.value.firstOrNull { it.id == id } ?: return
+        saveEvents { list -> list.filter { it.id != id } }
+        _sheet.value = null
+        if (shownEvent.value == id) back()
+        say(tr("Removed {0}", e.name))
+    }
+
+    /** Events whose dates include payment [t]: the ones its detail offers to move it in or out of. */
+    fun eventsFor(t: Txn): List<com.owl.tracker.data.EventBudget> {
+        val day = dateOf(t.occurredAt)
+        return if (t.isMoneyIn) emptyList() else events.value.filter { it.covers(day) }
+    }
+
+    fun inEvent(e: com.owl.tracker.data.EventBudget, t: Txn): Boolean =
+        com.owl.tracker.data.Events.contains(e, t, CategoryTree(categories.value), dateOf(t.occurredAt))
+
+    fun setInEvent(eventId: String, t: Txn, inIt: Boolean) {
+        val tree = CategoryTree(categories.value)
+        saveEvents { list -> list.map { if (it.id == eventId) com.owl.tracker.data.Events.move(it, t, inIt, tree) else it } }
+        events.value.firstOrNull { it.id == eventId }?.let { say(if (inIt) tr("Added to {0}", it.name) else tr("Taken out of {0}", it.name)) }
+    }
+
+    /** Home: events on now or starting within two weeks, soonest first. */
+    fun eventsOnHome(map: Map<String, EventStatus>): List<EventStatus> {
+        val t = today()
+        return map.values.filter { !it.event.isOver(t) && !it.event.start.isAfter(t.plusDays(14)) }.sortedBy { it.event.start }
+    }
+
+    /** What an event that ended in the last week came to, once, for Home's wrap-up card. */
+    data class EventWrap(val status: EventStatus, val before: Long?, val goal: com.owl.tracker.data.Goal?)
+
+    fun eventWrap(map: Map<String, EventStatus>, goals: List<com.owl.tracker.data.Goal>): EventWrap? {
+        if (!homeOffersOn) return null
+        val t = today()
+        val done = map.values.filter { it.event.isOver(t) && !it.event.end.isBefore(t.minusDays(7)) && !nudgePrefs.getBoolean("event_done_${it.event.id}", false) }
+            .maxByOrNull { it.event.end } ?: return null
+        val before = map.values.filter { it.event.template == done.event.template && it.event.template != "other" && it.event.end.isBefore(done.event.start) }
+            .maxByOrNull { it.event.end }?.spend?.totalPaise
+        return EventWrap(done, before, goals.firstOrNull { !it.done })
+    }
+
+    fun closeEventWrap(id: String) { nudgePrefs.edit().putBoolean("event_done_$id", true).apply(); eventTick.value++ }
+
+    /** Bumped when Home's event cards change without the events themselves changing. */
+    val eventTick = MutableStateFlow(0)
+
+    /** A festival coming up, to offer its own budget: its template and how many days away it is. */
+    data class FestivalOffer(val template: String, val start: LocalDate, val daysAway: Int)
+
+    /**
+     * Within three weeks of Diwali or Christmas, with no event for it yet: an offer to give it a budget (once a
+     * festival, and never with sample data).
+     */
+    fun festivalOffer(map: Map<String, EventStatus>): FestivalOffer? {
+        if (!homeOffersOn || settings.value?.sampleData != false) return null
+        val t = today()
+        return listOf("diwali", "christmas").firstNotNullOfOrNull { key ->
+            val (start, end) = com.owl.tracker.data.Events.suggestDates(key, t)
+            val main = if (key == "diwali") start.plusDays(7) else start.plusDays(7)
+            val away = java.time.temporal.ChronoUnit.DAYS.between(t, main).toInt()
+            val have = map.values.any { it.event.template == key && !it.event.end.isBefore(start) && !it.event.start.isAfter(end) }
+            if (away in 0..21 && !have && !nudgePrefs.getBoolean("festival_${key}_${main.year}", false)) FestivalOffer(key, start, away) else null
+        }
+    }
+
+    fun closeFestival(f: FestivalOffer) {
+        nudgePrefs.edit().putBoolean("festival_${f.template}_${f.start.plusDays(7).year}", true).apply(); eventTick.value++
+    }
+
+    /** The new-event sheet opens on this template once (from the festival offer). */
+    var eventTemplate: String? = null
+
+    fun startFestival(f: FestivalOffer) { closeFestival(f); eventTemplate = f.template; openSheet(Sheet.EventEdit(null)) }
+
+    /** What the person spent on the last event of [template] that has ended, for the new-event sheet. */
+    fun lastSpentOn(template: String): Long? = eventStatus.value.values
+        .filter { it.event.template == template && template != "other" && it.event.isOver(today()) }
+        .maxByOrNull { it.event.end }?.spend?.totalPaise
 
     /**
      * In the new month's first week: what was left of last month's budget, to offer to a goal (once). Null without

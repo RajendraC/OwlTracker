@@ -49,6 +49,8 @@ data class BackupContent(
     val categoriesVersion: Int = 2,
     /** Savings goals (JSON, checked on reading). Absent in backups from before 1.9.29. */
     val goals: String = "[]",
+    /** Event budgets (JSON, checked on reading). Absent in backups from before 1.9.36. */
+    val events: String = "[]",
 ) {
     val firstAt: Long? get() = transactions.minOfOrNull { it.occurredAt }
     val lastAt: Long? get() = transactions.maxOfOrNull { it.occurredAt }
@@ -120,6 +122,7 @@ object BackupCodec {
         return BackupContent(
             now, appVersion, s.settings.budgetStartDay, s.categories, s.budgets, rules, txns, merchants,
             pictures.filterKeys { it in used }, s.settings.categoriesVersion, com.owl.tracker.data.Goals.toJson(com.owl.tracker.data.Goals.fromJson(s.settings.goals)),
+            com.owl.tracker.data.Events.toJson(com.owl.tracker.data.Events.fromJson(s.settings.events)),
         )
     }
 
@@ -170,7 +173,7 @@ object BackupCodec {
     private fun payloadJson(c: BackupContent, zone: ZoneId): JSONObject {
         val stamp = DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(zone)
         return JSONObject()
-            .put("settings", JSONObject().put("budgetStartDay", c.budgetStartDay).put("categoriesVersion", c.categoriesVersion).put("goals", JSONArray(c.goals)))
+            .put("settings", JSONObject().put("budgetStartDay", c.budgetStartDay).put("categoriesVersion", c.categoriesVersion).put("goals", JSONArray(c.goals)).put("events", JSONArray(c.events)))
             .put("categories", JSONArray().apply {
                 c.categories.forEach { cat ->
                     put(
@@ -288,6 +291,7 @@ object BackupCodec {
         val categoriesVersion = p.optJSONObject("settings")?.optInt("categoriesVersion", 2)?.coerceIn(1, 1000) ?: 2
         // Goals: re-read and re-written, so only well-formed, limited fields come through
         val goals = com.owl.tracker.data.Goals.toJson(com.owl.tracker.data.Goals.fromJson(p.optJSONObject("settings")?.optJSONArray("goals")?.toString() ?: "[]"))
+        val events = com.owl.tracker.data.Events.toJson(com.owl.tracker.data.Events.fromJson(p.optJSONObject("settings")?.optJSONArray("events")?.toString() ?: "[]"))
 
         val catsJson = p.optJSONArray("categories") ?: JSONArray()
         if (catsJson.length() > MAX_CATEGORIES) throw BackupException(BackupException.Problem.TOO_LARGE)
@@ -401,6 +405,7 @@ object BackupCodec {
             pictures = pictures,
             categoriesVersion = categoriesVersion,
             goals = goals,
+            events = events,
         )
     }
 

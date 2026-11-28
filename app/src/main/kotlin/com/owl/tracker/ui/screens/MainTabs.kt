@@ -219,6 +219,12 @@ fun HomeScreen(vm: AppViewModel) {
     androidx.compose.runtime.LaunchedEffect(dash.period.start, settings?.budgetStartDay) { vm.loadSalaries() }
     val salaryTick by vm.salaryTick.collectAsStateWithLifecycle()
     val salary = salaryTick.let { if (dash.isCurrent) vm.salaryOffer(settings, goals) else null }
+    // Event budgets: the ones on now or soon, a wrap-up after one ends, and an offer before Diwali or Christmas
+    val eventMap by vm.eventStatus.collectAsStateWithLifecycle()
+    val eventTick by vm.eventTick.collectAsStateWithLifecycle()
+    val homeEvents = if (dash.isCurrent) vm.eventsOnHome(eventMap) else emptyList()
+    val eventWrap = eventTick.let { if (dash.isCurrent) vm.eventWrap(eventMap, goals) else null }
+    val festival = eventTick.let { if (dash.isCurrent) vm.festivalOffer(eventMap) else null }
     var askNudges by remember(settings?.onboarded) { androidx.compose.runtime.mutableStateOf(vm.askForNudges(settings)) }
     val paidTab = wholeMonth && whereView == "paid" && openGroup == null && openCat == null
     androidx.activity.compose.BackHandler(enabled = paidTab && openPaid != null) { openPaid = null }
@@ -236,7 +242,8 @@ fun HomeScreen(vm: AppViewModel) {
         (if (access is Access.Trial || !access.canEdit) 1 else 0) +
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
         (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0) + (if (recapOffer != null) 1 else 0) + (if (askNudges) 1 else 0) +
-        (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0) + (if (showBills) 1 else 0) + (if (showGoals) 1 else 0) + (if (leftover != null) 1 else 0) + (if (reportOffer != null) 1 else 0) + (if (salary != null) 1 else 0)
+        (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0) + (if (showBills) 1 else 0) + (if (showGoals) 1 else 0) + (if (leftover != null) 1 else 0) + (if (reportOffer != null) 1 else 0) + (if (salary != null) 1 else 0) +
+        homeEvents.size + (if (eventWrap != null) 1 else 0) + (if (festival != null) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
     // the status bar readable, and a card scrolled to stops just below it
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -312,6 +319,9 @@ fun HomeScreen(vm: AppViewModel) {
             reportOffer?.let { month -> item(key = "report_offer") { ReportOfferCard(vm, month, { vm.shareMonthly(); reportTick++ }, { vm.reportOfferDone(); reportTick++ }, side) } }
             // Salary day: put some aside, and start budget months then
             salary?.let { o -> item(key = "salary") { SalaryCard(vm, o, settings?.budgetStartDay ?: 1, side) } }
+            homeEvents.forEach { st -> item(key = "event_${st.event.id}") { EventHomeCard(vm, st, side) } }
+            eventWrap?.let { w -> item(key = "event_wrap") { EventWrapCard(vm, w, side) } }
+            festival?.let { f -> item(key = "festival") { FestivalOfferCard(vm, f, side) } }
             // Last month's leftover, offered to the first goal not yet full (once)
             leftover?.let { (p, left) ->
                 val goal = goals.first { !it.done }

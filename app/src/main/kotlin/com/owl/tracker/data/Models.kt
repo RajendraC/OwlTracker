@@ -234,6 +234,8 @@ data class AppSettings(
     val cardCreditKinds: String = "{}",
     /** Savings goals, as JSON (`Goals.fromJson`): name, picture, target, set aside, by when. Kept in backups. */
     val goals: String = "[]",
+    /** Event budgets (Diwali, a wedding, a trip), as JSON (`Events.fromJson`). Kept in backups. */
+    val events: String = "[]",
     /** The colours picked in Settings (`Palette.key`). */
     val palette: String = "cream",
     /** How the owl reacts to what you do: "lively" (hops, confetti), "calm" (its face only) or "off". */
@@ -267,6 +269,7 @@ data class AppSettings(
         "card_payments" to cardPayments,
         "card_credit_kinds" to cardCreditKinds,
         "goals" to goals,
+        "events" to events,
         "palette" to palette,
         "owl_reacts" to owlReacts,
         "ignored_bills" to ignoredBills,
@@ -294,6 +297,7 @@ data class AppSettings(
             cardPayments = m["card_payments"] ?: "{}",
             cardCreditKinds = m["card_credit_kinds"] ?: "{}",
             goals = m["goals"] ?: "[]",
+            events = m["events"] ?: "[]",
             palette = m["palette"] ?: "cream",
             owlReacts = m["owl_reacts"]?.takeIf { it in setOf("lively", "calm", "off") } ?: "lively",
             ignoredBills = m["ignored_bills"] ?: "[]",

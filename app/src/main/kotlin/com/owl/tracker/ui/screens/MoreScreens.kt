@@ -118,6 +118,7 @@ fun MoreScreen(vm: AppViewModel) {
             NavRow(Ic.chart, tr("Reports"), tr("Income & expenses, ways to save, trends and more")) { vm.go(Screen.INSIGHTS) }
             Divider()
             NavRow(Ic.jar, tr("Goals"), tr("Jars for what you're saving towards"), modifier = Modifier.testTag("open_goals")) { vm.go(Screen.GOALS) }
+            NavRow(Ic.calendar, tr("Event budgets"), tr("Diwali, a wedding, a trip: its own budget and dates"), modifier = Modifier.testTag("open_events")) { vm.go(Screen.EVENTS) }
             Divider()
             NavRow(Ic.calendar, tr("Bills coming up"), tr("EMIs, rent and subscriptions, found from repeating payments"), modifier = Modifier.testTag("open_bills")) { vm.go(Screen.BILLS) }
             Divider()

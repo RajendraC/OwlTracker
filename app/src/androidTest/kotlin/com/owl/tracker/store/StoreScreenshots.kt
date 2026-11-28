@@ -811,6 +811,35 @@ class StoreScreenshots {
                 shot("98b_salary_card")
                 com.owl.tracker.ui.AppViewModel.homeOffersOn = false
             }
+            section("events") {
+                // An event budget on now: its Home card, its page and the new-event sheet
+                com.owl.tracker.ui.AppViewModel.homeOffersOn = true
+                var today = java.time.LocalDate.now()
+                withVm { today = it.today() }
+                withVm {
+                    it.saveEvent(null, "diwali", "Diwali", today.minusDays(5), today.plusDays(2), 15_000_00,
+                        com.owl.tracker.data.Events.template("diwali").categories.toSet() + com.owl.tracker.core.Cat.SHOPPING + com.owl.tracker.core.Cat.FOOD)
+                }
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(1500)
+                var id = ""
+                withVm { id = it.events.value.firstOrNull()?.id ?: "" }
+                waitForTag("event_card_$id", 20_000)
+                scrollTo(hasTestTag("event_card_$id"), below = 60f)
+                Thread.sleep(800)
+                shot("99a_event_home")
+                withVm { it.openEvent(id) }
+                waitForTag("event_screen", 20_000)
+                Thread.sleep(800)
+                shot("99b_event_screen")
+                withVm { it.openSheet(com.owl.tracker.ui.Sheet.EventEdit(null)) }
+                waitForTag("event_template_diwali", 20_000)
+                Thread.sleep(800)
+                shot("99c_event_new")
+                withVm { it.closeSheet(); it.deleteEvent(id) }
+                com.owl.tracker.ui.AppViewModel.homeOffersOn = false
+                nav(com.owl.tracker.ui.Screen.HOME)
+            }
             section("settings") {
                 nav(Screen.SETTINGS)
                 waitForTag("theme_choice", 20_000)

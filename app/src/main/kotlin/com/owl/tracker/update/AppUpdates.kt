@@ -240,6 +240,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.36" to listOf(
+            Item(tr("Event budgets"), tr("Give Diwali, a wedding or a trip its own budget and dates. Payments in its categories count toward it as well as your month, and you can move any payment in or out. Find it in More → Event budgets.")),
+        ),
         "1.9.35" to listOf(
             Item(tr("Five more languages"), tr("Owl Tracker now speaks मराठी, বাংলা, தமிழ், తెలుగు and ಕನ್ನಡ too. Pick one on the first screen or in Settings → Appearance → Language.")),
         ),

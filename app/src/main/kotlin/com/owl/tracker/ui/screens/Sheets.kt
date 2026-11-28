@@ -106,6 +106,7 @@ fun SheetHost(vm: AppViewModel) {
                 Sheet.Afford -> AffordSheet(vm)
                 is Sheet.GoalEdit -> GoalEditSheet(vm, current.id)
                 is Sheet.GoalAdd -> GoalAddSheet(vm, current.id, current.suggest)
+                is Sheet.EventEdit -> EventEditSheet(vm, current.id)
                 is Sheet.Split -> SplitSheet(vm, current.txId)
                 is Sheet.Rename -> RenameSheet(vm, current.txId)
                 is Sheet.MerchantIcon -> MerchantIconSheet(vm, current.txId)
@@ -326,6 +327,8 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
             )
         }
     }
+    // Event budgets whose dates include it: move it in or out
+    if (!credit) EventToggles(vm, tx)
 
     OutlinedTextField(
         value = note, onValueChange = { note = it },
