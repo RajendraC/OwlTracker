@@ -779,17 +779,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun openHouseBytes(bytes: ByteArray) = viewModelScope.launch {
-        val P = com.owl.tracker.data.HouseholdException.Problem
-        val problemText = { p: com.owl.tracker.data.HouseholdException.Problem ->
-            when (p) {
-                P.NOT_HOUSEHOLD -> tr("That isn't an Owl Tracker household file.")
-                P.OTHER_HOUSEHOLD -> tr("That update is from a different household.")
-                P.DAMAGED -> tr("That file is damaged or from a different household.")
-                P.TOO_NEW -> tr("That file is from a newer Owl Tracker. Update the app, then open it again.")
-                P.FULL -> tr("A household is up to {0} people.", com.owl.tracker.data.Households.MAX_PEOPLE.toString())
-                P.OWN -> tr("That's your own update. Send it to the others in your household.")
-            }
-        }
+        val problemText = ::houseProblemText
         val file = try { com.owl.tracker.data.Households.peek(bytes) } catch (e: com.owl.tracker.data.HouseholdException) { say(problemText(e.problem)); return@launch }
         val h = household.value
         when (file) {
@@ -810,6 +800,15 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
                 } catch (e: com.owl.tracker.data.HouseholdException) { say(problemText(e.problem)) }
             }
         }
+    }
+
+    private fun houseProblemText(p: com.owl.tracker.data.HouseholdException.Problem): String = when (p) {
+        com.owl.tracker.data.HouseholdException.Problem.NOT_HOUSEHOLD -> tr("That isn't an Owl Tracker household file.")
+        com.owl.tracker.data.HouseholdException.Problem.OTHER_HOUSEHOLD -> tr("That update is from a different household.")
+        com.owl.tracker.data.HouseholdException.Problem.DAMAGED -> tr("That file is damaged or from a different household.")
+        com.owl.tracker.data.HouseholdException.Problem.TOO_NEW -> tr("That file is from a newer Owl Tracker. Update the app, then open it again.")
+        com.owl.tracker.data.HouseholdException.Problem.FULL -> tr("A household is up to {0} people.", com.owl.tracker.data.Households.MAX_PEOPLE.toString())
+        com.owl.tracker.data.HouseholdException.Problem.OWN -> tr("That's your own update. Send it to the others in your household.")
     }
 
     fun setHouseBudget(paise: Long) = viewModelScope.launch {
