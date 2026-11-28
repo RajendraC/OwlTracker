@@ -368,10 +368,15 @@ fun EventEditSheet(vm: AppViewModel, id: String?) {
     )
     Text(tr("What counts towards it"), style = MaterialTheme.typography.labelLarge)
     val chosenSet = chosen.split(",").filter { it.isNotEmpty() }.toSet()
-    // Groups first, then the categories of the groups not chosen whole
-    val options = remember(cats, chosen) {
+    var allCats by remember { mutableStateOf(false) }
+    // Each group, and under it its categories when one of them is chosen (or when all are asked for); a group
+    // chosen whole stands for all of its categories
+    val options = remember(cats, chosen, allCats) {
         val tops = tree.spendTops.filter { it.id != com.owl.tracker.core.Cat.TRANSFERS && it.id != com.owl.tracker.core.Cat.EMI }
-        tops.flatMap { top -> listOf(top) + if (top.id in chosenSet) emptyList() else tree.children(top.id) }
+        tops.flatMap { top ->
+            val kids = tree.children(top.id)
+            listOf(top) + if (top.id in chosenSet || (!allCats && kids.none { it.id in chosenSet })) emptyList() else kids
+        }
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { c ->
@@ -388,6 +393,7 @@ fun EventEditSheet(vm: AppViewModel, id: String?) {
             )
         }
     }
+    if (!allCats) TextButton(onClick = { allCats = true }, modifier = Modifier.testTag("event_all_cats")) { Text(tr("More choices")) }
     Text(tr("Payments in these categories during its dates count toward it, and still count in your monthly budget. You can move any payment in or out from its details."),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     val b = (budget.toLongOrNull() ?: 0) * 100
