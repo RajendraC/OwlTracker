@@ -236,6 +236,8 @@ data class AppSettings(
     val goals: String = "[]",
     /** Event budgets (Diwali, a wedding, a trip), as JSON (`Events.fromJson`). Kept in backups. */
     val events: String = "[]",
+    /** The shared household (`Households.fromJson`): its key and other people's spending, so never in backups. */
+    val household: String = "",
     /** The colours picked in Settings (`Palette.key`). */
     val palette: String = "cream",
     /** How the owl reacts to what you do: "lively" (hops, confetti), "calm" (its face only) or "off". */
@@ -270,6 +272,7 @@ data class AppSettings(
         "card_credit_kinds" to cardCreditKinds,
         "goals" to goals,
         "events" to events,
+        "household" to household,
         "palette" to palette,
         "owl_reacts" to owlReacts,
         "ignored_bills" to ignoredBills,
@@ -298,6 +301,7 @@ data class AppSettings(
             cardCreditKinds = m["card_credit_kinds"] ?: "{}",
             goals = m["goals"] ?: "[]",
             events = m["events"] ?: "[]",
+            household = m["household"] ?: "",
             palette = m["palette"] ?: "cream",
             owlReacts = m["owl_reacts"]?.takeIf { it in setOf("lively", "calm", "off") } ?: "lively",
             ignoredBills = m["ignored_bills"] ?: "[]",

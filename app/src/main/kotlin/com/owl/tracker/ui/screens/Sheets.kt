@@ -107,6 +107,7 @@ fun SheetHost(vm: AppViewModel) {
                 is Sheet.GoalEdit -> GoalEditSheet(vm, current.id)
                 is Sheet.GoalAdd -> GoalAddSheet(vm, current.id, current.suggest)
                 is Sheet.EventEdit -> EventEditSheet(vm, current.id)
+                Sheet.HouseSetup -> HouseSetupSheet(vm)
                 is Sheet.Split -> SplitSheet(vm, current.txId)
                 is Sheet.Rename -> RenameSheet(vm, current.txId)
                 is Sheet.MerchantIcon -> MerchantIconSheet(vm, current.txId)

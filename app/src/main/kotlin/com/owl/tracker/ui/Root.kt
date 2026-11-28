@@ -96,6 +96,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
     // The message on show, so an owl's reaction can be drawn as one
     var showing by remember { androidx.compose.runtime.mutableStateOf<UiMessage?>(null) }
 
+    LaunchedEffect(vm) { vm.houseShares.collect { platform.shareFile(it, com.owl.tracker.data.Households.MIME, tr("Owl Tracker household"), tr("Send to your household")) } }
     LaunchedEffect(vm) { vm.reportShares.collect { r -> platform.shareFile(r.file, r.format.mime, tr("Owl Tracker report"), tr("Share the report")) } }
 
     LaunchedEffect(vm) {
@@ -176,6 +177,7 @@ private fun RootContent(vm: AppViewModel, platform: Platform) {
                 Screen.GOALS -> com.owl.tracker.ui.screens.GoalsScreen(vm)
                 Screen.EVENTS -> com.owl.tracker.ui.screens.EventsScreen(vm)
                 Screen.EVENT -> com.owl.tracker.ui.screens.EventScreen(vm)
+                Screen.HOUSEHOLD -> com.owl.tracker.ui.screens.HouseholdScreen(vm)
                 Screen.DB_ERROR -> DbErrorScreen(vm)
                 Screen.UNLOCK -> UnlockScreen(vm, platform)
                 Screen.BACKUP -> BackupScreen(vm, platform)

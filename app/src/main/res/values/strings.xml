@@ -4,5 +4,6 @@
     <string name="widget_budget_name">Owl Tracker: this month</string>
     <string name="widget_budget_description">Your budget ring, what you spent and what\'s left</string>
     <string name="widget_today_name">Owl Tracker: today</string>
+    <string name="open_household_file">Owl Tracker household</string>
     <string name="widget_today_description">Today against its share, and a button to add cash</string>
 </resources>

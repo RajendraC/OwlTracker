@@ -240,6 +240,9 @@ object WhatsNew {
     data class Item(val title: String, val line: String)
 
     private val NOTES: Map<String, List<Item>> = mapOf(
+        "1.9.37" to listOf(
+            Item(tr("Shared household"), tr("See what your home spends together, with up to four people on their own phones. You swap a small locked file on WhatsApp or Quick Share: no account, no internet. Find it in More → Shared household.")),
+        ),
         "1.9.36" to listOf(
             Item(tr("Event budgets"), tr("Give Diwali, a wedding or a trip its own budget and dates. Payments in its categories count toward it as well as your month, and you can move any payment in or out. Find it in More → Event budgets.")),
         ),

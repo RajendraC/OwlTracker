@@ -225,6 +225,8 @@ fun HomeScreen(vm: AppViewModel) {
     val homeEvents = if (dash.isCurrent) vm.eventsOnHome(eventMap) else emptyList()
     val eventWrap = eventTick.let { if (dash.isCurrent) vm.eventWrap(eventMap, goals) else null }
     val festival = eventTick.let { if (dash.isCurrent) vm.festivalOffer(eventMap) else null }
+    val houseNow by vm.houseView.collectAsStateWithLifecycle()
+    val house = houseNow?.takeIf { dash.isCurrent }
     var askNudges by remember(settings?.onboarded) { androidx.compose.runtime.mutableStateOf(vm.askForNudges(settings)) }
     val paidTab = wholeMonth && whereView == "paid" && openGroup == null && openCat == null
     androidx.activity.compose.BackHandler(enabled = paidTab && openPaid != null) { openPaid = null }
@@ -243,7 +245,7 @@ fun HomeScreen(vm: AppViewModel) {
         (if (settings?.sampleData == true) 1 else 0) + (if (settings?.smsEnabled == false && settings?.sampleData != true) 1 else 0) +
         (if (dash.over.isNotEmpty()) 1 else 0) + (if (showChanges) 1 else 0) + (if (recapOffer != null) 1 else 0) + (if (askNudges) 1 else 0) +
         (if (noSpendYesterday != null) 1 else 0) + (if (showStreak) 1 else 0) + (if (showBills) 1 else 0) + (if (showGoals) 1 else 0) + (if (leftover != null) 1 else 0) + (if (reportOffer != null) 1 else 0) + (if (salary != null) 1 else 0) +
-        homeEvents.size + (if (eventWrap != null) 1 else 0) + (if (festival != null) 1 else 0)
+        homeEvents.size + (if (eventWrap != null) 1 else 0) + (if (festival != null) 1 else 0) + (if (house != null) 1 else 0)
     // The list runs up behind the status bar: once the header has gone, a band of the background colour keeps
     // the status bar readable, and a card scrolled to stops just below it
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -322,6 +324,7 @@ fun HomeScreen(vm: AppViewModel) {
             homeEvents.forEach { st -> item(key = "event_${st.event.id}") { EventHomeCard(vm, st, side) } }
             eventWrap?.let { w -> item(key = "event_wrap") { EventWrapCard(vm, w, side) } }
             festival?.let { f -> item(key = "festival") { FestivalOfferCard(vm, f, side) } }
+            house?.let { v -> item(key = "house") { HouseHomeCard(vm, v, side) } }
             // Last month's leftover, offered to the first goal not yet full (once)
             leftover?.let { (p, left) ->
                 val goal = goals.first { !it.done }

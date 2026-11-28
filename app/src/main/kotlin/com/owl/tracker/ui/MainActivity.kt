@@ -59,6 +59,14 @@ class MainActivity : FragmentActivity() {
 
     /** Opened from a nudge or a widget: go where it points. */
     private fun handleOpen(intent: android.content.Intent?) {
+        // A household file (invite or update) opened in, or shared from, WhatsApp, Files or Quick Share
+        if (intent?.action == android.content.Intent.ACTION_VIEW || intent?.action == android.content.Intent.ACTION_SEND) {
+            @Suppress("DEPRECATION")
+            val uri = intent.data ?: intent.getParcelableExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)
+            intent.action = null
+            if (uri != null) vm.openHouseFile(uri)
+            return
+        }
         val what = intent?.getStringExtra(com.owl.tracker.nudge.Nudges.EXTRA_OPEN) ?: return
         intent.removeExtra(com.owl.tracker.nudge.Nudges.EXTRA_OPEN)
         vm.openFromOutside(what)

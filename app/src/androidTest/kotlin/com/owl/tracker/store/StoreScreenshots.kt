@@ -852,6 +852,48 @@ class StoreScreenshots {
                 com.owl.tracker.ui.AppViewModel.homeOffersOn = false
                 nav(com.owl.tracker.ui.Screen.HOME)
             }
+            section("household") {
+                // The setup sheet, then a household of three: Home's card, and its own page
+                val H = com.owl.tracker.data.Households
+                withVm { it.openSheet(com.owl.tracker.ui.Sheet.HouseSetup) }
+                waitForTag("house_me", 20_000)
+                onNode(hasTestTag("house_me")).performTextInput("Raj")
+                Thread.sleep(800)
+                shot("99e_house_setup")
+                withVm { it.closeSheet() }
+                var today = java.time.LocalDate.now()
+                withVm { today = it.today() }
+                val now = System.currentTimeMillis()
+                val me = H.start(com.owl.tracker.i18n.tr("Our home"), "Raj", false, 60_000_00, now)
+                runBlocking { app.container.repo.updateSettings { it.copy(household = H.toJson(me)) } }
+                val invite = H.peek(H.invite(me)) as com.owl.tracker.data.HouseFile.Invite
+                val C = com.owl.tracker.core.Cat
+                fun days(vararg spend: Pair<String, Long>) = (0L until 20L).associate { d -> today.minusDays(d) to spend.associate { (c, r) -> c to r * 100 / 20 * (1 + d % 3) / 2 } }
+                val priya = H.join(invite, "Priya", true)
+                val amma = H.join(invite, "Amma", false)
+                val pays = listOf("DMart" to 1840L, "Swiggy" to 420L, "Apollo Pharmacy" to 610L, "Big Basket" to 1290L, "Zomato" to 380L)
+                    .mapIndexed { i, (m, r) -> com.owl.tracker.data.HousePayment(today.minusDays(i.toLong()), m, r * 100, if (i % 2 == 0) C.GROCERIES else C.FOOD) }
+                withVm { it.openHouseBytes(H.update(priya, now - 86_400_000L, days(C.GROCERIES to 6200, C.FOOD to 3400, C.SHOPPING to 2800), emptyMap(), pays)) }
+                Thread.sleep(1500)
+                withVm { it.openHouseBytes(H.update(amma, now - 3 * 86_400_000L, days(C.GROCERIES to 4100, C.FOOD to 900), emptyMap(), emptyList())) }
+                Thread.sleep(1500)
+                nav(com.owl.tracker.ui.Screen.HOME)
+                Thread.sleep(1500)
+                waitForTag("house_card", 20_000)
+                scrollTo(hasTestTag("house_card"), below = 60f)
+                Thread.sleep(800)
+                shot("99f_house_home")
+                nav(com.owl.tracker.ui.Screen.HOUSEHOLD)
+                waitForTag("house_person_1", 20_000)
+                onNode(hasTestTag("house_person_1")).performClick()
+                Thread.sleep(800)
+                shot("99g_house_screen")
+                runCatching { scrollTo(hasTestTag("house_send"), below = 200f) }
+                Thread.sleep(800)
+                shot("99h_house_send")
+                runBlocking { app.container.repo.updateSettings { it.copy(household = "") } }
+                nav(com.owl.tracker.ui.Screen.HOME)
+            }
             section("settings") {
                 nav(Screen.SETTINGS)
                 waitForTag("theme_choice", 20_000)

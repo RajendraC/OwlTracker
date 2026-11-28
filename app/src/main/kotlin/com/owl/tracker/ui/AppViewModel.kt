@@ -80,7 +80,7 @@ data class Recap(
 enum class Screen(val tab: Tab? = null) {
     WELCOME, DISCLOSURE, IMPORT_FILTERS, IMPORT_REVIEW, IMPORTING, BUDGET_SETUP,
     HOME(Tab.HOME), ACTIVITY(Tab.ACTIVITY), BUDGETS(Tab.BUDGETS), MORE(Tab.MORE),
-    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES, ADJUST_BUDGETS, STREAKS, BILLS, GOALS, EVENTS, EVENT,
+    CATEGORIES, SETTINGS, INSIGHTS, PRIVACY, DB_ERROR, UNLOCK, BACKUP, RULES, ADJUST_BUDGETS, STREAKS, BILLS, GOALS, EVENTS, EVENT, HOUSEHOLD,
 }
 
 sealed interface Sheet {
@@ -96,6 +96,8 @@ sealed interface Sheet {
     data class GoalAdd(val id: String, val suggest: Long = 0) : Sheet
     /** A new event budget (Diwali, a wedding, a trip), or changing one ([id]). */
     data class EventEdit(val id: String?) : Sheet
+    /** Starting a household, or joining one from an invite that was opened. */
+    data object HouseSetup : Sheet
     data class Split(val txId: Long) : Sheet
     data class Rename(val txId: Long) : Sheet
     data class MerchantIcon(val txId: Long) : Sheet
@@ -653,6 +655,187 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     private fun saveEvents(transform: (List<com.owl.tracker.data.EventBudget>) -> List<com.owl.tracker.data.EventBudget>) = viewModelScope.launch {
         repo.updateSettings { s -> s.copy(events = com.owl.tracker.data.Events.toJson(transform(com.owl.tracker.data.Events.fromJson(s.events)))) }
     }
+
+    // ---- Shared household (1.9.37) ----
+
+    val household: StateFlow<com.owl.tracker.data.Household?> = settings
+        .map { com.owl.tracker.data.Households.fromJson(it?.household) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** What I spent each day of the last [Households.DAYS] days, by category group (what an update carries). */
+    private val myHouseDays: StateFlow<Pair<Map<LocalDate, Map<String, Long>>, List<com.owl.tracker.data.HousePayment>>> = household
+        .map { it != null }
+        .distinctUntilChanged()
+        .flatMapLatest { on ->
+            if (!on) kotlinx.coroutines.flow.flowOf(emptyMap<LocalDate, Map<String, Long>>() to emptyList())
+            else combine(repo.observeTransactions(startMs(today().minusDays(com.owl.tracker.data.Households.DAYS)), startMs(today().plusDays(1))), categories) { txns, cats ->
+                val tree = CategoryTree(cats)
+                val days = mutableMapOf<LocalDate, MutableMap<String, Long>>()
+                val payments = mutableListOf<com.owl.tracker.data.HousePayment>()
+                txns.forEach { t ->
+                    val day = dateOf(t.occurredAt)
+                    t.portions().filter { it.isSpending(tree.byId[it.categoryId]) }.forEach { p ->
+                        val top = tree.top(p.categoryId)
+                        val m = days.getOrPut(day) { mutableMapOf() }
+                        m[top] = (m[top] ?: 0) + p.amountPaise
+                        payments += com.owl.tracker.data.HousePayment(day, t.merchantName, p.amountPaise, top)
+                    }
+                }
+                days.mapValues { it.value.toMap() } to payments.sortedByDescending { it.date }
+            }
+        }
+        .catch { emit(emptyMap<LocalDate, Map<String, Long>>() to emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap<LocalDate, Map<String, Long>>() to emptyList())
+
+    /** One person's share of this month's household spending. */
+    data class HousePerson(val id: String, val name: String, val me: Boolean, val totalPaise: Long, val byGroup: Map<String, Long>, val updatedAt: Long, val sharesAll: Boolean, val names: Map<String, String>)
+    data class HouseView(val h: com.owl.tracker.data.Household, val period: BudgetPeriod, val people: List<HousePerson>, val totalPaise: Long, val byGroup: List<Pair<String, Long>>)
+
+    val houseView: StateFlow<HouseView?> = combine(household, myHouseDays, settings) { h, mine, s ->
+        if (h == null || s == null) return@combine null
+        val period = BudgetMath.periodFor(today(), s.budgetStartDay)
+        val until = period.endExclusive.minusDays(1)
+        fun between(days: Map<LocalDate, Map<String, Long>>) = days.filterKeys { period.contains(it) }.values.flatMap { it.entries }
+            .groupBy({ it.key }, { it.value }).mapValues { (_, v) -> v.sum() }
+        val me = between(mine.first).let { HousePerson(h.meId, h.meName, true, it.values.sum(), it, h.lastSentAt, h.shareAll, emptyMap()) }
+        val others = h.others.map { m -> com.owl.tracker.data.Households.spentBetween(m, period.start, until).let { HousePerson(m.id, m.name, false, it.values.sum(), it, m.updatedAt, m.sharesAll, m.names) } }
+        val people = listOf(me) + others
+        val byGroup = people.flatMap { it.byGroup.entries }.groupBy({ it.key }, { it.value }).mapValues { (_, v) -> v.sum() }.toList().sortedByDescending { it.second }
+        HouseView(h, period, people, people.sumOf { it.totalPaise }, byGroup)
+    }.catch { emit(null) }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** A member's payments, for the household screen (only from people who share every payment). */
+    fun housePayments(id: String): List<com.owl.tracker.data.HousePayment> {
+        val h = household.value ?: return emptyList()
+        val period = houseView.value?.period ?: return emptyList()
+        val list = if (id == h.meId) myHouseDays.value.second else h.others.firstOrNull { it.id == id }?.payments ?: emptyList()
+        return list.filter { period.contains(it.date) }.sortedByDescending { it.date }
+    }
+
+    /** An invite that was opened, waiting for the person to join with their name. */
+    val pendingInvite = MutableStateFlow<com.owl.tracker.data.HouseFile.Invite?>(null)
+
+    /** Household files (invites and updates) ready for the share sheet. */
+    val houseShares = MutableSharedFlow<java.io.File>(extraBufferCapacity = 1)
+
+    private suspend fun writeHouse(h: com.owl.tracker.data.Household?) = repo.updateSettings { it.copy(household = com.owl.tracker.data.Households.toJson(h)) }
+
+    private fun houseFileName(h: com.owl.tracker.data.Household, kind: String): String {
+        val safe = { x: String -> x.filter { it.isLetterOrDigit() || it == ' ' }.trim().replace(' ', '-').ifEmpty { "home" }.take(24) }
+        return "owl-${safe(h.name)}-${safe(h.meName)}-$kind-${today()}.owlhome"
+    }
+
+    private suspend fun shareHouse(bytes: ByteArray, name: String) {
+        runCatching { c.reports.writeForSharing(bytes, name) }
+            .onSuccess { houseShares.tryEmit(it) }
+            .onFailure { say(tr("Couldn't prepare the file.")) }
+    }
+
+    fun startHousehold(name: String, meName: String, shareAll: Boolean, budgetPaise: Long) = viewModelScope.launch {
+        if (household.value != null) return@launch
+        val h = com.owl.tracker.data.Households.start(name, meName, shareAll, budgetPaise, c.clock.millis())
+        writeHouse(h)
+        _sheet.value = null
+        go(Screen.HOUSEHOLD)
+        shareHouse(com.owl.tracker.data.Households.invite(h), houseFileName(h, "invite"))
+    }
+
+    /** Sends the invite again (to the next person). */
+    fun shareInvite() = viewModelScope.launch {
+        val h = household.value ?: return@launch
+        if (h.others.size >= com.owl.tracker.data.Households.MAX_PEOPLE - 1) { say(tr("A household is up to {0} people.", com.owl.tracker.data.Households.MAX_PEOPLE.toString())); return@launch }
+        shareHouse(com.owl.tracker.data.Households.invite(h), houseFileName(h, "invite"))
+    }
+
+    fun joinHousehold(meName: String, shareAll: Boolean) = viewModelScope.launch {
+        val invite = pendingInvite.value ?: return@launch
+        if (household.value != null) return@launch
+        val h = com.owl.tracker.data.Households.join(invite, meName, shareAll)
+        writeHouse(h)
+        pendingInvite.value = null
+        _sheet.value = null
+        go(Screen.HOUSEHOLD)
+        // The first update tells the others who joined
+        sendHouseUpdate()
+    }
+
+    fun sendHouseUpdate() = viewModelScope.launch {
+        val h = household.value ?: return@launch
+        val now = c.clock.millis()
+        val tree = CategoryTree(categories.value)
+        val (days, payments) = myHouseDays.value
+        val names = days.values.flatMap { it.keys }.toSet().mapNotNull { id -> tree.byId[id]?.takeIf { !it.isSystem }?.let { id to it.name } }.toMap()
+        val bytes = com.owl.tracker.data.Households.update(h, now, days, names, payments)
+        writeHouse(h.copy(lastSentAt = now))
+        shareHouse(bytes, houseFileName(h, "update"))
+    }
+
+    /** A household file opened from another app, or picked in the app. */
+    fun openHouseFile(uri: android.net.Uri) = viewModelScope.launch {
+        val bytes = runCatching { c.backups.read(uri) }.getOrNull()
+        if (bytes == null) { say(tr("Couldn't open that file.")); return@launch }
+        openHouseBytes(bytes)
+    }
+
+    fun openHouseBytes(bytes: ByteArray) = viewModelScope.launch {
+        val P = com.owl.tracker.data.HouseholdException.Problem
+        val problemText = { p: com.owl.tracker.data.HouseholdException.Problem ->
+            when (p) {
+                P.NOT_HOUSEHOLD -> tr("That isn't an Owl Tracker household file.")
+                P.OTHER_HOUSEHOLD -> tr("That update is from a different household.")
+                P.DAMAGED -> tr("That file is damaged or from a different household.")
+                P.TOO_NEW -> tr("That file is from a newer Owl Tracker. Update the app, then open it again.")
+                P.FULL -> tr("A household is up to {0} people.", com.owl.tracker.data.Households.MAX_PEOPLE.toString())
+                P.OWN -> tr("That's your own update. Send it to the others in your household.")
+            }
+        }
+        val file = try { com.owl.tracker.data.Households.peek(bytes) } catch (e: com.owl.tracker.data.HouseholdException) { say(problemText(e.problem)); return@launch }
+        val h = household.value
+        when (file) {
+            is com.owl.tracker.data.HouseFile.Invite -> when {
+                h == null -> { pendingInvite.value = file; _sheet.value = Sheet.HouseSetup }
+                h.id == file.id -> { go(Screen.HOUSEHOLD); say(tr("You're already in {0}.", h.name)) }
+                else -> say(tr("You're already in a household. Leave {0} first to join another.", h.name))
+            }
+            is com.owl.tracker.data.HouseFile.Update -> {
+                if (h == null) { say(tr("Join the household first: open the invite you were sent.")); return@launch }
+                try {
+                    val updated = com.owl.tracker.data.Households.apply(h, file, today())
+                    if (updated == h) { go(Screen.HOUSEHOLD); say(tr("You already have this update.")); return@launch }
+                    writeHouse(updated)
+                    val who = updated.others.maxByOrNull { it.updatedAt }?.name ?: ""
+                    go(Screen.HOUSEHOLD)
+                    say(tr("Added {0}'s spending.", who))
+                } catch (e: com.owl.tracker.data.HouseholdException) { say(problemText(e.problem)) }
+            }
+        }
+    }
+
+    fun setHouseBudget(paise: Long) = viewModelScope.launch {
+        val h = household.value ?: return@launch
+        writeHouse(h.copy(budgetPaise = paise.coerceAtLeast(0), budgetAt = c.clock.millis()))
+        say(tr("Household budget saved. It reaches the others with your next update."))
+    }
+
+    fun setHouseShareAll(all: Boolean) = viewModelScope.launch {
+        val h = household.value ?: return@launch
+        writeHouse(h.copy(shareAll = all))
+    }
+
+    fun removeHouseMember(id: String) = viewModelScope.launch {
+        val h = household.value ?: return@launch
+        writeHouse(h.copy(others = h.others.filterNot { it.id == id }))
+    }
+
+    fun leaveHousehold() = viewModelScope.launch {
+        writeHouse(null)
+        go(Screen.MORE)
+        say(tr("You left the household. Its spending was removed from this phone."))
+    }
+
+    /** Home: the household card, with "send an update" pressed on after a week without one. */
+    fun houseUpdateDue(h: com.owl.tracker.data.Household): Boolean = c.clock.millis() - h.lastSentAt > 7L * 24 * 60 * 60 * 1000
 
     fun saveEvent(id: String?, template: String, name: String, start: LocalDate, end: LocalDate, budgetPaise: Long, categories: Set<String>) {
         if (name.isBlank() || budgetPaise <= 0 || end.isBefore(start) || categories.isEmpty()) return
