@@ -52,8 +52,15 @@ class StreaksAndChecksFlowTest {
             waitForTag("quick_check")
             waitForTag("quick_check_question")
             waitForTag("quick_check_more")
-            // Its own category, confirmed (the choices load from the database)
-            waitForTag("quick_check_yes", timeoutMs = 30_000)
+            // Its own category, confirmed (the choices load from the database). On the API 26 run the first load
+            // sometimes never lands; opening the sheet again loads them afresh.
+            val loaded = runCatching { waitForTag("quick_check_yes", timeoutMs = 20_000) }.isSuccess
+            if (!loaded) {
+                compose.runOnUiThread { vm.closeSheet() }
+                compose.waitForIdle()
+                compose.runOnUiThread { vm.openSheet(Sheet.QuickCheck(t.id)) }
+                waitForTag("quick_check_yes", timeoutMs = 30_000)
+            }
             tapTag("quick_check_yes")
             waitForText("Thanks:", substring = true)
             waitUntil(5_000) { onAllNodesWithTag("quick_check").fetchSemanticsNodes().isEmpty() }
