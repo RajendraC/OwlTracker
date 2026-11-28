@@ -97,7 +97,7 @@ fun levelName(level: DayLevel, budgeted: Boolean): String = when (level) {
     DayLevel.FUTURE -> tr("Still to come")
 }
 
-private val DAY_LONG = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
+private val DAY_LONG = DateTimeFormatter.ofPattern("EEE d MMM", com.owl.tracker.i18n.I18n.locale)
 fun dayTitle(d: LocalDate): String = d.format(DAY_LONG)
 
 /**
@@ -345,7 +345,7 @@ fun WeekDaysRow(days: List<DayTotal>, picked: LocalDate?, today: LocalDate, budg
                 // Seven columns: names and amounts grow only a little with big text, then get smaller to fit
                 CapFontScale(1.25f) {
                     FitText(
-                        d.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH),
+                        d.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, com.owl.tracker.i18n.I18n.locale),
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
                         color = if (on || d.date == today) MaterialTheme.colorScheme.primary else muted, minScale = 0.7f,
                     )

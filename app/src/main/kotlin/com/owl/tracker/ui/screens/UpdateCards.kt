@@ -96,7 +96,7 @@ fun UpdateCard(
 
 private fun sizeText(bytes: Long): String {
     val mb = bytes / 1_000_000.0
-    return if (mb >= 1) String.format(Locale.ENGLISH, "%.0f MB", mb.coerceAtLeast(1.0)) else tr("under 1 MB")
+    return if (mb >= 1) String.format(com.owl.tracker.i18n.I18n.locale, "%.0f MB", mb.coerceAtLeast(1.0)) else tr("under 1 MB")
 }
 
 /** What's new, once after updating (board P4, Round 25). */

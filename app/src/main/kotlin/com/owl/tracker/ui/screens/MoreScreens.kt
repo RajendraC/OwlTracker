@@ -132,7 +132,7 @@ fun MoreScreen(vm: AppViewModel) {
             runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
         }
         Text(
-            tr("Owl Tracker {0}\nFonts: Plus Jakarta Sans and Fraunces, under the SIL Open Font License 1.1\nCategory icons: Fluent Emoji by Microsoft, under the MIT License\nCategory picture props: Noto Emoji by Google, under the Apache License 2.0", version),
+            tr("Owl Tracker {0}\nFonts: Plus Jakarta Sans, Fraunces and Baloo 2, under the SIL Open Font License 1.1\nCategory icons: Fluent Emoji by Microsoft, under the MIT License\nCategory picture props: Noto Emoji by Google, under the Apache License 2.0", version),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
         )
         // Room for the raised Add button
@@ -152,7 +152,7 @@ fun RulesScreen(vm: AppViewModel) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var plan by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<AppViewModel.RuleDeletePlan?>(null) }
     var putBack by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
-    val made = DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
+    val made = DateTimeFormatter.ofPattern("d MMM", com.owl.tracker.i18n.I18n.locale)
     LazyColumn(
         Modifier.fillMaxSize().testTag("rules_list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -351,6 +351,9 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
 
         SectionLabel(tr("Appearance"))
         Panel(padding = 12.dp) {
+            Text(tr("Language") + if (com.owl.tracker.i18n.I18n.lang != "en") " · Language" else "", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
+            LanguageChoice(vm, Modifier.padding(horizontal = 8.dp))
+            Divider()
             PaletteChoice(com.owl.tracker.ui.theme.Palette.from(settings.palette)) { vm.setPalette(it) }
             Divider()
             ThemeChoice(settings.theme) { vm.setTheme(it) }
@@ -385,7 +388,7 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             NavRow(
                 Ic.message, tr("SMS access"),
                 when {
-                    settings.smsEnabled && granted -> tr("Allowed · last scan ") + if (settings.lastSyncAt > 0) java.time.Instant.ofEpochMilli(settings.lastSyncAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM, h:mm a", Locale.ENGLISH)) else "never"
+                    settings.smsEnabled && granted -> tr("Allowed · last scan ") + if (settings.lastSyncAt > 0) java.time.Instant.ofEpochMilli(settings.lastSyncAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM, h:mm a", com.owl.tracker.i18n.I18n.locale)) else "never"
                     settings.smsEnabled -> tr("Permission was removed in Android settings")
                     else -> tr("Off · manual mode")
                 },
@@ -393,7 +396,7 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             Divider()
             NavRow(
                 Ic.filter, tr("What to import"),
-                tr("{0} months · ", f.rangeMonths) + (if (f.disabledSenders.isEmpty()) tr("all senders") else tr("{0} sender{1} left out", f.disabledSenders.size, if (f.disabledSenders.size == 1) "" else "s")) +
+                tr("{0} months · ", f.rangeMonths) + (if (f.disabledSenders.isEmpty()) tr("all senders") else (if (f.disabledSenders.size == 1) tr("1 sender left out") else tr("{0} senders left out", f.disabledSenders.size))) +
                     if (f.skipWords.isNotEmpty()) tr(" · {0} skip words", f.skipWords.size) else "",
             ) { if (settings.smsEnabled && granted) vm.startImport(ImportMode.SETTINGS) else vm.go(Screen.DISCLOSURE) }
             Divider()
@@ -409,7 +412,7 @@ fun SettingsScreen(vm: AppViewModel, platform: Platform) {
             NavRow(
                 Ic.database,
                 if (storage.total > 0) tr("{0} transactions stored", storage.total) else tr("Nothing stored yet"),
-                storage.oldestMs?.let { tr("Since ") + vm.dateOf(it).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)) + tr(" · encrypted on this phone") } ?: tr("Import or add expenses to get started"),
+                storage.oldestMs?.let { tr("Since ") + vm.dateOf(it).format(DateTimeFormatter.ofPattern("MMMM yyyy", com.owl.tracker.i18n.I18n.locale)) + tr(" · encrypted on this phone") } ?: tr("Import or add expenses to get started"),
                 iconTint = MaterialTheme.colorScheme.onPrimaryContainer, iconBg = MaterialTheme.colorScheme.primaryContainer, trailing = {},
             ) { }
             Divider()

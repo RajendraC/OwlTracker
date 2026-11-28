@@ -65,6 +65,8 @@ fun WelcomeScreen(vm: AppViewModel) {
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         com.owl.tracker.ui.components.OwlBadge(size = 72.dp)
+        // Language first, in each language's own script
+        LanguageChoice(vm)
         Text(tr("Your spending, sorted from your bank SMS"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
         Text(
             tr("Owl Tracker turns bank, card and UPI alerts into a monthly dashboard, without sending anything anywhere."),
@@ -79,6 +81,31 @@ fun WelcomeScreen(vm: AppViewModel) {
         }
         androidx.compose.material3.TextButton(onClick = { vm.openBackup() }, modifier = Modifier.fillMaxWidth().testTag("welcome_restore")) {
             Text(tr("Moving from another phone? Restore from a backup"))
+        }
+    }
+}
+
+/**
+ * The app's languages as a row of choices, each in its own script (English · हिंदी), so anyone can find theirs.
+ * Picking one restarts the app in that language.
+ */
+@Composable
+fun LanguageChoice(vm: AppViewModel, modifier: Modifier = Modifier) {
+    val c = MaterialTheme.colorScheme
+    val langs = com.owl.tracker.i18n.I18n.languages
+    androidx.compose.material3.SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth().testTag("language_choice")) {
+        langs.forEachIndexed { i, l ->
+            androidx.compose.material3.SegmentedButton(
+                selected = l.code == com.owl.tracker.i18n.I18n.lang,
+                onClick = { vm.setLanguage(l.code) },
+                shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(i, langs.size),
+                colors = androidx.compose.material3.SegmentedButtonDefaults.colors(
+                    inactiveContainerColor = androidx.compose.ui.graphics.Color.Transparent, inactiveContentColor = c.onSurface,
+                    activeContainerColor = c.primaryContainer, activeContentColor = c.onPrimaryContainer,
+                ),
+                modifier = Modifier.testTag("language_${l.code}"),
+                label = { com.owl.tracker.ui.components.FitText(l.ownName, minScale = 0.7f) },
+            )
         }
     }
 }

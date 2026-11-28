@@ -56,7 +56,7 @@ fun QuickCheckSheet(vm: AppViewModel, txId: Long) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
                 Text(tx.merchantName, style = MaterialTheme.typography.titleLarge)
-                val time = Instant.ofEpochMilli(tx.occurredAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM, h:mm a", Locale.ENGLISH))
+                val time = Instant.ofEpochMilli(tx.occurredAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM, h:mm a", com.owl.tracker.i18n.I18n.locale))
                 Text((tx.accountLabel?.let { "$it · " } ?: "") + time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(Money.formatInr(tx.amountPaise), style = MaterialTheme.typography.headlineSmall)

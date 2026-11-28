@@ -126,7 +126,7 @@ fun UnlockScreen(vm: AppViewModel, platform: Platform) {
             is Access.Trial -> StatusCard(
                 Ic.calendar, MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.primaryContainer,
                 tr("Free trial: {0} left", daysText(a.daysLeft)),
-                tr("Ends on {0}. After that Owl Tracker turns read-only: ", vm.dateOf(a.endsAt).format(DateTimeFormatter.ofPattern("d MMMM", Locale.ENGLISH))) +
+                tr("Ends on {0}. After that Owl Tracker turns read-only: ", vm.dateOf(a.endsAt).format(DateTimeFormatter.ofPattern("d MMMM", com.owl.tracker.i18n.I18n.locale))) +
                     tr("everything stays visible, but nothing new comes in until you unlock it."),
                 Modifier.testTag("unlock_trial"),
             )

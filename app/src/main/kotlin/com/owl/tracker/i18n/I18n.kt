@@ -17,6 +17,7 @@ object I18n {
 
     val languages = listOf(
         Language("en", "English", "English"),
+        Language("hi", "हिंदी", "Hindi"),
     )
 
     @Volatile var lang: String = "en"

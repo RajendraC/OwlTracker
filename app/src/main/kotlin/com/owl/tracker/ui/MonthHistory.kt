@@ -51,7 +51,7 @@ data class MonthHistory(
     companion object {
         val EMPTY = MonthHistory(emptyList(), emptyList(), BudgetPeriod(LocalDate.of(1970, 1, 1), LocalDate.of(1970, 2, 1)), emptyMap(), emptyMap(), emptyList(), 0)
 
-        fun label(p: BudgetPeriod): String = p.start.plusDays(14).month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+        fun label(p: BudgetPeriod): String = p.start.plusDays(14).month.getDisplayName(TextStyle.SHORT, com.owl.tracker.i18n.I18n.locale)
 
         /** By group (and categories on their own), like budgets and Home's ring. */
         fun build(txns: List<Txn>, cats: List<Category>, months: List<BudgetPeriod>, current: BudgetPeriod, zone: ZoneId): MonthHistory {

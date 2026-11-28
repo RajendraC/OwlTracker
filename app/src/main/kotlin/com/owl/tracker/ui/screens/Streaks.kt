@@ -67,7 +67,7 @@ private fun WeekDots(st: Streak) {
                 Box(Modifier.size(32.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) {
                     Text(text, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
                 }
-                Text(d.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.ENGLISH), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(d.dayOfWeek.getDisplayName(TextStyle.NARROW, com.owl.tracker.i18n.I18n.locale), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

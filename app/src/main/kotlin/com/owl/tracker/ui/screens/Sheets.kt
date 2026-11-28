@@ -219,8 +219,8 @@ private fun TxnDetailSheet(vm: AppViewModel, id: Long) {
     }
 
     Panel(padding = 12.dp) {
-        DetailRow(tr("Date"), vm.dateOf(tx.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.ENGLISH)) + ", " +
-            java.time.Instant.ofEpochMilli(tx.occurredAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)))
+        DetailRow(tr("Date"), vm.dateOf(tx.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", com.owl.tracker.i18n.I18n.locale)) + ", " +
+            java.time.Instant.ofEpochMilli(tx.occurredAt).atZone(java.time.ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("h:mm a", com.owl.tracker.i18n.I18n.locale)))
         Divider()
         if (tx.isSplit) {
             Column(
@@ -527,7 +527,7 @@ private fun SplitSheet(vm: AppViewModel, txId: Long) {
             MerchantAvatar(vm.appIcons, tx.merchantPackage, tx.merchantName, cats.firstOrNull { it.id == tx.categoryId }, 40.dp)
             Column(Modifier.weight(1f)) {
                 Text(tx.merchantName, style = MaterialTheme.typography.titleSmall)
-                Text(vm.dateOf(tx.occurredAt).format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(vm.dateOf(tx.occurredAt).format(DateTimeFormatter.ofPattern("EEE d MMM", com.owl.tracker.i18n.I18n.locale)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(Money.formatInr(tx.amountPaise, showPaise = tx.amountPaise % 100 != 0L), style = MaterialTheme.typography.titleMedium)
         }
@@ -1056,7 +1056,7 @@ private fun AddExpenseSheet(vm: AppViewModel) {
         val other = daysAgo > 1
         FilterChip(
             selected = other, onClick = { picking = true },
-            label = { Text(if (other) vm.today().minusDays(daysAgo.toLong()).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.ENGLISH)) else tr("Pick a date")) },
+            label = { Text(if (other) vm.today().minusDays(daysAgo.toLong()).format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", com.owl.tracker.i18n.I18n.locale)) else tr("Pick a date")) },
             leadingIcon = { Icon(Ic.calendar, contentDescription = null, modifier = Modifier.size(18.dp)) },
             modifier = Modifier.testTag("add_pick_date"),
         )
@@ -1230,7 +1230,7 @@ private fun SkippedSheet(vm: AppViewModel) {
     val ui by vm.importUi.collectAsStateWithLifecycle()
     val items = remember(ui.scan, ui.draft) { vm.skipped() }
     val context = LocalContext.current
-    val fmt = remember { DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH) }
+    val fmt = remember { DateTimeFormatter.ofPattern("d MMM", com.owl.tracker.i18n.I18n.locale) }
     val groups = remember(items) { items.groupBy { it.reason } }
 
     SheetTitle(tr("Skipped messages"), tr("{0} messages in this period weren't read as transactions. None of them is stored.", items.size))
@@ -1337,7 +1337,7 @@ private fun MoveDialog(vm: AppViewModel, tx: com.owl.tracker.data.Txn, target: S
                                 Column(Modifier.weight(1f)) {
                                     Row {
                                         Text(
-                                            vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH)) + if (p.id == tx.id) tr(" · this one") else "",
+                                            vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("EEE, d MMM", com.owl.tracker.i18n.I18n.locale)) + if (p.id == tx.id) tr(" · this one") else "",
                                             style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
                                         )
                                         Text(Money.formatInr(p.amountPaise), style = MaterialTheme.typography.titleSmall)
@@ -1393,7 +1393,7 @@ private fun OneCategoryPicker(p: com.owl.tracker.data.Txn, target: String, cats:
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag("apply_pick_dialog"),
-        title = { Text(tr("Where does {0} · {1} go?", vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)), Money.formatInr(p.amountPaise))) },
+        title = { Text(tr("Where does {0} · {1} go?", vm.dateOf(p.occurredAt).format(DateTimeFormatter.ofPattern("d MMM", com.owl.tracker.i18n.I18n.locale)), Money.formatInr(p.amountPaise))) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                 Text(tr("Only this payment."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -192,7 +192,7 @@ object SavingTips {
         return SavingPlan(tips.sortedByDescending { it.monthlyPaise }.take(MAX_TIPS), keep, n)
     }
 
-    private val DAY = java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
+    private val DAY = java.time.format.DateTimeFormatter.ofPattern("d MMM", com.owl.tracker.i18n.I18n.locale)
 
     /** ₹1,234 → ₹1,200 and ₹437 → ₹440: tips are estimates, so they don't pretend to the rupee. */
     internal fun nice(paise: Long): Long = when {

@@ -166,7 +166,7 @@ private fun RestorePanel(vm: AppViewModel, ui: BackupUi, newPhone: Boolean, onPi
         if (header != null) {
             Gap(12.dp)
             Text(ui.fileName ?: tr("Backup file"), style = MaterialTheme.typography.titleSmall)
-            val made = if (header.createdAt > 0) tr("Made ") + vm.dateOf(header.createdAt).format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)) else tr("Backup")
+            val made = if (header.createdAt > 0) tr("Made ") + vm.dateOf(header.createdAt).format(DateTimeFormatter.ofPattern("d MMM yyyy", com.owl.tracker.i18n.I18n.locale)) else tr("Backup")
             Text(
                 made + if (header.encrypted) tr(" · password protected") else "",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -215,7 +215,7 @@ private fun RestorePanel(vm: AppViewModel, ui: BackupUi, newPhone: Boolean, onPi
 
 @Composable
 private fun Summary(vm: AppViewModel, c: BackupContent) {
-    val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
+    val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", com.owl.tracker.i18n.I18n.locale)
     val span = if (c.firstAt != null && c.lastAt != null) "${vm.dateOf(c.firstAt!!).format(fmt)} – ${vm.dateOf(c.lastAt!!).format(fmt)}" else tr("no payments")
     Column(Modifier.testTag("restore_summary")) {
         Text("${c.transactions.size} ${if (c.transactions.size == 1) "payment" else "payments"} · $span", style = MaterialTheme.typography.titleSmall)

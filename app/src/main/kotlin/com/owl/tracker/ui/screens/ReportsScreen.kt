@@ -775,7 +775,7 @@ private fun WeekdayCard(r: Report, vm: AppViewModel) {
                     // Seven narrow columns: "Wed" grows only a little with big text, then gets smaller to fit
                     com.owl.tracker.ui.components.CapFontScale(1.3f) {
                         com.owl.tracker.ui.components.FitText(
-                            w.day.getDisplayName(TextStyle.SHORT, Locale.ENGLISH).take(3), style = MaterialTheme.typography.labelSmall,
+                            w.day.getDisplayName(TextStyle.SHORT, com.owl.tracker.i18n.I18n.locale).take(3), style = MaterialTheme.typography.labelSmall,
                             color = if (isPicked) primary else MaterialTheme.colorScheme.onSurfaceVariant, minScale = 0.6f,
                         )
                     }

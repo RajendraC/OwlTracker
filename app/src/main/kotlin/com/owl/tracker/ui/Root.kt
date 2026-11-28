@@ -80,7 +80,9 @@ fun OwlTrackerRoot(vm: AppViewModel, platform: Platform) {
         androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onBackground,
     ) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            RootContent(vm, platform)
+            // Drawn afresh when the language changes under tests (outside tests the app restarts)
+            val language by vm.languageVersion.collectAsStateWithLifecycle()
+            androidx.compose.runtime.key(language) { RootContent(vm, platform) }
         }
     }
 }

@@ -268,7 +268,7 @@ fun ImportReviewScreen(vm: AppViewModel) {
     val selected = all.count { it.smsId !in ui.reviewOff && vm.monthOf(it) !in ui.monthsOff }
     val allShownOn = shown.all { it.smsId !in ui.reviewOff && vm.monthOf(it) !in ui.monthsOff }
     val unsure = all.count { it.tx.needsReview }
-    val fmt = remember { DateTimeFormatter.ofPattern("EEE d MMM, h:mm a", Locale.ENGLISH) }
+    val fmt = remember { DateTimeFormatter.ofPattern("EEE d MMM, h:mm a", com.owl.tracker.i18n.I18n.locale) }
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(tr("Review before importing"), tr("{0} of {1} selected · tap any to leave it out", selected, all.size), onBack = { vm.back() })
@@ -296,7 +296,7 @@ fun ImportReviewScreen(vm: AppViewModel) {
                     ) {
                         Checkmark(monthOn)
                         Text(
-                            month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)) + " · ${monthItems.size}",
+                            month.format(DateTimeFormatter.ofPattern("MMMM yyyy", com.owl.tracker.i18n.I18n.locale)) + " · ${monthItems.size}",
                             style = MaterialTheme.typography.titleSmall,
                         )
                     }

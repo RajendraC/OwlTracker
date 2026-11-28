@@ -164,7 +164,7 @@ object Nudges {
 
     /** A month that starts on a later day (salary day) is named after the month most of it falls in. */
     fun monthName(p: com.owl.tracker.core.BudgetPeriod): String =
-        p.start.plusDays((p.days / 2).toLong()).month.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
+        p.start.plusDays((p.days / 2).toLong()).month.getDisplayName(TextStyle.FULL, com.owl.tracker.i18n.I18n.locale)
 
     private fun days(n: Int) = if (n == 1) tr("1 day") else tr("{0} days", n)
 
@@ -271,7 +271,7 @@ object PaymentChecks {
         val public = NotificationCompat.Builder(context, Nudges.CHECK).setSmallIcon(R.drawable.ic_notify_owl).setContentTitle(tr("Owl Tracker")).setContentText(tr("A new payment to check")).build()
         val posts = if (fresh.size <= 3) fresh.map { t ->
             val cat = cats[t.categoryId]?.name ?: tr("Not sorted yet")
-            val time = java.time.Instant.ofEpochMilli(t.occurredAt).atZone(app.container.clock.zone).toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH))
+            val time = java.time.Instant.ofEpochMilli(t.occurredAt).atZone(app.container.clock.zone).toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", com.owl.tracker.i18n.I18n.locale))
             val yes = PendingIntent.getBroadcast(context, t.id.toInt(), Intent(context, CheckReceiver::class.java).setAction(Nudges.ACTION_CHECK_YES).putExtra(Nudges.EXTRA_TX, t.id),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             (CHECK_BASE + (t.id % 100_000).toInt()) to NotificationCompat.Builder(context, Nudges.CHECK)

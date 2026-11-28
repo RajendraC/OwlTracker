@@ -624,7 +624,7 @@ private fun HomeHeader(
 ) {
     val brand = LocalBrand.current
     val dark = com.owl.tracker.ui.theme.LocalDarkTheme.current
-    val monthName = dash.period.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH))
+    val monthName = dash.period.start.format(DateTimeFormatter.ofPattern("MMMM", com.owl.tracker.i18n.I18n.locale))
     val title = when {
         weekMode -> week?.title ?: tr("Week by week")
         !dash.isCurrent -> tr("Looking back")
@@ -1094,7 +1094,7 @@ private fun WeekCard(vm: AppViewModel, week: com.owl.tracker.ui.WeekView, picked
                     if (c != null) {
                         val than = if (c.days < 7) {
                             val from = week.start.minusDays(7)
-                            val short = { d: LocalDate -> d.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH) }
+                            val short = { d: LocalDate -> d.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, com.owl.tracker.i18n.I18n.locale) }
                             if (c.days == 1) tr("last {0}", short(from)) else tr("{0}–{1} last week", short(from), short(from.plusDays(c.days - 1L)))
                         } else tr("the week before")
                         val lead = if (week.fixed > 0) tr("Leaving out EMIs and rent, ") else ""
@@ -1130,7 +1130,7 @@ private fun WeekCard(vm: AppViewModel, week: com.owl.tracker.ui.WeekView, picked
                     Figure(
                         tr("Biggest day"),
                         if (biggest == null || biggest.paise == 0L) tr("None yet")
-                        else biggest.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.ENGLISH) + " " + Money.formatShort(biggest.paise),
+                        else biggest.date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, com.owl.tracker.i18n.I18n.locale) + " " + Money.formatShort(biggest.paise),
                         brand.spentBg, MaterialTheme.colorScheme.onSurface, com.owl.tracker.R.drawable.soft3d_wallet, "figure_week_biggest", tr("Show that day"),
                         biggest?.takeIf { it.paise > 0 }?.let { b -> { onPick(b.date) } },
                     ),
@@ -1289,8 +1289,8 @@ private fun SavingNudge(vm: AppViewModel, plan: com.owl.tracker.ui.SavingPlan) {
     }
 }
 
-private val dayFmt = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
-private val timeFmt = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
+private val dayFmt = DateTimeFormatter.ofPattern("EEE d MMM", com.owl.tracker.i18n.I18n.locale)
+private val timeFmt = DateTimeFormatter.ofPattern("h:mm a", com.owl.tracker.i18n.I18n.locale)
 
 fun dayLabel(vm: AppViewModel, d: LocalDate): String = when (d) {
     vm.today() -> tr("Today")

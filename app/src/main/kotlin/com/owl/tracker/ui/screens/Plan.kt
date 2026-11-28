@@ -67,7 +67,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 private val Mango = Color(0xFFFFB21A)
-private val dueFmt = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
+private val dueFmt = DateTimeFormatter.ofPattern("d MMM", com.owl.tracker.i18n.I18n.locale)
 
 private fun dueWords(due: LocalDate, today: LocalDate): String = when (val n = ChronoUnit.DAYS.between(today, due).toInt()) {
     0 -> "today"
@@ -299,7 +299,7 @@ private fun GoalCard(vm: AppViewModel, g: Goal, today: LocalDate) {
                 Column(Modifier.weight(1f)) {
                     Text(g.emoji, fontSize = 26.sp)
                     Text(g.name, style = MaterialTheme.typography.titleLarge)
-                    Text(tr("{0} of {1}", Money.formatInr(g.savedPaise), Money.formatInr(g.targetPaise)) + (g.by?.let { tr("\nby {0}", it.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))) } ?: ""),
+                    Text(tr("{0} of {1}", Money.formatInr(g.savedPaise), Money.formatInr(g.targetPaise)) + (g.by?.let { tr("\nby {0}", it.format(DateTimeFormatter.ofPattern("d MMM yyyy", com.owl.tracker.i18n.I18n.locale))) } ?: ""),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val per = g.perMonth(today)
                     when {

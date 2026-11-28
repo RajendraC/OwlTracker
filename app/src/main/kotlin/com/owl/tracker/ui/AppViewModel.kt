@@ -55,6 +55,9 @@ enum class Tab { HOME, ACTIVITY, BUDGETS, MORE }
 /** An owl badge: earned or still to earn. */
 data class Badge(val id: String, val name: String, val earnedText: String, val howTo: String, val earned: Boolean)
 
+/** A built-in category's name in the app's language (a name someone typed has no translation and stays). */
+fun categoryLabel(name: String): String = tr(name)
+
 /** A badge's picture, on the Streaks page and in pictures to share. */
 fun badgeEmoji(id: String) = when (id) {
     "wise_start" -> "🦉"; "thrifty" -> "🪙"; "on_target" -> "🎯"; "saver" -> "🌱"; "zero_day" -> "🌟"
@@ -309,8 +312,17 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         .catch { _screen.value = Screen.DB_ERROR }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val categories: StateFlow<List<Category>> = repo.observeCategories()
+    /** Categories as saved (English names for the built-in ones). */
+    private val savedCategories: StateFlow<List<Category>> = repo.observeCategories()
         .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Bumped when the language changes under tests (outside tests the app restarts instead). */
+    val languageVersion = MutableStateFlow(0)
+
+    /** Categories as shown: built-in names in the app's language; names people typed stay as typed. */
+    val categories: StateFlow<List<Category>> = combine(savedCategories, languageVersion) { list, _ -> list }
+        .map { list -> if (com.owl.tracker.i18n.I18n.lang == "en") list else list.map { it.copy(name = categoryLabel(it.name)) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val budgets: StateFlow<Map<String, Long>> = repo.observeBudgets()
@@ -451,7 +463,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             weekShare = if (overall > 0) overall * 7 / periodDays else 0L,
             categoryShares = budgets.filterKeys { it != Schema.OVERALL }.mapValues { it.value * 7 / periodDays },
             monthLeft = monthLeft, safePerDay = safe, daysLeft = daysLeft,
-            monthName = if (month.start.dayOfMonth == 1) month.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)) else tr("this budget month"),
+            monthName = if (month.start.dayOfMonth == 1) month.start.format(DateTimeFormatter.ofPattern("MMMM", com.owl.tracker.i18n.I18n.locale)) else tr("this budget month"),
         )
     }
 
@@ -466,7 +478,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val everyday = w.everydayBudget(dash.overall, FIXED_CATEGORIES.sumOf { budgets.value[it] ?: 0L }, spends.filter { it.fixed }.sumOf { it.paise })
         val share = if (dash.overall > 0) DayShare(w.dailyShare(everyday, p.days), true)
         else DayShare(w.usualDay(spends, p.start, earlier(p.endExclusive, today.plusDays(1))), false)
-        val title = if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)) else dash.label
+        val title = if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM", com.owl.tracker.i18n.I18n.locale)) else dash.label
         return MonthCalendar(w.calendar(p.start, p.endExclusive, spends, today) { share.paise }, share, title, firstPaymentDay.value)
     }
 
@@ -1425,7 +1437,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     /** The skipped list as text to share for support, with long digit runs (account, card, phone, reference numbers) hidden. */
     fun skippedReport(): String {
         val items = skipped()
-        val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
+        val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", com.owl.tracker.i18n.I18n.locale)
         return buildString {
             append(tr("Owl Tracker skipped {0} messages\n", items.size))
             items.groupBy { it.reason }.toSortedMap(compareBy<com.owl.tracker.core.RejectReason> { SKIP_ORDER.indexOf(it) }).forEach { (reason, list) ->
@@ -1712,7 +1724,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
         val plain = tr("Added {0} to {1}", Money.formatInr(amountPaise), name) + when (daysAgo) {
             0 -> ""
             1 -> tr(" for yesterday")
-            else -> tr(" on ") + day.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ENGLISH))
+            else -> tr(" on ") + day.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", com.owl.tracker.i18n.I18n.locale))
         }
         val undo: () -> Unit = { viewModelScope.launch { if (id > 0) repo.deleteTransaction(id); say(tr("Removed {0} from {1}", Money.formatInr(amountPaise), name)) } }
         val reacts = settings.value?.owlReacts ?: "lively"
@@ -1762,6 +1774,20 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
             .filter { counts(it, catMap) && it.categoryId in FIXED_CATEGORIES }.sumOf { it.amountPaise }
         val w = com.owl.tracker.core.Weeks
         return w.dailyShare(w.everydayBudget(overall, FIXED_CATEGORIES.sumOf { budgets.value[it] ?: 0L }, fixedSpent), p.days)
+    }
+
+    /**
+     * Switches the app's language. The app starts again, so every screen, notification and widget is in the new
+     * language at once.
+     */
+    fun setLanguage(code: String) {
+        if (code == com.owl.tracker.i18n.I18n.lang || com.owl.tracker.i18n.I18n.languages.none { it.code == code }) return
+        com.owl.tracker.i18n.I18n.load(c.context, code)
+        runCatching { com.owl.tracker.nudge.OwlWidgets.refresh(c.context) }
+        if (runningTests()) { languageVersion.value++; return }
+        val again = c.context.packageManager.getLaunchIntentForPackage(c.context.packageName)
+            ?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        if (again != null) { c.context.startActivity(again); Runtime.getRuntime().exit(0) }
     }
 
     fun setOwlReacts(how: String) = viewModelScope.launch {
@@ -1839,7 +1865,10 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun saveCategory(id: String?, name: String, icon: String, color: Long, countsAsSpend: Boolean, parent: String? = null) = viewModelScope.launch {
         if (!editable()) return@launch
         if (name.isBlank()) { say(tr("Give the category a name")); return@launch }
-        repo.saveCategory(id, name.trim(), icon, color, countsAsSpend, parent)
+        // A built-in name left as shown (translated) is saved as it was, so it follows the language
+        val saved = id?.let { i -> savedCategories.value.firstOrNull { it.id == i }?.name }
+        val keep = if (saved != null && categoryLabel(saved) == name.trim()) saved else name.trim()
+        repo.saveCategory(id, keep, icon, color, countsAsSpend, parent)
         closeSheet()
         say(if (id == null) tr("{0} added", name.trim()) else tr("Category updated"))
     }
@@ -1942,7 +1971,7 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun periodLabel(p: BudgetPeriod): String =
-        if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH))
+        if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM yyyy", com.owl.tracker.i18n.I18n.locale))
         else p.start.format(SHORT) + " – " + p.endExclusive.minusDays(1).format(SHORT)
 
     /** Money out that counts as spending. Money in never does (see [Txn.isSpending]). */
@@ -2033,6 +2062,6 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
 
         /** 4821 -> ##21, 629112345678 -> ##########78. Amounts like 1,240.00 keep their digits. */
         fun maskDigits(s: String): String = LONG_DIGITS.replace(s) { m -> "#".repeat(m.value.length - 2) + m.value.takeLast(2) }
-        private val SHORT = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
+        private val SHORT = DateTimeFormatter.ofPattern("d MMM", com.owl.tracker.i18n.I18n.locale)
     }
 }

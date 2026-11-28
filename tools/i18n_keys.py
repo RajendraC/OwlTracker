@@ -31,8 +31,15 @@ def unescape(s):
     return ''.join(out)
 
 
+CATEGORY = re.compile(r'\be\(Cat\.\w+,\s*"((?:[^"\\]|\\.)*)"')
+
+
 def keys():
     found = {}
+    # built-in category names (shown through categoryLabel)
+    db = open(os.path.join(SRC, 'com/owl/tracker/data/Db.kt'), encoding='utf-8').read()
+    for m in CATEGORY.finditer(db):
+        found.setdefault(unescape(m.group(1)), 'com/owl/tracker/data/Db.kt')
     for path in glob.glob(os.path.join(SRC, '**/*.kt'), recursive=True):
         text = open(path, encoding='utf-8').read()
         for m in CALL.finditer(text):

@@ -150,7 +150,7 @@ private fun RecapRing(used: Double, centre: String, sub: String) {
     }
 }
 
-private val dayFmt = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
+private val dayFmt = DateTimeFormatter.ofPattern("EEE d MMM", com.owl.tracker.i18n.I18n.locale)
 
 private fun recapCards(r: Recap): List<RecapCard> = buildList {
     val cocoa = Color(0xFF3A1C0C); val rust = Color(0xFF8A3E12); val mango = Color(0xFFE08A12)

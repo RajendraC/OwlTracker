@@ -162,7 +162,7 @@ object ReportBuilder {
         // Buckets: days of the month for "This month", otherwise budget months.
         val daily = range == ReportRange.ONE
         data class Bucket(val start: LocalDate, val end: LocalDate, val label: String, val title: String)
-        val dayTitle = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
+        val dayTitle = DateTimeFormatter.ofPattern("EEE d MMM", com.owl.tracker.i18n.I18n.locale)
         val buckets: List<Bucket> = if (daily) {
             val p = periods.first()
             (0 until p.days).map { i ->
@@ -170,7 +170,7 @@ object ReportBuilder {
                 Bucket(d, d.plusDays(1), d.dayOfMonth.toString(), d.format(dayTitle))
             }
         } else {
-            periods.map { p -> Bucket(p.start, p.endExclusive, p.start.format(DateTimeFormatter.ofPattern("MMM", Locale.ENGLISH)), periodTitle(p)) }
+            periods.map { p -> Bucket(p.start, p.endExclusive, p.start.format(DateTimeFormatter.ofPattern("MMM", com.owl.tracker.i18n.I18n.locale)), periodTitle(p)) }
         }
         val bucket = filter.bucket?.takeIf { it in buckets.indices }
         // Drilling down: a month of a longer range splits into its days, and one day can be picked
@@ -345,14 +345,14 @@ object ReportBuilder {
         )
     }
 
-    private val MONTH_YEAR = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH)
+    private val MONTH_YEAR = DateTimeFormatter.ofPattern("MMM yyyy", com.owl.tracker.i18n.I18n.locale)
 
     fun periodTitle(p: BudgetPeriod): String =
-        if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH))
-        else p.start.format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)) + " – " +
-            p.endExclusive.minusDays(1).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))
+        if (p.start.dayOfMonth == 1) p.start.format(DateTimeFormatter.ofPattern("MMMM yyyy", com.owl.tracker.i18n.I18n.locale))
+        else p.start.format(DateTimeFormatter.ofPattern("d MMM", com.owl.tracker.i18n.I18n.locale)) + " – " +
+            p.endExclusive.minusDays(1).format(DateTimeFormatter.ofPattern("d MMM", com.owl.tracker.i18n.I18n.locale))
 
-    fun plural(d: DayOfWeek): String = d.getDisplayName(TextStyle.FULL, Locale.ENGLISH) + "s"
+    fun plural(d: DayOfWeek): String = d.getDisplayName(TextStyle.FULL, com.owl.tracker.i18n.I18n.locale) + "s"
 
     private fun highlights(
         range: ReportRange,
@@ -387,7 +387,7 @@ object ReportBuilder {
             add(tr("You spend most on {0}: {1} across {2} {3}.", plural(it.day), Money.formatInr(it.paise), it.count, if (it.count == 1) tr("payment") else tr("payments")))
         }
         spending.maxByOrNull { it.amountPaise }?.let {
-            add(tr("Biggest payment: {0} to {1} on {2}.", Money.formatInr(it.amountPaise), it.merchantName, dateOf(it).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))))
+            add(tr("Biggest payment: {0} to {1} on {2}.", Money.formatInr(it.amountPaise), it.merchantName, dateOf(it).format(DateTimeFormatter.ofPattern("d MMM", com.owl.tracker.i18n.I18n.locale))))
         }
         merchants.maxByOrNull { it.count }?.takeIf { it.count >= 3 }?.let {
             add(tr("Most frequent: {0}, {1} payments.", it.name, it.count))
