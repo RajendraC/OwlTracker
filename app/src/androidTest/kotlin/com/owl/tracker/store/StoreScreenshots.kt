@@ -96,6 +96,11 @@ class StoreScreenshots {
                     "capture", "seedInbox" -> freshAppWithDemoInbox()
                     "smsDemo" -> prepareSmsDemo()
                 }
+                // -e language hi: the whole run in that language (set before the screen opens)
+                InstrumentationRegistry.getArguments().getString("language")?.takeIf { it.isNotBlank() }?.let { lang ->
+                    val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+                    com.owl.tracker.i18n.I18n.load(ctx, lang)
+                }
                 base.evaluate()
             }
         }
@@ -115,7 +120,10 @@ class StoreScreenshots {
             shot("02_disclosure")
 
             tapTag("allow_sms") // READ_SMS is already granted, so no system dialog
-            waitForText("transactions from", timeoutMs = 60_000)
+            // the scan's summary line, in English or Hindi
+            compose.waitUntil(60_000) {
+                listOf("transactions from", "भेजने वालों से").any { t -> compose.onAllNodes(hasText(t, substring = true)).fetchSemanticsNodes().isNotEmpty() }
+            }
             shot("03_import_filters")
 
             tapTag("review_button")

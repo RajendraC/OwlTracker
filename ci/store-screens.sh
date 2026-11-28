@@ -6,7 +6,7 @@
 #   $1: emulator date as MMDDhhmmYYYY (empty keeps the real date)
 #   $2: "true" for the dark theme
 #   $4: font scale (1.0 normal); $5: screen density for the display size (empty keeps the profile's).
-#       Any other text or display size skips the tour.
+#       $6: app language code (empty: English). Any other text or display size, or language, skips the tour.
 #   $3: "sms-demo" for the SMS permission walkthrough (StoreScreenshots#smsDemo) instead, saved in
 #       store-screens/ too, for tools/make_sms_demo_video.py
 set -uo pipefail
@@ -15,6 +15,9 @@ NIGHT="${2:-false}"
 WHAT="${3:-screenshots}"
 FONT_SCALE="${4:-1.0}"
 DENSITY="${5:-}"
+LANGUAGE="${6:-}"
+LANG_ARGS=()
+[ -n "$LANGUAGE" ] && LANG_ARGS=(-e language "$LANGUAGE")
 OUT=store-screens
 mkdir -p "$OUT" logs
 PKG=com.owl.tracker
@@ -98,7 +101,7 @@ fi
 echo "== Screenshots"
 adb logcat -c || true
 # Time limits: once, adb stayed stuck after the test had finished, until the job's own hour ran out
-timeout 1800 adb shell am instrument -w -r -e storeShots 1 -e class "$CLASS#capture" "$RUNNER" 2>&1 | tee logs/capture.log
+timeout 1800 adb shell am instrument -w -r -e storeShots 1 "${LANG_ARGS[@]}" -e class "$CLASS#capture" "$RUNNER" 2>&1 | tee logs/capture.log
 ran_ok logs/capture.log || { echo "::error::StoreScreenshots#capture did not pass"; status=1; }
 timeout 120 adb logcat -d -s OwlStoreShots:* TestRunner:* AndroidRuntime:E OwlScene:* OwlHistory:* chromium:W > logs/capture-logcat.txt 2>&1 || true
 # Steps that were skipped, here in the log rather than only in the artifact
@@ -106,7 +109,7 @@ grep -E " [WE] (OwlStoreShots|OwlHistory)" logs/capture-logcat.txt | head -60 ||
 timeout 300 adb pull /sdcard/Android/data/$PKG/files/store-screens/. "$OUT/" || echo "::warning::Could not pull screenshots"
 ls -la "$OUT"
 
-if [ "$FONT_SCALE" != "1.0" ] || [ -n "$DENSITY" ]; then
+if [ "$FONT_SCALE" != "1.0" ] || [ -n "$DENSITY" ] || [ -n "$LANGUAGE" ]; then
   adb shell am broadcast -a com.android.systemui.demo -e command exit >/dev/null 2>&1 || true
   exit $status
 fi

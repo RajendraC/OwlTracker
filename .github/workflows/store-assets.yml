@@ -27,6 +27,9 @@ on:
       density:
         description: "Display size as a screen density (empty: the profile's; 480 makes a Pixel 6 360 dp wide like many Realme and Redmi phones)"
         default: ""
+      language:
+        description: "App language code (empty: English; hi: Hindi). Not English: captures go to their own pre-release (…-hi)"
+        default: ""
       what:
         description: "screenshots: Play screenshots and tour; sms-demo: the SMS permission walkthrough for the declaration video (sms-demo pre-release)"
         type: choice
@@ -37,7 +40,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: store-screens-${{ inputs.what }}-${{ inputs.night }}-${{ inputs.font_scale }}-${{ inputs.density }}
+  group: store-screens-${{ inputs.what }}-${{ inputs.night }}-${{ inputs.font_scale }}-${{ inputs.density }}-${{ inputs.language }}
   cancel-in-progress: true
 
 jobs:
@@ -78,7 +81,7 @@ jobs:
           disk-size: 4096M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -timezone Asia/Kolkata
           disable-animations: true
-          script: bash ci/store-screens.sh "${{ inputs.date }}" "${{ inputs.night }}" "${{ inputs.what }}" "${{ inputs.font_scale }}" "${{ inputs.density }}"
+          script: bash ci/store-screens.sh "${{ inputs.date }}" "${{ inputs.night }}" "${{ inputs.what }}" "${{ inputs.font_scale }}" "${{ inputs.density }}" "${{ inputs.language }}"
 
       - name: Upload captures
         if: always()
@@ -98,6 +101,7 @@ jobs:
           NIGHT: ${{ inputs.night }}
           FONT_SCALE: ${{ inputs.font_scale }}
           DENSITY: ${{ inputs.density }}
+          LANGUAGE: ${{ inputs.language }}
         run: |
           # Normal size: store-screens(-dark). Other text or display sizes get their own pre-release, e.g.
           # store-screens-text1.3-d480, so the Play captures are never replaced by them.
@@ -106,6 +110,7 @@ jobs:
             TAG=store-screens
             if [ "$FONT_SCALE" != "1.0" ] || [ -n "$DENSITY" ]; then TAG="$TAG-text$FONT_SCALE${DENSITY:+-d$DENSITY}"; fi
             if [ "$NIGHT" = "true" ]; then TAG="$TAG-dark"; fi
+            if [ -n "$LANGUAGE" ]; then TAG="$TAG-$LANGUAGE"; fi
           fi
           shopt -s nullglob
           files=(store-screens/* logs/*)
