@@ -175,10 +175,11 @@ fun CoinStacksStage(
         },
     ) {
         val density = LocalDensity.current
-        val k = min(1f, maxWidth.value / 300f)
+        val maxW = maxWidth
+        val k = min(1f, maxW.value / 300f)
         val stageH = 250.dp * k
         val n = stacks.size.coerceAtLeast(1)
-        val slot = maxWidth / n
+        val slot = maxW / n
         val stackW = min(38f, slot.value * 0.74f).dp
         val pitch = 5.dp * k
         val coinH = 8.dp * k
@@ -322,7 +323,7 @@ fun CoinStacksStage(
                             s.paise >= (s.budget ?: 0) * 0.9 -> (if (dark) Color(0xFFFFD98A) else Color(0xFF7A5300)) to (if (dark) Color(0xFF4A3A14) else Color(0xFFFFF0C9))
                             else -> (if (dark) Color(0xFF9FE0B4) else Color(0xFF1E7A43)) to (if (dark) Color(0xFF1E3A28) else Color(0xFFDDF3E3))
                         }
-                        val bx = (owlPos.x + px(owlSize) * 0.86f).coerceAtMost(px(maxWidth) - px(84.dp)).coerceAtLeast(0f)
+                        val bx = (owlPos.x + px(owlSize) * 0.86f).coerceAtMost(px(maxW) - px(84.dp)).coerceAtLeast(0f)
                         Text(
                             words,
                             Modifier.offset { IntOffset(bx.roundToInt(), (owlPos.y + px(2.dp)).roundToInt()) }.zIndex(90f)
