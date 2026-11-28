@@ -372,7 +372,7 @@ fun EventEditSheet(vm: AppViewModel, id: String?) {
     // Each group, and under it its categories when one of them is chosen (or when all are asked for); a group
     // chosen whole stands for all of its categories
     val options = remember(cats, chosen, allCats) {
-        val tops = tree.spendTops.filter { it.id != com.owl.tracker.core.Cat.TRANSFERS && it.id != com.owl.tracker.core.Cat.EMI }
+        val tops = tree.spendTops.filter { it.id !in setOf(com.owl.tracker.core.Cat.TRANSFERS, com.owl.tracker.core.Cat.EMI, com.owl.tracker.core.Cat.INVESTMENTS) }
         tops.flatMap { top ->
             val kids = tree.children(top.id)
             listOf(top) + if (top.id in chosenSet || (!allCats && kids.none { it.id in chosenSet })) emptyList() else kids
