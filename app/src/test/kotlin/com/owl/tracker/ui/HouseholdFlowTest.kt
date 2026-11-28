@@ -30,6 +30,19 @@ class HouseholdFlowTest {
     private val vm get() = ViewModelProvider(compose.activity)[AppViewModel::class.java]
     private val app get() = compose.activity.application as com.owl.tracker.OwlTrackerApp
 
+    /**
+     * Sharing a file fills FileProvider's static cache with this test's temporary folders; later tests in the same
+     * JVM get new ones, so the cache is cleared after each test here.
+     */
+    @org.junit.After
+    fun forgetFileProviderRoots() {
+        runCatching {
+            val f = androidx.core.content.FileProvider::class.java.getDeclaredField("sCache")
+            f.isAccessible = true
+            (f.get(null) as MutableMap<*, *>).clear()
+        }
+    }
+
     private fun spend(rupees: Long, merchant: String, category: String): Long = runBlocking {
         val at = vm.today().atTime(12, 0).atZone(app.container.clock.zone).toInstant().toEpochMilli()
         app.container.repo.addManual(ImportEngine.manual(rupees * 100, merchant, category, at, Direction.DEBIT))

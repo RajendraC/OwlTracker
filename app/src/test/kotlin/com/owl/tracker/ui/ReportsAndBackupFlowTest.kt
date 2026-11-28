@@ -251,19 +251,7 @@ class ReportsAndBackupFlowTest {
             typeInto("backup_confirm", "secret-one")
             onNodeWithTag("backup_save").assertIsEnabled()
             tapTag("backup_share")
-            var firstError: Throwable? = null
-            val end = System.currentTimeMillis() + 30_000
-            var seen = false
-            while (!seen && System.currentTimeMillis() < end) {
-                try {
-                    waitUntil(250) { onAllNodesWithTag("backup_done").fetchSemanticsNodes().isNotEmpty() }
-                    seen = true
-                } catch (e: Throwable) {
-                    if (e !is androidx.compose.ui.test.ComposeTimeoutException && firstError == null) firstError = e
-                }
-            }
-            if (!seen) throw AssertionError("no backup_done; first error: " + generateSequence(firstError) { e -> e.cause.takeIf { c -> c !== e } }.take(4)
-                .joinToString(" <- ") { e -> e.toString().take(400) + " @ " + e.stackTrace.take(10).joinToString(" | ") })
+            waitForTag("backup_done", timeoutMs = 30_000)
 
             // The share sheet was asked to send a content:// link to the backup, readable once
             val shadow = shadowOf(activity)
