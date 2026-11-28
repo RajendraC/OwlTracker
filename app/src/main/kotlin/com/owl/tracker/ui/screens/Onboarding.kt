@@ -1,5 +1,6 @@
 package com.owl.tracker.ui.screens
 
+import androidx.compose.material3.SegmentedButton
 import com.owl.tracker.i18n.tr
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -95,7 +96,7 @@ fun LanguageChoice(vm: AppViewModel, modifier: Modifier = Modifier) {
     val langs = com.owl.tracker.i18n.I18n.languages
     androidx.compose.material3.SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth().testTag("language_choice")) {
         langs.forEachIndexed { i, l ->
-            androidx.compose.material3.SegmentedButton(
+            SegmentedButton(
                 selected = l.code == com.owl.tracker.i18n.I18n.lang,
                 onClick = { vm.setLanguage(l.code) },
                 shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(i, langs.size),

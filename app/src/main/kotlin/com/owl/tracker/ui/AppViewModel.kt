@@ -1783,8 +1783,9 @@ class AppViewModel(private val c: AppContainer) : ViewModel() {
     fun setLanguage(code: String) {
         if (code == com.owl.tracker.i18n.I18n.lang || com.owl.tracker.i18n.I18n.languages.none { it.code == code }) return
         com.owl.tracker.i18n.I18n.load(c.context, code)
-        runCatching { com.owl.tracker.nudge.OwlWidgets.refresh(c.context) }
         if (runningTests()) { languageVersion.value++; return }
+        // Widgets redrawn in the new language before the app starts again
+        kotlinx.coroutines.runBlocking { runCatching { com.owl.tracker.nudge.OwlWidgets.refresh(c.context) } }
         val again = c.context.packageManager.getLaunchIntentForPackage(c.context.packageName)
             ?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
         if (again != null) { c.context.startActivity(again); Runtime.getRuntime().exit(0) }
