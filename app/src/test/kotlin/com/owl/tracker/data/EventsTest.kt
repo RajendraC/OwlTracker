@@ -7,9 +7,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
 import java.time.LocalDate
 import java.time.ZoneId
 
+/** Runs under Robolectric for Android's org.json. */
+@RunWith(androidx.test.ext.junit.runners.AndroidJUnit4::class)
+@org.robolectric.annotation.Config(application = com.owl.tracker.TestApp::class)
 class EventsTest {
     private val zone = ZoneId.of("Asia/Kolkata")
     private var nextId = 1L

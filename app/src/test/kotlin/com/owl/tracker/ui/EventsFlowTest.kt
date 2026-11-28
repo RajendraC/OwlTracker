@@ -62,7 +62,7 @@ class EventsFlowTest {
             waitUntil(5_000) { vm.eventStatus.value[e.id]?.spend?.totalPaise == 1500_00L }
 
             // Shown on Home while it's on
-            tapTag("tab_home")
+            runOnUiThread { vm.go(Screen.HOME) }
             waitForTag("event_card_${e.id}", 10_000)
 
             // Moved out from its details, it no longer counts
