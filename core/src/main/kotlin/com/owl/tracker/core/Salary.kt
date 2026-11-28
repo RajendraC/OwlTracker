@@ -16,19 +16,20 @@ object Salary {
         seen.filter { !it.date.isAfter(today) && ChronoUnit.DAYS.between(it.date, today) <= withinDays }.maxByOrNull { it.date }
 
     /**
-     * The day of the month salary usually comes: the last two (or three) monthly salaries landing within two days of
-     * each other. Null with fewer, or when they wander.
+     * The day of the month salary usually comes: the last two monthly salaries landing within two days of each
+     * other. Null with fewer, or when they wander.
      */
     fun usualDay(seen: List<SalarySeen>): Int? {
         // one per month: the credit nearest the latest salary's day (a bonus or a second credit counts once)
         val latestDay = seen.maxByOrNull { it.date }?.date?.dayOfMonth ?: return null
         val monthly = seen.groupBy { it.date.withDayOfMonth(1) }.values
             .map { m -> m.minWith(compareBy<SalarySeen> { kotlin.math.abs(it.date.dayOfMonth - latestDay) }.thenByDescending { it.paise }) }
-            .sortedBy { it.date }.takeLast(3)
+            .sortedBy { it.date }.takeLast(2)
         if (monthly.size < 2) return null
         val last = monthly.takeLast(2)
         if (ChronoUnit.MONTHS.between(last[0].date.withDayOfMonth(1), last[1].date.withDayOfMonth(1)) != 1L) return null
-        val days = monthly.map { it.date.dayOfMonth.coerceAtMost(28) }
+        // the last two decide; an older month on another day (a new job, a changed pay date) doesn't
+        val days = last.map { it.date.dayOfMonth.coerceAtMost(28) }
         if (days.max() - days.min() > 2) return null
         return days.last()
     }

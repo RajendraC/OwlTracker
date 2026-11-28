@@ -180,7 +180,7 @@ fun movePhrase(m: Move, months: List<Long?>, labels: List<String>): String {
     val from = months[m.from] ?: 0L
     val pct = if (from > 0) Math.round(kotlin.math.abs(m.change) * 100.0 / from) else 0
     val latest = months.getOrNull(m.to) ?: 0L
-    fun amt(p: Long) = if (p == 0L) "nothing" else Money.formatShort(p)
+    fun amt(p: Long) = if (p == 0L) tr("nothing") else Money.formatShort(p)
     return when (m.kind) {
         MoveKind.NEW -> tr("New · {0} in {1}", Money.formatShort(m.change), labels.getOrElse(m.to) { "" })
         MoveKind.RISING -> tr("↑ Rising · {0}% more than in {1}", pct, labels.getOrElse(m.from) { "" })

@@ -21,6 +21,8 @@ class SalaryTest {
         assertNull(Salary.usualDay(listOf(s("2026-11-25"))))
         assertNull(Salary.usualDay(listOf(s("2026-10-05"), s("2026-11-25"))))
         assertNull(Salary.usualDay(listOf(s("2026-08-25"), s("2026-11-25")))) // months apart
+        // a pay date that moved: the older month on the 1st does not count against the last two on the 26th
+        assertEquals(26, Salary.usualDay(listOf(s("2026-09-01"), s("2026-10-01"), s("2026-10-26"), s("2026-11-01"), s("2026-11-26"))))
     }
 
     @Test fun aBonusInTheSameMonthCountsOnce() {
