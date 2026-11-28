@@ -246,8 +246,11 @@ private fun appFont(context: Context): FontFamily {
  * cut to its soft, display style at two weights. Falls back to the body font if the phone can't read it.
  */
 private fun displayFont(context: Context, body: FontFamily): FontFamily {
-    // Hindi headings: Baloo 2 (SIL OFL, assets/fonts/OFL-Baloo2.txt), rounded like the owl, with Latin and Devanagari
-    if (com.owl.tracker.i18n.I18n.lang == "hi" && runCatching { context.resources.getFont(R.font.baloo2_bold) }.getOrNull() != null) {
+    val lang = com.owl.tracker.i18n.I18n.lang
+    // Bengali, Tamil and Telugu headings: the phone's own font for the script (Noto), as Fraunces has none of them
+    if (lang in setOf("bn", "ta", "te")) return body
+    // Hindi and Marathi headings: Baloo 2 (SIL OFL, assets/fonts/OFL-Baloo2.txt), rounded like the owl, with Latin and Devanagari
+    if (lang in setOf("hi", "mr") && runCatching { context.resources.getFont(R.font.baloo2_bold) }.getOrNull() != null) {
         return FontFamily(
             Font(R.font.baloo2_bold, FontWeight.SemiBold), Font(R.font.baloo2_bold, FontWeight.Bold),
             Font(R.font.baloo2_bold, FontWeight.ExtraBold), Font(R.font.baloo2_bold, FontWeight.Black),

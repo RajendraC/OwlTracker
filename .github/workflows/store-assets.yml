@@ -28,7 +28,7 @@ on:
         description: "Display size as a screen density (empty: the profile's; 480 makes a Pixel 6 360 dp wide like many Realme and Redmi phones)"
         default: ""
       language:
-        description: "App language code (empty: English; hi: Hindi). Not English: captures go to their own pre-release (…-hi)"
+        description: "App language code (empty: English; hi, mr, bn, ta, te). Not English: captures go to their own pre-release (…-hi)"
         default: ""
       what:
         description: "screenshots: Play screenshots and tour; sms-demo: the SMS permission walkthrough for the declaration video (sms-demo pre-release)"

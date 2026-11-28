@@ -18,6 +18,10 @@ object I18n {
     val languages = listOf(
         Language("en", "English", "English"),
         Language("hi", "हिंदी", "Hindi"),
+        Language("mr", "मराठी", "Marathi"),
+        Language("bn", "বাংলা", "Bengali"),
+        Language("ta", "தமிழ்", "Tamil"),
+        Language("te", "తెలుగు", "Telugu"),
     )
 
     @Volatile var lang: String = "en"

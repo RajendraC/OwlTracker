@@ -90,24 +90,36 @@ fun WelcomeScreen(vm: AppViewModel) {
  * The app's languages as a row of choices, each in its own script (English · हिंदी), so anyone can find theirs.
  * Picking one restarts the app in that language.
  */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun LanguageChoice(vm: AppViewModel, modifier: Modifier = Modifier) {
     val c = MaterialTheme.colorScheme
     val langs = com.owl.tracker.i18n.I18n.languages
-    androidx.compose.material3.SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth().testTag("language_choice")) {
-        langs.forEachIndexed { i, l ->
-            SegmentedButton(
-                selected = l.code == com.owl.tracker.i18n.I18n.lang,
+    // Three to a row: six languages (and more to come) don't fit one segmented row on a phone
+    androidx.compose.foundation.layout.FlowRow(
+        modifier.fillMaxWidth().testTag("language_choice"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+        maxItemsInEachRow = 3,
+    ) {
+        langs.forEach { l ->
+            val on = l.code == com.owl.tracker.i18n.I18n.lang
+            androidx.compose.material3.Surface(
+                selected = on,
                 onClick = { vm.setLanguage(l.code) },
-                shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(i, langs.size),
-                colors = androidx.compose.material3.SegmentedButtonDefaults.colors(
-                    inactiveContainerColor = androidx.compose.ui.graphics.Color.Transparent, inactiveContentColor = c.onSurface,
-                    activeContainerColor = c.primaryContainer, activeContentColor = c.onPrimaryContainer,
-                ),
-                modifier = Modifier.testTag("language_${l.code}"),
-                label = { com.owl.tracker.ui.components.FitText(l.ownName, minScale = 0.7f) },
-            )
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                color = if (on) c.primaryContainer else androidx.compose.ui.graphics.Color.Transparent,
+                contentColor = if (on) c.onPrimaryContainer else c.onSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (on) c.primaryContainer else c.outline),
+                modifier = Modifier.weight(1f).heightIn(min = 44.dp).testTag("language_${l.code}")
+                    .semantics { androidx.compose.ui.semantics.contentDescription = l.ownName + if (l.code != "en") " · " + l.englishName else "" },
+            ) {
+                Box(Modifier.padding(horizontal = 8.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+                    com.owl.tracker.ui.components.FitText(l.ownName, minScale = 0.7f)
+                }
+            }
         }
+        // keep the last row's buttons the same width as the others
+        repeat((3 - langs.size % 3) % 3) { Spacer(Modifier.weight(1f)) }
     }
 }
 
