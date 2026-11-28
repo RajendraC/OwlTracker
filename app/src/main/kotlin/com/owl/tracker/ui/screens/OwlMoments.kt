@@ -199,7 +199,10 @@ fun SharePictureDialog(p: SharePicture, platform: Platform, onClose: () -> Unit)
             Box(
                 Modifier.widthIn(max = 440.dp).fillMaxWidth().aspectRatio(if (p is SharePicture.Month) 0.8f else 1f)
                     .drawWithContent { layer.record { this@drawWithContent.drawContent() }; drawLayer(layer) },
-            ) { PictureCard(p) }
+            ) {
+                // A picture, so the phone's text size doesn't change its layout
+                com.owl.tracker.ui.components.CapFontScale(1f) { PictureCard(p) }
+            }
             Spacer(Modifier.height(10.dp))
             Text(tr("No amounts or percentages, just the wins."), color = Color(0xFFFFE3B0).copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(18.dp))
