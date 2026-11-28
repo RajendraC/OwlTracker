@@ -698,9 +698,8 @@ class StoreScreenshots {
                     }
                     // A payment's details
                     runCatching {
-                        nav(com.owl.tracker.ui.Screen.ACTIVITY)
-                        Thread.sleep(800)
-                        onAllNodes(hasTestTagStartingWith("txn_"))[0].performClick()
+                        val id = runBlocking { app.container.repo.transactions(0L, Long.MAX_VALUE).first { it.amountPaise > 0 }.id }
+                        withVm { it.openSheet(com.owl.tracker.ui.Sheet.TxnDetail(id)) }
                         Thread.sleep(1200)
                         shot("pal_${p.key}_${mode.key}_11detail")
                         withVm { it.closeSheet() }
