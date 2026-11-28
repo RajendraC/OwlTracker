@@ -23,8 +23,11 @@ class SalaryTest {
         assertNull(Salary.usualDay(listOf(s("2026-08-25"), s("2026-11-25")))) // months apart
     }
 
-    @Test fun aBonusInTheSameMonthCountsOnce() =
+    @Test fun aBonusInTheSameMonthCountsOnce() {
         assertEquals(25, Salary.usualDay(listOf(s("2026-10-25"), s("2026-10-10", 20_000), s("2026-11-25"))))
+        // another salary-sized credit early in the month doesn't hide the usual day
+        assertEquals(22, Salary.usualDay(listOf(s("2026-10-01"), s("2026-10-22"), s("2026-11-22"))))
+    }
 
     @Test fun suggestsTheSalaryDayOnlyWhenTheMonthStartsElsewhere() {
         val seen = listOf(s("2026-10-25"), s("2026-11-25"))

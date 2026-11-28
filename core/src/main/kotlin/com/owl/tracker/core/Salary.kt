@@ -20,8 +20,11 @@ object Salary {
      * each other. Null with fewer, or when they wander.
      */
     fun usualDay(seen: List<SalarySeen>): Int? {
-        // one per month: the biggest credit of each month (a bonus and a salary in one month count once)
-        val monthly = seen.groupBy { it.date.withDayOfMonth(1) }.values.map { m -> m.maxBy { it.paise } }.sortedBy { it.date }.takeLast(3)
+        // one per month: the credit nearest the latest salary's day (a bonus or a second credit counts once)
+        val latestDay = seen.maxByOrNull { it.date }?.date?.dayOfMonth ?: return null
+        val monthly = seen.groupBy { it.date.withDayOfMonth(1) }.values
+            .map { m -> m.minWith(compareBy<SalarySeen> { kotlin.math.abs(it.date.dayOfMonth - latestDay) }.thenByDescending { it.paise }) }
+            .sortedBy { it.date }.takeLast(3)
         if (monthly.size < 2) return null
         val last = monthly.takeLast(2)
         if (ChronoUnit.MONTHS.between(last[0].date.withDayOfMonth(1), last[1].date.withDayOfMonth(1)) != 1L) return null
